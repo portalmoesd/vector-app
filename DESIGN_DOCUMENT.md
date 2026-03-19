@@ -23,6 +23,7 @@ event creation, and progress tracking for the Vector Portal system.
 
 | Role                | Scope        | Description |
 |---------------------|--------------|-------------|
+| **Admin**           | System-wide  | System administrator. Manages departments, users, Deputy–Supervisor links, and country assignments via the Admin Panel. Does **not** participate in document workflows. |
 | **Deputy**          | Cross-department | Top-level official. Acts as **Document Submitter** (final approver) or **Curator** (mid-tier reviewer) depending on the document. |
 | **Supervisor**      | Per department | Oversees department workflow. Can also serve as Document Submitter. |
 | **Super-Collaborator** | Per department | Senior collaborator. Can also serve as Document Submitter. |
@@ -253,6 +254,15 @@ Collaborator(B) → Supervisor(B) → ...
 
 ## 6. Event Creation (Redesigned)
 
+### 6.0 Who Can Create Events
+
+Events can be created by any user with a **DS-eligible role**:
+- **Deputy**
+- **Supervisor**
+- **Super-Collaborator**
+
+Collaborators and Admins **cannot** create events.
+
 ### 6.1 Event Fields
 
 When creating an event, the following must be specified:
@@ -308,9 +318,12 @@ A template saves:
 - Section structure (titles and department assignments)
 - Document Submitter role
 - Curator required toggle
-- Any other reusable event configuration
 
-When creating a new event from a template, the saved configuration is pre-filled and can be adjusted before finalizing.
+Templates are **user-created and user-owned** — each user manages their own templates.
+When creating a new event from a template, the saved configuration is pre-filled and can be
+adjusted before finalizing.
+
+See §8.10–8.12 for the template data model.
 
 ---
 
@@ -409,8 +422,8 @@ User {
   username: string (unique)        // Login identifier
   email
   password_hash: string            // Bcrypt/argon2 hash — never store plaintext
-  role: enum [DEPUTY, SUPERVISOR, SUPER_COLLABORATOR, COLLABORATOR]
-  department_id: FK → Department
+  role: enum [ADMIN, DEPUTY, SUPERVISOR, SUPER_COLLABORATOR, COLLABORATOR]
+  department_id: FK → Department (nullable) // Null for Admin users
   is_external: boolean
   must_change_password: boolean (default true)  // Forces password change on first login
   created_at
@@ -492,6 +505,42 @@ WorkflowStep {
   status: enum [PENDING, IN_PROGRESS, APPROVED, RETURNED]
   reviewed_at: datetime (nullable)
   comments: text (nullable)
+}
+```
+
+### 8.10 Event Template
+
+```
+EventTemplate {
+  id
+  name: string                               // User-defined template name
+  created_by_id: FK → User                   // The user who created this template
+  document_submitter_role: enum [DEPUTY, SUPERVISOR, SUPER_COLLABORATOR]
+  curator_required: boolean (default false)
+  created_at
+  updated_at
+}
+```
+
+Templates are user-created and user-owned — each user manages their own templates.
+
+### 8.11 Event Template Section
+
+```
+EventTemplateSection {
+  id
+  template_id: FK → EventTemplate
+  title: string
+  sort_order: integer
+}
+```
+
+### 8.12 Event Template Section–Department
+
+```
+EventTemplateSectionDepartment {
+  template_section_id: FK → EventTemplateSection   // PRIMARY KEY part 1
+  department_id: FK → Department                    // PRIMARY KEY part 2
 }
 ```
 
