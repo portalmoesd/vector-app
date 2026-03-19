@@ -12,6 +12,8 @@ event creation, and progress tracking for the Vector Portal system.
 - Remove Minister from the approval chain
 - Replace Collaborator I / Head Collaborator with simplified Collaborator / Super-Collaborator roles
 - Add external user support (non-Ministry of Economy)
+- **Documents are composed of sections**, each owned by a department — approval chains are **per-section**
+- Curator (Deputy) involvement on cross-department sections is **optional**, configured per event
 
 ---
 
@@ -92,52 +94,83 @@ When creating a user, the admin must provide:
 
 ## 5. Document Approval Workflow
 
-### 5.1 Core Concept
+### 5.1 Core Concept — Per-Section Approval
 
-The approval chain is **dynamic** — it adapts based on who is designated as the
-**Document Submitter** (the person who gives final approval and sends the document to the library).
+A **document (event)** is composed of multiple **sections**. Each section is owned by
+a specific **department**. The approval chain is **per-section**, not per-document.
+
+Each section travels through its **own department's full approval chain** before reaching
+the Document Submitter. The overall document is considered complete only when **all
+sections** have been fully approved.
 
 Any of the following roles can be the Document Submitter:
 - **Deputy**
 - **Supervisor**
 - **Super-Collaborator**
 
-### 5.2 Workflow Chains
+### 5.2 Key Rules
+
+1. **Own-department sections** (where the section's department matches the Document Submitter's department) go through the department chain and stop at the Document Submitter — **no Curator step**.
+2. **Cross-department sections** (where the section's department differs from the Document Submitter's department) go through their own department's full chain, then **optionally** through the **Curator (Deputy)**, then to the Document Submitter.
+3. The **Curator step is optional** — it is configured during event creation ("Curator required" toggle).
+
+### 5.3 Workflow Chains
 
 #### Chain A — Deputy is Document Submitter
 
-```
-Collaborator → Super-Collaborator → Supervisor → Deputy (approves & submits to library)
-```
-
-- The Supervisor assigned to this document is the **responsible Supervisor** shown in the progress bar.
-- Deputy is at the top of the chain as the final approver.
-
-#### Chain B — Supervisor is Document Submitter
+All sections go through their own department's chain up to the Deputy:
 
 ```
-Collaborator → Super-Collaborator → Deputy (as Curator) → Supervisor (approves & submits to library)
+Section (any department):
+  Collaborator → Super-Collaborator → Supervisor → Deputy (approves & submits)
 ```
 
-- The Deputy drops into the chain as a **Curator** (mid-tier reviewer).
-- Supervisor is the final approver.
+- Since the Deputy sits above all departments, there is no "own department" distinction.
+- No Curator step needed — the Deputy is the top-level approver for all sections.
 
-#### Chain C — Super-Collaborator is Document Submitter
+#### Chain B — Supervisor (Dept A) is Document Submitter
 
+**Own-department section (Dept A):**
 ```
-Collaborator → Deputy (as Curator) → Super-Collaborator (approves & submits to library)
+Collaborator(A) → Super-Collaborator(A) → Supervisor(A) ✓ (approves & submits)
 ```
+- No Curator needed — Supervisor directly oversees their own department's work.
 
-- The Deputy acts as **Curator** between the Collaborator and the Super-Collaborator.
-- Super-Collaborator is the final approver.
+**Cross-department section (Dept B):**
+```
+Collaborator(B) → Super-Collaborator(B) → Supervisor(B) → [Deputy as Curator*] → Supervisor(A) ✓
+```
+- The section goes through Dept B's **full internal chain** (up to Supervisor B).
+- Then **optionally** through the Deputy acting as Curator.
+- Finally reaches Supervisor A (the Document Submitter) for final approval.
 
-### 5.3 Workflow Summary Table
+`*` Curator step included only if "Curator required" is enabled during event creation.
 
-| Document Submitter   | Chain Order | Deputy's Role |
-|----------------------|-------------|---------------|
-| Deputy               | Collaborator → Super-Collaborator → Supervisor → **Deputy** | Final Approver |
-| Supervisor           | Collaborator → Super-Collaborator → **Deputy (Curator)** → Supervisor | Curator (mid-tier) |
-| Super-Collaborator   | Collaborator → **Deputy (Curator)** → Super-Collaborator | Curator (mid-tier) |
+#### Chain C — Super-Collaborator (Dept A) is Document Submitter
+
+**Own-department section (Dept A):**
+```
+Collaborator(A) → Super-Collaborator(A) ✓ (approves & submits)
+```
+- No Curator needed — Super-Collaborator directly oversees their own department's section.
+
+**Cross-department section (Dept B):**
+```
+Collaborator(B) → Super-Collaborator(B) → Supervisor(B) → [Deputy as Curator*] → Super-Collaborator(A) ✓
+```
+- The section goes through Dept B's **full internal chain** (up to Supervisor B).
+- Then **optionally** through the Deputy acting as Curator.
+- Finally reaches Super-Collaborator A (the Document Submitter) for final approval.
+
+`*` Curator step included only if "Curator required" is enabled during event creation.
+
+### 5.4 Workflow Summary Table
+
+| Document Submitter        | Own-Dept Section Chain | Cross-Dept Section Chain | Curator Step |
+|---------------------------|------------------------|--------------------------|--------------|
+| **Deputy**                | Collab → SC → Supervisor → **Deputy** | Same for all sections | N/A (Deputy is final) |
+| **Supervisor (Dept A)**   | Collab(A) → SC(A) → **Supervisor(A)** | Collab(B) → SC(B) → Supervisor(B) → [Curator] → **Supervisor(A)** | Optional |
+| **Super-Collab (Dept A)** | Collab(A) → **SC(A)** | Collab(B) → SC(B) → Supervisor(B) → [Curator] → **SC(A)** | Optional |
 
 ---
 
@@ -151,9 +184,11 @@ When creating an event, the following must be specified:
 |------------------------|------------|-------------|
 | **Event Title**        | Yes        | Name of the event |
 | **Document Submitter Role** | Yes  | Who will be the final approver: Deputy, Supervisor, or Super-Collaborator |
-| **Deputy**             | Conditional | Selected from dropdown. Required if Deputy is Document Submitter or if a Curator is needed in the chain. |
+| **Document Submitter** | Yes        | The specific user who will be the final approver (filtered by role selection) |
+| **Deputy**             | Conditional | Selected from dropdown. Required if Deputy is Document Submitter **or** if Curator is enabled. |
+| **Curator Required**   | Conditional | Toggle/checkbox. Shown when Document Submitter is **not** a Deputy. Controls whether the Deputy reviews cross-department sections. |
 | **Supervisor**         | Conditional | Selected from dropdown, **filtered by the selected Deputy** (linked relationship). Required if Supervisor is in the chain. |
-| **Department / Agency** | Yes       | The originating department for this event |
+| **Sections**           | Yes        | Define the sections that compose this document (see §6.3). |
 | **Other event fields** | ...        | (dates, description, etc. — to be defined) |
 
 ### 6.2 Deputy–Supervisor Linking
@@ -164,44 +199,70 @@ with that Deputy.
 
 This linking is defined in the admin panel when setting up department/Deputy relationships.
 
-### 6.3 Assignment Logic
+### 6.3 Section Definition
 
-- If **Deputy is Document Submitter**: Select a Deputy → filtered Supervisors appear → select Supervisor.
-- If **Supervisor is Document Submitter**: Select a Deputy (who will act as Curator) → filtered Supervisors appear → select Supervisor (who becomes the submitter).
-- If **Super-Collaborator is Document Submitter**: Select a Deputy (who will act as Curator) → Super-Collaborator is selected from the department roster.
+During event creation, the creator defines the **sections** that compose the document:
+
+- Each section has a **title** and is assigned to a **department**.
+- At least one section must be defined.
+- A section assigned to the Document Submitter's own department follows the shorter (no-curator) chain.
+- A section assigned to a different department follows the full cross-department chain.
+
+The system automatically generates the correct **workflow steps** for each section based on:
+1. The section's owning department
+2. The Document Submitter role and department
+3. Whether "Curator required" is enabled
+
+### 6.4 Assignment Logic
+
+- If **Deputy is Document Submitter**: Select a Deputy → define sections (any departments) → all sections flow up to the Deputy.
+- If **Supervisor is Document Submitter**: Select Supervisor → optionally enable "Curator required" → if enabled, select a Deputy (who acts as Curator) → define sections → own-dept sections skip curator, cross-dept sections go through curator if enabled.
+- If **Super-Collaborator is Document Submitter**: Select Super-Collaborator → optionally enable "Curator required" → if enabled, select a Deputy (who acts as Curator) → define sections → own-dept sections skip curator, cross-dept sections go through curator if enabled.
 
 ---
 
 ## 7. Progress Bar
 
-### 7.1 Dynamic Display
+### 7.1 Per-Section Progress
 
-The progress bar adapts based on the Document Submitter:
+Since documents are composed of sections with independent approval chains, the progress
+bar displays **per-section status**. Each section shows its own chain progression.
 
-#### When Deputy is Document Submitter:
-```
-[Collaborator] → [Super-Collaborator] → [Supervisor*] → [Deputy ✓]
-                                          (* responsible)
-```
-- The assigned Supervisor is shown as the "responsible Supervisor."
+#### Section-Level Progress Display
 
-#### When Supervisor is Document Submitter:
+Each section shows its chain as a row/track:
+
+**Example — Supervisor (Dept A) is Document Submitter, Curator enabled:**
 ```
-[Collaborator] → [Super-Collaborator] → [Deputy (Curator)] → [Supervisor ✓]
+Section "Budget" (Dept A — own dept):
+  [Collaborator ✓] → [Super-Collaborator ●] → [Supervisor A ○]
+
+Section "Legal Review" (Dept B — cross-dept):
+  [Collaborator ✓] → [Super-Collaborator ✓] → [Supervisor B ✓] → [Curator ●] → [Supervisor A ○]
+
+Section "Technical Spec" (Dept C — cross-dept):
+  [Collaborator ●] → [Super-Collaborator ○] → [Supervisor C ○] → [Curator ○] → [Supervisor A ○]
 ```
 
-#### When Super-Collaborator is Document Submitter:
-```
-[Collaborator] → [Deputy (Curator)] → [Super-Collaborator ✓]
-```
+Legend: `✓` = Approved, `●` = In Progress, `○` = Pending
 
-### 7.2 Status Indicators
+### 7.2 Overall Document Status
 
-Each step in the progress bar shows:
+The overall document status is derived from the status of all its sections:
+
+- **Draft** — Event created but workflow not started
+- **In Progress** — At least one section is being worked on
+- **Awaiting Final Approval** — All sections have reached the Document Submitter and await final sign-off
+- **Completed** — All sections approved by the Document Submitter
+- **Returned** — One or more sections have been sent back for revision
+
+### 7.3 Status Indicators (Per Step)
+
+Each step in a section's progress bar shows:
 - **Pending** — Not yet reached
 - **In Progress** — Currently being reviewed by this role
-- **Approved** — This role has approved the document
-- **Returned** — This role has sent the document back for revision
+- **Approved** — This role has approved the section
+- **Returned** — This role has sent the section back for revision
 
 ---
 
@@ -254,23 +315,40 @@ Event {
   id
   title
   description
-  department_id: FK → Department
   document_submitter_role: enum [DEPUTY, SUPERVISOR, SUPER_COLLABORATOR]
-  deputy_id: FK → User (nullable — the assigned Deputy)
-  supervisor_id: FK → User (nullable — the assigned Supervisor)
-  super_collaborator_id: FK → User (nullable — if SC is submitter)
+  document_submitter_id: FK → User          // The specific user who is the final approver
+  deputy_id: FK → User (nullable)           // The assigned Deputy (as submitter or curator)
+  curator_required: boolean (default false)  // Whether Deputy reviews cross-dept sections
   status: enum [DRAFT, IN_PROGRESS, COMPLETED, ARCHIVED]
   created_at
   updated_at
 }
 ```
 
-### 8.5 Document Workflow Step
+### 8.5 Section
+
+```
+Section {
+  id
+  event_id: FK → Event
+  title: string
+  department_id: FK → Department            // The department that owns this section
+  is_own_department: boolean (computed)      // True if department matches Document Submitter's department
+  status: enum [PENDING, IN_PROGRESS, APPROVED, RETURNED]
+  created_at
+  updated_at
+}
+```
+
+Each section generates its own set of workflow steps based on whether it is an own-department
+or cross-department section (see §5.3).
+
+### 8.6 Document Workflow Step
 
 ```
 WorkflowStep {
   id
-  event_id: FK → Event
+  section_id: FK → Section                  // Steps belong to a section, not directly to an event
   step_order: integer
   role_label: string          // "Collaborator", "Super-Collaborator", "Curator", "Supervisor", "Deputy"
   assigned_user_id: FK → User
@@ -304,8 +382,11 @@ WorkflowStep {
 ## 10. Open Questions
 
 1. **Can a Deputy act as Curator for multiple concurrent documents?** — Assumed yes.
-2. **What happens if a department has no Deputy linked?** — Should event creation be blocked, or can events proceed without a Curator step?
-3. **Can the same user hold different roles in different contexts?** — Currently assumed one role per user. If a Deputy needs to sometimes act as a Collaborator, this would need role-per-event assignment.
-4. **Document types** — Are there specific document types that determine which role must be the Document Submitter, or is this always a manual choice per event?
-5. **Notification system** — How should users be notified when a document reaches their step in the workflow?
-6. **Rejection/return flow** — When a document is returned, does it go back one step or all the way to the Collaborator?
+2. **Can the same user hold different roles in different contexts?** — Currently assumed one role per user. If a Deputy needs to sometimes act as a Collaborator, this would need role-per-event assignment.
+3. **Document types** — Are there specific document types that determine which role must be the Document Submitter, or is this always a manual choice per event?
+4. **Notification system** — How should users be notified when a section reaches their step in the workflow?
+5. **Rejection/return flow** — When a section is returned, does it go back one step or all the way to the Collaborator? Does returning one section block the entire document?
+6. **Section-level UX** — How are sections visualized on the document view? Tabs, accordion, separate pages?
+7. **Cross-department collaborator assignment** — When a section is assigned to Dept B, are the Collaborators and Super-Collaborators automatically pulled from Dept B's roster, or manually selected?
+8. **Parallel vs sequential sections** — Can all sections be worked on simultaneously (parallel), or do some sections depend on others?
+9. **Section addition after event creation** — Can new sections be added to a document after the event is created, or must all sections be defined upfront?
