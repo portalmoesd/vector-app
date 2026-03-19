@@ -277,7 +277,9 @@ When creating an event, the following must be specified:
 | **Curator Required**   | Conditional | Toggle/checkbox. Shown when Document Submitter is **not** a Deputy. Controls whether the Deputy reviews cross-department sections. |
 | **Supervisor**         | Conditional | Selected from dropdown, **filtered by the selected Deputy** (linked relationship). Required if Supervisor is in the chain. |
 | **Sections**           | Yes        | Define the sections that compose this document (see §6.3). |
-| **Other event fields** | ...        | (dates, description, etc. — to be defined) |
+| **Language**           | Yes        | Document language. Supported: English, French, Arabic, Spanish, Russian, Chinese, Portuguese, German. |
+| **Deadline Date**      | No         | Submission deadline for the event. Used for deadline tracking and visual indicators on the event list. |
+| **Task Description**   | No         | Rich text description of the event task. Uses the Simple Editor (see §12). |
 
 ### 6.2 Deputy–Supervisor Linking
 
@@ -458,6 +460,11 @@ Event {
   document_submitter_id: FK → User          // The specific user who is the final approver
   deputy_id: FK → User (nullable)           // The assigned Deputy (as submitter or curator)
   curator_required: boolean (default false)  // Whether Deputy reviews cross-dept sections
+  language: enum [EN, FR, AR, ES, RU, ZH, PT, DE]  // Document language
+  deadline_date: date (nullable)                    // Submission deadline
+  occasion: text (nullable)                         // Task description (rich text HTML)
+  is_active: boolean (default true)                 // Whether the event is active
+  ended_at: datetime (nullable)                     // When the event was ended
   status: enum [DRAFT, IN_PROGRESS, COMPLETED, ARCHIVED]
   created_at
   updated_at
@@ -544,6 +551,25 @@ EventTemplateSectionDepartment {
 }
 ```
 
+### 8.13 Section Return Request
+
+```
+SectionReturnRequest {
+  id
+  event_id: FK → Event
+  section_id: FK → Section
+  requested_by_user_id: FK → User
+  requested_by_name: string              // Denormalized for display
+  requested_by_role: string              // Role of the requester
+  directed_to_role: string               // Role of the current holder
+  note: text (nullable)                  // Optional reason for the request
+  created_at
+}
+```
+
+Used by the "Ask to Return" feature (§15). Records are auto-deleted when the target role
+takes any action (approve or return) on the section.
+
 ---
 
 ## 9. Admin Panel Requirements
@@ -598,3 +624,309 @@ The following questions were raised during design and have been resolved:
 9. **Section addition** — Documented in §5.1. Sections can be added after event creation.
 10. **Region groupings** — Documented in §3.4. Use the same groupings as the previous system.
 11. **Country permanence** — Documented in §3.4. Countries are permanent; no deactivation needed.
+
+---
+
+## 12. Rich Text Editor
+
+### 12.1 Overview
+
+The system uses a **custom-built rich text editor** (no external library dependency). The editor is based on `contenteditable` and provides Word-style track changes, inline comments, and comprehensive formatting.
+
+### 12.2 Primary Editor (RichEditor)
+
+The main editor is used for section content editing within the document workflow.
+
+**Core features:**
+- **Track changes** — Word-style revision tracking with an 8-color author palette. Insertions and deletions are marked inline with author attribution and timestamps.
+- **Inline comments** — Users can add comments and comment threads anchored to specific text ranges, displayed as margin balloons.
+- **Format change tracking** — Tracks formatting changes (bold, italic, color, etc.) as distinct revisions.
+- **Context menu** — Right-click to insert tables.
+- **Fullscreen mode** — A4 paper layout for focused editing.
+- **Dark mode** — Full dark mode support.
+- **Responsive** — Adapts to different screen sizes.
+
+**Formatting options:**
+- Bold, Italic, Underline
+- Headings (H2, H3)
+- Lists (Bullet, Numbered)
+- Text alignment (Left, Center, Right, Justify)
+- Text color with custom palette picker
+- Font selection: Arial, Sylfaen, Calibri, Noto Sans Georgian, Noto Serif Georgian, FiraGO
+- Font sizes: 8–72pt
+- Format removal (clear formatting)
+
+**API surface:**
+```
+GCP.RichEditor({
+  container,         // DOM element to render into
+  initialHtml,       // Initial HTML content
+  authorName,        // Current user's name (for track changes attribution)
+  sectionTitle,      // Section label
+  onCommentsClick,   // Callback for comments panel toggle
+  onDeleteComment,   // Callback when a comment is deleted
+  onReplyComment     // Callback when a comment reply is added
+})
+```
+
+### 12.3 Simple Editor
+
+A lightweight variant used for task descriptions, notes, and other short-form rich text fields.
+
+**Features:** Bold, Italic, Underline, Text color only.
+
+**API surface:**
+```
+GCP.createSimpleEditor(container, {
+  placeholder: 'Enter text...'
+})
+```
+
+### 12.4 Supported Fonts
+
+The following fonts are bundled as TTF files for both editor display and document export:
+
+| Font | Variants | Purpose |
+|------|----------|---------|
+| Arial | Regular, Bold | Latin text |
+| Calibri | Regular, Bold | Latin text |
+| FiraGO | Regular, Bold | Multi-script |
+| Noto Sans Georgian | Regular | Georgian script |
+| Noto Serif Georgian | Regular | Georgian script (serif) |
+| Sylfaen | Regular | Georgian script |
+
+---
+
+## 13. Icons & Assets
+
+### 13.1 Icon System
+
+The system uses **custom SVG icons** — no external icon library (no FontAwesome, Material Icons, etc.).
+
+**Implementation technique:**
+- SVG files stored as static assets
+- CSS `mask-image` property with `--icon-url` CSS variables
+- Rendered via `::before` pseudo-elements
+- Colors controlled via `background-color: currentColor`, allowing CSS-based color theming
+- Sizes vary by context (20px, 22px, 24px, 28px)
+
+### 13.2 Action Icons
+
+The following SVG icons are used for document and workflow actions:
+
+| Icon | Usage |
+|------|-------|
+| `approve-icon.svg` | Approve a section |
+| `ask_to_return_icon.svg` | Ask to return a section |
+| `edit-icon.svg` | Edit a section |
+| `end_event-icon.svg` | End an event |
+| `export-pdf-icon.svg` | Export to PDF |
+| `export-word-icon.svg` | Export to Word |
+| `files-icon.svg` | View attached files |
+| `open-icon.svg` | Open a document |
+| `return-icon.svg` | Return a section |
+| `save-icon.svg` | Save changes |
+| `side-panel-icon.svg` | Toggle side panel |
+| `submit-icon.svg` | Submit a section |
+| `upload-icon.svg` | Upload a file |
+| `view-icon.svg` | View/preview a document |
+| `portal-logo-new.svg` | Application logo |
+
+### 13.3 Sidebar Navigation Icons
+
+Navigation icons are embedded as inline SVGs in the application shell:
+- Logo, Dashboard, Calendar, Library, Statistics, Logout, User profile, Menu, Close
+
+### 13.4 Icon Color Conventions
+
+Icons use semantic color coding via CSS variables:
+- **Submit** — Blue (`#1d4ed8`)
+- **Approve** — Green (`#16a34a`)
+- **Return / Ask to Return** — Red (`#dc2626`)
+- **Save, Edit, View** — Default text color (neutral)
+
+---
+
+## 14. Library Page
+
+### 14.1 Purpose
+
+The Library page is the **approved-document viewing and export portal**. It displays documents that have completed the approval workflow and been submitted by the Document Submitter.
+
+### 14.2 Access Control
+
+Available to: Admin, Deputy, Supervisor, Super-Collaborator.
+Collaborators **cannot** access the Library.
+
+### 14.3 Filters
+
+| Filter | Type | Behavior |
+|--------|------|----------|
+| **Country** | Dropdown | Filter documents by country. Default: "All countries". |
+| **Keyword search** | Text input | Searches across document title, country name, and approver name. Real-time filtering. |
+| **Date** | Date picker | Filters by approval date (exact match). |
+
+All filtering is client-side after initial data load. Filters combine with AND logic.
+
+### 14.4 Views
+
+- **Table view** (desktop): Columns — Event title, Country (colored badge), Language (badge), Approval date (DD.MM.YYYY), Approver name.
+- **Card view** (mobile): Responsive card grid with the same data fields.
+
+### 14.5 Document Actions
+
+#### Preview
+Opens a modal displaying the full document content:
+- Shows event title and country
+- Renders all required sections in order with their HTML content
+- Track changes markup is hidden (insertions shown as plain text, deletions hidden)
+- Shows "Last updated" timestamp
+
+#### Export to PDF
+- Modal with checklist of all document sections (all checked by default)
+- "Select all / Select none" toggles
+- Uses **html2pdf.js** (v0.10.1) for client-side PDF generation
+- Settings: A4 portrait, 0.5-inch margins, JPEG images at 0.98 quality, 2x canvas scale
+- Track changes are **hidden** in PDF output (accepted view)
+- Filename: slugified document title + `.pdf`
+
+#### Export to Word
+- Modal with same section checklist as PDF export
+- Uses **docx** library (v8.5.0) for client-side DOCX generation
+- **Track changes are preserved as native Word revisions:**
+  - `<ins>` elements → `InsertedTextRun` (Word insertion revision)
+  - `<del>` elements → `DeletedTextRun` (Word deletion revision)
+  - Each revision carries author name, timestamp, and unique revision ID
+  - Users can accept/reject revisions natively in Microsoft Word
+- **Supported formatting in export:** Bold, Italic, Underline, Strikethrough, Superscript, Subscript, Font family, Font size, Text color, Headings (H1–H4), Bullet and numbered lists (up to 9 nesting levels), Text alignment
+- Page layout: 1-inch margins, A4
+- Font names are referenced (not embedded) — Word uses local fonts or substitutes
+- Tables are flattened to tab-delimited text (not native Word tables)
+- Filename: slugified title + `.docx` (max 80 chars)
+- All generation happens client-side (no backend processing)
+
+#### View Files
+Opens a modal listing all uploaded files for the event:
+- File metadata table: name (clickable download link), section label, upload date, uploader name, file size (KB)
+- Authenticated file download via JWT token
+
+### 14.6 API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/library` | GET | List approved documents. Optional `country_id` filter. |
+| `/api/library/document` | GET | Full document content with all sections. Params: `event_id`, `country_id`. |
+| `/api/library/files` | GET | List uploaded files for an event. Param: `event_id`. |
+| `/api/tp/files/download` | GET | Download individual file. Params: `event_id`, `section_id`, `filename`. |
+
+---
+
+## 15. Ask to Return
+
+### 15.1 Overview
+
+"Ask to Return" is a **request-based workflow mechanism** that allows a user to request that the current holder return a section, even when the section is not at the requester's review stage. This is distinct from a **direct return** (§5.2 rule 6), which can only be performed by the user who currently holds the section.
+
+### 15.2 When It Applies
+
+| Condition | Action Available |
+|-----------|-----------------|
+| Section IS at the user's stage | User should use **direct Return** (not Ask to Return) |
+| Section is NOT at the user's stage | User can use **Ask to Return** |
+
+The system enforces this: if the section is already at the requester's stage, the API returns an error instructing them to use direct Return instead.
+
+### 15.3 Flow
+
+1. **User clicks "Ask to Return"** — A dropdown prompts for an optional note: "Why do you need it back?"
+2. **System records the request** — Inserts a record into `SectionReturnRequest` (§8.13). The section status remains **unchanged**.
+3. **Current holder sees notification** — On their dashboard, the section displays: "Return requested by [name]: [note or '(no comment)']"
+4. **Holder decides:**
+   - **Approves the section** → return request is auto-deleted
+   - **Returns the section** → return request is auto-deleted
+   - **Ignores** → request remains visible as a notification
+
+### 15.4 Key Characteristics
+
+- **Non-blocking**: The request does not change the section's workflow status. It is purely a notification.
+- **Directed**: The request is directed at whichever role currently holds the section (calculated dynamically).
+- **Auto-clearing**: Requests are automatically deleted when the target role takes any action (approve or return) on the section.
+- **Audited**: An `asked_to_return` action is recorded in the section history for audit trail purposes.
+
+### 15.5 Comparison with Direct Return
+
+| Aspect | Ask to Return | Direct Return |
+|--------|---------------|---------------|
+| **Who triggers** | Any user when section is NOT at their stage | Current holder when section IS at their stage |
+| **Effect on status** | None — notification only | Changes status to returned; section goes back to original editor |
+| **Database** | Inserts into `SectionReturnRequest` | Updates section/workflow step status |
+| **Clearing** | Auto-deleted on any holder action | N/A — status change is the action |
+
+### 15.6 API Endpoint
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/tp/ask-to-return` | POST | Create a return request. Body: `eventId`, `sectionId`, `note` (optional). Returns `{ success, directedToRole }`. |
+
+---
+
+## 16. Calendar / Event List
+
+### 16.1 Overview
+
+The Calendar page is an **event management interface** that displays events as a filterable, paginated table/card list. It is **not** a visual calendar grid — it shows events in tabular format with tabs for upcoming and past events.
+
+### 16.2 Layout
+
+- **Table view** (desktop): Responsive table with event details
+- **Card view** (mobile): Card grid layout
+- **Tabs**: "Upcoming" (active, non-ended events) and "Past events" (ended events)
+
+### 16.3 Filters & Pagination
+
+| Control | Type | Behavior |
+|---------|------|----------|
+| **Keyword search** | Text input | Searches title, country name, submitter name. Real-time. |
+| **Date filter** | Date picker | Filters by deadline date. |
+| **Country filter** | Dropdown | Filter by specific country. |
+
+- Filters combine with AND logic, applied client-side
+- Pagination: 5 events per page with previous/next and direct page number buttons
+
+### 16.4 Event Data Displayed
+
+Each event row/card shows:
+- Event title
+- Country (colored badge)
+- Deadline date (with visual indicators: **red** for overdue, **yellow** for upcoming)
+- Document Submitter role
+- Language
+- Status (active/ended)
+
+### 16.5 Actions
+
+#### Create Event
+- Available to: Deputy, Supervisor, Super-Collaborator, Admin
+- Form includes: country, title, DS role, lower-level submitter role, deadline date, language, required sections + departments (hierarchical checklist), task description (Simple Editor)
+- Form resets on success
+
+#### View Event
+- Available to: all authenticated users
+- Modal shows: title, country, deadline, submitter roles, language, task description (rendered HTML), involved deputies, required sections with nested departments, created/ended timestamps
+
+#### Edit Event
+- Available to: managers (Deputy, Supervisor, Super-Collaborator, Admin) on non-ended events only
+- All fields are editable; section/department checkboxes restore their state
+
+#### End Event
+- Available to: Admin, Deputy, Supervisor only
+- Confirmation prompt required
+- Marks event as ended (`ended_at` = now, `is_active` = false)
+- Event moves from "Upcoming" to "Past events" tab
+
+### 16.6 Relationship to Workflow
+
+- **Calendar** shows **what** needs doing — events, deadlines, and section requirements
+- **Dashboards** show **how** it's progressing — per-section status, current holder, approval state
+- **Editor** shows **where** content is created — rich editor for each section
+- **Library** shows **what's done** — approved documents available for export
