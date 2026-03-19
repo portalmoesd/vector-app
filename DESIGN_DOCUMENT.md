@@ -28,6 +28,7 @@ event creation, and progress tracking for the Vector Portal system.
 | **Supervisor**      | Per department | Oversees department workflow. Can also serve as Document Submitter. |
 | **Super-Collaborator** | Per department | Senior collaborator. Can also serve as Document Submitter. |
 | **Collaborator**    | Per department | Base-level contributor. |
+| **Protocol**        | System-wide  | Operational role. Can create and end events. Does **not** participate in document approval workflows (non-pipeline role, similar to Admin). |
 
 ### 2.2 Removed Roles
 
@@ -161,6 +162,7 @@ Any of the following roles can be the Document Submitter:
 6. **Return flow**: When a section is returned (rejected), it goes back to the **original editor level** — the first level to edit (Collaborator or Super-Collaborator), not one step back. The section must then re-traverse the entire chain from that point.
 7. **Auto-assignment**: When a section is assigned to a department, Collaborators and Super-Collaborators are **automatically pulled from that department's roster** (filtered by the event's country assignment).
 8. **Multi-department sections**: When a section is assigned to multiple departments, each department's internal chain runs **in parallel**. Once all department chains complete, the section proceeds to the Curator/DS level.
+9. **First editor flexibility**: Any role in a department's chain can be the first editor of a section — not just Collaborator. For example, a Supervisor can directly edit a section without it first passing through Collaborator → SC. The progress bar starts at whichever role first edited the section (`original_submitter_role`), and earlier steps are omitted entirely. Additionally, SC(A) and Supervisor(A) from the Document Submitter's home department can be the first editors for sections assigned to other departments (cross-department first-editing).
 
 ### 5.3 Workflow Chains
 
@@ -256,12 +258,14 @@ Collaborator(B) → Supervisor(B) → ...
 
 ### 6.0 Who Can Create Events
 
-Events can be created by any user with a **DS-eligible role**:
+Events can be created by:
 - **Deputy**
 - **Supervisor**
 - **Super-Collaborator**
+- **Admin**
+- **Protocol**
 
-Collaborators and Admins **cannot** create events.
+Collaborators **cannot** create events.
 
 ### 6.1 Event Fields
 
@@ -424,7 +428,7 @@ User {
   username: string (unique)        // Login identifier
   email
   password_hash: string            // Bcrypt/argon2 hash — never store plaintext
-  role: enum [ADMIN, DEPUTY, SUPERVISOR, SUPER_COLLABORATOR, COLLABORATOR]
+  role: enum [ADMIN, PROTOCOL, DEPUTY, SUPERVISOR, SUPER_COLLABORATOR, COLLABORATOR]
   department_id: FK → Department (nullable) // Null for Admin users
   is_external: boolean
   must_change_password: boolean (default true)  // Forces password change on first login
@@ -460,6 +464,10 @@ Event {
   document_submitter_id: FK → User          // The specific user who is the final approver
   deputy_id: FK → User (nullable)           // The assigned Deputy (as submitter or curator)
   curator_required: boolean (default false)  // Whether Deputy reviews cross-dept sections
+  lower_submitter_role: enum [COLLABORATOR_2, COLLABORATOR_3] (default COLLABORATOR_2)
+    // Controls pipeline: COLLABORATOR_2 = Head Collab submits to Collaborator (skip Curator)
+    //                     COLLABORATOR_3 = Head Collab submits to Curator (include Curator)
+    // Maps to the "Curator required" toggle — when curator_required=true, lower_submitter_role=COLLABORATOR_3
   language: enum [EN, FR, AR, ES, RU, ZH, PT, DE]  // Document language
   deadline_date: date (nullable)                    // Submission deadline
   occasion: text (nullable)                         // Task description (rich text HTML)
@@ -567,8 +575,77 @@ SectionReturnRequest {
 }
 ```
 
-Used by the "Ask to Return" feature (§15). Records are auto-deleted when the target role
-takes any action (approve or return) on the section.
+Used by the "Ask to Return" feature (§15). Records are auto-deleted when any notified role
+takes an action (approve or return) on the section.
+
+### 8.14 Section History
+
+```
+SectionHistory {
+  id
+  event_id: FK → Event
+  section_id: FK → Section
+  action: enum [saved, submitted, returned, approved, asked_to_return]
+  from_status: string (nullable)         // Status before action
+  to_status: string                      // Status after action
+  user_id: FK → User (nullable)
+  user_name: string (nullable)           // Denormalized for display
+  user_role: string (nullable)           // Role at time of action
+  note: text (nullable)                  // Comment (e.g., on return actions)
+  acted_at: timestamp
+}
+```
+
+Index: `(event_id, section_id, acted_at)` for fast lookups. See §19 for the full history feature.
+
+### 8.15 Section Comment
+
+```
+SectionComment {
+  id
+  event_id: FK → Event
+  section_id: FK → Section
+  user_id: FK → User
+  anchor_id: string (nullable)           // Text anchor ID in editor content
+  content: text
+  created_at
+}
+```
+
+### 8.16 Section Content
+
+```
+SectionContent {
+  id
+  event_id: FK → Event
+  section_id: FK → Section
+  html_content: text (default '')        // Section content (HTML with track changes markup)
+  status: string                         // Current workflow status (see §20 for full enum)
+  status_comment: text (nullable)        // Comment when returned
+  original_submitter_role: string (nullable)  // Role that first submitted this section
+  return_target_role: string (nullable)       // When returned, who it goes back to
+  last_updated_by_user_id: FK → User
+  last_updated_at: timestamp
+  last_content_edited_at: timestamp      // When content itself was last edited
+  last_content_edited_by_user_id: FK → User
+}
+```
+
+Unique constraint: `(event_id, section_id)`. See §20 for full status enum and workflow logic.
+
+### 8.17 Document Status
+
+```
+DocumentStatus {
+  id
+  event_id: FK → Event
+  status: string                         // 'in_progress', 'submitted_to_supervisor', 'approved', etc.
+  comment: text (nullable)
+  updated_at
+}
+```
+
+Tracks overall document-level progress (separate from per-section statuses in `SectionContent`).
 
 ---
 
@@ -755,8 +832,10 @@ The Library page is the **approved-document viewing and export portal**. It disp
 
 ### 14.2 Access Control
 
-Available to: Admin, Deputy, Supervisor, Super-Collaborator.
-Collaborators **cannot** access the Library.
+All roles can access the Library, but visibility is **scoped to participation**:
+- Users can only see documents for events they **participated in**.
+- If a user did not participate in an event, that event's documents are not visible to them.
+- This applies equally to all roles, including Collaborators.
 
 ### 14.3 Filters
 
@@ -840,17 +919,17 @@ The system enforces this: if the section is already at the requester's stage, th
 
 1. **User clicks "Ask to Return"** — A dropdown prompts for an optional note: "Why do you need it back?"
 2. **System records the request** — Inserts a record into `SectionReturnRequest` (§8.13). The section status remains **unchanged**.
-3. **Current holder sees notification** — On their dashboard, the section displays: "Return requested by [name]: [note or '(no comment)']"
-4. **Holder decides:**
-   - **Approves the section** → return request is auto-deleted
+3. **All roles above the requester are notified** — Every role in the chain above the requester sees the notification on their dashboard: "Return requested by [name]: [note or '(no comment)']"
+4. **Any notified role can act:**
    - **Returns the section** → return request is auto-deleted
+   - **Approves the section** → return request is auto-deleted
    - **Ignores** → request remains visible as a notification
 
 ### 15.4 Key Characteristics
 
 - **Non-blocking**: The request does not change the section's workflow status. It is purely a notification.
-- **Directed**: The request is directed at whichever role currently holds the section (calculated dynamically).
-- **Auto-clearing**: Requests are automatically deleted when the target role takes any action (approve or return) on the section.
+- **Broadcast upward**: All roles above the requester in the pipeline are notified, and any of them can act on it (not just the current holder).
+- **Auto-clearing**: Requests are automatically deleted when any notified role takes an action (approve or return) on the section.
 - **Audited**: An `asked_to_return` action is recorded in the section history for audit trail purposes.
 
 ### 15.5 Comparison with Direct Return
@@ -858,9 +937,11 @@ The system enforces this: if the section is already at the requester's stage, th
 | Aspect | Ask to Return | Direct Return |
 |--------|---------------|---------------|
 | **Who triggers** | Any user when section is NOT at their stage | Current holder when section IS at their stage |
+| **Who sees it** | All roles above the requester in the chain | N/A — only the holder acts |
+| **Who can act** | Any notified role can return the section | Only the current holder |
 | **Effect on status** | None — notification only | Changes status to returned; section goes back to original editor |
 | **Database** | Inserts into `SectionReturnRequest` | Updates section/workflow step status |
-| **Clearing** | Auto-deleted on any holder action | N/A — status change is the action |
+| **Clearing** | Auto-deleted when any notified role acts | N/A — status change is the action |
 
 ### 15.6 API Endpoint
 
@@ -906,7 +987,7 @@ Each event row/card shows:
 ### 16.5 Actions
 
 #### Create Event
-- Available to: Deputy, Supervisor, Super-Collaborator, Admin
+- Available to: Deputy, Supervisor, Super-Collaborator, Admin, Protocol
 - Form includes: country, title, DS role, lower-level submitter role, deadline date, language, required sections + departments (hierarchical checklist), task description (Simple Editor)
 - Form resets on success
 
@@ -919,7 +1000,7 @@ Each event row/card shows:
 - All fields are editable; section/department checkboxes restore their state
 
 #### End Event
-- Available to: Admin, Deputy, Supervisor only
+- Available to: Admin, Deputy, Supervisor, Protocol
 - Confirmation prompt required
 - Marks event as ended (`ended_at` = now, `is_active` = false)
 - Event moves from "Upcoming" to "Past events" tab
@@ -930,3 +1011,366 @@ Each event row/card shows:
 - **Dashboards** show **how** it's progressing — per-section status, current holder, approval state
 - **Editor** shows **where** content is created — rich editor for each section
 - **Library** shows **what's done** — approved documents available for export
+
+---
+
+## 17. Dashboards
+
+### 17.1 Overview
+
+Each role has its own dashboard with tailored views and actions. Dashboards are the primary interface for users to monitor and act on their assigned sections.
+
+### 17.2 Common Layout
+
+All dashboards share:
+- **Sidebar navigation** (shared app shell)
+- **Event selector dropdown** — switch between assigned events
+- **Required sections** — table (desktop) / card (mobile) view
+- **Per-section row/card**: status label, last updated info, progress bar (§20), action buttons
+- **Upcoming events panel**
+
+### 17.3 Dashboard Capabilities Matrix
+
+| Dashboard | Role(s) | Can Edit | Can Submit/Route | Can Approve | Can Return | Ask to Return | Send to Library | Paper Preview |
+|-----------|---------|----------|-----------------|-------------|------------|---------------|-----------------|---------------|
+| Collaborator I | collaborator_1 | Own sections | Yes (→ Head Collab) | No | No | Yes | No | No |
+| Head Collaborator | collaborator_2 | Conditional | Yes (→ Curator or Collab) | No | Yes | Yes | No | Yes |
+| Curator | collaborator_3 | Conditional | Yes (→ Collaborator) | No | Yes | Yes | No | Yes |
+| Collaborator | collaborator | Assigned + lower-tier | Yes (→ Super-Collab) | No | Yes (select) | Yes | No | Yes |
+| Super-Collaborator | super_collaborator | All sections | No | Yes | Yes | No | Yes* | Yes |
+| Supervisor | supervisor | All sections | No | Yes | Yes | No | Yes* | Yes |
+| Deputy | deputy | All sections | No | Yes | Yes | No | Yes* | Yes |
+| Minister | minister | All sections | No | Yes | Yes | No | Yes* | Yes |
+
+`*` Only when that role is the Document Submitter for the event.
+
+### 17.4 Dashboard Details
+
+- **Collaborator I**: Sees only assigned sections. Can open editor and submit to Head Collaborator.
+- **Head Collaborator**: Sees all sections. Can return to lower tier or submit up. Submission target depends on `lower_submitter_role` (Curator or Collaborator).
+- **Curator (collaborator_3)**: Same structure as Head Collaborator. Always submits to Collaborator.
+- **Collaborator (full reviewer)**: Sees ALL sections but can only act on assigned ones. Shows "Monitoring" label for non-actionable sections.
+- **Super-Collaborator**: First real approval level. Has "Approve" + "Approve All" bulk button + "Open All Sections" button. "Send to Library" shown when SC is Document Submitter.
+- **Supervisor**: Similar to Super-Collaborator. Cannot approve sections already past their stage. "Send to Library" when Supervisor is DS.
+- **Deputy**: Approve sections + "Send to Library" button (when Deputy is DS). Can end events.
+- **Minister**: Similar to Deputy.
+
+### 17.5 Micro-Actions
+
+Action buttons rendered per section:
+
+| Action | Icon | Behavior |
+|--------|------|----------|
+| `open` | edit-icon | Navigate to editor (§18) |
+| `submit` | submit-icon | Route to next tier (blue) |
+| `approve` | approve-icon | Approve section with confirmation dialog (green) |
+| `return` | return-icon | Return with comment via dropdown (red) |
+| `ask-to-return` | ask-to-return-icon | Request return with optional note (red) |
+
+### 17.6 Shared Helpers
+
+- `renderUpperTierProgress()` — Progress bar HTML (§20)
+- `attachSectionHistoryToggle()` — Mount history timeline on section (§19)
+- `showCommentDropdown()` — Comment input for return/ask-to-return
+- `openPaperPreview()` — Full document preview modal
+
+### 17.7 Status Display
+
+Each section row shows a human-readable status label mapped from the internal status string:
+- `draft` → "Draft"
+- `submitted_to_super_collaborator` → "At Super-collaborator"
+- `returned_by_supervisor` → "Returned by Supervisor"
+- `approved_by_deputy` → "Approved (Deputy)"
+- etc.
+
+---
+
+## 18. Editor Page
+
+### 18.1 Single-Section Editor
+
+The primary editing interface for section content.
+
+**Layout:**
+- **Topbar**: "Task Editor" title
+- **Header**: Event title, country, section label (editable inline), status pill, last-updated info
+- **Toolbar**: Action buttons (dynamically shown/hidden based on role + section status)
+- **Content area**: Rich text editor (RichEditor from §12)
+- **Comments**: Floating comment card anchored to text selections
+
+### 18.2 Action Buttons
+
+| Action | API Endpoint | Description |
+|--------|-------------|-------------|
+| **Save** | `POST /api/tp/save` | Saves HTML content, records "saved" in history |
+| **Submit** | `POST /api/tp/submit` | Moves section to next pipeline stage |
+| **Approve** | `POST /api/tp/approve-section` | Approves section (Super-Collaborator and above) |
+| **Return** | `POST /api/tp/return` | Returns with optional comment |
+| **Upload** | `POST /api/tp/files/upload` | Upload files (multiple, base64 encoded) |
+| **Ask to Return** | `POST /api/tp/ask-to-return` | Request return with optional note |
+| **View Files** | `GET /api/tp/files` | Modal listing uploaded files |
+
+Buttons are dynamically shown/hidden based on the user's role and the section's current status.
+
+### 18.3 File Upload
+
+1. Hidden file input (multiple files allowed)
+2. Files read as base64 via FileReader
+3. `POST /api/tp/files/upload` with `{ eventId, sectionId, filename, mimeType, base64 }`
+4. Files listed in modal: filename, upload date, uploader name, file size
+5. Download via authenticated `GET /api/tp/files/download` endpoint
+
+### 18.4 Inline Comments
+
+- Floating comment card (292px wide) positioned near text anchor or editor edge
+- Shows user avatar (colored initials based on username hash), name, textarea
+- Keyboard shortcuts: Ctrl+Enter to submit, Escape to cancel
+- API: `POST /api/tp/comments`, `DELETE /api/tp/comments/{id}`, `GET /api/tp/comments`
+
+### 18.5 Editor-All (Multi-Section Review)
+
+The "All Sections" page displays every required section for an event on a single page for comprehensive review.
+
+**Access**: Available to **Super-Collaborator(A) and above** (Supervisor, Deputy, Minister). Accessed via "Open All Sections" button on their dashboards.
+
+**Current reference implementation:**
+- Sections rendered sequentially as cards
+- Each card shows: section title (click-to-rename), status pill, last-updated info, return comment box
+- Content displayed in a **read-only** RichEditor instance
+- Comments fully functional: add, delete, reply
+- Section labels editable inline
+
+**UX improvement needed**: The sequential card layout needs a better, more user-friendly UI in the new system. Consider: collapsible accordion sections, sticky section navigation sidebar, section-jumping quick links, or a tabbed interface for easier navigation across many sections.
+
+### 18.6 Autosave
+
+No autosave — all saves are explicit via the Save button.
+
+---
+
+## 19. Section History
+
+### 19.1 Overview
+
+Every action on a section is recorded in the `SectionHistory` table (§8.14) for audit trail and progress visualization purposes.
+
+### 19.2 Recorded Actions
+
+| Action | Status Change | Note Stored |
+|--------|--------------|-------------|
+| `saved` | No change (from_status = to_status) | — |
+| `submitted` | → `submitted_to_[next_role]` | — |
+| `returned` | → `returned_by_[role]` | Reviewer's comment |
+| `approved` | → `approved_by_[role]` | — |
+| `asked_to_return` | No change | Requester's reason |
+
+### 19.3 Timeline Visualization
+
+History is displayed as a collapsible vertical timeline panel on dashboards and in the editor.
+
+**Timeline structure:**
+- Each pipeline stage is a row with a colored dot and role label
+- Under each stage: events showing actor name, action tag, and timestamp
+
+**Dot colors by stage status:**
+- **Green** — Stage completed (actor approved/submitted)
+- **Blue** — Active (current stage)
+- **Orange** — Returned (section was sent back from this stage)
+- **Gray** — Pending (stage not yet reached)
+
+**Smart features:**
+- Consecutive saves by the same actor are collapsed: "Edited (×3)"
+- "No action recorded" placeholder for stages reached without explicit history
+- Stages are filtered based on the event's `lower_submitter_role` and `documentSubmitterRole`
+- Timeline starts from `originalSubmitterRole` (earlier stages are omitted)
+
+### 19.4 API Endpoint
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/tp/section-history` | GET | Returns `{ history: [...] }` ordered chronologically. Params: `event_id`, `section_id`. |
+
+### 19.5 Limitations
+
+- **No content snapshots**: History tracks actions, not content diffs. Only the current HTML is stored in `SectionContent` (§8.16).
+- Content diff/comparison view could be added as a future enhancement.
+
+---
+
+## 20. Progress Bar / Status Grid
+
+### 20.1 Overview
+
+Each section in the workflow has a visual progress bar showing its journey through the approval pipeline. The progress bar is rendered on dashboards and is driven by the `SectionContent` table (§8.16) and `SectionHistory` table (§8.14).
+
+### 20.2 Section Status Enum
+
+The full set of possible section statuses:
+
+```
+draft, submitted, returned,
+submitted_to_collaborator_2, returned_by_collaborator_2, approved_by_collaborator_2,
+submitted_to_collaborator_3, returned_by_collaborator_3, approved_by_collaborator_3,
+submitted_to_collaborator, returned_by_collaborator, approved_by_collaborator,
+submitted_to_super_collaborator, returned_by_super_collaborator, approved_by_super_collaborator,
+submitted_to_supervisor, returned_by_supervisor, approved_by_supervisor,
+submitted_to_deputy, returned_by_deputy, approved_by_deputy,
+submitted_to_minister, returned_by_minister, approved_by_minister
+```
+
+### 20.3 Current Holder Logic
+
+The `currentHolderRole()` function determines who currently holds a section based on its status:
+
+| Status Pattern | Current Holder |
+|----------------|---------------|
+| `draft` / `in_progress` | `original_submitter_role` |
+| `returned_*` | Explicit `return_target_role` |
+| `submitted_to_X` | Role X |
+| `approved_by_X` | Next role in the chain |
+
+**`original_submitter_role`**: The role that first edited/submitted this section. Any role can be the first editor (§5.2 rule 9). Determines where the progress bar starts — earlier steps are hidden entirely, not greyed out.
+
+**`return_target_role`**: Set when a section is returned; records which role the section goes back to. Cleared when the section is re-submitted.
+
+### 20.4 Status Grid API
+
+`GET /api/tp/status-grid?event_id=X` returns:
+
+```json
+{
+  "event_id": number,
+  "lowerSubmitterRole": string,
+  "documentSubmitterRole": string,
+  "sections": [{
+    "sectionId": number,
+    "sectionLabel": string,
+    "status": string,
+    "statusComment": string | null,
+    "lastUpdatedAt": timestamp,
+    "lastUpdatedBy": string | null,
+    "isAssigned": boolean,
+    "originalSubmitterRole": string | null,
+    "returnTargetRole": string | null,
+    "returnRequest": { "from": string, "fromRole": string, "note": string, "at": timestamp } | null,
+    "stepNames": {
+      "collabI": string | null,
+      "collabII": string | null,
+      "collabIII": string | null,
+      "collaborator": string | null,
+      "superCollab": string | null,
+      "supervisor": string | null,
+      "deputy": string | null,
+      "minister": string | null
+    }
+  }]
+}
+```
+
+`stepNames` maps each pipeline role to the name of the user who acted at that stage (from section history). The progress bar shows actor names instead of role labels when available.
+
+### 20.5 Progress Bar Rendering
+
+The `renderUpperTierProgress()` function generates a numbered-step progress bar:
+
+**Steps shown** (from `originalSubmitterRole` onward — earlier steps omitted):
+- **Lower-tier steps**: Collaborator I → Head Collaborator → [Curator] → Collaborator → Super-Collaborator
+- **Upper-tier steps** (vary by `documentSubmitterRole`):
+  - Supervisor workflow: Supervisor → Approved
+  - Deputy workflow: Supervisor → Deputy → Approved
+  - Minister workflow: Supervisor → Deputy → Minister → Approved
+
+**Step states:**
+- `done` — Completed (blue gradient circle, numbered)
+- `active` — Current step (blue with outer glow ring)
+- `todo` — Pending (grey outline circle)
+- `no-actor` — Completed but no actor recorded (faded at 45% opacity)
+
+**Track**: Horizontal line with animated blue fill showing percentage complete.
+
+**Labels**: Show actor name if available (from `stepNames`), otherwise role label.
+
+**Awaiting state**: "Awaiting action" placeholder shown when a section has never been acted on (status = `draft`, no step names recorded).
+
+### 20.6 Document-Level Status
+
+The `DocumentStatus` table (§8.17) tracks overall document progress, separate from per-section statuses:
+- Progression: `in_progress` → `submitted_to_supervisor` → `submitted_to_deputy` → `approved`
+- Updated when the Document Submitter takes final action (e.g., "Send to Library")
+
+---
+
+## 21. Internationalization (i18n) & Language
+
+### 21.1 Overview
+
+The portal is built for the **Ministry of Economy of Georgia**. Georgian is the primary UI language, with English as a secondary language.
+
+### 21.2 Language Configuration
+
+| Setting | Value |
+|---------|-------|
+| **Primary language** | Georgian (ka) |
+| **Secondary language** | English (en) |
+| **Default for new users** | Georgian |
+| **Scope** | UI language only — document content language is separate (set per event in §6.1) |
+
+### 21.3 Architecture
+
+- **Key-based i18n system**: All UI strings (labels, buttons, messages, status names, role names) use translation keys (e.g., `t('dashboard.title')`).
+- **Language files**: JSON files per language (`ka.json`, `en.json`) containing all translated strings.
+- **Language toggle**: Users can switch between Georgian and English via a toggle in the app shell (sidebar or topbar).
+- **User preference**: The selected language is persisted per user (stored in user profile or local storage).
+
+### 21.4 Georgian Font Support
+
+The system bundles Georgian fonts (see §12.4): Noto Sans Georgian, Noto Serif Georgian, Sylfaen, FiraGO. These must be used for Georgian UI text rendering as well as document content.
+
+---
+
+## 22. Dark Mode / Light Mode
+
+### 22.1 Overview
+
+The portal supports both dark and light themes.
+
+### 22.2 Configuration
+
+| Setting | Value |
+|---------|-------|
+| **Toggle** | Theme switcher in the app shell (sidebar or topbar) |
+| **Default** | Follow system preference (`prefers-color-scheme` media query), with manual override |
+| **Persistence** | Per user (stored in user profile or local storage) |
+| **Scope** | All pages — dashboards, editor, calendar, library, statistics, admin panel |
+
+### 22.3 Implementation
+
+- Use a `data-theme="dark"` attribute on `<body>` (matching the reference repo pattern).
+- All component styles must support both themes via **CSS variables** or theme-aware selectors (`[data-theme="dark"]`).
+- The RichEditor already has dark mode support (§12.2) — it must follow the app-level theme toggle.
+
+---
+
+## 23. Deployment
+
+### 23.1 Platform
+
+The portal will be deployed on **Render** (render.com).
+
+### 23.2 Architecture
+
+| Component | Render Service Type |
+|-----------|-------------------|
+| **Backend** | Web Service (Node.js) |
+| **Frontend** | Static Site or same Web Service |
+| **Database** | PostgreSQL (Render-managed or external) |
+
+### 23.3 Environment Variables
+
+Required environment variables (provided by the user from the Render dashboard):
+- Database connection string
+- JWT secret
+- API keys (if applicable)
+- Other deployment-specific configuration
+
+Build and start commands will be configured based on the final project structure.
