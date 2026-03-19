@@ -67,6 +67,32 @@ with the `external` flag. They can have their own:
 - Supervisors
 - Curators (Deputies acting as curators)
 
+### 3.4 Countries
+
+Each event is associated with exactly **one country**. Countries control event visibility
+and user access for pipeline roles.
+
+- The system is seeded with a full ISO country list (~195 countries).
+- Each country has: `name_en` (English name), `code` (ISO-2 country code), `is_active` flag.
+- Countries can be deactivated (soft delete) but never removed.
+- **Regions** (Neighbors, EU, Asia, Africa, etc.) are **UI-only groupings** used to help
+  admins select countries more easily — they are not stored in the database.
+
+#### 3.4.1 Country Assignments
+
+- **Collaborators** and **Super-Collaborators** are assigned to one or more countries.
+- **Supervisors** and **Deputies** are NOT assigned to countries — they can see all events
+  within their scope (department or linked departments).
+- A pipeline user can only view and work on events for countries they are assigned to.
+- Country assignments are managed in the Admin Panel alongside section/department assignments.
+
+#### 3.4.2 Country–Event Relationship
+
+- Each event has a required `country_id` field — one country per event.
+- When creating an event, the creator selects which country the event is for.
+- All sections within an event inherit the event's country context.
+- Document status (approval progress) is tracked per event (which is inherently per-country).
+
 ---
 
 ## 4. User Management
@@ -78,7 +104,7 @@ When creating a user, the admin must provide:
 | Field             | Required | Description |
 |-------------------|----------|-------------|
 | **Full Name**     | Yes      | User's full name |
-| **Country**       | Yes      | Country selection (retained from current system) |
+| **Country Assignments** | Conditional | One or more countries the user can work on. Required for Collaborator and Super-Collaborator roles. Not applicable for Supervisors and Deputies. |
 | **Department / Agency** | Yes | Assign to exactly one department or agency |
 | **Role**          | Yes      | One of: Deputy, Supervisor, Super-Collaborator, Collaborator |
 | **External**      | Yes      | Boolean flag — `true` for users not from the Ministry of Economy |
@@ -111,22 +137,33 @@ Any of the following roles can be the Document Submitter:
 ### 5.2 Key Rules
 
 1. **Own-department sections** (where the section's department matches the Document Submitter's department) go through the department chain and stop at the Document Submitter — **no Curator step**.
-2. **Cross-department sections** (where the section's department differs from the Document Submitter's department) go through their own department's full chain, then **optionally** through the **Curator (Deputy)**, then to the Document Submitter.
+2. **Cross-department sections** (where the section's department differs from the Document Submitter's department) go through their own department's full chain, then **optionally** through the **Curator (Deputy)**, then through the **Document Submitter's home department receiving chain** (starting at SC), then to the Document Submitter.
 3. The **Curator step is optional** — it is configured during event creation ("Curator required" toggle).
+4. **Receiving chain**: When a cross-department section arrives at the Document Submitter's home department, it enters at the **Super-Collaborator** level and works up. This ensures the home department reviews cross-department content before the Document Submitter gives final approval. Exception: when SC is the Document Submitter, SC directly receives — no intermediate receiving chain.
 
 ### 5.3 Workflow Chains
 
 #### Chain A — Deputy is Document Submitter
 
-All sections go through their own department's chain up to the Deputy:
+The Deputy is linked to a Supervisor (Dept A). Dept A serves as the **home department**
+whose chain all sections must pass through before reaching the Deputy.
 
+**Home-department section (Dept A):**
 ```
-Section (any department):
-  Collaborator → Super-Collaborator → Supervisor → Deputy (approves & submits)
+Collaborator(A) → Super-Collaborator(A) → Supervisor(A) → Deputy (approves & submits)
 ```
 
-- Since the Deputy sits above all departments, there is no "own department" distinction.
-- No Curator step needed — the Deputy is the top-level approver for all sections.
+**Cross-department section (Dept B):**
+```
+Collaborator(B) → SC(B) → Supervisor(B) → [Deputy as Curator*] → SC(A) → Supervisor(A) → Deputy (approves & submits)
+```
+
+- Cross-department sections first complete their own department's chain, then pass through
+  the home department's chain (SC(A) → Supervisor(A)) before reaching the Deputy.
+- The Curator step is optional — it sits between the originating department's chain and the home department's receiving chain.
+- Home-department sections skip the Curator step entirely.
+
+`*` Curator step included only if "Curator required" is enabled during event creation.
 
 #### Chain B — Supervisor (Dept A) is Document Submitter
 
@@ -138,11 +175,11 @@ Collaborator(A) → Super-Collaborator(A) → Supervisor(A) ✓ (approves & subm
 
 **Cross-department section (Dept B):**
 ```
-Collaborator(B) → Super-Collaborator(B) → Supervisor(B) → [Deputy as Curator*] → Supervisor(A) ✓
+Collaborator(B) → SC(B) → Supervisor(B) → [Deputy as Curator*] → SC(A) → Supervisor(A) ✓ (approves & submits)
 ```
 - The section goes through Dept B's **full internal chain** (up to Supervisor B).
 - Then **optionally** through the Deputy acting as Curator.
-- Finally reaches Supervisor A (the Document Submitter) for final approval.
+- Then passes through the **home department's receiving chain** (SC(A) → Supervisor(A)) before reaching Supervisor A as the Document Submitter for final approval.
 
 `*` Curator step included only if "Curator required" is enabled during event creation.
 
@@ -156,11 +193,12 @@ Collaborator(A) → Super-Collaborator(A) ✓ (approves & submits)
 
 **Cross-department section (Dept B):**
 ```
-Collaborator(B) → Super-Collaborator(B) → Supervisor(B) → [Deputy as Curator*] → Super-Collaborator(A) ✓
+Collaborator(B) → SC(B) → Supervisor(B) → [Deputy as Curator*] → Super-Collaborator(A) ✓ (approves & submits)
 ```
 - The section goes through Dept B's **full internal chain** (up to Supervisor B).
 - Then **optionally** through the Deputy acting as Curator.
 - Finally reaches Super-Collaborator A (the Document Submitter) for final approval.
+- Note: SC(A) is the final approver here, so the section does **not** pass through SC(A) as an intermediate step — SC(A) directly receives and approves.
 
 `*` Curator step included only if "Curator required" is enabled during event creation.
 
@@ -168,8 +206,8 @@ Collaborator(B) → Super-Collaborator(B) → Supervisor(B) → [Deputy as Curat
 
 | Document Submitter        | Own-Dept Section Chain | Cross-Dept Section Chain | Curator Step |
 |---------------------------|------------------------|--------------------------|--------------|
-| **Deputy**                | Collab → SC → Supervisor → **Deputy** | Same for all sections | N/A (Deputy is final) |
-| **Supervisor (Dept A)**   | Collab(A) → SC(A) → **Supervisor(A)** | Collab(B) → SC(B) → Supervisor(B) → [Curator] → **Supervisor(A)** | Optional |
+| **Deputy**                | Collab(A) → SC(A) → Supervisor(A) → **Deputy** | Collab(B) → SC(B) → Supervisor(B) → [Curator] → SC(A) → Supervisor(A) → **Deputy** | Optional |
+| **Supervisor (Dept A)**   | Collab(A) → SC(A) → **Supervisor(A)** | Collab(B) → SC(B) → Supervisor(B) → [Curator] → SC(A) → **Supervisor(A)** | Optional |
 | **Super-Collab (Dept A)** | Collab(A) → **SC(A)** | Collab(B) → SC(B) → Supervisor(B) → [Curator] → **SC(A)** | Optional |
 
 ---
@@ -183,6 +221,7 @@ When creating an event, the following must be specified:
 | Field                  | Required   | Description |
 |------------------------|------------|-------------|
 | **Event Title**        | Yes        | Name of the event |
+| **Country**            | Yes        | The country this event is for. Determines which pipeline users (Collaborators, Super-Collaborators) can participate. |
 | **Document Submitter Role** | Yes  | Who will be the final approver: Deputy, Supervisor, or Super-Collaborator |
 | **Document Submitter** | Yes        | The specific user who will be the final approver (filtered by role selection) |
 | **Deputy**             | Conditional | Selected from dropdown. Required if Deputy is Document Submitter **or** if Curator is enabled. |
@@ -212,6 +251,7 @@ The system automatically generates the correct **workflow steps** for each secti
 1. The section's owning department
 2. The Document Submitter role and department
 3. Whether "Curator required" is enabled
+4. The event's country (determines eligible pipeline users)
 
 ### 6.4 Assignment Logic
 
@@ -235,13 +275,13 @@ Each section shows its chain as a row/track:
 **Example — Supervisor (Dept A) is Document Submitter, Curator enabled:**
 ```
 Section "Budget" (Dept A — own dept):
-  [Collaborator ✓] → [Super-Collaborator ●] → [Supervisor A ○]
+  [Collaborator ✓] → [SC(A) ●] → [Supervisor A ○]
 
 Section "Legal Review" (Dept B — cross-dept):
-  [Collaborator ✓] → [Super-Collaborator ✓] → [Supervisor B ✓] → [Curator ●] → [Supervisor A ○]
+  [Collaborator ✓] → [SC(B) ✓] → [Supervisor B ✓] → [Curator ●] → [SC(A) ○] → [Supervisor A ○]
 
 Section "Technical Spec" (Dept C — cross-dept):
-  [Collaborator ●] → [Super-Collaborator ○] → [Supervisor C ○] → [Curator ○] → [Supervisor A ○]
+  [Collaborator ●] → [SC(C) ○] → [Supervisor C ○] → [Curator ○] → [SC(A) ○] → [Supervisor A ○]
 ```
 
 Legend: `✓` = Approved, `●` = In Progress, `○` = Pending
@@ -268,7 +308,34 @@ Each step in a section's progress bar shows:
 
 ## 8. Data Model (High-Level)
 
-### 8.1 Department / Agency
+### 8.1 Country
+
+```
+Country {
+  id
+  name_en: string              // English name (unique)
+  code: string                 // ISO-2 country code (unique)
+  is_active: boolean (default true)
+  created_at
+  updated_at
+}
+```
+
+Seeded with the full ISO country list (~195 countries). Soft-deleted via `is_active = false`.
+
+### 8.2 Country Assignment
+
+```
+CountryAssignment {
+  user_id: FK → User           // PRIMARY KEY part 1
+  country_id: FK → Country     // PRIMARY KEY part 2
+}
+```
+
+Many-to-many link between users and countries. Only applicable for Collaborator and
+Super-Collaborator roles. Supervisors and Deputies do not have country assignments.
+
+### 8.3 Department / Agency
 
 ```
 Department {
@@ -280,14 +347,13 @@ Department {
 }
 ```
 
-### 8.2 User
+### 8.4 User
 
 ```
 User {
   id
   full_name
   email
-  country
   role: enum [DEPUTY, SUPERVISOR, SUPER_COLLABORATOR, COLLABORATOR]
   department_id: FK → Department
   is_external: boolean
@@ -296,7 +362,10 @@ User {
 }
 ```
 
-### 8.3 Deputy–Supervisor Link
+Country assignments are managed via the `CountryAssignment` join table (§8.2), not as a
+direct field on the User model. Only Collaborator and Super-Collaborator roles have country assignments.
+
+### 8.5 Deputy–Supervisor Link
 
 ```
 DeputySupervisorLink {
@@ -308,13 +377,14 @@ DeputySupervisorLink {
 
 This defines which Supervisors a Deputy oversees, enabling the filtered dropdown in event creation.
 
-### 8.4 Event
+### 8.6 Event
 
 ```
 Event {
   id
   title
   description
+  country_id: FK → Country (NOT NULL)       // Each event is for exactly one country
   document_submitter_role: enum [DEPUTY, SUPERVISOR, SUPER_COLLABORATOR]
   document_submitter_id: FK → User          // The specific user who is the final approver
   deputy_id: FK → User (nullable)           // The assigned Deputy (as submitter or curator)
@@ -325,7 +395,7 @@ Event {
 }
 ```
 
-### 8.5 Section
+### 8.7 Section
 
 ```
 Section {
@@ -343,7 +413,7 @@ Section {
 Each section generates its own set of workflow steps based on whether it is an own-department
 or cross-department section (see §5.3).
 
-### 8.6 Document Workflow Step
+### 8.8 Document Workflow Step
 
 ```
 WorkflowStep {
@@ -371,7 +441,9 @@ WorkflowStep {
 - Create/edit/deactivate users
 - Assign role and department
 - Set external flag
-- Country selection
+- Manage country assignments (for Collaborator and Super-Collaborator roles)
+  - Region-based grouping in UI for easier selection (Neighbors, EU, Asia, Africa, etc.)
+  - Hierarchical checkboxes: select a region to toggle all countries in that region
 
 ### 9.3 Deputy–Supervisor Linking
 - Interface to define which Supervisors are overseen by which Deputies
@@ -381,12 +453,14 @@ WorkflowStep {
 
 ## 10. Open Questions
 
-1. **Can a Deputy act as Curator for multiple concurrent documents?** — I want it to be clear for you. After all workflow is done and a Document Submitter submits the docuemnt to the library then the work is called "document", before that every single user is working on one or more "sections". Regarding the question: one user can be assigned to more than one sections.
-2. **Can the same user hold different roles in different contexts?** — It is only Deputy that if they are not a Document Submitter, they act as Curator if they are required to participate. other users hold their roles.
-3. **Document types** — Are there specific document types that determine which role must be the Document Submitter, or is this always a manual choice per event? users should be able to create event templates so they do not need to create event details every time manually.
-4. **Notification system** — How should users be notified when a section reaches their step in the workflow? Users are created consisting email information. So when an event is created all users participating in the event should be notified. the same way theyy should be notified via email if the section reached their level. Also, on their respective dashboards there should be some notification for them to act.
-5. **Rejection/return flow** — When a section is returned, does it go back one step or all the way to the Collaborator? Does returning one section block the entire document?- when a section is returned, it is returned to the original editor (the first one to edit (not the user, to the level - collaborator or super-collaborator).
-6. **Section-level UX** — How are sections visualized on the document view? Tabs, accordion, separate pages? See the reference project.
-7. **Cross-department collaborator assignment** — When a section is assigned to Dept B, are the Collaborators and Super-Collaborators automatically pulled from Dept B's roster, or manually selected? they are automatically pulled from Dept B's roster
-8. **Parallel vs sequential sections** — Can all sections be worked on simultaneously (parallel), or do some sections depend on others? they are worked in parallel.
-9. **Section addition after event creation** — Can new sections be added to a document after the event is created, or must all sections be defined upfront? sections can be added.
+1. **Can a Deputy act as Curator for multiple concurrent documents?** — One user can be assigned to more than one section. After all workflow is done and a Document Submitter submits the document to the library, the work is called a "document"; before that, every single user is working on one or more "sections".
+2. **Can the same user hold different roles in different contexts?** — It is only the Deputy that, if they are not a Document Submitter, acts as Curator if they are required to participate. Other users hold their roles.
+3. **Document types** — Users should be able to create **event templates** so they do not need to create event details every time manually.
+4. **Notification system** — Users are created with email information. When an event is created, all participating users should be notified via email. They should also be notified when the section reaches their level. Additionally, on their respective dashboards there should be a notification for them to act.
+5. **Rejection/return flow** — When a section is returned, it is returned to the **original editor level** (the first one to edit — not the specific user, but the level: Collaborator or Super-Collaborator).
+6. **Section-level UX** — See the reference project for section visualization approach.
+7. **Cross-department collaborator assignment** — Collaborators and Super-Collaborators are **automatically pulled from Dept B's roster** when a section is assigned to Dept B.
+8. **Parallel vs sequential sections** — Sections are worked on **in parallel**.
+9. **Section addition after event creation** — Sections **can be added** after event creation.
+10. **Region groupings** — Should the UI region groupings for country selection match the previous system's groupings (Neighbors, EU, Other Europe, N. America, S. America, Africa, Asia, Oceania), or should they be customized for the new system?
+11. **Country deactivation impact** — When a country is deactivated, what happens to existing events and user assignments for that country? Assumed: existing data is preserved but no new events can be created for that country.
