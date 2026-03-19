@@ -381,12 +381,12 @@ WorkflowStep {
 
 ## 10. Open Questions
 
-1. **Can a Deputy act as Curator for multiple concurrent documents?** — Assumed yes.
-2. **Can the same user hold different roles in different contexts?** — Currently assumed one role per user. If a Deputy needs to sometimes act as a Collaborator, this would need role-per-event assignment.
-3. **Document types** — Are there specific document types that determine which role must be the Document Submitter, or is this always a manual choice per event?
-4. **Notification system** — How should users be notified when a section reaches their step in the workflow?
-5. **Rejection/return flow** — When a section is returned, does it go back one step or all the way to the Collaborator? Does returning one section block the entire document?
-6. **Section-level UX** — How are sections visualized on the document view? Tabs, accordion, separate pages?
-7. **Cross-department collaborator assignment** — When a section is assigned to Dept B, are the Collaborators and Super-Collaborators automatically pulled from Dept B's roster, or manually selected?
-8. **Parallel vs sequential sections** — Can all sections be worked on simultaneously (parallel), or do some sections depend on others?
-9. **Section addition after event creation** — Can new sections be added to a document after the event is created, or must all sections be defined upfront?
+1. **Can a Deputy act as Curator for multiple concurrent documents?** — I want it to be clear for you. After all workflow is done and a Document Submitter submits the docuemnt to the library then the work is called "document", before that every single user is working on one or more "sections". Regarding the question: one user can be assigned to more than one sections.
+2. **Can the same user hold different roles in different contexts?** — It is only Deputy that if they are not a Document Submitter, they act as Curator if they are required to participate. other users hold their roles.
+3. **Document types** — Are there specific document types that determine which role must be the Document Submitter, or is this always a manual choice per event? users should be able to create event templates so they do not need to create event details every time manually.
+4. **Notification system** — How should users be notified when a section reaches their step in the workflow? Users are created consisting email information. So when an event is created all users participating in the event should be notified. the same way theyy should be notified via email if the section reached their level. Also, on their respective dashboards there should be some notification for them to act.
+5. **Rejection/return flow** — When a section is returned, does it go back one step or all the way to the Collaborator? Does returning one section block the entire document?- when a section is returned, it is returned to the original editor (the first one to edit (not the user, to the level - collaborator or super-collaborator).
+6. **Section-level UX** — How are sections visualized on the document view? Tabs, accordion, separate pages? See the reference project.
+7. **Cross-department collaborator assignment** — When a section is assigned to Dept B, are the Collaborators and Super-Collaborators automatically pulled from Dept B's roster, or manually selected? they are automatically pulled from Dept B's roster
+8. **Parallel vs sequential sections** — Can all sections be worked on simultaneously (parallel), or do some sections depend on others? they are worked in parallel.
+9. **Section addition after event creation** — Can new sections be added to a document after the event is created, or must all sections be defined upfront? sections can be added.
