@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vector Portal</title>
+  <script>
+    // Redirect to login or dashboard
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    if (!token || !user) {
+      window.location.href = '/login.html';
+    } else {
+      const u = JSON.parse(user);
+      const map = {
+        COLLABORATOR: '/pages/dashboard-collab.html',
+        SUPER_COLLABORATOR: '/pages/dashboard-super-collab.html',
+        SUPERVISOR: '/pages/dashboard-supervisor.html',
+        DEPUTY: '/pages/dashboard-deputy.html',
+        ADMIN: '/pages/admin.html',
+        PROTOCOL: '/pages/calendar.html',
+      };
+      window.location.href = map[u.role] || '/pages/dashboard-collab.html';
+    }
+  </script>
+</head>
+<body></body>
+</html>

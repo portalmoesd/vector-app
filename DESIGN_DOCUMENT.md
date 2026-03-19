@@ -464,10 +464,6 @@ Event {
   document_submitter_id: FK → User          // The specific user who is the final approver
   deputy_id: FK → User (nullable)           // The assigned Deputy (as submitter or curator)
   curator_required: boolean (default false)  // Whether Deputy reviews cross-dept sections
-  lower_submitter_role: enum [COLLABORATOR_2, COLLABORATOR_3] (default COLLABORATOR_2)
-    // Controls pipeline: COLLABORATOR_2 = Head Collab submits to Collaborator (skip Curator)
-    //                     COLLABORATOR_3 = Head Collab submits to Curator (include Curator)
-    // Maps to the "Curator required" toggle — when curator_required=true, lower_submitter_role=COLLABORATOR_3
   language: enum [EN, FR, AR, ES, RU, ZH, PT, DE]  // Document language
   deadline_date: date (nullable)                    // Submission deadline
   occasion: text (nullable)                         // Task description (rich text HTML)
@@ -569,7 +565,7 @@ SectionReturnRequest {
   requested_by_user_id: FK → User
   requested_by_name: string              // Denormalized for display
   requested_by_role: string              // Role of the requester
-  directed_to_role: string               // Role of the current holder
+  broadcast_above_role: string            // All roles above this role are notified
   note: text (nullable)                  // Optional reason for the request
   created_at
 }
@@ -632,20 +628,6 @@ SectionContent {
 ```
 
 Unique constraint: `(event_id, section_id)`. See §20 for full status enum and workflow logic.
-
-### 8.17 Document Status
-
-```
-DocumentStatus {
-  id
-  event_id: FK → Event
-  status: string                         // 'in_progress', 'submitted_to_supervisor', 'approved', etc.
-  comment: text (nullable)
-  updated_at
-}
-```
-
-Tracks overall document-level progress (separate from per-section statuses in `SectionContent`).
 
 ---
 
@@ -896,7 +878,7 @@ Opens a modal listing all uploaded files for the event:
 | `/api/library` | GET | List approved documents. Optional `country_id` filter. |
 | `/api/library/document` | GET | Full document content with all sections. Params: `event_id`, `country_id`. |
 | `/api/library/files` | GET | List uploaded files for an event. Param: `event_id`. |
-| `/api/tp/files/download` | GET | Download individual file. Params: `event_id`, `section_id`, `filename`. |
+| `/api/workflow/files/download` | GET | Download individual file. Params: `event_id`, `section_id`, `filename`. |
 
 ---
 
@@ -947,7 +929,7 @@ The system enforces this: if the section is already at the requester's stage, th
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/tp/ask-to-return` | POST | Create a return request. Body: `eventId`, `sectionId`, `note` (optional). Returns `{ success, directedToRole }`. |
+| `/api/workflow/ask-to-return` | POST | Create a return request. Body: `eventId`, `sectionId`, `note` (optional). Returns `{ success, directedToRole }`. |
 
 ---
 
@@ -988,7 +970,7 @@ Each event row/card shows:
 
 #### Create Event
 - Available to: Deputy, Supervisor, Super-Collaborator, Admin, Protocol
-- Form includes: country, title, DS role, lower-level submitter role, deadline date, language, required sections + departments (hierarchical checklist), task description (Simple Editor)
+- Form includes: country, title, DS role, curator required toggle, deadline date, language, required sections + departments (hierarchical checklist), task description (Simple Editor)
 - Form resets on success
 
 #### View Event
@@ -1031,29 +1013,21 @@ All dashboards share:
 
 ### 17.3 Dashboard Capabilities Matrix
 
-| Dashboard | Role(s) | Can Edit | Can Submit/Route | Can Approve | Can Return | Ask to Return | Send to Library | Paper Preview |
-|-----------|---------|----------|-----------------|-------------|------------|---------------|-----------------|---------------|
-| Collaborator I | collaborator_1 | Own sections | Yes (→ Head Collab) | No | No | Yes | No | No |
-| Head Collaborator | collaborator_2 | Conditional | Yes (→ Curator or Collab) | No | Yes | Yes | No | Yes |
-| Curator | collaborator_3 | Conditional | Yes (→ Collaborator) | No | Yes | Yes | No | Yes |
-| Collaborator | collaborator | Assigned + lower-tier | Yes (→ Super-Collab) | No | Yes (select) | Yes | No | Yes |
-| Super-Collaborator | super_collaborator | All sections | No | Yes | Yes | No | Yes* | Yes |
-| Supervisor | supervisor | All sections | No | Yes | Yes | No | Yes* | Yes |
-| Deputy | deputy | All sections | No | Yes | Yes | No | Yes* | Yes |
-| Minister | minister | All sections | No | Yes | Yes | No | Yes* | Yes |
+| Dashboard | Role | Can Edit | Can Submit | Can Approve | Can Return | Ask to Return | Send to Library | Paper Preview |
+|-----------|------|----------|------------|-------------|------------|---------------|-----------------|---------------|
+| Collaborator | COLLABORATOR | Own sections | Yes (→ Super-Collaborator) | No | No | Yes | No | No |
+| Super-Collaborator | SUPER_COLLABORATOR | Assigned sections | Yes (→ Supervisor/Curator) | Yes | Yes | Yes | Yes* | Yes |
+| Supervisor | SUPERVISOR | All sections | No | Yes | Yes | Yes | Yes* | Yes |
+| Deputy | DEPUTY | All sections | No | Yes | Yes | Yes | Yes* | Yes |
 
 `*` Only when that role is the Document Submitter for the event.
 
 ### 17.4 Dashboard Details
 
-- **Collaborator I**: Sees only assigned sections. Can open editor and submit to Head Collaborator.
-- **Head Collaborator**: Sees all sections. Can return to lower tier or submit up. Submission target depends on `lower_submitter_role` (Curator or Collaborator).
-- **Curator (collaborator_3)**: Same structure as Head Collaborator. Always submits to Collaborator.
-- **Collaborator (full reviewer)**: Sees ALL sections but can only act on assigned ones. Shows "Monitoring" label for non-actionable sections.
-- **Super-Collaborator**: First real approval level. Has "Approve" + "Approve All" bulk button + "Open All Sections" button. "Send to Library" shown when SC is Document Submitter.
+- **Collaborator**: Sees only assigned sections. Can open editor and submit to Super-Collaborator. Can use "Ask to Return" for sections past their stage.
+- **Super-Collaborator**: Sees all assigned sections. Has "Approve" + "Approve All" bulk button + "Open All Sections" button. "Send to Library" shown when SC is Document Submitter.
 - **Supervisor**: Similar to Super-Collaborator. Cannot approve sections already past their stage. "Send to Library" when Supervisor is DS.
-- **Deputy**: Approve sections + "Send to Library" button (when Deputy is DS). Can end events.
-- **Minister**: Similar to Deputy.
+- **Deputy**: Approve sections + "Send to Library" button (when Deputy is DS). Can end events. Also acts as Curator for cross-department sections when curator_required=true.
 
 ### 17.5 Micro-Actions
 
@@ -1102,13 +1076,13 @@ The primary editing interface for section content.
 
 | Action | API Endpoint | Description |
 |--------|-------------|-------------|
-| **Save** | `POST /api/tp/save` | Saves HTML content, records "saved" in history |
-| **Submit** | `POST /api/tp/submit` | Moves section to next pipeline stage |
-| **Approve** | `POST /api/tp/approve-section` | Approves section (Super-Collaborator and above) |
-| **Return** | `POST /api/tp/return` | Returns with optional comment |
-| **Upload** | `POST /api/tp/files/upload` | Upload files (multiple, base64 encoded) |
-| **Ask to Return** | `POST /api/tp/ask-to-return` | Request return with optional note |
-| **View Files** | `GET /api/tp/files` | Modal listing uploaded files |
+| **Save** | `POST /api/workflow/save` | Saves HTML content, records "saved" in history |
+| **Submit** | `POST /api/workflow/submit` | Moves section to next pipeline stage |
+| **Approve** | `POST /api/workflow/approve-section` | Approves section (Super-Collaborator and above) |
+| **Return** | `POST /api/workflow/return` | Returns with optional comment |
+| **Upload** | `POST /api/workflow/files/upload` | Upload files (multiple, base64 encoded) |
+| **Ask to Return** | `POST /api/workflow/ask-to-return` | Request return with optional note |
+| **View Files** | `GET /api/workflow/files` | Modal listing uploaded files |
 
 Buttons are dynamically shown/hidden based on the user's role and the section's current status.
 
@@ -1116,16 +1090,16 @@ Buttons are dynamically shown/hidden based on the user's role and the section's 
 
 1. Hidden file input (multiple files allowed)
 2. Files read as base64 via FileReader
-3. `POST /api/tp/files/upload` with `{ eventId, sectionId, filename, mimeType, base64 }`
+3. `POST /api/workflow/files/upload` with `{ eventId, sectionId, filename, mimeType, base64 }`
 4. Files listed in modal: filename, upload date, uploader name, file size
-5. Download via authenticated `GET /api/tp/files/download` endpoint
+5. Download via authenticated `GET /api/workflow/files/download` endpoint
 
 ### 18.4 Inline Comments
 
 - Floating comment card (292px wide) positioned near text anchor or editor edge
 - Shows user avatar (colored initials based on username hash), name, textarea
 - Keyboard shortcuts: Ctrl+Enter to submit, Escape to cancel
-- API: `POST /api/tp/comments`, `DELETE /api/tp/comments/{id}`, `GET /api/tp/comments`
+- API: `POST /api/workflow/comments`, `DELETE /api/workflow/comments/{id}`, `GET /api/workflow/comments`
 
 ### 18.5 Editor-All (Multi-Section Review)
 
@@ -1181,14 +1155,14 @@ History is displayed as a collapsible vertical timeline panel on dashboards and 
 **Smart features:**
 - Consecutive saves by the same actor are collapsed: "Edited (×3)"
 - "No action recorded" placeholder for stages reached without explicit history
-- Stages are filtered based on the event's `lower_submitter_role` and `documentSubmitterRole`
+- Stages are filtered based on the event's `curatorRequired` flag and `documentSubmitterRole`
 - Timeline starts from `originalSubmitterRole` (earlier stages are omitted)
 
 ### 19.4 API Endpoint
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/tp/section-history` | GET | Returns `{ history: [...] }` ordered chronologically. Params: `event_id`, `section_id`. |
+| `/api/workflow/section-history` | GET | Returns `{ history: [...] }` ordered chronologically. Params: `event_id`, `section_id`. |
 
 ### 19.5 Limitations
 
@@ -1208,14 +1182,11 @@ Each section in the workflow has a visual progress bar showing its journey throu
 The full set of possible section statuses:
 
 ```
-draft, submitted, returned,
-submitted_to_collaborator_2, returned_by_collaborator_2, approved_by_collaborator_2,
-submitted_to_collaborator_3, returned_by_collaborator_3, approved_by_collaborator_3,
-submitted_to_collaborator, returned_by_collaborator, approved_by_collaborator,
+draft,
 submitted_to_super_collaborator, returned_by_super_collaborator, approved_by_super_collaborator,
+submitted_to_curator, returned_by_curator, approved_by_curator,
 submitted_to_supervisor, returned_by_supervisor, approved_by_supervisor,
-submitted_to_deputy, returned_by_deputy, approved_by_deputy,
-submitted_to_minister, returned_by_minister, approved_by_minister
+submitted_to_deputy, returned_by_deputy, approved_by_deputy
 ```
 
 ### 20.3 Current Holder Logic
@@ -1235,13 +1206,13 @@ The `currentHolderRole()` function determines who currently holds a section base
 
 ### 20.4 Status Grid API
 
-`GET /api/tp/status-grid?event_id=X` returns:
+`GET /api/workflow/status-grid?event_id=X` returns:
 
 ```json
 {
   "event_id": number,
-  "lowerSubmitterRole": string,
   "documentSubmitterRole": string,
+  "curatorRequired": boolean,
   "sections": [{
     "sectionId": number,
     "sectionLabel": string,
@@ -1254,14 +1225,11 @@ The `currentHolderRole()` function determines who currently holds a section base
     "returnTargetRole": string | null,
     "returnRequest": { "from": string, "fromRole": string, "note": string, "at": timestamp } | null,
     "stepNames": {
-      "collabI": string | null,
-      "collabII": string | null,
-      "collabIII": string | null,
       "collaborator": string | null,
-      "superCollab": string | null,
+      "superCollaborator": string | null,
+      "curator": string | null,
       "supervisor": string | null,
-      "deputy": string | null,
-      "minister": string | null
+      "deputy": string | null
     }
   }]
 }
@@ -1274,11 +1242,12 @@ The `currentHolderRole()` function determines who currently holds a section base
 The `renderUpperTierProgress()` function generates a numbered-step progress bar:
 
 **Steps shown** (from `originalSubmitterRole` onward — earlier steps omitted):
-- **Lower-tier steps**: Collaborator I → Head Collaborator → [Curator] → Collaborator → Super-Collaborator
-- **Upper-tier steps** (vary by `documentSubmitterRole`):
-  - Supervisor workflow: Supervisor → Approved
-  - Deputy workflow: Supervisor → Deputy → Approved
-  - Minister workflow: Supervisor → Deputy → Minister → Approved
+- Collaborator → Super-Collaborator → [Curator] → Supervisor → Deputy → Approved
+- Steps vary by `documentSubmitterRole`:
+  - SC is DS: Collaborator → Super-Collaborator → Approved
+  - Supervisor is DS: Collaborator → Super-Collaborator → [Curator] → Supervisor → Approved
+  - Deputy is DS: Collaborator → Super-Collaborator → [Curator] → Supervisor → Deputy → Approved
+- Curator step shown only when `curatorRequired=true` and section is cross-department
 
 **Step states:**
 - `done` — Completed (blue gradient circle, numbered)
@@ -1291,12 +1260,6 @@ The `renderUpperTierProgress()` function generates a numbered-step progress bar:
 **Labels**: Show actor name if available (from `stepNames`), otherwise role label.
 
 **Awaiting state**: "Awaiting action" placeholder shown when a section has never been acted on (status = `draft`, no step names recorded).
-
-### 20.6 Document-Level Status
-
-The `DocumentStatus` table (§8.17) tracks overall document progress, separate from per-section statuses:
-- Progression: `in_progress` → `submitted_to_supervisor` → `submitted_to_deputy` → `approved`
-- Updated when the Document Submitter takes final action (e.g., "Send to Library")
 
 ---
 

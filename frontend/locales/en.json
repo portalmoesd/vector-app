@@ -1,0 +1,55 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "calendar": "Calendar",
+    "library": "Library",
+    "statistics": "Statistics",
+    "admin": "Admin Panel"
+  },
+  "auth": {
+    "login": "Log In",
+    "username": "Username",
+    "password": "Password",
+    "loginButton": "Sign In",
+    "loginError": "Invalid username or password"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "selectEvent": "Select event",
+    "noEvents": "No events available",
+    "sections": "Required Sections",
+    "status": "Status",
+    "lastUpdated": "Last Updated",
+    "actions": "Actions"
+  },
+  "status": {
+    "draft": "Draft",
+    "submitted_to_super_collaborator": "At Super-Collaborator",
+    "returned_by_super_collaborator": "Returned by Super-Collaborator",
+    "approved_by_super_collaborator": "Approved (Super-Collaborator)",
+    "submitted_to_curator": "At Curator",
+    "returned_by_curator": "Returned by Curator",
+    "approved_by_curator": "Approved (Curator)",
+    "submitted_to_supervisor": "At Supervisor",
+    "returned_by_supervisor": "Returned by Supervisor",
+    "approved_by_supervisor": "Approved (Supervisor)",
+    "submitted_to_deputy": "At Deputy",
+    "returned_by_deputy": "Returned by Deputy",
+    "approved_by_deputy": "Approved (Deputy)"
+  },
+  "roles": {
+    "ADMIN": "Admin",
+    "PROTOCOL": "Protocol",
+    "DEPUTY": "Deputy",
+    "SUPERVISOR": "Supervisor",
+    "SUPER_COLLABORATOR": "Super-Collaborator",
+    "COLLABORATOR": "Collaborator"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close",
+    "loading": "Loading..."
+  }
+}

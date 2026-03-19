@@ -1,0 +1,55 @@
+{
+  "nav": {
+    "dashboard": "მთავარი",
+    "calendar": "კალენდარი",
+    "library": "ბიბლიოთეკა",
+    "statistics": "სტატისტიკა",
+    "admin": "ადმინ პანელი"
+  },
+  "auth": {
+    "login": "შესვლა",
+    "username": "მომხმარებელი",
+    "password": "პაროლი",
+    "loginButton": "შესვლა",
+    "loginError": "არასწორი მომხმარებელი ან პაროლი"
+  },
+  "dashboard": {
+    "title": "მთავარი",
+    "selectEvent": "აირჩიეთ ღონისძიება",
+    "noEvents": "ღონისძიებები არ არის",
+    "sections": "საჭირო სექციები",
+    "status": "სტატუსი",
+    "lastUpdated": "ბოლო განახლება",
+    "actions": "მოქმედებები"
+  },
+  "status": {
+    "draft": "პროექტი",
+    "submitted_to_super_collaborator": "სუპერ-კოლაბორატორთან",
+    "returned_by_super_collaborator": "დაბრუნებული სუპერ-კოლაბორატორის მიერ",
+    "approved_by_super_collaborator": "დამტკიცებული (სუპერ-კოლაბორატორი)",
+    "submitted_to_curator": "კურატორთან",
+    "returned_by_curator": "დაბრუნებული კურატორის მიერ",
+    "approved_by_curator": "დამტკიცებული (კურატორი)",
+    "submitted_to_supervisor": "ზედამხედველთან",
+    "returned_by_supervisor": "დაბრუნებული ზედამხედველის მიერ",
+    "approved_by_supervisor": "დამტკიცებული (ზედამხედველი)",
+    "submitted_to_deputy": "მოადგილესთან",
+    "returned_by_deputy": "დაბრუნებული მოადგილის მიერ",
+    "approved_by_deputy": "დამტკიცებული (მოადგილე)"
+  },
+  "roles": {
+    "ADMIN": "ადმინი",
+    "PROTOCOL": "პროტოკოლი",
+    "DEPUTY": "მოადგილე",
+    "SUPERVISOR": "ზედამხედველი",
+    "SUPER_COLLABORATOR": "სუპერ-კოლაბორატორი",
+    "COLLABORATOR": "კოლაბორატორი"
+  },
+  "common": {
+    "save": "შენახვა",
+    "cancel": "გაუქმება",
+    "confirm": "დადასტურება",
+    "close": "დახურვა",
+    "loading": "იტვირთება..."
+  }
+}

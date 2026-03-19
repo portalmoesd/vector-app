@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vector Portal — Dashboard</title>
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/sidebar.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <div class="page-title" data-i18n="dashboard.title">Dashboard</div>
+      </div>
+
+      <div class="event-selector">
+        <label data-i18n="dashboard.selectEvent">Select event</label>
+        <select id="eventSelect" class="form-select"></select>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom: 16px;" data-i18n="dashboard.sections">Required Sections</h3>
+        <div id="sectionsContainer">
+          <div class="empty-state">
+            <p data-i18n="dashboard.noEvents">No events available</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/core/config.js"></script>
+  <script src="/js/core/api.js"></script>
+  <script src="/js/core/i18n.js"></script>
+  <script src="/js/core/utils.js"></script>
+  <script src="/js/core/app.js"></script>
+  <script src="/js/pages/dashboard-collab.js"></script>
+</body>
+</html>

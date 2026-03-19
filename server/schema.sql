@@ -1,0 +1,227 @@
+-- Vector Portal — Database Schema
+-- Run: psql $DATABASE_URL -f server/schema.sql
+
+BEGIN;
+
+-- ─── Enums ──────────────────────────────────────────────────────────────────
+
+CREATE TYPE user_role AS ENUM (
+  'ADMIN', 'PROTOCOL', 'DEPUTY', 'SUPERVISOR', 'SUPER_COLLABORATOR', 'COLLABORATOR'
+);
+
+CREATE TYPE ds_role AS ENUM (
+  'DEPUTY', 'SUPERVISOR', 'SUPER_COLLABORATOR'
+);
+
+CREATE TYPE event_language AS ENUM (
+  'EN', 'FR', 'AR', 'ES', 'RU', 'ZH', 'PT', 'DE'
+);
+
+CREATE TYPE event_status AS ENUM (
+  'DRAFT', 'IN_PROGRESS', 'COMPLETED', 'ARCHIVED'
+);
+
+CREATE TYPE workflow_step_status AS ENUM (
+  'PENDING', 'IN_PROGRESS', 'APPROVED', 'RETURNED'
+);
+
+CREATE TYPE history_action AS ENUM (
+  'saved', 'submitted', 'returned', 'approved', 'asked_to_return'
+);
+
+-- ─── Countries ──────────────────────────────────────────────────────────────
+
+CREATE TABLE countries (
+  id            SERIAL PRIMARY KEY,
+  name_en       VARCHAR(120) NOT NULL UNIQUE,
+  code          CHAR(2) NOT NULL UNIQUE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ─── Departments ────────────────────────────────────────────────────────────
+
+CREATE TABLE departments (
+  id            SERIAL PRIMARY KEY,
+  name          VARCHAR(200) NOT NULL,
+  is_external   BOOLEAN NOT NULL DEFAULT false,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ─── Users ──────────────────────────────────────────────────────────────────
+
+CREATE TABLE users (
+  id                    SERIAL PRIMARY KEY,
+  full_name             VARCHAR(200) NOT NULL,
+  username              VARCHAR(100) NOT NULL UNIQUE,
+  email                 VARCHAR(200) NOT NULL,
+  password_hash         TEXT NOT NULL,
+  role                  user_role NOT NULL,
+  department_id         INT REFERENCES departments(id) ON DELETE SET NULL,
+  is_external           BOOLEAN NOT NULL DEFAULT false,
+  must_change_password  BOOLEAN NOT NULL DEFAULT true,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ─── Country Assignments (Collaborator / Super-Collaborator only) ───────────
+
+CREATE TABLE country_assignments (
+  user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  country_id INT NOT NULL REFERENCES countries(id) ON DELETE CASCADE,
+  PRIMARY KEY (user_id, country_id)
+);
+
+-- ─── Deputy–Supervisor Links ────────────────────────────────────────────────
+
+CREATE TABLE deputy_supervisor_links (
+  id            SERIAL PRIMARY KEY,
+  deputy_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  supervisor_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE (deputy_id, supervisor_id)
+);
+
+-- ─── Events ─────────────────────────────────────────────────────────────────
+
+CREATE TABLE events (
+  id                        SERIAL PRIMARY KEY,
+  title                     VARCHAR(500) NOT NULL,
+  description               TEXT,
+  country_id                INT NOT NULL REFERENCES countries(id),
+  document_submitter_role   ds_role NOT NULL,
+  document_submitter_id     INT NOT NULL REFERENCES users(id),
+  deputy_id                 INT REFERENCES users(id),
+  curator_required          BOOLEAN NOT NULL DEFAULT false,
+  language                  event_language NOT NULL DEFAULT 'EN',
+  deadline_date             DATE,
+  occasion                  TEXT,
+  is_active                 BOOLEAN NOT NULL DEFAULT true,
+  ended_at                  TIMESTAMPTZ,
+  status                    event_status NOT NULL DEFAULT 'DRAFT',
+  created_by_id             INT REFERENCES users(id),
+  created_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at                TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ─── Sections ───────────────────────────────────────────────────────────────
+
+CREATE TABLE sections (
+  id          SERIAL PRIMARY KEY,
+  event_id    INT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  title       VARCHAR(500) NOT NULL,
+  sort_order  INT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ─── Section–Department Assignment ──────────────────────────────────────────
+
+CREATE TABLE section_departments (
+  section_id    INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  department_id INT NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+  PRIMARY KEY (section_id, department_id)
+);
+
+-- ─── Workflow Steps ─────────────────────────────────────────────────────────
+
+CREATE TABLE workflow_steps (
+  id                SERIAL PRIMARY KEY,
+  section_id        INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  department_id     INT REFERENCES departments(id),
+  step_order        INT NOT NULL,
+  role_label        VARCHAR(50) NOT NULL,
+  assigned_user_id  INT REFERENCES users(id),
+  status            workflow_step_status NOT NULL DEFAULT 'PENDING',
+  reviewed_at       TIMESTAMPTZ,
+  comments          TEXT
+);
+
+-- ─── Section Content ────────────────────────────────────────────────────────
+
+CREATE TABLE section_content (
+  id                            SERIAL PRIMARY KEY,
+  event_id                      INT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  section_id                    INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  html_content                  TEXT NOT NULL DEFAULT '',
+  status                        VARCHAR(60) NOT NULL DEFAULT 'draft',
+  status_comment                TEXT,
+  original_submitter_role       VARCHAR(50),
+  return_target_role            VARCHAR(50),
+  last_updated_by_user_id       INT REFERENCES users(id),
+  last_updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_content_edited_at        TIMESTAMPTZ,
+  last_content_edited_by_user_id INT REFERENCES users(id),
+  UNIQUE (event_id, section_id)
+);
+
+-- ─── Section History ────────────────────────────────────────────────────────
+
+CREATE TABLE section_history (
+  id          SERIAL PRIMARY KEY,
+  event_id    INT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  section_id  INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  action      history_action NOT NULL,
+  from_status VARCHAR(60),
+  to_status   VARCHAR(60) NOT NULL,
+  user_id     INT REFERENCES users(id),
+  user_name   VARCHAR(200),
+  user_role   VARCHAR(50),
+  note        TEXT,
+  acted_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_section_history_lookup ON section_history (event_id, section_id, acted_at);
+
+-- ─── Section Comments ───────────────────────────────────────────────────────
+
+CREATE TABLE section_comments (
+  id          SERIAL PRIMARY KEY,
+  event_id    INT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  section_id  INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  user_id     INT NOT NULL REFERENCES users(id),
+  anchor_id   VARCHAR(100),
+  content     TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ─── Section Return Requests ────────────────────────────────────────────────
+
+CREATE TABLE section_return_requests (
+  id                      SERIAL PRIMARY KEY,
+  event_id                INT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  section_id              INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  requested_by_user_id    INT NOT NULL REFERENCES users(id),
+  requested_by_name       VARCHAR(200) NOT NULL,
+  requested_by_role       VARCHAR(50) NOT NULL,
+  broadcast_above_role    VARCHAR(50) NOT NULL,
+  note                    TEXT,
+  created_at              TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ─── Event Templates ────────────────────────────────────────────────────────
+
+CREATE TABLE event_templates (
+  id                        SERIAL PRIMARY KEY,
+  name                      VARCHAR(300) NOT NULL,
+  created_by_id             INT NOT NULL REFERENCES users(id),
+  document_submitter_role   ds_role NOT NULL,
+  curator_required          BOOLEAN NOT NULL DEFAULT false,
+  created_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at                TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE event_template_sections (
+  id            SERIAL PRIMARY KEY,
+  template_id   INT NOT NULL REFERENCES event_templates(id) ON DELETE CASCADE,
+  title         VARCHAR(500) NOT NULL,
+  sort_order    INT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE event_template_section_departments (
+  template_section_id INT NOT NULL REFERENCES event_template_sections(id) ON DELETE CASCADE,
+  department_id       INT NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+  PRIMARY KEY (template_section_id, department_id)
+);
+
+COMMIT;
