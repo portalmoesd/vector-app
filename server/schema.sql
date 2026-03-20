@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS countries (
 
 CREATE TABLE IF NOT EXISTS departments (
   id            SERIAL PRIMARY KEY,
-  name          VARCHAR(200) NOT NULL,
+  name          VARCHAR(500) NOT NULL,
+  name_en       VARCHAR(500),
   is_external   BOOLEAN NOT NULL DEFAULT false,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()

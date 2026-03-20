@@ -47,9 +47,9 @@
       }
       document.getElementById('deptList').innerHTML = `
         <div class="table-wrap"><table>
-          <thead><tr><th>ID</th><th>Name</th><th>External</th></tr></thead>
-          <tbody>${depts.map(d => `
-            <tr><td>${d.id}</td><td>${escapeHtml(d.name)}</td><td>${d.isExternal ? 'Yes' : 'No'}</td></tr>
+          <thead><tr><th>#</th><th>Name (KA)</th><th>Name (EN)</th><th>Type</th></tr></thead>
+          <tbody>${depts.map((d, i) => `
+            <tr><td>${i + 1}</td><td>${escapeHtml(d.name)}</td><td>${d.nameEn ? escapeHtml(d.nameEn) : '—'}</td><td><span class="pill ${d.isExternal ? 'pill-yellow' : 'pill-blue'}">${d.isExternal ? 'Agency' : 'Department'}</span></td></tr>
           `).join('')}</tbody>
         </table></div>`;
       return depts;

@@ -40,6 +40,28 @@ async function migrate() {
     await db.query(schema);
     console.log('Schema OK.');
 
+    // Add name_en column if missing (migration for existing databases)
+    await db.query(`
+      DO $$ BEGIN
+        ALTER TABLE departments ADD COLUMN IF NOT EXISTS name_en VARCHAR(500);
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$;
+    `);
+
+    // Seed departments if empty
+    const { rows: [{ count: deptCount }] } = await db.query('SELECT count(*)::int AS count FROM departments');
+    if (deptCount === 0) {
+      console.log('Seeding departments...');
+      const depts = require('./data/departments.json');
+      for (const d of depts) {
+        await db.query(
+          'INSERT INTO departments (name, name_en, is_external) VALUES ($1, $2, $3)',
+          [d.name, d.name_en, d.external]
+        );
+      }
+      console.log(`Seeded ${depts.length} departments.`);
+    }
+
     // Seed countries if empty
     const { rows: [{ count: countryCount }] } = await db.query('SELECT count(*)::int AS count FROM countries');
     if (countryCount === 0) {

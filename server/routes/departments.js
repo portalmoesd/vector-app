@@ -8,11 +8,12 @@ const router = express.Router();
 router.get('/', requireAuth, async (req, res) => {
   try {
     const { rows } = await db.query(
-      'SELECT id, name, is_external FROM departments ORDER BY name'
+      'SELECT id, name, name_en, is_external FROM departments ORDER BY is_external, name'
     );
     res.json(rows.map(r => ({
       id: r.id,
       name: r.name,
+      nameEn: r.name_en,
       isExternal: r.is_external,
     })));
   } catch (err) {
@@ -24,12 +25,12 @@ router.get('/', requireAuth, async (req, res) => {
 // POST /api/departments (admin only)
 router.post('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
-    const { name, isExternal } = req.body;
+    const { name, nameEn, isExternal } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
 
     const { rows } = await db.query(
-      'INSERT INTO departments (name, is_external) VALUES ($1, $2) RETURNING id',
-      [name, isExternal || false]
+      'INSERT INTO departments (name, name_en, is_external) VALUES ($1, $2, $3) RETURNING id',
+      [name, nameEn || null, isExternal || false]
     );
     res.status(201).json({ id: rows[0].id, success: true });
   } catch (err) {
