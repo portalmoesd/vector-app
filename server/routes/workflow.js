@@ -4,6 +4,7 @@ const { requireAuth } = require('../middleware/auth');
 const { ROLES } = require('../helpers/roles');
 const {
   STATUS,
+  baseRole,
   buildChain,
   nextInChain,
   isFinalApprover,
@@ -60,13 +61,16 @@ async function loadSectionContext(eventId, sectionId) {
 }
 
 /**
- * Map user role to the effective pipeline role.
- * A Deputy who oversees the section's department and is NOT the Document
- * Submitter acts as CURATOR for that section.
+ * Map user role to the effective pipeline step label for a given section.
+ *
+ * - A Deputy who oversees the section's department and is NOT the DS → CURATOR
+ * - A user in the DS's home dept whose RECEIVING_ variant exists in the chain
+ *   → RECEIVING_SUPER_COLLABORATOR or RECEIVING_SUPERVISOR
+ * - Otherwise → the user's base role
  */
-async function effectiveRole(user, event, sectionDeptIds) {
+async function effectiveRole(user, event, sectionDeptIds, chain) {
+  // Deputy as Curator
   if (user.role === ROLES.DEPUTY && event.document_submitter_id !== user.id && sectionDeptIds) {
-    // Check if this deputy oversees any of the section's departments
     const { rows } = await db.query(
       `SELECT 1 FROM deputy_department_links
        WHERE deputy_id = $1 AND department_id = ANY($2) LIMIT 1`,
@@ -74,6 +78,21 @@ async function effectiveRole(user, event, sectionDeptIds) {
     );
     if (rows.length > 0) return 'CURATOR';
   }
+
+  // Check if user belongs to the receiving chain (DS's home department)
+  if (chain) {
+    const receivingLabel = 'RECEIVING_' + user.role;
+    if (chain.includes(receivingLabel)) {
+      // User's dept must match DS's home dept to be in the receiving chain
+      const { rows: [dsUser] } = await db.query(
+        'SELECT department_id FROM users WHERE id = $1', [event.document_submitter_id]
+      );
+      if (dsUser && user.department_id === dsUser.department_id) {
+        return receivingLabel;
+      }
+    }
+  }
+
   return user.role;
 }
 
@@ -125,8 +144,8 @@ router.post('/submit', requireAuth, async (req, res) => {
     const ctx = await loadSectionContext(eventId, sectionId);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds);
-    const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole);
+    const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds, ctx.chain);
+    const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
 
     // Verify user is the current holder
     if (userRole !== holder) {
@@ -193,8 +212,8 @@ router.post('/approve', requireAuth, async (req, res) => {
     const ctx = await loadSectionContext(eventId, sectionId);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds);
-    const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole);
+    const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds, ctx.chain);
+    const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
 
     // Must be submitted to this role
     if (userRole !== holder) {
@@ -269,8 +288,8 @@ router.post('/return', requireAuth, async (req, res) => {
     const ctx = await loadSectionContext(eventId, sectionId);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds);
-    const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole);
+    const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds, ctx.chain);
+    const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
 
     if (userRole !== holder) {
       return res.status(403).json({
@@ -328,10 +347,10 @@ router.post('/ask-to-return', requireAuth, async (req, res) => {
     const ctx = await loadSectionContext(eventId, sectionId);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds);
+    const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds, ctx.chain);
 
     // The section must NOT be at the requester's stage (they can't ask-to-return their own stage)
-    const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole);
+    const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
     if (userRole === holder) {
       return res.status(400).json({ error: 'You currently hold this section — use return instead' });
     }
@@ -488,13 +507,13 @@ router.get('/status-grid', requireAuth, async (req, res) => {
 
       // Resolve actor names for each step in the chain
       const steps = [];
-      for (const role of chain) {
+      for (const step of chain) {
         let actorName = null;
         let actorId = null;
         let deptName = null;
 
-        if (role === 'CURATOR') {
-          // Find the deputy who oversees the section's department(s)
+        if (step === 'CURATOR') {
+          // Find the deputy who oversees the section's department(s), excluding the DS
           const { rows: [dep] } = await db.query(
             `SELECT u.id, u.full_name, d.name_en AS department_name
              FROM deputy_department_links ddl
@@ -504,38 +523,45 @@ router.get('/status-grid', requireAuth, async (req, res) => {
              ORDER BY u.id LIMIT 1`,
             [sectionDeptIds, event.document_submitter_id]);
           if (dep) { actorName = dep.full_name; actorId = dep.id; deptName = dep.department_name; }
-        } else if (role === ROLES.DEPUTY && event.document_submitter_role === 'DEPUTY') {
+        } else if (step === ROLES.DEPUTY && event.document_submitter_role === 'DEPUTY') {
+          // Deputy step = the Document Submitter themselves
           const { rows: [dep] } = await db.query(
             `SELECT u.id, u.full_name, d.name_en AS department_name
              FROM users u LEFT JOIN departments d ON d.id = u.department_id
              WHERE u.id = $1`, [event.document_submitter_id]);
           if (dep) { actorName = dep.full_name; actorId = dep.id; deptName = dep.department_name; }
+        } else if (step.startsWith('RECEIVING_')) {
+          // Receiving chain: search in DS's home department using the base role
+          const dbRole = baseRole(step);
+          if (dsDeptId) {
+            const { rows: [user] } = await db.query(
+              `SELECT u.id, u.full_name, d.name_en AS department_name
+               FROM users u
+               LEFT JOIN departments d ON d.id = u.department_id
+               WHERE u.role = $1 AND u.department_id = $2 AND u.id != 0
+               ORDER BY u.id LIMIT 1`,
+              [dbRole, dsDeptId]);
+            if (user) { actorName = user.full_name; actorId = user.id; deptName = user.department_name; }
+          }
         } else {
-          // Find a user with this role in the appropriate department(s).
-          // For cross-dept sections with a curator step, roles AFTER the curator
-          // belong to the DS's home department; roles before belong to the section's department.
-          const curatorIdx = chain.indexOf('CURATOR');
-          const isAfterCurator = curatorIdx !== -1 && chain.indexOf(role) > curatorIdx;
-          const searchDepts = isAfterCurator ? [dsDeptId] : sectionDeptIds;
-
-          if (searchDepts.length > 0 && searchDepts[0]) {
+          // Section department chain: search in the section's assigned departments
+          if (sectionDeptIds.length > 0 && sectionDeptIds[0]) {
             const { rows: [user] } = await db.query(
               `SELECT u.id, u.full_name, d.name_en AS department_name
                FROM users u
                LEFT JOIN departments d ON d.id = u.department_id
                WHERE u.role = $1 AND u.department_id = ANY($2) AND u.id != 0
                ORDER BY u.id LIMIT 1`,
-              [role, searchDepts]
-            );
+              [step, sectionDeptIds]);
             if (user) { actorName = user.full_name; actorId = user.id; deptName = user.department_name; }
           }
         }
 
-        steps.push({ role, actorName, actorId, departmentName: deptName });
+        steps.push({ role: step, actorName, actorId, departmentName: deptName });
       }
 
       const status = s.status || 'draft';
-      const holderRole = currentHolderRole(status, s.original_submitter_role, s.return_target_role);
+      const holderRole = currentHolderRole(status, s.original_submitter_role, s.return_target_role, chain);
 
       // Load return request for this section (if any)
       const { rows: rrRows } = await db.query(
@@ -552,6 +578,9 @@ router.get('/status-grid', requireAuth, async (req, res) => {
         at: rrRows[0].created_at,
       } : null;
 
+      // Compute the requesting user's effective role for this section
+      const userEffRole = await effectiveRole(req.user, event, sectionDeptIds, chain);
+
       enrichedSections.push({
         sectionId: s.section_id,
         sectionLabel: s.section_label,
@@ -562,6 +591,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
         originalSubmitterRole: s.original_submitter_role,
         returnTargetRole: s.return_target_role,
         currentHolderRole: holderRole,
+        userEffectiveRole: userEffRole,
         departmentIds: sectionDeptIds,
         departmentNames: sectionDeptNames,
         isCrossDept,

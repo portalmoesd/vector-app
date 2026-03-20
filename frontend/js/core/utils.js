@@ -38,6 +38,13 @@ function statusLabel(status) {
     submitted_to_deputy: 'At Deputy',
     returned_by_deputy: 'Returned by Deputy',
     approved_by_deputy: 'Approved (Deputy)',
+    // Receiving chain (DS home department review)
+    submitted_to_receiving_super_collaborator: 'At Super-Collaborator (Review)',
+    returned_by_receiving_super_collaborator: 'Returned by Super-Collaborator (Review)',
+    approved_by_receiving_super_collaborator: 'Approved (Super-Collaborator Review)',
+    submitted_to_receiving_supervisor: 'At Supervisor (Review)',
+    returned_by_receiving_supervisor: 'Returned by Supervisor (Review)',
+    approved_by_receiving_supervisor: 'Approved (Supervisor Review)',
   };
   return map[status] || status;
 }
@@ -58,6 +65,11 @@ function roleLabel(role) {
     SUPERVISOR: 'Supervisor',
     SUPER_COLLABORATOR: 'Super-Collaborator',
     COLLABORATOR: 'Collaborator',
+    CURATOR: 'Curator',
+    // Receiving chain roles display the same label — the department name
+    // shown underneath distinguishes them from the section dept's roles
+    RECEIVING_SUPER_COLLABORATOR: 'Super-Collaborator',
+    RECEIVING_SUPERVISOR: 'Supervisor',
   };
   return map[role] || role;
 }

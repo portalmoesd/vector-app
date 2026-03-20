@@ -135,7 +135,8 @@
 
   function renderActions(section, eventId, grid) {
     const holder = section.currentHolderRole;
-    const isHolder = user.role === holder;
+    const effRole = section.userEffectiveRole || user.role;
+    const isHolder = effRole === holder;
     const btns = [];
 
     // Open editor (always)

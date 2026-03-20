@@ -47,8 +47,8 @@
   editorTitle.textContent = sectionInfo.sectionLabel;
   const status = sectionInfo.status || 'draft';
 
-  // Determine effective role
-  const effectiveRole = getEffectiveRole(user, grid);
+  // Determine effective role (per-section from API)
+  const effectiveRole = sectionInfo.userEffectiveRole || user.role;
   const isHolder = sectionInfo.currentHolderRole === effectiveRole;
 
   sectionMeta.innerHTML = `
@@ -85,13 +85,6 @@
   // Load comments and history
   loadComments();
   loadHistory();
-
-  function getEffectiveRole(user, grid) {
-    if (user.role === 'DEPUTY' && grid.deputyId === user.id && grid.documentSubmitterId !== user.id) {
-      return 'CURATOR';
-    }
-    return user.role;
-  }
 
   function buildToolbar(status, role, isHolder, canEdit) {
     const btns = [];

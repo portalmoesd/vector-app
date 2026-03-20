@@ -168,7 +168,6 @@
       // Show sections
       const container = sectionsCardEl || legacyContainer;
 
-      const effectiveRole = getEffectiveRole(user, grid);
       const isDS = grid.documentSubmitterId === user.id;
 
       // Filter sections: non-DS users only see sections assigned to their department.
@@ -190,8 +189,9 @@
       const allApproved = visibleSections.every(s => s.status && s.status.startsWith('approved_by_'));
 
       const sectionsToApprove = visibleSections.filter(s => {
-        const expectedStatus = 'submitted_to_' + effectiveRole.toLowerCase();
-        return s.status === expectedStatus && s.currentHolderRole === effectiveRole;
+        const uer = s.userEffectiveRole || user.role;
+        const expectedStatus = 'submitted_to_' + uer.toLowerCase();
+        return s.status === expectedStatus && s.currentHolderRole === uer;
       });
 
       let headerActions = '';
@@ -203,7 +203,7 @@
         headerActions += `<button class="btn btn-primary" id="sendToLibraryBtn">Send to Library</button>`;
       }
 
-      const sectionsHtml = visibleSections.map((s, i) => renderSectionRow(s, i, eventId, effectiveRole, grid)).join('');
+      const sectionsHtml = visibleSections.map((s, i) => renderSectionRow(s, i, eventId, grid)).join('');
 
       if (container) {
         container.style.display = '';
@@ -239,7 +239,7 @@
     }
   }
 
-  function renderSectionRow(section, index, eventId, effectiveRole, grid) {
+  function renderSectionRow(section, index, eventId, grid) {
     const returnReq = section.returnRequest;
     const lastUpdated = section.lastUpdatedAt ? formatDateTime(section.lastUpdatedAt) : '';
     const lastUpdatedBy = section.lastUpdatedBy ? escapeHtml(section.lastUpdatedBy) : '';
@@ -257,7 +257,7 @@
             ${returnReq ? `<div class="dp-return-notice">Return requested by ${escapeHtml(returnReq.from)}${returnReq.note ? ': ' + escapeHtml(returnReq.note) : ''}</div>` : ''}
           </div>
           <div class="dp-section-row__actions">
-            ${renderActionLinks(section, eventId, effectiveRole, grid)}
+            ${renderActionLinks(section, eventId, grid)}
           </div>
         </div>
         ${renderPipeline(section, grid)}
@@ -307,9 +307,10 @@
     `;
   }
 
-  function renderActionLinks(section, eventId, effectiveRole, grid) {
+  function renderActionLinks(section, eventId, grid) {
+    const effRole = section.userEffectiveRole || user.role;
     const holder = section.currentHolderRole;
-    const isHolder = effectiveRole === holder;
+    const isHolder = effRole === holder;
     const status = section.status || 'draft';
     const links = [];
 
@@ -326,7 +327,7 @@
           SUBMIT
         </button>`);
       }
-      if (status === `submitted_to_${effectiveRole.toLowerCase()}`) {
+      if (status === `submitted_to_${effRole.toLowerCase()}`) {
         links.push(`<button class="dp-action-link dp-action-link--approve" data-action="approve" data-event="${eventId}" data-section="${section.sectionId}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
           APPROVE
@@ -344,13 +345,6 @@
     }
 
     return links.join('');
-  }
-
-  function getEffectiveRole(user, grid) {
-    if (user.role === 'DEPUTY' && grid.deputyId === user.id && grid.documentSubmitterId !== user.id) {
-      return 'CURATOR';
-    }
-    return user.role;
   }
 
   function getStepState(role, status, section) {

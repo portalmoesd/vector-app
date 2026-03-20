@@ -1,17 +1,6 @@
 const { ROLES } = require('./roles');
 
 /**
- * Pipeline order (index = priority, higher = further in chain)
- */
-const PIPELINE_ORDER = [
-  ROLES.COLLABORATOR,        // 0
-  ROLES.SUPER_COLLABORATOR,  // 1
-  ROLES.SUPERVISOR,          // 2
-  'CURATOR',                 // 3 (contextual label for Deputy)
-  ROLES.DEPUTY,              // 4
-];
-
-/**
  * Section status enum values
  */
 const STATUS = {
@@ -28,12 +17,27 @@ const STATUS = {
   SUBMITTED_TO_DEPUTY: 'submitted_to_deputy',
   RETURNED_BY_DEPUTY: 'returned_by_deputy',
   APPROVED_BY_DEPUTY: 'approved_by_deputy',
+  // Receiving chain statuses (DS's home department review of cross-dept sections)
+  SUBMITTED_TO_RECEIVING_SUPER_COLLABORATOR: 'submitted_to_receiving_super_collaborator',
+  RETURNED_BY_RECEIVING_SUPER_COLLABORATOR: 'returned_by_receiving_super_collaborator',
+  APPROVED_BY_RECEIVING_SUPER_COLLABORATOR: 'approved_by_receiving_super_collaborator',
+  SUBMITTED_TO_RECEIVING_SUPERVISOR: 'submitted_to_receiving_supervisor',
+  RETURNED_BY_RECEIVING_SUPERVISOR: 'returned_by_receiving_supervisor',
+  APPROVED_BY_RECEIVING_SUPERVISOR: 'approved_by_receiving_supervisor',
 };
 
 /**
- * Determine who currently holds a section based on its status.
+ * Strip the RECEIVING_ prefix to get the underlying database role.
+ * e.g. 'RECEIVING_SUPERVISOR' → 'SUPERVISOR', 'CURATOR' → 'CURATOR'
  */
-function currentHolderRole(status, originalSubmitterRole, returnTargetRole) {
+function baseRole(step) {
+  return step.startsWith('RECEIVING_') ? step.replace('RECEIVING_', '') : step;
+}
+
+/**
+ * Determine who currently holds a section based on its status and chain.
+ */
+function currentHolderRole(status, originalSubmitterRole, returnTargetRole, chain) {
   if (status === STATUS.DRAFT) {
     return originalSubmitterRole || ROLES.COLLABORATOR;
   }
@@ -42,23 +46,18 @@ function currentHolderRole(status, originalSubmitterRole, returnTargetRole) {
   }
   if (status.startsWith('submitted_to_')) {
     const target = status.replace('submitted_to_', '').toUpperCase();
-    if (target === 'CURATOR') return 'CURATOR';
     return target;
   }
   if (status.startsWith('approved_by_')) {
     const approver = status.replace('approved_by_', '').toUpperCase();
-    return nextRoleAfter(approver);
+    // Use chain to find the next step (if chain provided)
+    if (chain) {
+      const idx = chain.indexOf(approver);
+      if (idx !== -1 && idx < chain.length - 1) return chain[idx + 1];
+    }
+    return null;
   }
   return originalSubmitterRole || ROLES.COLLABORATOR;
-}
-
-/**
- * Get the next role in the pipeline after the given role.
- */
-function nextRoleAfter(role) {
-  const idx = PIPELINE_ORDER.indexOf(role);
-  if (idx === -1 || idx === PIPELINE_ORDER.length - 1) return null;
-  return PIPELINE_ORDER[idx + 1];
 }
 
 /**
@@ -85,40 +84,62 @@ function returnedByStatus(role) {
 /**
  * Build the pipeline chain for a section given the event context.
  *
- * Returns an ordered list of role steps the section must pass through,
- * based on the Document Submitter's role and whether curator is required.
+ * For home-department sections, the chain goes through the section's
+ * department up to the Document Submitter.
  *
- * The chain is intentionally simplified to the role-level — department-specific
- * parallel tracks are managed via the section_departments assignments, while
- * the status-based progression works on a single linear role chain per section.
+ * For cross-department sections, the chain has two phases:
+ *   1. Section department chain: Collaborator → SC → Supervisor
+ *   2. [Optional Curator step]
+ *   3. Receiving chain: RECEIVING_SC → RECEIVING_SUPERVISOR (DS's home dept)
+ *   4. Final approver (DS)
+ *
+ * RECEIVING_ prefixed steps belong to the DS's home department and are
+ * distinct from same-named steps in the section's department chain.
  *
  * @param {string} dsRole - Document Submitter role (DEPUTY, SUPERVISOR, SUPER_COLLABORATOR)
  * @param {boolean} curatorRequired - Whether curator review is required
  * @param {boolean} isCrossDept - Whether this section has cross-department assignments
- * @returns {string[]} Ordered list of role labels
+ * @returns {string[]} Ordered list of step labels
  */
 function buildChain(dsRole, curatorRequired, isCrossDept) {
-  // Start with collaborator
   const chain = [ROLES.COLLABORATOR];
 
   if (dsRole === 'SUPER_COLLABORATOR') {
-    // Chain C: Collab → SC
     chain.push(ROLES.SUPER_COLLABORATOR);
-    // For cross-dept, curator is optional between the dept chain and DS
-    // But since SC IS the DS, no extra receiving chain needed
-  } else if (dsRole === 'SUPERVISOR') {
-    // Chain B: Collab → SC → Supervisor
-    chain.push(ROLES.SUPER_COLLABORATOR);
-    if (isCrossDept && curatorRequired) {
-      chain.push('CURATOR');
+
+    if (isCrossDept) {
+      // Cross-dept: section dept chain → [Curator] → DS receives
+      chain.push(ROLES.SUPERVISOR);
+      if (curatorRequired) {
+        chain.push('CURATOR');
+      }
+      // SC(A) is the DS — final approver
+      chain.push('RECEIVING_SUPER_COLLABORATOR');
     }
-    chain.push(ROLES.SUPERVISOR);
-  } else if (dsRole === 'DEPUTY') {
-    // Chain A: Collab → SC → Supervisor → [Curator] → Deputy
+  } else if (dsRole === 'SUPERVISOR') {
     chain.push(ROLES.SUPER_COLLABORATOR);
     chain.push(ROLES.SUPERVISOR);
-    if (isCrossDept && curatorRequired) {
-      chain.push('CURATOR');
+
+    if (isCrossDept) {
+      // Cross-dept: section dept chain → [Curator] → receiving chain → DS
+      if (curatorRequired) {
+        chain.push('CURATOR');
+      }
+      chain.push('RECEIVING_SUPER_COLLABORATOR');
+      // Supervisor(A) is the DS — final approver
+      chain.push('RECEIVING_SUPERVISOR');
+    }
+  } else if (dsRole === 'DEPUTY') {
+    chain.push(ROLES.SUPER_COLLABORATOR);
+    chain.push(ROLES.SUPERVISOR);
+
+    if (isCrossDept) {
+      // Cross-dept: section dept chain → [Curator] → receiving chain → Deputy
+      if (curatorRequired) {
+        chain.push('CURATOR');
+      }
+      chain.push('RECEIVING_SUPER_COLLABORATOR');
+      chain.push('RECEIVING_SUPERVISOR');
     }
     chain.push(ROLES.DEPUTY);
   }
@@ -130,7 +151,7 @@ function buildChain(dsRole, curatorRequired, isCrossDept) {
  * Determine the next role to submit to, given the current user's role
  * and the section's chain.
  *
- * @param {string} userRole - The submitting user's role (or 'CURATOR')
+ * @param {string} userRole - The submitting user's effective role (or 'CURATOR', 'RECEIVING_*')
  * @param {string[]} chain - The pipeline chain for this section
  * @returns {string|null} The next role in the chain, or null if at the end
  */
@@ -155,10 +176,9 @@ function firstEditorRole(chain) {
 }
 
 module.exports = {
-  PIPELINE_ORDER,
   STATUS,
+  baseRole,
   currentHolderRole,
-  nextRoleAfter,
   submittedToStatus,
   approvedByStatus,
   returnedByStatus,
