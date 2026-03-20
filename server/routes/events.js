@@ -1,13 +1,17 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { canCreateEvent, canEndEvent } = require('../helpers/roles');
+const { canCreateEvent, canEndEvent, ROLES } = require('../helpers/roles');
 
 const router = express.Router();
 
 // GET /api/events — list events visible to current user
 router.get('/', requireAuth, async (req, res) => {
   try {
+    // Collaborators and Super-Collaborators only see events for their assigned countries
+    const needsCountryFilter =
+      req.user.role === ROLES.COLLABORATOR || req.user.role === ROLES.SUPER_COLLABORATOR;
+
     const { rows } = await db.query(
       `SELECT e.id, e.title, e.country_id, e.document_submitter_role,
               e.document_submitter_id, e.deputy_id, e.supervisor_id, e.curator_required,
@@ -20,7 +24,11 @@ router.get('/', requireAuth, async (req, res) => {
        JOIN countries c ON c.id = e.country_id
        JOIN users ds ON ds.id = e.document_submitter_id
        LEFT JOIN users sv ON sv.id = e.supervisor_id
-       ORDER BY e.created_at DESC`
+       ${needsCountryFilter
+         ? 'WHERE e.country_id IN (SELECT country_id FROM country_assignments WHERE user_id = $1)'
+         : ''}
+       ORDER BY e.created_at DESC`,
+      needsCountryFilter ? [req.user.id] : []
     );
     res.json(rows.map(r => ({
       id: r.id,
