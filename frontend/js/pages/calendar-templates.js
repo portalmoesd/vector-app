@@ -41,8 +41,16 @@
   const deptById = {};
   departments.forEach(d => { deptById[d.id] = d; });
 
-  const internalDepts = departments.filter(d => !d.isExternal);
-  const externalDepts = departments.filter(d => d.isExternal);
+  // Build set of department IDs assigned to deputies
+  const assignedDeptIds = new Set();
+  if (groupedData && groupedData.deputies) {
+    for (const deputy of groupedData.deputies) {
+      for (const id of deputy.departmentIds) assignedDeptIds.add(id);
+    }
+  }
+
+  const internalDepts = departments.filter(d => !d.isExternal && assignedDeptIds.has(d.id));
+  const externalDepts = departments.filter(d => d.isExternal && assignedDeptIds.has(d.id));
 
   /* ── Custom Department Picker ─────────────────────────────────────────── */
 
@@ -109,29 +117,6 @@
           }
           html += '</div>';
         }
-      }
-
-      // Unassigned departments
-      const unassignedIds = (groupedData && groupedData.unassignedDepartmentIds) || [];
-      const unassignedItems = unassignedIds
-        .map(id => deptById[id])
-        .filter(Boolean)
-        .filter(d => !q || (d.nameEn || d.name).toLowerCase().includes(q));
-
-      if (unassignedItems.length > 0) {
-        html += `<div class="tpl-pick-group" style="padding:4px 0;">
-          <div style="padding:4px 14px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;">
-            Other
-          </div>`;
-        for (const d of unassignedItems) {
-          const isSel = selected.has(d.id);
-          const pillClass = d.isExternal ? 'pill-yellow' : 'pill-blue';
-          html += `<div class="tpl-pick-item ${isSel ? 'tpl-pick-disabled' : ''}" data-dept-id="${d.id}" style="padding:5px 14px 5px 24px;font-size:13px;cursor:${isSel ? 'default' : 'pointer'};color:${isSel ? '#aaa' : 'inherit'};display:flex;align-items:center;gap:6px;${!isSel ? '' : 'text-decoration:line-through;opacity:.5;'}">
-            ${d.isExternal ? '<span class="pill ' + pillClass + '" style="font-size:10px;padding:1px 6px;">Agency</span>' : ''}
-            ${escapeHtml(d.nameEn || d.name)}
-          </div>`;
-        }
-        html += '</div>';
       }
 
       if (!html) {
