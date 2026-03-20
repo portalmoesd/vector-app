@@ -484,7 +484,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
 
     const { rows: [event] } = await db.query(
       `SELECT id, document_submitter_role, document_submitter_id,
-              deputy_id, supervisor_id, curator_required
+              deputy_id, supervisor_id, curator_required, country_id
        FROM events WHERE id = $1`,
       [eventId]
     );
@@ -561,28 +561,32 @@ router.get('/status-grid', requireAuth, async (req, res) => {
              WHERE u.id = $1`, [event.document_submitter_id]);
           if (dep) { actorName = dep.full_name; actorId = dep.id; deptName = dep.department_name; }
         } else if (step.startsWith('RECEIVING_')) {
-          // Receiving chain: search in DS's home department using the base role
+          // Receiving chain: search in home department using the base role,
+          // filtered by the event's country assignment
           const dbRole = baseRole(step);
           if (dsDeptId) {
             const { rows: [user] } = await db.query(
               `SELECT u.id, u.full_name, d.name_en AS department_name
                FROM users u
                LEFT JOIN departments d ON d.id = u.department_id
+               JOIN country_assignments ca ON ca.user_id = u.id AND ca.country_id = $3
                WHERE u.role = $1 AND u.department_id = $2 AND u.id != 0
                ORDER BY u.id LIMIT 1`,
-              [dbRole, dsDeptId]);
+              [dbRole, dsDeptId, event.country_id]);
             if (user) { actorName = user.full_name; actorId = user.id; deptName = user.department_name; }
           }
         } else {
-          // Section department chain: search in the section's assigned departments
+          // Section department chain: search in the section's assigned departments,
+          // filtered by the event's country assignment
           if (sectionDeptIds.length > 0 && sectionDeptIds[0]) {
             const { rows: [user] } = await db.query(
               `SELECT u.id, u.full_name, d.name_en AS department_name
                FROM users u
                LEFT JOIN departments d ON d.id = u.department_id
+               JOIN country_assignments ca ON ca.user_id = u.id AND ca.country_id = $3
                WHERE u.role = $1 AND u.department_id = ANY($2) AND u.id != 0
                ORDER BY u.id LIMIT 1`,
-              [step, sectionDeptIds]);
+              [step, sectionDeptIds, event.country_id]);
             if (user) { actorName = user.full_name; actorId = user.id; deptName = user.department_name; }
           }
         }
