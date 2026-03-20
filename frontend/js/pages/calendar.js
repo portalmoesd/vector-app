@@ -419,6 +419,12 @@
         <label class="form-label"><input type="checkbox" id="newCurator" /> Curator Required</label>
       </div>
       <div class="form-group">
+        <label class="form-label">Template</label>
+        <select class="form-select" id="newTemplate">
+          <option value="">— Select Template —</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label class="form-label" style="font-weight:700;">Sections</label>
         <div id="sectionRows"></div>
         <button class="btn btn-outline" type="button" id="addSectionRow" style="margin-top:8px;">+ Add Section</button>
@@ -469,26 +475,31 @@
 
     const sectionRowsContainer = document.getElementById('sectionRows');
     const addSectionRowBtn = document.getElementById('addSectionRow');
+    const templateSelect = document.getElementById('newTemplate');
 
     addSectionRowBtn.addEventListener('click', () => createSectionRow(sectionRowsContainer));
 
-    // When Deputy is selected → auto-fill sections from their template
-    const deputySelect = document.getElementById('newDeputy');
-    deputySelect.addEventListener('change', () => {
-      const selectedDeputyId = deputySelect.value ? parseInt(deputySelect.value) : null;
-      if (!selectedDeputyId) return;
+    // Populate template dropdown
+    templateSelect.innerHTML = '<option value="">— Select Template —</option>' +
+      templates.map(t => {
+        const label = t.isDefault ? t.name : t.name;
+        const badge = t.isDefault ? ' (Default)' : '';
+        return `<option value="${t.id}">${escapeHtml(label)}${badge} — ${t.sections.length} section(s)</option>`;
+      }).join('');
 
-      // Find template for this deputy
-      const tpl = templates.find(t => t.createdById === selectedDeputyId);
+    // When template is selected → auto-fill sections
+    templateSelect.addEventListener('change', () => {
+      const tplId = templateSelect.value ? parseInt(templateSelect.value) : null;
+      if (!tplId) return;
+
+      const tpl = templates.find(t => t.id === tplId);
       if (!tpl || !tpl.sections || tpl.sections.length === 0) return;
 
-      // Clear existing sections and fill from template
       sectionRowsContainer.innerHTML = '';
       for (const sec of tpl.sections) {
         createSectionRow(sectionRowsContainer, sec.title, sec.departmentIds);
       }
 
-      // Set curator from template
       document.getElementById('newCurator').checked = tpl.curatorRequired;
     });
 

@@ -80,6 +80,17 @@
       <div id="eventsList"></div>
       <div class="pagination" id="pagination"></div>
 
+      <!-- My Templates section -->
+      <div class="card" id="templatesCard" style="margin-top:32px;display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <h3>My Templates</h3>
+          <button class="btn btn-primary" id="createTemplateBtn">+ New Template</button>
+        </div>
+        <div id="templatesContainer">
+          <div class="empty-state"><p>No templates yet</p></div>
+        </div>
+      </div>
+
       <!-- Create / View / Edit Event Modal -->
       <div id="eventModal" class="modal-overlay" style="display:none;">
         <div class="modal-card" style="max-width:640px;">
@@ -88,6 +99,20 @@
           <div class="modal-footer">
             <button class="btn btn-outline" id="eventModalCancel">Cancel</button>
             <button class="btn btn-primary" id="eventModalSave">Create</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Template Modal -->
+      <div class="modal-overlay" id="templateModal" style="display:none;">
+        <div class="modal" style="max-width:640px;">
+          <div class="modal-header">
+            <h3 id="templateModalTitle">Create Template</h3>
+          </div>
+          <div class="modal-body" id="templateModalBody"></div>
+          <div class="modal-footer">
+            <button class="btn btn-outline" id="templateModalCancel">Cancel</button>
+            <button class="btn btn-primary" id="templateModalSave">Save</button>
           </div>
         </div>
       </div>
@@ -100,5 +125,6 @@
   <script src="/js/core/utils.js"></script>
   <script src="/js/core/app.js"></script>
   <script src="/js/pages/calendar.js"></script>
+  <script src="/js/pages/calendar-templates.js"></script>
 </body>
 </html>

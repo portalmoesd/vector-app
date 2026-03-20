@@ -1,15 +1,16 @@
 /**
- * Deputy Templates — manage preset section templates.
- * Deputies can create templates with named sections and department assignments.
- * These templates auto-fill sections when Protocol/Admin creates events.
+ * Calendar Templates — manage section templates.
+ * Any user who can create events can also create their own templates.
+ * The Default Template is shown but cannot be deleted.
  */
 (async function () {
   const user = Api.getUser();
-  if (!user || user.role !== 'DEPUTY') return;
+  if (!user) return;
 
-  let departments = [];
-  let templates = [];
+  const CAN_CREATE = ['ADMIN', 'PROTOCOL', 'DEPUTY', 'SUPERVISOR', 'SUPER_COLLABORATOR'];
+  if (!CAN_CREATE.includes(user.role)) return;
 
+  const card = document.getElementById('templatesCard');
   const container = document.getElementById('templatesContainer');
   const createBtn = document.getElementById('createTemplateBtn');
   const modal = document.getElementById('templateModal');
@@ -17,6 +18,12 @@
   const modalBody = document.getElementById('templateModalBody');
   const modalCancel = document.getElementById('templateModalCancel');
   const modalSave = document.getElementById('templateModalSave');
+  if (!card || !container) return;
+
+  card.style.display = '';
+
+  let departments = [];
+  let templates = [];
   let onModalSave = null;
 
   try {
@@ -36,7 +43,7 @@
     }
 
     container.innerHTML = templates.map(t => {
-      const sectionsList = t.sections.map((s, i) => {
+      const sectionsList = t.sections.map(s => {
         const deptNames = (s.departmentIds || [])
           .map(id => {
             const d = departments.find(d => d.id === id);
@@ -50,17 +57,25 @@
         </li>`;
       }).join('');
 
+      const badge = t.isDefault
+        ? '<span class="pill pill-green" style="margin-left:8px;font-size:11px;">Default</span>'
+        : '';
+
+      const deleteBtn = t.isDefault
+        ? ''
+        : `<button class="btn btn-danger" onclick="deleteTemplate(${t.id})">Delete</button>`;
+
       return `
         <div class="event-card" style="margin-bottom:12px;">
           <div class="event-card-info">
-            <h4>${escapeHtml(t.name)}</h4>
+            <h4>${escapeHtml(t.name)}${badge}</h4>
             <div style="font-size:13px;color:#666;margin-bottom:8px;">
-              DS Role: ${roleLabel(t.documentSubmitterRole)} | Curator: ${t.curatorRequired ? 'Yes' : 'No'} | ${t.sections.length} section(s)
+              ${t.sections.length} section(s)${t.createdByName ? ' | By: ' + escapeHtml(t.createdByName) : ''}
             </div>
             <ol style="margin:0 0 0 18px;font-size:13px;">${sectionsList || '<li>No sections</li>'}</ol>
           </div>
           <div class="event-card-actions">
-            <button class="btn btn-danger" onclick="deleteTemplate(${t.id})">Delete</button>
+            ${deleteBtn}
           </div>
         </div>
       `;
@@ -76,7 +91,6 @@
     } catch (e) { alert(e.message); }
   };
 
-  // Modal helpers
   function showTemplateModal(title, bodyHtml, saveLabel, saveFn) {
     modalTitle.textContent = title;
     modalBody.innerHTML = bodyHtml;
@@ -90,27 +104,11 @@
   modalCancel.addEventListener('click', hideTemplateModal);
   modalSave.addEventListener('click', () => { if (onModalSave) onModalSave(); });
 
-  // Create template
   createBtn.addEventListener('click', () => {
-    const deptOpts = departments.map(d =>
-      `<option value="${d.id}">${escapeHtml(d.nameEn || d.name)}</option>`
-    ).join('');
-
     showTemplateModal('Create Template', `
       <div class="form-group">
         <label class="form-label">Template Name *</label>
-        <input class="form-input" id="tplName" placeholder="e.g. Standard Review Template" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Document Submitter Role</label>
-        <select class="form-select" id="tplDSRole">
-          <option value="DEPUTY">Deputy</option>
-          <option value="SUPERVISOR">Supervisor</option>
-          <option value="SUPER_COLLABORATOR">Super-Collaborator</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label"><input type="checkbox" id="tplCurator" /> Curator Required</label>
+        <input class="form-input" id="tplName" placeholder="e.g. My Custom Template" />
       </div>
       <div class="form-group">
         <label class="form-label" style="font-weight:700;">Sections</label>
@@ -119,9 +117,6 @@
       </div>
     `, 'Create', async () => {
       const name = document.getElementById('tplName').value.trim();
-      const documentSubmitterRole = document.getElementById('tplDSRole').value;
-      const curatorRequired = document.getElementById('tplCurator').checked;
-
       if (!name) { alert('Template name is required'); return; }
 
       const sections = [];
@@ -135,7 +130,7 @@
       if (sections.length === 0) { alert('Add at least one section'); return; }
 
       try {
-        await Api.post('/api/templates', { name, documentSubmitterRole, curatorRequired, sections });
+        await Api.post('/api/templates', { name, sections });
         hideTemplateModal();
         templates = await Api.get('/api/templates');
         renderTemplates();
@@ -167,7 +162,7 @@
     }
 
     addBtn.addEventListener('click', addSectionRow);
-    addSectionRow(); // Start with one row
+    addSectionRow();
   });
 
   renderTemplates();

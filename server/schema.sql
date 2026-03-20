@@ -187,9 +187,10 @@ CREATE TABLE IF NOT EXISTS section_return_requests (
 CREATE TABLE IF NOT EXISTS event_templates (
   id                        SERIAL PRIMARY KEY,
   name                      VARCHAR(300) NOT NULL,
-  created_by_id             INT NOT NULL REFERENCES users(id),
-  document_submitter_role   ds_role NOT NULL,
+  created_by_id             INT REFERENCES users(id),
+  document_submitter_role   ds_role NOT NULL DEFAULT 'DEPUTY',
   curator_required          BOOLEAN NOT NULL DEFAULT false,
+  is_default                BOOLEAN NOT NULL DEFAULT false,
   created_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at                TIMESTAMPTZ NOT NULL DEFAULT now()
 );

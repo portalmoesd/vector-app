@@ -4,22 +4,20 @@ const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// GET /api/templates — list templates (optionally filter by deputy_id)
+// GET /api/templates — list templates visible to the current user
+// Returns: default templates + templates created by the current user
 router.get('/', requireAuth, async (req, res) => {
   try {
-    let query = `SELECT et.id, et.name, et.document_submitter_role, et.curator_required,
-                        et.created_at, et.created_by_id, u.full_name AS created_by_name
-                 FROM event_templates et
-                 JOIN users u ON u.id = et.created_by_id`;
-    const params = [];
-
-    if (req.query.deputy_id) {
-      query += ' WHERE et.created_by_id = $1';
-      params.push(req.query.deputy_id);
-    }
-    query += ' ORDER BY et.name';
-
-    const { rows: templates } = await db.query(query, params);
+    const { rows: templates } = await db.query(
+      `SELECT et.id, et.name, et.document_submitter_role, et.curator_required,
+              et.is_default, et.created_at, et.created_by_id,
+              COALESCE(u.full_name, 'System') AS created_by_name
+       FROM event_templates et
+       LEFT JOIN users u ON u.id = et.created_by_id
+       WHERE et.is_default = true OR et.created_by_id = $1
+       ORDER BY et.is_default DESC, et.name`,
+      [req.user.id]
+    );
 
     // Enrich with sections
     const result = [];
@@ -40,6 +38,7 @@ router.get('/', requireAuth, async (req, res) => {
         name: t.name,
         documentSubmitterRole: t.document_submitter_role,
         curatorRequired: t.curator_required,
+        isDefault: t.is_default,
         createdAt: t.created_at,
         createdById: t.created_by_id,
         createdByName: t.created_by_name,
@@ -63,8 +62,8 @@ router.get('/', requireAuth, async (req, res) => {
 router.post('/', requireAuth, async (req, res) => {
   try {
     const { name, documentSubmitterRole, curatorRequired, sections } = req.body;
-    if (!name || !documentSubmitterRole) {
-      return res.status(400).json({ error: 'name and documentSubmitterRole are required' });
+    if (!name) {
+      return res.status(400).json({ error: 'name is required' });
     }
 
     const client = await db.pool.connect();
@@ -72,9 +71,9 @@ router.post('/', requireAuth, async (req, res) => {
       await client.query('BEGIN');
 
       const { rows: [template] } = await client.query(
-        `INSERT INTO event_templates (name, created_by_id, document_submitter_role, curator_required)
-         VALUES ($1, $2, $3, $4) RETURNING id`,
-        [name, req.user.id, documentSubmitterRole, curatorRequired || false]
+        `INSERT INTO event_templates (name, created_by_id, document_submitter_role, curator_required, is_default)
+         VALUES ($1, $2, $3, $4, false) RETURNING id`,
+        [name, req.user.id, documentSubmitterRole || 'DEPUTY', curatorRequired || false]
       );
 
       if (sections && sections.length > 0) {
@@ -112,14 +111,14 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/templates/:id
+// DELETE /api/templates/:id — delete own template (not default)
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const result = await db.query(
-      'DELETE FROM event_templates WHERE id = $1 AND created_by_id = $2',
+      'DELETE FROM event_templates WHERE id = $1 AND created_by_id = $2 AND is_default = false',
       [req.params.id, req.user.id]
     );
-    if (result.rowCount === 0) return res.status(404).json({ error: 'Template not found' });
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Template not found or cannot be deleted' });
     res.json({ success: true });
   } catch (err) {
     console.error('Delete template error:', err);
