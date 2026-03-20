@@ -458,6 +458,60 @@ async function migrate() {
       console.log('Event templates seeded.');
     }
 
+    // ── Ensure Default Template exists (idempotent, runs even if other templates exist) ──
+    const { rows: [{ exists: defaultExists }] } = await db.query(
+      "SELECT EXISTS(SELECT 1 FROM event_templates WHERE is_default = true) AS exists"
+    );
+    if (!defaultExists) {
+      console.log('Creating Default Template...');
+      const { rows: allDeptsLookup } = await db.query('SELECT id, name_en FROM departments');
+      const deptLookup = {};
+      for (const d of allDeptsLookup) deptLookup[d.name_en] = d.id;
+
+      const defaultSections = [
+        { title: 'Legal', depts: ['Legal Department'] },
+        { title: 'State Property', depts: ['National Agency of State Property'] },
+        { title: 'Spatial & Urban Development', depts: ['Spatial and Urban Development Agency'] },
+        { title: 'Foreign Trade Policy', depts: ['Foreign Trade Policy Department'] },
+        { title: 'Foreign Trade & Economic Relations', depts: ['Department of Trade Development and International Economic Relations'] },
+        { title: 'Construction', depts: ['Construction Policy Department', 'Technical and Constructions Supervision Agency'] },
+        { title: 'Market Surveillance', depts: ['Georgian National Agency for Standards and Metrology', 'The Unified National Body of Accreditation', 'Market Surveillance Agency'] },
+        { title: 'Energy', depts: ['Energy Reforms Department', 'Energy Efficiency and Renewable Energy Policy and Sustainable Development Department', 'Energy Policy and Investment Projects Department', 'Department of Energy Enterprises Management', 'State Agency of Oil and Gas'] },
+        { title: 'Transport', depts: ['Transport and Logistics Development Policy Department', 'Road Safety Department', 'Land Transport Agency', 'Maritime Transport Agency', 'Civil Aviation Agency', 'Anaklia Deep Sea Port Development Agency', 'Rail Transport Agency'] },
+        { title: 'Communications, Information Technology and Post', depts: ['Communications, Information and Modern Technologies Department'] },
+        { title: 'Economic Analysis, Policy & Reforms', depts: ['Economic Analysis and Reforms Department', 'Economic Policy Department'] },
+        { title: 'Administration', depts: ['Administrative Department', 'Strategic Development Department'] },
+        { title: 'Capital Markets', depts: ['Capital Market Development and Pension Reform Department'] },
+        { title: 'Investments', depts: ['Investment Policy and Support Department'] },
+        { title: 'Tourism', depts: ['Georgian National Tourism Administration'] },
+        { title: 'Innovation', depts: ["Georgia's Innovation and Technology Agency", 'Enterprise Georgia'] },
+      ];
+
+      const { rows: [defaultTpl] } = await db.query(
+        `INSERT INTO event_templates (name, created_by_id, document_submitter_role, curator_required, is_default)
+         VALUES ('Default Template', NULL, 'DEPUTY', false, true)
+         RETURNING id`
+      );
+
+      for (let i = 0; i < defaultSections.length; i++) {
+        const sec = defaultSections[i];
+        const { rows: [tplSection] } = await db.query(
+          'INSERT INTO event_template_sections (template_id, title, sort_order) VALUES ($1, $2, $3) RETURNING id',
+          [defaultTpl.id, sec.title, i]
+        );
+        for (const deptName of sec.depts) {
+          const deptId = deptLookup[deptName];
+          if (deptId) {
+            await db.query(
+              'INSERT INTO event_template_section_departments (template_section_id, department_id) VALUES ($1, $2)',
+              [tplSection.id, deptId]
+            );
+          }
+        }
+      }
+      console.log(`Default Template created (${defaultSections.length} sections).`);
+    }
+
   } catch (err) {
     console.error('Migration error:', err);
   }

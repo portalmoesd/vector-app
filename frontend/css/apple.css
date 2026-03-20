@@ -4494,3 +4494,62 @@ body.gp-shell-ready .gp-sidebar__scrim{
 .confirm-dialog__actions{
   display:flex; justify-content:center; gap:10px;
 }
+
+/* ===== Vector Portal class-name compatibility ===== */
+/* Our code uses .btn-primary / .btn-danger (BEM), apple.css expects .btn.primary / .btn.danger */
+.btn-primary, .btn.btn-primary{
+  background: linear-gradient(180deg, var(--primary), var(--primary-2));
+  border-color: rgba(10,132,255,.55);
+  color: #fff;
+}
+.btn-danger, .btn.btn-danger{
+  background: rgba(255,59,48,.14);
+  border-color: rgba(255,59,48,.25);
+  color: #c92a2a;
+}
+.btn-outline, .btn.btn-outline{
+  background: rgba(255,255,255,.82);
+  border-color: var(--border);
+  color: var(--text);
+}
+/* Form inputs — our code uses .form-input / .form-select */
+.form-input, .form-select{
+  border-radius: 16px;
+  border: 1px solid var(--border, rgba(0,0,0,.10));
+  background: rgba(255,255,255,.78);
+  padding: 10px 14px;
+  font-size: 14px;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.form-input:focus, .form-select:focus{
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(10,132,255,.22);
+  border-color: rgba(10,132,255,.35);
+}
+/* Modal overlay */
+.modal-overlay{
+  background: rgba(15,23,42,.28);
+  backdrop-filter: blur(4px);
+}
+.modal-card, .modal{
+  border-radius: 28px;
+  border: 1px solid var(--border, rgba(0,0,0,.10));
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 24px 48px rgba(0,0,0,.18);
+  backdrop-filter: blur(18px);
+}
+/* Pills */
+.pill-green{ background: rgba(52,199,89,.14); color: #15803d; border: 1px solid rgba(52,199,89,.25); }
+.pill-gray{ background: rgba(0,0,0,.05); color: rgba(0,0,0,.55); border: 1px solid rgba(0,0,0,.08); }
+/* Table wrap */
+.table-wrap table{
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--border, rgba(0,0,0,.10));
+}
+.table-wrap thead th{
+  background: rgba(255,255,255,.75);
+}
+.table-wrap tbody tr:hover{
+  background: rgba(10,132,255,.06);
+}
