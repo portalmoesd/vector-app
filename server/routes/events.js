@@ -10,14 +10,16 @@ router.get('/', requireAuth, async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT e.id, e.title, e.country_id, e.document_submitter_role,
-              e.document_submitter_id, e.deputy_id, e.curator_required,
+              e.document_submitter_id, e.deputy_id, e.supervisor_id, e.curator_required,
               e.language, e.deadline_date, e.occasion, e.is_active,
               e.ended_at, e.status, e.created_at,
               c.name_en AS country_name, c.code AS country_code,
-              ds.full_name AS document_submitter_name
+              ds.full_name AS document_submitter_name,
+              sv.full_name AS supervisor_name
        FROM events e
        JOIN countries c ON c.id = e.country_id
        JOIN users ds ON ds.id = e.document_submitter_id
+       LEFT JOIN users sv ON sv.id = e.supervisor_id
        ORDER BY e.created_at DESC`
     );
     res.json(rows.map(r => ({
@@ -30,6 +32,8 @@ router.get('/', requireAuth, async (req, res) => {
       documentSubmitterId: r.document_submitter_id,
       documentSubmitterName: r.document_submitter_name,
       deputyId: r.deputy_id,
+      supervisorId: r.supervisor_id,
+      supervisorName: r.supervisor_name,
       curatorRequired: r.curator_required,
       language: r.language,
       deadlineDate: r.deadline_date,
@@ -54,7 +58,7 @@ router.post('/', requireAuth, async (req, res) => {
 
     const {
       title, countryId, documentSubmitterRole, documentSubmitterId,
-      deputyId, curatorRequired, language, deadlineDate, occasion, sections
+      deputyId, supervisorId, curatorRequired, language, deadlineDate, occasion, sections
     } = req.body;
 
     if (!title || !countryId || !documentSubmitterRole || !documentSubmitterId) {
@@ -67,11 +71,11 @@ router.post('/', requireAuth, async (req, res) => {
 
       const { rows: [event] } = await client.query(
         `INSERT INTO events (title, country_id, document_submitter_role, document_submitter_id,
-                             deputy_id, curator_required, language, deadline_date, occasion, created_by_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                             deputy_id, supervisor_id, curator_required, language, deadline_date, occasion, created_by_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING id`,
         [title, countryId, documentSubmitterRole, documentSubmitterId,
-         deputyId || null, curatorRequired || false, language || 'EN',
+         deputyId || null, supervisorId || null, curatorRequired || false, language || 'EN',
          deadlineDate || null, occasion || null, req.user.id]
       );
 
@@ -119,16 +123,18 @@ router.get('/:id', requireAuth, async (req, res) => {
   try {
     const { rows: [event] } = await db.query(
       `SELECT e.id, e.title, e.description, e.country_id, e.document_submitter_role,
-              e.document_submitter_id, e.deputy_id, e.curator_required,
+              e.document_submitter_id, e.deputy_id, e.supervisor_id, e.curator_required,
               e.language, e.deadline_date, e.occasion, e.is_active,
               e.ended_at, e.status, e.created_at,
               c.name_en AS country_name, c.code AS country_code,
               ds.full_name AS document_submitter_name,
-              dep.full_name AS deputy_name
+              dep.full_name AS deputy_name,
+              sv.full_name AS supervisor_name
        FROM events e
        JOIN countries c ON c.id = e.country_id
        JOIN users ds ON ds.id = e.document_submitter_id
        LEFT JOIN users dep ON dep.id = e.deputy_id
+       LEFT JOIN users sv ON sv.id = e.supervisor_id
        WHERE e.id = $1`,
       [req.params.id]
     );
@@ -157,6 +163,8 @@ router.get('/:id', requireAuth, async (req, res) => {
       documentSubmitterName: event.document_submitter_name,
       deputyId: event.deputy_id,
       deputyName: event.deputy_name,
+      supervisorId: event.supervisor_id,
+      supervisorName: event.supervisor_name,
       curatorRequired: event.curator_required,
       language: event.language,
       deadlineDate: event.deadline_date,

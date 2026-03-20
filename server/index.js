@@ -63,6 +63,14 @@ async function migrate() {
       ALTER TABLE event_templates ALTER COLUMN created_by_id DROP NOT NULL;
     `);
 
+    // Add supervisor_id column to events if missing
+    await db.query(`
+      DO $$ BEGIN
+        ALTER TABLE events ADD COLUMN IF NOT EXISTS supervisor_id INT REFERENCES users(id);
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$;
+    `);
+
     // Fix: ensure all ministry departments are marked internal
     await db.query('UPDATE departments SET is_external = false WHERE is_external = true');
 

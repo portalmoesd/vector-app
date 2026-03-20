@@ -194,6 +194,7 @@
           <p><strong>Language:</strong> ${e.language}</p>
           <p><strong>Document Submitter:</strong> ${escapeHtml(e.documentSubmitterName)} (${roleLabel(e.documentSubmitterRole)})</p>
           ${e.deputyName ? `<p><strong>Deputy:</strong> ${escapeHtml(e.deputyName)}</p>` : ''}
+          ${e.supervisorName ? `<p><strong>Responsible Supervisor:</strong> ${escapeHtml(e.supervisorName)}</p>` : ''}
           <p><strong>Curator Required:</strong> ${e.curatorRequired ? 'Yes' : 'No'}</p>
           ${e.occasion ? `<p><strong>Occasion:</strong> ${escapeHtml(e.occasion)}</p>` : ''}
           ${e.deadlineDate ? `<p><strong>Deadline:</strong> ${formatDate(e.deadlineDate)}</p>` : ''}
@@ -399,6 +400,12 @@
           ${deputyOpts}
         </select>
       </div>
+      <div class="form-group" id="supervisorGroup">
+        <label class="form-label">Responsible Supervisor *</label>
+        <select class="form-select" id="newSupervisor">
+          <option value="">— Select Supervisor —</option>
+        </select>
+      </div>
       <div class="form-group">
         <label class="form-label">Language</label>
         <select class="form-select" id="newLanguage">
@@ -434,6 +441,7 @@
       const countryId = parseInt(document.getElementById('newCountry').value);
       const dsRole = document.getElementById('newDSRole').value;
       const deputyId = document.getElementById('newDeputy').value ? parseInt(document.getElementById('newDeputy').value) : null;
+      const supervisorId = document.getElementById('newSupervisor').value ? parseInt(document.getElementById('newSupervisor').value) : null;
       const language = document.getElementById('newLanguage').value;
       const deadlineDate = document.getElementById('newDeadline').value || null;
       const occasion = document.getElementById('newOccasion').value.trim() || null;
@@ -463,6 +471,7 @@
           documentSubmitterRole: dsRole,
           documentSubmitterId,
           deputyId,
+          supervisorId,
           curatorRequired,
           language, deadlineDate, occasion,
           sections,
@@ -503,11 +512,38 @@
       document.getElementById('newCurator').checked = tpl.curatorRequired;
     });
 
-    // Show/hide deputy group based on DS role
+    // Load supervisors for selected deputy
+    async function loadSupervisors(deputyId) {
+      const supervisorSelect = document.getElementById('newSupervisor');
+      if (!deputyId) {
+        supervisorSelect.innerHTML = '<option value="">— Select Supervisor —</option>';
+        return;
+      }
+      try {
+        const supervisors = await Api.get(`/api/admin/supervisors?deputy_id=${deputyId}`);
+        supervisorSelect.innerHTML = '<option value="">— Select Supervisor —</option>' +
+          supervisors.map(s => `<option value="${s.id}">${escapeHtml(s.fullName)}${s.departmentName ? ' — ' + escapeHtml(s.departmentName) : ''}</option>`).join('');
+      } catch (e) {
+        supervisorSelect.innerHTML = '<option value="">— No supervisors found —</option>';
+      }
+    }
+
+    // When deputy changes, reload supervisors
+    document.getElementById('newDeputy').addEventListener('change', () => {
+      const deputyId = document.getElementById('newDeputy').value;
+      loadSupervisors(deputyId);
+    });
+
+    // Show/hide deputy + supervisor groups based on DS role
     document.getElementById('newDSRole').addEventListener('change', () => {
       const dsRole = document.getElementById('newDSRole').value;
       document.getElementById('deputyGroup').style.display =
         dsRole === 'DEPUTY' ? '' : 'none';
+      document.getElementById('supervisorGroup').style.display =
+        dsRole === 'DEPUTY' ? '' : 'none';
+      if (dsRole !== 'DEPUTY') {
+        document.getElementById('newSupervisor').innerHTML = '<option value="">— Select Supervisor —</option>';
+      }
     });
   });
 

@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS events (
   document_submitter_role   ds_role NOT NULL,
   document_submitter_id     INT NOT NULL REFERENCES users(id),
   deputy_id                 INT REFERENCES users(id),
+  supervisor_id             INT REFERENCES users(id),
   curator_required          BOOLEAN NOT NULL DEFAULT false,
   language                  event_language NOT NULL DEFAULT 'EN',
   deadline_date             DATE,
