@@ -31,7 +31,17 @@ body{
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   box-shadow: 0 6px 18px rgba(0,0,0,.06);
+  color: #1e293b;
 }
+.sidebar .sidebar-title{ color: #0f172a; }
+.sidebar .sidebar-link{ color: #334155; }
+.sidebar .sidebar-link:hover{ color: #0f172a; background: rgba(0,0,0,.06); }
+.sidebar .sidebar-link.active{ color: #0f172a; background: rgba(10,132,255,.10); font-weight: 600; }
+.sidebar .sidebar-user-name{ color: #1e293b; }
+.sidebar .sidebar-user-role{ color: #64748b; opacity: 1; }
+.sidebar .sidebar-btn{ background: rgba(0,0,0,.06); color: #475569; }
+.sidebar .sidebar-btn:hover{ background: rgba(0,0,0,.10); color: #1e293b; }
+.sidebar .lang-label{ color: #475569; }
 .main{ gap: 18px; }
 
 /* Topbar */
@@ -4552,4 +4562,107 @@ body.gp-shell-ready .gp-sidebar__scrim{
 }
 .table-wrap tbody tr:hover{
   background: rgba(10,132,255,.06);
+}
+
+/* ===== Dark mode overrides ===== */
+
+/* Sidebar – dark */
+[data-theme="dark"] .sidebar{
+  background: rgba(15,23,42,.82);
+  border-color: rgba(255,255,255,.08);
+  box-shadow: 0 6px 18px rgba(0,0,0,.25);
+  color: #e2e8f0;
+}
+[data-theme="dark"] .sidebar .sidebar-title{ color: #f1f5f9; }
+[data-theme="dark"] .sidebar .sidebar-link{ color: #94a3b8; }
+[data-theme="dark"] .sidebar .sidebar-link:hover{ color: #e2e8f0; background: rgba(255,255,255,.08); }
+[data-theme="dark"] .sidebar .sidebar-link.active{ color: #fff; background: rgba(10,132,255,.18); }
+[data-theme="dark"] .sidebar .sidebar-user-name{ color: #f1f5f9; }
+[data-theme="dark"] .sidebar .sidebar-user-role{ color: #64748b; }
+[data-theme="dark"] .sidebar .sidebar-btn{ background: rgba(255,255,255,.08); color: #94a3b8; }
+[data-theme="dark"] .sidebar .sidebar-btn:hover{ background: rgba(255,255,255,.15); color: #e2e8f0; }
+[data-theme="dark"] .sidebar .lang-label{ color: #94a3b8; }
+
+/* Topbar – dark */
+[data-theme="dark"] .topbar{
+  background: rgba(15,23,42,.72);
+  border-color: rgba(255,255,255,.08);
+}
+
+/* Cards – dark */
+[data-theme="dark"] .card{
+  background: rgba(30,41,59,.82);
+  border-color: rgba(255,255,255,.08);
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+
+/* Buttons – dark */
+[data-theme="dark"] .btn{
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.10);
+  color: #e2e8f0;
+}
+[data-theme="dark"] .btn:hover{
+  background: rgba(255,255,255,.12);
+}
+[data-theme="dark"] .btn-primary, [data-theme="dark"] .btn.btn-primary,
+[data-theme="dark"] .btn.primary{
+  background: linear-gradient(180deg, #2563eb, #1d4ed8);
+  border-color: rgba(37,99,235,.55);
+  color: #fff;
+}
+[data-theme="dark"] .btn-danger, [data-theme="dark"] .btn.btn-danger,
+[data-theme="dark"] .btn.danger{
+  background: rgba(239,68,68,.18);
+  border-color: rgba(239,68,68,.30);
+  color: #fca5a5;
+}
+[data-theme="dark"] .btn-outline, [data-theme="dark"] .btn.btn-outline{
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.12);
+  color: #e2e8f0;
+}
+
+/* Form inputs – dark */
+[data-theme="dark"] .form-input, [data-theme="dark"] .form-select{
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.12);
+  color: #e2e8f0;
+}
+[data-theme="dark"] .form-input::placeholder{
+  color: #64748b;
+}
+
+/* Modal – dark */
+[data-theme="dark"] .modal-overlay{
+  background: rgba(0,0,0,.45);
+}
+[data-theme="dark"] .modal-card, [data-theme="dark"] .modal{
+  background: rgba(30,41,59,.96);
+  border-color: rgba(255,255,255,.08);
+}
+
+/* Pills – dark */
+[data-theme="dark"] .pill-green{ background: rgba(52,199,89,.18); color: #86efac; border-color: rgba(52,199,89,.30); }
+[data-theme="dark"] .pill-gray{ background: rgba(255,255,255,.06); color: #94a3b8; border-color: rgba(255,255,255,.10); }
+
+/* Table – dark */
+[data-theme="dark"] .table-wrap table{
+  border-color: rgba(255,255,255,.08);
+}
+[data-theme="dark"] .table-wrap thead th{
+  background: rgba(30,41,59,.75);
+  color: #94a3b8;
+}
+[data-theme="dark"] .table-wrap tbody tr:hover{
+  background: rgba(10,132,255,.10);
+}
+
+/* Main area – dark */
+[data-theme="dark"] .main{
+  background: #0f172a;
+}
+[data-theme="dark"] body{
+  background: #0f172a;
+  color: #e2e8f0;
 }
