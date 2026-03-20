@@ -85,7 +85,9 @@
     panel.appendChild(searchWrap);
     panel.appendChild(itemsWrap);
     wrapper.appendChild(trigger);
-    wrapper.appendChild(panel);
+    // Append panel to document.body so it isn't clipped by modal overflow
+    // or offset by ancestor transforms/backdrop-filters
+    document.body.appendChild(panel);
 
     let isOpen = false;
 
@@ -170,7 +172,12 @@
     // Close when clicking outside
     document.addEventListener('click', () => close());
 
-    return { wrapper, refresh: () => { if (isOpen) buildItems(searchInput.value); } };
+    function destroy() {
+      close();
+      if (panel.parentNode) panel.parentNode.removeChild(panel);
+    }
+
+    return { wrapper, refresh: () => { if (isOpen) buildItems(searchInput.value); }, destroy };
   }
 
   /* ── Section Row Logic ────────────────────────────────────────────────── */
