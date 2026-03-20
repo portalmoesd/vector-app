@@ -134,6 +134,89 @@ async function migrate() {
       }
       console.log(`Seeded ${staffList.length} staff members.`);
     }
+
+    // ── Fix Protocol Department users to PROTOCOL role ────────────────────────
+    const { rows: protocolDeptRows } = await db.query(
+      "SELECT id FROM departments WHERE name_en = 'Protocol Department' LIMIT 1"
+    );
+    if (protocolDeptRows.length > 0) {
+      const protocolDeptId = protocolDeptRows[0].id;
+      const { rowCount } = await db.query(
+        `UPDATE users SET role = 'PROTOCOL', updated_at = now()
+         WHERE department_id = $1 AND role != 'PROTOCOL' AND role != 'ADMIN'`,
+        [protocolDeptId]
+      );
+      if (rowCount > 0) {
+        console.log(`Updated ${rowCount} Protocol Department user(s) to PROTOCOL role.`);
+      }
+    }
+
+    // ── Ensure Deputy users exist (idempotent) ────────────────────────────────
+    const deputyUsers = [
+      { fullName: 'Giorgi Javakhishvili', email: 'gjavakhishvili@moesd.gov.ge', dept: 'Administrative Department' },
+      { fullName: 'Irakli Chikovani', email: 'ichikovani@moesd.gov.ge', dept: 'Foreign Trade Policy Department' },
+      { fullName: 'Nino Enukidze', email: 'nenukidze@moesd.gov.ge', dept: 'Energy Reforms Department' },
+      { fullName: 'Lasha Zhvania', email: 'lzhvania@moesd.gov.ge', dept: 'Transport and Logistics Development Policy Department' },
+    ];
+
+    const { rows: allDeptsForDeputy } = await db.query('SELECT id, name_en FROM departments');
+    const deptMapForDeputy = {};
+    for (const d of allDeptsForDeputy) deptMapForDeputy[d.name_en] = d.id;
+
+    const defaultHashDeputy = await bcrypt.hash('vector2026', 10);
+    for (const dep of deputyUsers) {
+      const username = dep.email.split('@')[0].toLowerCase().replace(/[^a-z0-9.]/g, '');
+      const deptId = deptMapForDeputy[dep.dept] || null;
+      await db.query(
+        `INSERT INTO users (full_name, username, email, password_hash, role, department_id, must_change_password)
+         VALUES ($1, $2, $3, $4, 'DEPUTY', $5, true)
+         ON CONFLICT (username) DO NOTHING`,
+        [dep.fullName, username, dep.email, defaultHashDeputy, deptId]
+      );
+    }
+
+    // ── Create Deputy–Supervisor links (idempotent) ───────────────────────────
+    // Links define which Deputies oversee which Supervisors
+    const deputySupervisorLinks = [
+      // Deputy Javakhishvili oversees Internal Audit, HR, Strategic Comms, Admin, Strategic Dev
+      { deputy: 'gjavakhishvili', supervisorDepts: ['Internal Audit Department', 'Human Resources Management Department', 'Department of Strategic Communication', 'Administrative Department', 'Strategic Development Department'] },
+      // Deputy Chikovani oversees Trade departments, Legal, Economic depts
+      { deputy: 'ichikovani', supervisorDepts: ['Foreign Trade Policy Department', 'Department of Trade Development and International Economic Relations', 'Legal Department', 'Economic Analysis and Reforms Department', 'Economic Policy Department', 'Capital Market Development and Pension Reform Department', 'Investment Policy and Support Department'] },
+      // Deputy Enukidze oversees Energy departments, Construction
+      { deputy: 'nenukidze', supervisorDepts: ['Energy Reforms Department', 'Energy Efficiency and Renewable Energy Policy and Sustainable Development Department', 'Energy Policy and Investment Projects Department', 'Construction Policy Department'] },
+      // Deputy Zhvania oversees Transport, Communications, Road Safety
+      { deputy: 'lzhvania', supervisorDepts: ['Transport and Logistics Development Policy Department', 'Communications, Information and Modern Technologies Department', 'Transportation Safety Investigation Bureau'] },
+    ];
+
+    for (const link of deputySupervisorLinks) {
+      const { rows: [deputyUser] } = await db.query(
+        'SELECT id FROM users WHERE username = $1',
+        [link.deputy]
+      );
+      if (!deputyUser) continue;
+
+      for (const deptName of link.supervisorDepts) {
+        const deptId = deptMapForDeputy[deptName];
+        if (!deptId) continue;
+
+        // Find all supervisors in this department
+        const { rows: supervisors } = await db.query(
+          "SELECT id FROM users WHERE role = 'SUPERVISOR' AND department_id = $1",
+          [deptId]
+        );
+
+        for (const sup of supervisors) {
+          await db.query(
+            `INSERT INTO deputy_supervisor_links (deputy_id, supervisor_id)
+             VALUES ($1, $2)
+             ON CONFLICT (deputy_id, supervisor_id) DO NOTHING`,
+            [deputyUser.id, sup.id]
+          );
+        }
+      }
+    }
+    console.log('Deputy–Supervisor links ensured.');
+
   } catch (err) {
     console.error('Migration error:', err);
   }

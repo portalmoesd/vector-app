@@ -1,4 +1,9 @@
 [
+  {"fullName":"Giorgi Javakhishvili","email":"gjavakhishvili@moesd.gov.ge","role":"DEPUTY","dept":"Administrative Department"},
+  {"fullName":"Irakli Chikovani","email":"ichikovani@moesd.gov.ge","role":"DEPUTY","dept":"Foreign Trade Policy Department"},
+  {"fullName":"Nino Enukidze","email":"nenukidze@moesd.gov.ge","role":"DEPUTY","dept":"Energy Reforms Department"},
+  {"fullName":"Lasha Zhvania","email":"lzhvania@moesd.gov.ge","role":"DEPUTY","dept":"Transport and Logistics Development Policy Department"},
+
   {"fullName":"Beglar Kapanadze","email":"bkapanadze@moesd.gov.ge","role":"SUPERVISOR","dept":"Internal Audit Department"},
   {"fullName":"Tamar Kalandia","email":"tkalandia@moesd.gov.ge","role":"SUPERVISOR","dept":"Internal Audit Department"},
   {"fullName":"Eter Matiashvili","email":"ematiashvili@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Internal Audit Department"},
@@ -12,7 +17,7 @@
   {"fullName":"Giorgi Kalandadze","email":"gkalandadze@moesd.gov.ge","role":"SUPERVISOR","dept":"Department of Strategic Communication"},
   {"fullName":"David Gongadze","email":"dgongadze@moesd.gov.ge","role":"SUPERVISOR","dept":"Department of Strategic Communication"},
 
-  {"fullName":"Bacho Rusishvili","email":"brusishvili@moesd.gov.ge","role":"SUPERVISOR","dept":"Protocol Department"},
+  {"fullName":"Bacho Rusishvili","email":"brusishvili@moesd.gov.ge","role":"PROTOCOL","dept":"Protocol Department"},
 
   {"fullName":"Kakhaber Gudiashvili","email":"kgudiashvili@moesd.gov.ge","role":"SUPERVISOR","dept":"Transportation Safety Investigation Bureau"},
 
