@@ -196,7 +196,7 @@
           ${e.deputyName ? `<p><strong>Deputy:</strong> ${escapeHtml(e.deputyName)}</p>` : ''}
           ${e.supervisorName ? `<p><strong>Responsible Supervisor:</strong> ${escapeHtml(e.supervisorName)}</p>` : ''}
           <p><strong>Curator Required:</strong> ${e.curatorRequired ? 'Yes' : 'No'}</p>
-          ${e.occasion ? `<p><strong>Occasion:</strong> ${escapeHtml(e.occasion)}</p>` : ''}
+          ${e.occasion ? `<p><strong>Task:</strong> ${escapeHtml(e.occasion)}</p>` : ''}
           ${e.deadlineDate ? `<p><strong>Deadline:</strong> ${formatDate(e.deadlineDate)}</p>` : ''}
           <p><strong>Status:</strong> ${e.status}</p>
           <p><strong>Sections:</strong></p>
@@ -229,7 +229,7 @@
           <input class="form-input" type="date" id="editDeadline" value="${e.deadlineDate || ''}" />
         </div>
         <div class="form-group">
-          <label class="form-label">Occasion</label>
+          <label class="form-label">Task</label>
           <textarea class="form-input" id="editOccasion" rows="2">${escapeHtml(e.occasion || '')}</textarea>
         </div>
       `, 'Save', async () => {
@@ -374,67 +374,69 @@
     ).join('');
 
     showModal('Create Event', `
-      <div class="form-group">
-        <label class="form-label">Title *</label>
-        <input class="form-input" id="newTitle" required />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Country *</label>
-        <select class="form-select" id="newCountry">
-          <option value="">— Select —</option>
-          ${countryOpts}
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Document Submitter Role *</label>
-        <select class="form-select" id="newDSRole">
-          <option value="DEPUTY">Deputy</option>
-          <option value="SUPERVISOR">Supervisor</option>
-          <option value="SUPER_COLLABORATOR">Super-Collaborator</option>
-        </select>
-      </div>
-      <div class="form-group" id="deputyGroup">
-        <label class="form-label">Deputy *</label>
-        <select class="form-select" id="newDeputy">
-          <option value="">— Select Deputy —</option>
-          ${deputyOpts}
-        </select>
-      </div>
-      <div class="form-group" id="supervisorGroup">
-        <label class="form-label">Responsible Supervisor *</label>
-        <select class="form-select" id="newSupervisor">
-          <option value="">— Select Supervisor —</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Language</label>
-        <select class="form-select" id="newLanguage">
-          ${['EN','FR','AR','ES','RU','ZH','PT','DE'].map(l =>
-            `<option value="${l}">${l}</option>`
-          ).join('')}
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Deadline</label>
-        <input class="form-input" type="date" id="newDeadline" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Occasion</label>
-        <textarea class="form-input" id="newOccasion" rows="2"></textarea>
-      </div>
-      <div class="form-group">
-        <label class="form-label"><input type="checkbox" id="newCurator" /> Curator Required</label>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Template</label>
-        <select class="form-select" id="newTemplate">
-          <option value="">— Select Template —</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label" style="font-weight:700;">Sections</label>
-        <div id="sectionRows"></div>
-        <button class="btn btn-outline" type="button" id="addSectionRow" style="margin-top:8px;">+ Add Section</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;">
+        <div class="form-group">
+          <label class="form-label">Title *</label>
+          <input class="form-input" id="newTitle" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Country *</label>
+          <select class="form-select" id="newCountry">
+            <option value="">— Select —</option>
+            ${countryOpts}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Document Submitter Role *</label>
+          <select class="form-select" id="newDSRole">
+            <option value="DEPUTY">Deputy</option>
+            <option value="SUPERVISOR">Supervisor</option>
+            <option value="SUPER_COLLABORATOR">Super-Collaborator</option>
+          </select>
+        </div>
+        <div class="form-group" id="deputyGroup">
+          <label class="form-label">Deputy *</label>
+          <select class="form-select" id="newDeputy">
+            <option value="">— Select Deputy —</option>
+            ${deputyOpts}
+          </select>
+        </div>
+        <div class="form-group" id="supervisorGroup">
+          <label class="form-label">Responsible Supervisor *</label>
+          <select class="form-select" id="newSupervisor">
+            <option value="">— Select Supervisor —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Language</label>
+          <select class="form-select" id="newLanguage">
+            ${['EN','FR','AR','ES','RU','ZH','PT','DE'].map(l =>
+              `<option value="${l}">${l}</option>`
+            ).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Deadline</label>
+          <input class="form-input" type="date" id="newDeadline" />
+        </div>
+        <div class="form-group">
+          <label class="form-label"><input type="checkbox" id="newCurator" style="margin-right:6px;" /> Curator Required</label>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label">Task</label>
+          <textarea class="form-input" id="newOccasion" rows="2"></textarea>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label">Template</label>
+          <select class="form-select" id="newTemplate">
+            <option value="">— Select Template —</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label" style="font-weight:700;">Sections</label>
+          <div id="sectionRows"></div>
+          <button class="btn btn-outline" type="button" id="addSectionRow" style="margin-top:8px;">+ Add Section</button>
+        </div>
       </div>
     `, 'Create', async () => {
       const title = document.getElementById('newTitle').value.trim();
