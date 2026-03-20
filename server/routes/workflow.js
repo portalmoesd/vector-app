@@ -555,23 +555,22 @@ router.get('/status-grid', requireAuth, async (req, res) => {
         let deptName = null;
 
         if (step === 'CURATOR') {
-          // Find the deputy who oversees the section's department(s), excluding the DS
+          // Find the deputy who oversees the section's department(s), excluding the DS.
+          // Deputies oversee multiple departments, so don't show a single department name.
           const { rows: [dep] } = await db.query(
-            `SELECT u.id, u.full_name, d.name_en AS department_name
+            `SELECT u.id, u.full_name
              FROM deputy_department_links ddl
              JOIN users u ON u.id = ddl.deputy_id
-             LEFT JOIN departments d ON d.id = u.department_id
              WHERE ddl.department_id = ANY($1) AND u.id != $2
              ORDER BY u.id LIMIT 1`,
             [sectionDeptIds, event.document_submitter_id]);
-          if (dep) { actorName = dep.full_name; actorId = dep.id; deptName = dep.department_name; }
+          if (dep) { actorName = dep.full_name; actorId = dep.id; deptName = null; }
         } else if (step === ROLES.DEPUTY && event.document_submitter_role === 'DEPUTY') {
-          // Deputy step = the Document Submitter themselves
+          // Deputy step = the Document Submitter themselves.
+          // Deputies oversee multiple departments, so don't show a single department name.
           const { rows: [dep] } = await db.query(
-            `SELECT u.id, u.full_name, d.name_en AS department_name
-             FROM users u LEFT JOIN departments d ON d.id = u.department_id
-             WHERE u.id = $1`, [event.document_submitter_id]);
-          if (dep) { actorName = dep.full_name; actorId = dep.id; deptName = dep.department_name; }
+            `SELECT id, full_name FROM users WHERE id = $1`, [event.document_submitter_id]);
+          if (dep) { actorName = dep.full_name; actorId = dep.id; deptName = null; }
         } else if (step.startsWith('RECEIVING_')) {
           // Receiving chain: search in home department using the base role,
           // filtered by the event's country assignment
