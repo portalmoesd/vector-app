@@ -248,6 +248,8 @@
     }
 
     container.innerHTML = templates.map(t => {
+      const totalDepts = t.sections.reduce((sum, s) => sum + (s.departmentIds || []).length, 0);
+
       const sectionsList = t.sections.map(s => {
         const deptNames = (s.departmentIds || [])
           .map(id => {
@@ -256,7 +258,7 @@
           })
           .filter(Boolean)
           .join(', ');
-        return `<li style="margin-bottom:4px;">
+        return `<li style="margin-bottom:6px;">
           <strong>${escapeHtml(s.title)}</strong>
           ${deptNames ? `<span style="color:#666;font-size:12px;"> \u2014 ${deptNames}</span>` : ''}
         </li>`;
@@ -268,23 +270,49 @@
 
       const deleteBtn = t.isDefault
         ? ''
-        : `<button class="btn btn-danger" onclick="deleteTemplate(${t.id})">Delete</button>`;
+        : `<button class="btn btn-danger" style="font-size:12px;padding:5px 14px;" onclick="event.stopPropagation();deleteTemplate(${t.id})">Delete</button>`;
 
       return `
-        <div class="event-card" style="margin-bottom:12px;">
-          <div class="event-card-info">
-            <h4>${escapeHtml(t.name)}${badge}</h4>
-            <div style="font-size:13px;color:#666;margin-bottom:8px;">
-              ${t.sections.length} section(s)${t.createdByName ? ' | By: ' + escapeHtml(t.createdByName) : ''}
+        <div class="tpl-expand-card" style="border:1px solid var(--border,rgba(0,0,0,.10));border-radius:16px;margin-bottom:10px;background:rgba(255,255,255,.62);backdrop-filter:blur(12px);box-shadow:0 2px 8px rgba(0,0,0,.04);transition:box-shadow .2s,border-color .2s;overflow:hidden;">
+          <div class="tpl-expand-header" style="display:flex;align-items:center;gap:10px;padding:14px 18px;cursor:pointer;user-select:none;">
+            <span class="tpl-expand-arrow" style="font-size:11px;color:#888;transition:transform .2s;flex-shrink:0;">\u25b6</span>
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span style="font-weight:700;font-size:15px;">${escapeHtml(t.name)}</span>
+                ${badge}
+              </div>
+              <div style="font-size:12px;color:var(--muted,#666);margin-top:2px;">
+                ${t.sections.length} section(s) &middot; ${totalDepts} department(s)${t.createdByName ? ' &middot; By: ' + escapeHtml(t.createdByName) : ''}
+              </div>
             </div>
-            <ol style="margin:0 0 0 18px;font-size:13px;">${sectionsList || '<li>No sections</li>'}</ol>
+            <div onclick="event.stopPropagation()">${deleteBtn}</div>
           </div>
-          <div class="event-card-actions">
-            ${deleteBtn}
+          <div class="tpl-expand-body" style="display:none;padding:0 18px 16px 42px;border-top:1px solid var(--border,rgba(0,0,0,.06));">
+            <ol style="margin:12px 0 0 18px;font-size:13px;line-height:1.5;">${sectionsList || '<li>No sections</li>'}</ol>
           </div>
         </div>
       `;
     }).join('');
+
+    // Attach expand/collapse handlers
+    container.querySelectorAll('.tpl-expand-card').forEach(card => {
+      const header = card.querySelector('.tpl-expand-header');
+      const body = card.querySelector('.tpl-expand-body');
+      const arrow = card.querySelector('.tpl-expand-arrow');
+      header.addEventListener('click', () => {
+        const open = body.style.display !== 'none';
+        body.style.display = open ? 'none' : '';
+        arrow.style.transform = open ? '' : 'rotate(90deg)';
+        card.style.boxShadow = open ? '0 2px 8px rgba(0,0,0,.04)' : '0 4px 16px rgba(0,0,0,.08)';
+        card.style.borderColor = open ? '' : 'rgba(10,132,255,.18)';
+      });
+      // Hover effect
+      header.addEventListener('mouseenter', () => { card.style.boxShadow = '0 4px 14px rgba(0,0,0,.07)'; });
+      header.addEventListener('mouseleave', () => {
+        const open = body.style.display !== 'none';
+        card.style.boxShadow = open ? '0 4px 16px rgba(0,0,0,.08)' : '0 2px 8px rgba(0,0,0,.04)';
+      });
+    });
   }
 
   window.deleteTemplate = async function(id) {
