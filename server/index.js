@@ -151,12 +151,23 @@ async function migrate() {
       }
     }
 
+    // ── Remove incorrectly seeded Deputy users from earlier migration ─────────
+    const wrongDeputies = ['gjavakhishvili', 'ichikovani', 'lzhvania'];
+    for (const uname of wrongDeputies) {
+      await db.query(
+        "DELETE FROM users WHERE username = $1 AND role = 'DEPUTY'",
+        [uname]
+      );
+    }
+
     // ── Ensure Deputy users exist (idempotent) ────────────────────────────────
     const deputyUsers = [
-      { fullName: 'Giorgi Javakhishvili', email: 'gjavakhishvili@moesd.gov.ge', dept: 'Administrative Department' },
-      { fullName: 'Irakli Chikovani', email: 'ichikovani@moesd.gov.ge', dept: 'Foreign Trade Policy Department' },
-      { fullName: 'Nino Enukidze', email: 'nenukidze@moesd.gov.ge', dept: 'Energy Reforms Department' },
-      { fullName: 'Lasha Zhvania', email: 'lzhvania@moesd.gov.ge', dept: 'Transport and Logistics Development Policy Department' },
+      { fullName: 'Nino Enukidze', email: 'nenukidze@moesd.gov.ge', dept: 'Legal Department' },
+      { fullName: 'Genadi Arveladze', email: 'garveladze@moesd.gov.ge', dept: 'Foreign Trade Policy Department' },
+      { fullName: 'Inga Pkhaladze', email: 'ipkhaladze@moesd.gov.ge', dept: 'Energy Reforms Department' },
+      { fullName: 'Tamar Ioseliani', email: 'tioseliani@moesd.gov.ge', dept: 'Transport and Logistics Development Policy Department' },
+      { fullName: 'Vakhtang Tsitsadze', email: 'vtsitsadze@moesd.gov.ge', dept: 'Economic Analysis and Reforms Department' },
+      { fullName: 'Irakli Nadareishvili', email: 'inadareishvili@moesd.gov.ge', dept: 'Capital Market Development and Pension Reform Department' },
     ];
 
     const { rows: allDeptsForDeputy } = await db.query('SELECT id, name_en FROM departments');
@@ -176,16 +187,60 @@ async function migrate() {
     }
 
     // ── Create Deputy–Supervisor links (idempotent) ───────────────────────────
-    // Links define which Deputies oversee which Supervisors
+    // Links define which Deputies oversee which Supervisors (from org chart)
+    // Note: Minister directly oversees Internal Audit, HR, Strategic Comms, Protocol, Transportation Safety Bureau
+    // Those departments report to Minister, not a Deputy — but we still need Deputy links for workflow
     const deputySupervisorLinks = [
-      // Deputy Javakhishvili oversees Internal Audit, HR, Strategic Comms, Admin, Strategic Dev
-      { deputy: 'gjavakhishvili', supervisorDepts: ['Internal Audit Department', 'Human Resources Management Department', 'Department of Strategic Communication', 'Administrative Department', 'Strategic Development Department'] },
-      // Deputy Chikovani oversees Trade departments, Legal, Economic depts
-      { deputy: 'ichikovani', supervisorDepts: ['Foreign Trade Policy Department', 'Department of Trade Development and International Economic Relations', 'Legal Department', 'Economic Analysis and Reforms Department', 'Economic Policy Department', 'Capital Market Development and Pension Reform Department', 'Investment Policy and Support Department'] },
-      // Deputy Enukidze oversees Energy departments, Construction
-      { deputy: 'nenukidze', supervisorDepts: ['Energy Reforms Department', 'Energy Efficiency and Renewable Energy Policy and Sustainable Development Department', 'Energy Policy and Investment Projects Department', 'Construction Policy Department'] },
-      // Deputy Zhvania oversees Transport, Communications, Road Safety
-      { deputy: 'lzhvania', supervisorDepts: ['Transport and Logistics Development Policy Department', 'Communications, Information and Modern Technologies Department', 'Transportation Safety Investigation Bureau'] },
+      // First Deputy Nino Enukidze: Legal, National Agency of State Property, Spatial and Urban Dev Agency
+      { deputy: 'nenukidze', supervisorDepts: [
+        'Legal Department',
+        'National Agency of State Property',
+        'Spatial and Urban Development Agency',
+      ]},
+      // Deputy Genadi Arveladze: Foreign Trade, Trade Dev & Intl Relations, Construction, Standards, Accreditation, Technical Supervision, Market Surveillance
+      { deputy: 'garveladze', supervisorDepts: [
+        'Foreign Trade Policy Department',
+        'Department of Trade Development and International Economic Relations',
+        'Construction Policy Department',
+        'Georgian National Agency for Standards and Metrology',
+        'The Unified National Body of Accreditation',
+        'Technical and Constructions Supervision Agency',
+        'Market Surveillance Agency',
+      ]},
+      // Deputy Inga Pkhaladze: Energy Reforms, Energy Efficiency, Energy Policy, Energy Enterprises, Oil and Gas
+      { deputy: 'ipkhaladze', supervisorDepts: [
+        'Energy Reforms Department',
+        'Energy Efficiency and Renewable Energy Policy and Sustainable Development Department',
+        'Energy Policy and Investment Projects Department',
+        'Department of Energy Enterprises Management',
+        'State Agency of Oil and Gas',
+      ]},
+      // Deputy Tamar Ioseliani: Transport & Logistics, Comms & IT, Road Safety, Land Transport, Maritime, Civil Aviation, Anaklia Port, Rail Transport
+      { deputy: 'tioseliani', supervisorDepts: [
+        'Transport and Logistics Development Policy Department',
+        'Communications, Information and Modern Technologies Department',
+        'Road Safety Department',
+        'Land Transport Agency',
+        'Maritime Transport Agency',
+        'Civil Aviation Agency',
+        'Anaklia Deep Sea Port Development Agency',
+        'Rail Transport Agency',
+      ]},
+      // Deputy Vakhtang Tsitsadze: Economic Analysis, Economic Policy, Administrative, Strategic Development
+      { deputy: 'vtsitsadze', supervisorDepts: [
+        'Economic Analysis and Reforms Department',
+        'Economic Policy Department',
+        'Administrative Department',
+        'Strategic Development Department',
+      ]},
+      // Deputy Irakli Nadareishvili: Capital Markets, Investment Policy, GITA, Enterprise Georgia, Tourism Admin
+      { deputy: 'inadareishvili', supervisorDepts: [
+        'Capital Market Development and Pension Reform Department',
+        'Investment Policy and Support Department',
+        "Georgia's Innovation and Technology Agency",
+        'Enterprise Georgia',
+        'Georgian National Tourism Administration',
+      ]},
     ];
 
     for (const link of deputySupervisorLinks) {

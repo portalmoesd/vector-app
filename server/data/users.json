@@ -1,8 +1,10 @@
 [
-  {"fullName":"Giorgi Javakhishvili","email":"gjavakhishvili@moesd.gov.ge","role":"DEPUTY","dept":"Administrative Department"},
-  {"fullName":"Irakli Chikovani","email":"ichikovani@moesd.gov.ge","role":"DEPUTY","dept":"Foreign Trade Policy Department"},
-  {"fullName":"Nino Enukidze","email":"nenukidze@moesd.gov.ge","role":"DEPUTY","dept":"Energy Reforms Department"},
-  {"fullName":"Lasha Zhvania","email":"lzhvania@moesd.gov.ge","role":"DEPUTY","dept":"Transport and Logistics Development Policy Department"},
+  {"fullName":"Nino Enukidze","email":"nenukidze@moesd.gov.ge","role":"DEPUTY","dept":"Legal Department"},
+  {"fullName":"Genadi Arveladze","email":"garveladze@moesd.gov.ge","role":"DEPUTY","dept":"Foreign Trade Policy Department"},
+  {"fullName":"Inga Pkhaladze","email":"ipkhaladze@moesd.gov.ge","role":"DEPUTY","dept":"Energy Reforms Department"},
+  {"fullName":"Tamar Ioseliani","email":"tioseliani@moesd.gov.ge","role":"DEPUTY","dept":"Transport and Logistics Development Policy Department"},
+  {"fullName":"Vakhtang Tsitsadze","email":"vtsitsadze@moesd.gov.ge","role":"DEPUTY","dept":"Economic Analysis and Reforms Department"},
+  {"fullName":"Irakli Nadareishvili","email":"inadareishvili@moesd.gov.ge","role":"DEPUTY","dept":"Capital Market Development and Pension Reform Department"},
 
   {"fullName":"Beglar Kapanadze","email":"bkapanadze@moesd.gov.ge","role":"SUPERVISOR","dept":"Internal Audit Department"},
   {"fullName":"Tamar Kalandia","email":"tkalandia@moesd.gov.ge","role":"SUPERVISOR","dept":"Internal Audit Department"},
