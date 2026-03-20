@@ -22,7 +22,7 @@ const router = express.Router();
 async function loadSectionContext(eventId, sectionId) {
   const { rows: [event] } = await db.query(
     `SELECT id, document_submitter_role, document_submitter_id, deputy_id,
-            curator_required, country_id, status AS event_status
+            supervisor_id, curator_required, country_id, status AS event_status
      FROM events WHERE id = $1`,
     [eventId]
   );
@@ -35,15 +35,25 @@ async function loadSectionContext(eventId, sectionId) {
   );
   if (!sc) return null;
 
-  // Determine if section has cross-department assignments
-  const { rows: [dsUser] } = await db.query(
-    'SELECT department_id FROM users WHERE id = $1', [event.document_submitter_id]
-  );
+  // Determine if section has cross-department assignments.
+  // For Deputy DS, the "home department" is the Responsible Supervisor's
+  // department, since Deputies oversee multiple departments.
+  let dsDeptId = null;
+  if (event.document_submitter_role === 'DEPUTY' && event.supervisor_id) {
+    const { rows: [sv] } = await db.query(
+      'SELECT department_id FROM users WHERE id = $1', [event.supervisor_id]
+    );
+    dsDeptId = sv ? sv.department_id : null;
+  } else {
+    const { rows: [dsUser] } = await db.query(
+      'SELECT department_id FROM users WHERE id = $1', [event.document_submitter_id]
+    );
+    dsDeptId = dsUser ? dsUser.department_id : null;
+  }
   const { rows: deptRows } = await db.query(
     'SELECT department_id FROM section_departments WHERE section_id = $1', [sectionId]
   );
   const sectionDeptIds = deptRows.map(r => r.department_id);
-  const dsDeptId = dsUser ? dsUser.department_id : null;
   const isCrossDept = sectionDeptIds.some(d => d !== dsDeptId);
 
   const chain = buildChain(event.document_submitter_role, event.curator_required, isCrossDept);
@@ -79,15 +89,25 @@ async function effectiveRole(user, event, sectionDeptIds, chain) {
     if (rows.length > 0) return 'CURATOR';
   }
 
-  // Check if user belongs to the receiving chain (DS's home department)
+  // Check if user belongs to the receiving chain (home department)
   if (chain) {
     const receivingLabel = 'RECEIVING_' + user.role;
     if (chain.includes(receivingLabel)) {
-      // User's dept must match DS's home dept to be in the receiving chain
-      const { rows: [dsUser] } = await db.query(
-        'SELECT department_id FROM users WHERE id = $1', [event.document_submitter_id]
-      );
-      if (dsUser && user.department_id === dsUser.department_id) {
+      // For Deputy DS, use the Responsible Supervisor's department as "home"
+      // since Deputies oversee multiple departments.
+      let homeDeptId = null;
+      if (event.document_submitter_role === 'DEPUTY' && event.supervisor_id) {
+        const { rows: [sv] } = await db.query(
+          'SELECT department_id FROM users WHERE id = $1', [event.supervisor_id]
+        );
+        homeDeptId = sv ? sv.department_id : null;
+      } else {
+        const { rows: [dsUser] } = await db.query(
+          'SELECT department_id FROM users WHERE id = $1', [event.document_submitter_id]
+        );
+        homeDeptId = dsUser ? dsUser.department_id : null;
+      }
+      if (homeDeptId && user.department_id === homeDeptId) {
         return receivingLabel;
       }
     }
@@ -464,17 +484,27 @@ router.get('/status-grid', requireAuth, async (req, res) => {
 
     const { rows: [event] } = await db.query(
       `SELECT id, document_submitter_role, document_submitter_id,
-              deputy_id, curator_required
+              deputy_id, supervisor_id, curator_required
        FROM events WHERE id = $1`,
       [eventId]
     );
     if (!event) return res.status(404).json({ error: 'Event not found' });
 
-    // Get DS department
-    const { rows: [dsUser] } = await db.query(
-      'SELECT department_id FROM users WHERE id = $1', [event.document_submitter_id]
-    );
-    const dsDeptId = dsUser ? dsUser.department_id : null;
+    // Get "home department" for the receiving chain.
+    // For Deputy DS, use the Responsible Supervisor's department since
+    // Deputies oversee multiple departments.
+    let dsDeptId = null;
+    if (event.document_submitter_role === 'DEPUTY' && event.supervisor_id) {
+      const { rows: [sv] } = await db.query(
+        'SELECT department_id FROM users WHERE id = $1', [event.supervisor_id]
+      );
+      dsDeptId = sv ? sv.department_id : null;
+    } else {
+      const { rows: [dsUser] } = await db.query(
+        'SELECT department_id FROM users WHERE id = $1', [event.document_submitter_id]
+      );
+      dsDeptId = dsUser ? dsUser.department_id : null;
+    }
 
     const { rows: sections } = await db.query(
       `SELECT s.id AS section_id, s.title AS section_label,
