@@ -15,47 +15,84 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      background: var(--bg-primary);
+      margin: 0;
+      background: linear-gradient(160deg, #dfe4f2 0%, #e8eaf4 30%, #f0f1f6 60%, #eae6f0 100%);
     }
     .login-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg);
-      padding: 40px 36px;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255,255,255,0.6);
+      border-radius: 20px;
+      padding: 44px 42px 40px;
       width: 100%;
-      max-width: 400px;
-      box-shadow: var(--shadow-lg);
+      max-width: 480px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
     }
     .login-logo {
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 32px;
-      justify-content: center;
+      margin-bottom: 36px;
     }
-    .login-logo img { width: 40px; height: 40px; }
-    .login-logo span { font-size: 1.3rem; font-weight: 700; color: var(--text-primary); }
-    .login-title {
-      text-align: center;
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-      margin-bottom: 24px;
-    }
+    .login-logo img { width: 36px; height: 36px; }
+    .login-logo span { font-size: 1.75rem; font-weight: 800; color: #2d3748; letter-spacing: -0.5px; }
     #loginError {
       display: none;
       margin-bottom: 12px;
     }
-    .login-card .btn { width: 100%; justify-content: center; padding: 12px; font-size: 1rem; }
+    .login-card .form-label {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #3a4358;
+      margin-bottom: 6px;
+    }
+    .login-card .form-input {
+      background: rgba(255,255,255,0.7);
+      border: 1px solid #d8dce6;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 1rem;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .login-card .form-input:focus {
+      border-color: #a0aec0;
+      box-shadow: 0 0 0 3px rgba(66,99,235,0.08);
+      outline: none;
+    }
+    .login-card .form-group {
+      margin-bottom: 20px;
+    }
+    .login-card .btn-primary {
+      width: auto;
+      padding: 12px 40px;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 50px;
+      background: #4263eb;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(66,99,235,0.25);
+      transition: background .2s, box-shadow .2s, transform .15s;
+      justify-content: center;
+    }
+    .login-card .btn-primary:hover {
+      background: #3b5bdb;
+      box-shadow: 0 6px 16px rgba(66,99,235,0.35);
+      transform: translateY(-1px);
+    }
+    .login-card .btn-primary:active {
+      transform: translateY(0);
+    }
   </style>
 </head>
 <body>
   <div class="login-card">
     <div class="login-logo">
       <img src="/assets/portal-logo-new.svg" alt="Logo" />
-      <span>Vector Portal</span>
+      <span>Vector</span>
     </div>
-    <div class="login-title" data-i18n="auth.login">Log In</div>
     <div id="loginError" class="msg msg-error"></div>
     <form id="loginForm">
       <div class="form-group">
@@ -66,7 +103,7 @@
         <label class="form-label" data-i18n="auth.password">Password</label>
         <input class="form-input" type="password" id="password" autocomplete="current-password" required />
       </div>
-      <button type="submit" class="btn btn-primary" data-i18n="auth.loginButton">Sign In</button>
+      <button type="submit" class="btn btn-primary" data-i18n="auth.loginButton">Login</button>
     </form>
   </div>
   <script src="/js/core/config.js"></script>
