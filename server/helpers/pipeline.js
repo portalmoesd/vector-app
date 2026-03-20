@@ -6,8 +6,8 @@ const { ROLES } = require('./roles');
 const PIPELINE_ORDER = [
   ROLES.COLLABORATOR,        // 0
   ROLES.SUPER_COLLABORATOR,  // 1
-  'CURATOR',                 // 2 (contextual label for Deputy)
-  ROLES.SUPERVISOR,          // 3
+  ROLES.SUPERVISOR,          // 2
+  'CURATOR',                 // 3 (contextual label for Deputy)
   ROLES.DEPUTY,              // 4
 ];
 
@@ -114,12 +114,12 @@ function buildChain(dsRole, curatorRequired, isCrossDept) {
     }
     chain.push(ROLES.SUPERVISOR);
   } else if (dsRole === 'DEPUTY') {
-    // Chain A: Collab → SC → Supervisor → Deputy
+    // Chain A: Collab → SC → Supervisor → [Curator] → Deputy
     chain.push(ROLES.SUPER_COLLABORATOR);
+    chain.push(ROLES.SUPERVISOR);
     if (isCrossDept && curatorRequired) {
       chain.push('CURATOR');
     }
-    chain.push(ROLES.SUPERVISOR);
     chain.push(ROLES.DEPUTY);
   }
 

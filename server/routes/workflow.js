@@ -61,12 +61,18 @@ async function loadSectionContext(eventId, sectionId) {
 
 /**
  * Map user role to the effective pipeline role.
- * A Deputy who is NOT the Document Submitter acts as CURATOR.
+ * A Deputy who oversees the section's department and is NOT the Document
+ * Submitter acts as CURATOR for that section.
  */
-function effectiveRole(user, event) {
-  if (user.role === ROLES.DEPUTY && event.deputy_id === user.id
-      && event.document_submitter_id !== user.id) {
-    return 'CURATOR';
+async function effectiveRole(user, event, sectionDeptIds) {
+  if (user.role === ROLES.DEPUTY && event.document_submitter_id !== user.id && sectionDeptIds) {
+    // Check if this deputy oversees any of the section's departments
+    const { rows } = await db.query(
+      `SELECT 1 FROM deputy_department_links
+       WHERE deputy_id = $1 AND department_id = ANY($2) LIMIT 1`,
+      [user.id, sectionDeptIds]
+    );
+    if (rows.length > 0) return 'CURATOR';
   }
   return user.role;
 }
@@ -119,7 +125,7 @@ router.post('/submit', requireAuth, async (req, res) => {
     const ctx = await loadSectionContext(eventId, sectionId);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = effectiveRole(req.user, ctx.event);
+    const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds);
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole);
 
     // Verify user is the current holder
@@ -187,7 +193,7 @@ router.post('/approve', requireAuth, async (req, res) => {
     const ctx = await loadSectionContext(eventId, sectionId);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = effectiveRole(req.user, ctx.event);
+    const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds);
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole);
 
     // Must be submitted to this role
@@ -263,7 +269,7 @@ router.post('/return', requireAuth, async (req, res) => {
     const ctx = await loadSectionContext(eventId, sectionId);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = effectiveRole(req.user, ctx.event);
+    const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds);
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole);
 
     if (userRole !== holder) {
@@ -322,7 +328,7 @@ router.post('/ask-to-return', requireAuth, async (req, res) => {
     const ctx = await loadSectionContext(eventId, sectionId);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = effectiveRole(req.user, ctx.event);
+    const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds);
 
     // The section must NOT be at the requester's stage (they can't ask-to-return their own stage)
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole);
@@ -487,11 +493,16 @@ router.get('/status-grid', requireAuth, async (req, res) => {
         let actorId = null;
         let deptName = null;
 
-        if (role === 'CURATOR' && event.deputy_id) {
+        if (role === 'CURATOR') {
+          // Find the deputy who oversees the section's department(s)
           const { rows: [dep] } = await db.query(
             `SELECT u.id, u.full_name, d.name_en AS department_name
-             FROM users u LEFT JOIN departments d ON d.id = u.department_id
-             WHERE u.id = $1`, [event.deputy_id]);
+             FROM deputy_department_links ddl
+             JOIN users u ON u.id = ddl.deputy_id
+             LEFT JOIN departments d ON d.id = u.department_id
+             WHERE ddl.department_id = ANY($1) AND u.id != $2
+             ORDER BY u.id LIMIT 1`,
+            [sectionDeptIds, event.document_submitter_id]);
           if (dep) { actorName = dep.full_name; actorId = dep.id; deptName = dep.department_name; }
         } else if (role === ROLES.DEPUTY && event.document_submitter_role === 'DEPUTY') {
           const { rows: [dep] } = await db.query(
