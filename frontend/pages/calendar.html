@@ -8,39 +8,51 @@
   <link rel="stylesheet" href="/css/base.css" />
   <link rel="stylesheet" href="/css/sidebar.css" />
   <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/georgian-fonts.css" />
+  <link rel="stylesheet" href="/css/apple.css" />
   <style>
-    .event-tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); }
+    .event-tabs {
+      display: flex; gap: 4px; margin-bottom: 20px;
+      border-bottom: 2px solid var(--border, var(--border-color));
+    }
     .event-tab {
       padding: 10px 20px; border: none; background: none;
-      font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);
+      font-size: 14px; font-weight: 700; color: var(--muted, var(--text-secondary));
       cursor: pointer; border-bottom: 2px solid transparent;
-      margin-bottom: -2px; font-family: var(--font-primary);
+      margin-bottom: -2px; border-radius: 0;
+      transition: color .18s ease;
     }
-    .event-tab:hover { color: var(--text-primary); }
-    .event-tab.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+    .event-tab:hover { color: var(--text, var(--text-primary)); }
+    .event-tab.active {
+      color: var(--primary, var(--accent-blue));
+      border-bottom-color: var(--primary, var(--accent-blue));
+    }
 
     .filter-bar {
       display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-end;
     }
     .filter-bar .form-group { margin-bottom: 0; flex: 1; min-width: 160px; max-width: 250px; }
-    .filter-bar .form-label { font-size: 0.75rem; }
+    .filter-bar .form-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 
     .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
     .pagination button {
-      padding: 6px 14px; border: 1px solid var(--border-color);
-      background: var(--bg-card); color: var(--text-primary);
-      border-radius: 4px; cursor: pointer; font-size: 13px;
+      padding: 8px 16px;
+      border: 1px solid var(--border, var(--border-color));
+      background: rgba(255,255,255,.72);
+      color: var(--text, var(--text-primary));
+      border-radius: 999px; cursor: pointer; font-size: 13px; font-weight: 600;
+      transition: transform .18s ease, box-shadow .18s ease;
     }
-    .pagination button.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
-    .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pagination button:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,.08); }
+    .pagination button.active {
+      background: linear-gradient(180deg, var(--primary, var(--accent-blue)), var(--primary-2, var(--accent-blue)));
+      color: #fff;
+      border-color: rgba(10,132,255,.55);
+    }
+    .pagination button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
 
-    .event-card {
-      border: 1px solid var(--border-color); border-radius: var(--radius-lg);
-      padding: 16px 20px; margin-bottom: 12px; background: var(--bg-card);
-      display: flex; justify-content: space-between; align-items: center;
-    }
-    .event-card-info h4 { margin: 0 0 4px 0; font-size: 1rem; }
-    .event-card-meta { font-size: 0.8rem; color: var(--text-secondary); display: flex; gap: 16px; flex-wrap: wrap; }
+    .event-card-info h4 { margin: 0 0 4px 0; font-size: 1rem; font-weight: 900; }
+    .event-card-meta { font-size: 12px; color: var(--muted, var(--text-secondary)); display: flex; gap: 12px; flex-wrap: wrap; }
     .event-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
   </style>
 </head>
