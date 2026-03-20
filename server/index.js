@@ -66,6 +66,39 @@ async function migrate() {
     // Fix: ensure all ministry departments are marked internal
     await db.query('UPDATE departments SET is_external = false WHERE is_external = true');
 
+    // ── Fix department names to match official org chart (idempotent) ────────
+    const deptNameFixes = [
+      { old_en: 'Protocol Department', name: 'პროტოკოლის სამსახური', name_en: 'Protocol Service' },
+      { old_en: 'Transportation Safety Investigation Bureau', name: 'სატრანსპორტო უსაფრთხოების მოკვლევის ბიურო', name_en: 'Transport Safety Investigation Bureau' },
+      { old_en: 'Department of Strategic Communication', name: 'სტრატეგიული კომუნიკაციის დეპარტამენტი', name_en: 'Strategic Communications Department' },
+      { old_en: 'Capital Market Development, Insurance Policy and Pension Reform Department', name: 'კაპიტალის ბაზრის განვითარების, სადაზღვევო პოლიტიკისა და საპენსიო რეფორმის დეპარტამენტი', name_en: 'Capital Market Development, Insurance Policy and Pension Reform Department' },
+      { old_en: 'Investment Policy and Investment Support Department', name: 'საინვესტიციო პოლიტიკისა და ინვესტიციების მხარდაჭერის დეპარტამენტი', name_en: 'Investment Policy and Investment Support Department' },
+      { old_en: 'Unified National Accreditation Body - Accreditation Center', name: 'აკრედიტაციის ერთიანი ეროვნული ორგანო - აკრედიტაციის ცენტრი', name_en: 'Unified National Accreditation Body - Accreditation Center' },
+    ];
+    for (const fix of deptNameFixes) {
+      await db.query(
+        'UPDATE departments SET name = $1, name_en = $2 WHERE name_en = $3',
+        [fix.name, fix.name_en, fix.old_en]
+      );
+    }
+    // Fix Georgian-only spelling differences (English name unchanged)
+    await db.query(
+      `UPDATE departments SET name = 'კავშირგაბმულობის, საინფორმაციო და თანამედროვე ტექნოლოგიების დეპარტამენტი'
+       WHERE name_en = 'Communications, Information and Modern Technologies Department'`
+    );
+    await db.query(
+      `UPDATE departments SET name = 'სივრცითი და ქალაქმშენებლობითი განვითარების სააგენტო'
+       WHERE name_en = 'Spatial and Urban Development Agency'`
+    );
+    await db.query(
+      `UPDATE departments SET name = 'საქართველოს სტანდარტებისა და მეტროლოგიის ეროვნული სააგენტო'
+       WHERE name_en = 'Georgian National Agency for Standards and Metrology'`
+    );
+    await db.query(
+      `UPDATE departments SET name = 'ანაკლიის ღრმაწყლოვანი ნავსადგურის განვითარების სააგენტო'
+       WHERE name_en = 'Anaklia Deep Sea Port Development Agency'`
+    );
+
     // Seed departments if empty
     const { rows: [{ count: deptCount }] } = await db.query('SELECT count(*)::int AS count FROM departments');
     if (deptCount === 0) {
@@ -150,7 +183,7 @@ async function migrate() {
 
     // ── Fix Protocol Department users to PROTOCOL role ────────────────────────
     const { rows: protocolDeptRows } = await db.query(
-      "SELECT id FROM departments WHERE name_en = 'Protocol Department' LIMIT 1"
+      "SELECT id FROM departments WHERE name_en IN ('Protocol Service', 'Protocol Department') LIMIT 1"
     );
     if (protocolDeptRows.length > 0) {
       const protocolDeptId = protocolDeptRows[0].id;
@@ -180,7 +213,7 @@ async function migrate() {
       { fullName: 'Inga Pkhaladze', email: 'ipkhaladze@moesd.gov.ge', dept: 'Energy Reforms Department' },
       { fullName: 'Tamar Ioseliani', email: 'tioseliani@moesd.gov.ge', dept: 'Transport and Logistics Development Policy Department' },
       { fullName: 'Vakhtang Tsitsadze', email: 'vtsitsadze@moesd.gov.ge', dept: 'Economic Analysis and Reforms Department' },
-      { fullName: 'Irakli Nadareishvili', email: 'inadareishvili@moesd.gov.ge', dept: 'Capital Market Development and Pension Reform Department' },
+      { fullName: 'Irakli Nadareishvili', email: 'inadareishvili@moesd.gov.ge', dept: 'Capital Market Development, Insurance Policy and Pension Reform Department' },
     ];
 
     const { rows: allDeptsForDeputy } = await db.query('SELECT id, name_en FROM departments');
@@ -216,7 +249,7 @@ async function migrate() {
         'Department of Trade Development and International Economic Relations',
         'Construction Policy Department',
         'Georgian National Agency for Standards and Metrology',
-        'The Unified National Body of Accreditation',
+        'Unified National Accreditation Body - Accreditation Center',
         'Technical and Constructions Supervision Agency',
         'Market Surveillance Agency',
       ]},
@@ -248,8 +281,8 @@ async function migrate() {
       ]},
       // Deputy Irakli Nadareishvili: Capital Markets, Investment Policy, GITA, Enterprise Georgia, Tourism Admin
       { deputy: 'inadareishvili', supervisorDepts: [
-        'Capital Market Development and Pension Reform Department',
-        'Investment Policy and Support Department',
+        'Capital Market Development, Insurance Policy and Pension Reform Department',
+        'Investment Policy and Investment Support Department',
         "Georgia's Innovation and Technology Agency",
         'Enterprise Georgia',
         'Georgian National Tourism Administration',
@@ -324,7 +357,7 @@ async function migrate() {
             { title: 'Foreign Trade Policy', depts: ['Foreign Trade Policy Department'] },
             { title: 'Foreign Trade & Economic Relations', depts: ['Department of Trade Development and International Economic Relations'] },
             { title: 'Construction', depts: ['Construction Policy Department', 'Technical and Constructions Supervision Agency'] },
-            { title: 'Market Surveillance', depts: ['Georgian National Agency for Standards and Metrology', 'The Unified National Body of Accreditation', 'Market Surveillance Agency'] },
+            { title: 'Market Surveillance', depts: ['Georgian National Agency for Standards and Metrology', 'Unified National Accreditation Body - Accreditation Center', 'Market Surveillance Agency'] },
           ],
         },
         // Inga Pkhaladze
@@ -366,8 +399,8 @@ async function migrate() {
           dsRole: 'DEPUTY',
           curatorRequired: false,
           sections: [
-            { title: 'Capital Markets', depts: ['Capital Market Development and Pension Reform Department'] },
-            { title: 'Investments', depts: ['Investment Policy and Support Department'] },
+            { title: 'Capital Markets', depts: ['Capital Market Development, Insurance Policy and Pension Reform Department'] },
+            { title: 'Investments', depts: ['Investment Policy and Investment Support Department'] },
             { title: 'Tourism', depts: ['Georgian National Tourism Administration'] },
             { title: 'Innovation', depts: ["Georgia's Innovation and Technology Agency", 'Enterprise Georgia'] },
           ],
@@ -419,14 +452,14 @@ async function migrate() {
         { title: 'Foreign Trade Policy', depts: ['Foreign Trade Policy Department'] },
         { title: 'Foreign Trade & Economic Relations', depts: ['Department of Trade Development and International Economic Relations'] },
         { title: 'Construction', depts: ['Construction Policy Department', 'Technical and Constructions Supervision Agency'] },
-        { title: 'Market Surveillance', depts: ['Georgian National Agency for Standards and Metrology', 'The Unified National Body of Accreditation', 'Market Surveillance Agency'] },
+        { title: 'Market Surveillance', depts: ['Georgian National Agency for Standards and Metrology', 'Unified National Accreditation Body - Accreditation Center', 'Market Surveillance Agency'] },
         { title: 'Energy', depts: ['Energy Reforms Department', 'Energy Efficiency and Renewable Energy Policy and Sustainable Development Department', 'Energy Policy and Investment Projects Department', 'Department of Energy Enterprises Management', 'State Agency of Oil and Gas'] },
         { title: 'Transport', depts: ['Transport and Logistics Development Policy Department', 'Road Safety Department', 'Land Transport Agency', 'Maritime Transport Agency', 'Civil Aviation Agency', 'Anaklia Deep Sea Port Development Agency', 'Rail Transport Agency'] },
         { title: 'Communications, Information Technology and Post', depts: ['Communications, Information and Modern Technologies Department'] },
         { title: 'Economic Analysis, Policy & Reforms', depts: ['Economic Analysis and Reforms Department', 'Economic Policy Department'] },
         { title: 'Administration', depts: ['Administrative Department', 'Strategic Development Department'] },
-        { title: 'Capital Markets', depts: ['Capital Market Development and Pension Reform Department'] },
-        { title: 'Investments', depts: ['Investment Policy and Support Department'] },
+        { title: 'Capital Markets', depts: ['Capital Market Development, Insurance Policy and Pension Reform Department'] },
+        { title: 'Investments', depts: ['Investment Policy and Investment Support Department'] },
         { title: 'Tourism', depts: ['Georgian National Tourism Administration'] },
         { title: 'Innovation', depts: ["Georgia's Innovation and Technology Agency", 'Enterprise Georgia'] },
       ];
@@ -475,14 +508,14 @@ async function migrate() {
         { title: 'Foreign Trade Policy', depts: ['Foreign Trade Policy Department'] },
         { title: 'Foreign Trade & Economic Relations', depts: ['Department of Trade Development and International Economic Relations'] },
         { title: 'Construction', depts: ['Construction Policy Department', 'Technical and Constructions Supervision Agency'] },
-        { title: 'Market Surveillance', depts: ['Georgian National Agency for Standards and Metrology', 'The Unified National Body of Accreditation', 'Market Surveillance Agency'] },
+        { title: 'Market Surveillance', depts: ['Georgian National Agency for Standards and Metrology', 'Unified National Accreditation Body - Accreditation Center', 'Market Surveillance Agency'] },
         { title: 'Energy', depts: ['Energy Reforms Department', 'Energy Efficiency and Renewable Energy Policy and Sustainable Development Department', 'Energy Policy and Investment Projects Department', 'Department of Energy Enterprises Management', 'State Agency of Oil and Gas'] },
         { title: 'Transport', depts: ['Transport and Logistics Development Policy Department', 'Road Safety Department', 'Land Transport Agency', 'Maritime Transport Agency', 'Civil Aviation Agency', 'Anaklia Deep Sea Port Development Agency', 'Rail Transport Agency'] },
         { title: 'Communications, Information Technology and Post', depts: ['Communications, Information and Modern Technologies Department'] },
         { title: 'Economic Analysis, Policy & Reforms', depts: ['Economic Analysis and Reforms Department', 'Economic Policy Department'] },
         { title: 'Administration', depts: ['Administrative Department', 'Strategic Development Department'] },
-        { title: 'Capital Markets', depts: ['Capital Market Development and Pension Reform Department'] },
-        { title: 'Investments', depts: ['Investment Policy and Support Department'] },
+        { title: 'Capital Markets', depts: ['Capital Market Development, Insurance Policy and Pension Reform Department'] },
+        { title: 'Investments', depts: ['Investment Policy and Investment Support Department'] },
         { title: 'Tourism', depts: ['Georgian National Tourism Administration'] },
         { title: 'Innovation', depts: ["Georgia's Innovation and Technology Agency", 'Enterprise Georgia'] },
       ];
