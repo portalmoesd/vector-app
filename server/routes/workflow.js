@@ -500,10 +500,12 @@ router.get('/status-grid', requireAuth, async (req, res) => {
              WHERE u.id = $1`, [event.document_submitter_id]);
           if (dep) { actorName = dep.full_name; actorId = dep.id; deptName = dep.department_name; }
         } else {
-          // Find a user with this role in any assigned department (or DS dept for receiving chain roles)
-          const searchDepts = (role === ROLES.SUPERVISOR || role === ROLES.SUPER_COLLABORATOR)
-            && isCrossDept && chain.indexOf(role) > chain.indexOf('CURATOR' || role)
-            ? [dsDeptId] : sectionDeptIds;
+          // Find a user with this role in the appropriate department(s).
+          // For cross-dept sections with a curator step, roles AFTER the curator
+          // belong to the DS's home department; roles before belong to the section's department.
+          const curatorIdx = chain.indexOf('CURATOR');
+          const isAfterCurator = curatorIdx !== -1 && chain.indexOf(role) > curatorIdx;
+          const searchDepts = isAfterCurator ? [dsDeptId] : sectionDeptIds;
 
           if (searchDepts.length > 0 && searchDepts[0]) {
             const { rows: [user] } = await db.query(

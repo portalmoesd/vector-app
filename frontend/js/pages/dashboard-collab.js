@@ -42,7 +42,12 @@
 
     try {
       const grid = await Api.get(`/api/workflow/status-grid?event_id=${eventId}`);
-      if (!grid.sections || grid.sections.length === 0) {
+      // Filter to only show sections assigned to the current user's department
+      const mySections = (grid.sections || []).filter(s =>
+        s.departmentIds && s.departmentIds.includes(user.departmentId)
+      );
+
+      if (mySections.length === 0) {
         container.innerHTML = '<div class="empty-state"><p>No sections for this event</p></div>';
         return;
       }
@@ -61,7 +66,7 @@
               </tr>
             </thead>
             <tbody>
-              ${grid.sections.map((s, i) => `
+              ${mySections.map((s, i) => `
                 <tr>
                   <td>${i + 1}</td>
                   <td>${escapeHtml(s.sectionLabel)}</td>

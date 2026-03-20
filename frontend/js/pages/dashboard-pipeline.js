@@ -167,7 +167,19 @@
 
       // Show sections
       const container = sectionsCardEl || legacyContainer;
-      if (!grid.sections || grid.sections.length === 0) {
+
+      const effectiveRole = getEffectiveRole(user, grid);
+      const isDS = grid.documentSubmitterId === user.id;
+
+      // Filter sections: non-DS users only see sections assigned to their department.
+      // DS and Deputy (acting as curator) see all sections.
+      const visibleSections = isDS
+        ? (grid.sections || [])
+        : (grid.sections || []).filter(s =>
+            s.departmentIds && s.departmentIds.includes(user.departmentId)
+          );
+
+      if (visibleSections.length === 0) {
         if (container) {
           container.style.display = '';
           container.innerHTML = '<div class="card"><div class="empty-state"><p>No sections for this event</p></div></div>';
@@ -175,11 +187,9 @@
         return;
       }
 
-      const effectiveRole = getEffectiveRole(user, grid);
-      const isDS = grid.documentSubmitterId === user.id;
-      const allApproved = grid.sections.every(s => s.status && s.status.startsWith('approved_by_'));
+      const allApproved = visibleSections.every(s => s.status && s.status.startsWith('approved_by_'));
 
-      const sectionsToApprove = grid.sections.filter(s => {
+      const sectionsToApprove = visibleSections.filter(s => {
         const expectedStatus = 'submitted_to_' + effectiveRole.toLowerCase();
         return s.status === expectedStatus && s.currentHolderRole === effectiveRole;
       });
@@ -193,7 +203,7 @@
         headerActions += `<button class="btn btn-primary" id="sendToLibraryBtn">Send to Library</button>`;
       }
 
-      const sectionsHtml = grid.sections.map((s, i) => renderSectionRow(s, i, eventId, effectiveRole, grid)).join('');
+      const sectionsHtml = visibleSections.map((s, i) => renderSectionRow(s, i, eventId, effectiveRole, grid)).join('');
 
       if (container) {
         container.style.display = '';
