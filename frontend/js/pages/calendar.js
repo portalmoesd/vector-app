@@ -4,6 +4,8 @@
  * - Client-side filtering (keyword, country, date range)
  * - Pagination (5 per page)
  * - Create / View / Edit / End event modals
+ * - When Deputy is selected, sections auto-fill from their template
+ * - Departments inside each section shown as checkboxes (can untick)
  */
 (async function () {
   await App.init();
@@ -16,6 +18,7 @@
   let countries = [];
   let departments = [];
   let deputies = [];
+  let templates = [];
   let currentTab = 'upcoming';
   let currentPage = 1;
 
@@ -29,7 +32,6 @@
   const modalSave = document.getElementById('eventModalSave');
   let onModalSave = null;
 
-  // Roles that can create events
   const CAN_CREATE = ['ADMIN', 'PROTOCOL', 'DEPUTY', 'SUPERVISOR', 'SUPER_COLLABORATOR'];
   const CAN_END = ['ADMIN', 'PROTOCOL', 'DEPUTY', 'SUPERVISOR'];
 
@@ -61,7 +63,7 @@
     el.addEventListener('change', () => { currentPage = 1; render(); });
   });
 
-  // ── Load data ──────────────────────────────────────────────────────────────
+  // ── Load data ────────────────────────────────────────────────────────────
 
   try {
     [events, countries, departments] = await Promise.all([
@@ -74,11 +76,14 @@
     return;
   }
 
-  // Populate country filter
+  // Build department lookup
+  const deptById = {};
+  departments.forEach(d => { deptById[d.id] = d; });
+
   filterCountry.innerHTML = '<option value="">All countries</option>' +
     countries.map(c => `<option value="${c.id}">${escapeHtml(c.name_en || c.nameEn || c.name)}</option>`).join('');
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────
 
   function getFiltered() {
     const kw = filterKeyword.value.toLowerCase().trim();
@@ -87,27 +92,20 @@
     const dateTo = filterDateTo.value ? new Date(filterDateTo.value) : null;
 
     return events.filter(e => {
-      // Tab filter
       const isUpcoming = e.isActive;
       if (currentTab === 'upcoming' && !isUpcoming) return false;
       if (currentTab === 'past' && isUpcoming) return false;
 
-      // Keyword
       if (kw) {
         const match = (e.title || '').toLowerCase().includes(kw) ||
                       (e.occasion || '').toLowerCase().includes(kw) ||
                       (e.countryName || '').toLowerCase().includes(kw);
         if (!match) return false;
       }
-
-      // Country
       if (countryId && e.countryId !== countryId) return false;
-
-      // Date range
       const created = new Date(e.createdAt);
       if (dateFrom && created < dateFrom) return false;
       if (dateTo && created > new Date(dateTo.getTime() + 86400000)) return false;
-
       return true;
     });
   }
@@ -152,7 +150,6 @@
       `;
     }).join('');
 
-    // Pagination
     if (totalPages > 1) {
       let btns = [];
       btns.push(`<button ${currentPage === 1 ? 'disabled' : ''} onclick="goPage(${currentPage - 1})">Prev</button>`);
@@ -166,23 +163,16 @@
     }
   }
 
-  window.goPage = function(p) {
-    currentPage = p;
-    render();
-  };
+  window.goPage = function(p) { currentPage = p; render(); };
 
-  // ── Modal helpers ──────────────────────────────────────────────────────────
+  // ── Modal helpers ────────────────────────────────────────────────────────
 
   function showModal(title, bodyHtml, saveLabel, saveFn) {
     modalTitle.textContent = title;
     modalBody.innerHTML = bodyHtml;
     document.getElementById('eventModalSave').textContent = saveLabel || 'Save';
     onModalSave = saveFn;
-    if (saveFn) {
-      document.getElementById('eventModalSave').style.display = '';
-    } else {
-      document.getElementById('eventModalSave').style.display = 'none';
-    }
+    document.getElementById('eventModalSave').style.display = saveFn ? '' : 'none';
     modal.style.display = 'flex';
   }
 
@@ -191,15 +181,12 @@
   modalCancel.addEventListener('click', hideModal);
   modalSave.addEventListener('click', () => { if (onModalSave) onModalSave(); });
 
-  // ── View Event ─────────────────────────────────────────────────────────────
+  // ── View Event ───────────────────────────────────────────────────────────
 
   window.viewEvent = async function(id) {
     try {
       const e = await Api.get(`/api/events/${id}`);
-      const sectionsHtml = e.sections.map((s, i) =>
-        `<li>${escapeHtml(s.title)}</li>`
-      ).join('');
-
+      const sectionsHtml = e.sections.map(s => `<li>${escapeHtml(s.title)}</li>`).join('');
       showModal('Event Details', `
         <div style="font-size:14px;line-height:1.8;">
           <p><strong>Title:</strong> ${escapeHtml(e.title)}</p>
@@ -215,12 +202,10 @@
           <ol style="margin:0 0 0 20px;">${sectionsHtml || '<li>None</li>'}</ol>
         </div>
       `, null, null);
-    } catch (e) {
-      alert(e.message);
-    }
+    } catch (e) { alert(e.message); }
   };
 
-  // ── Edit Event ─────────────────────────────────────────────────────────────
+  // ── Edit Event ───────────────────────────────────────────────────────────
 
   window.editEvent = async function(id) {
     try {
@@ -259,12 +244,10 @@
           render();
         } catch (err) { alert(err.message); }
       });
-    } catch (e) {
-      alert(e.message);
-    }
+    } catch (e) { alert(e.message); }
   };
 
-  // ── End Event ──────────────────────────────────────────────────────────────
+  // ── End Event ────────────────────────────────────────────────────────────
 
   window.endEvent = async function(id) {
     if (!confirm('End this event? This action cannot be undone.')) return;
@@ -272,25 +255,99 @@
       await Api.post(`/api/events/${id}/end`);
       events = await Api.get('/api/events');
       render();
-    } catch (e) {
-      alert(e.message);
-    }
+    } catch (e) { alert(e.message); }
   };
 
-  // ── Create Event ───────────────────────────────────────────────────────────
+  // ── Section row with department checkboxes ───────────────────────────────
+
+  function createSectionRow(container, title, selectedDeptIds) {
+    const row = document.createElement('div');
+    row.className = 'section-row';
+    row.style.cssText = 'border:1px solid var(--border-color,#ddd);border-radius:8px;padding:12px;margin-bottom:10px;background:var(--bg-card,#fff);';
+    const selected = new Set(selectedDeptIds || []);
+
+    // Only show departments that are in the selected set (from template)
+    // Plus allow adding more via a dropdown
+    const deptCheckboxes = selectedDeptIds && selectedDeptIds.length > 0
+      ? selectedDeptIds.map(dId => {
+          const d = deptById[dId];
+          if (!d) return '';
+          return `<label style="display:flex;align-items:center;gap:4px;padding:2px 0;font-size:13px;cursor:pointer;">
+            <input type="checkbox" class="sec-dept-cb" data-dept-id="${d.id}" checked />
+            ${escapeHtml(d.nameEn || d.name)}
+          </label>`;
+        }).join('')
+      : '';
+
+    row.innerHTML = `
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+        <input class="form-input sec-title" placeholder="Section title" style="flex:1;font-weight:600;" value="${title ? escapeHtml(title) : ''}" />
+        <button class="btn btn-outline" type="button" style="padding:4px 10px;font-size:12px;color:#dc2626;" onclick="this.closest('.section-row').remove()">\u2715 Remove</button>
+      </div>
+      <div class="sec-depts-container" style="padding-left:4px;">
+        ${deptCheckboxes}
+      </div>
+      <div style="margin-top:6px;">
+        <select class="form-select sec-add-dept" style="font-size:12px;padding:4px 8px;">
+          <option value="">+ Add department...</option>
+          ${departments.map(d =>
+            `<option value="${d.id}" ${selected.has(d.id) ? 'disabled' : ''}>${escapeHtml(d.nameEn || d.name)}</option>`
+          ).join('')}
+        </select>
+      </div>
+    `;
+
+    container.appendChild(row);
+
+    // Add department on select
+    const addDeptSelect = row.querySelector('.sec-add-dept');
+    addDeptSelect.addEventListener('change', () => {
+      const deptId = parseInt(addDeptSelect.value);
+      if (!deptId) return;
+      const d = deptById[deptId];
+      if (!d) return;
+
+      // Check if already added
+      const existing = row.querySelector(`.sec-dept-cb[data-dept-id="${deptId}"]`);
+      if (existing) { addDeptSelect.value = ''; return; }
+
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:4px;padding:2px 0;font-size:13px;cursor:pointer;';
+      label.innerHTML = `
+        <input type="checkbox" class="sec-dept-cb" data-dept-id="${d.id}" checked />
+        ${escapeHtml(d.nameEn || d.name)}
+      `;
+      row.querySelector('.sec-depts-container').appendChild(label);
+
+      // Disable in dropdown
+      addDeptSelect.querySelector(`option[value="${deptId}"]`).disabled = true;
+      addDeptSelect.value = '';
+    });
+  }
+
+  function getSectionsFromRows() {
+    const sections = [];
+    document.querySelectorAll('.section-row').forEach(row => {
+      const sTitle = row.querySelector('.sec-title').value.trim();
+      const deptIds = Array.from(row.querySelectorAll('.sec-dept-cb:checked'))
+        .map(cb => parseInt(cb.dataset.deptId));
+      if (sTitle) sections.push({ title: sTitle, departmentIds: deptIds });
+    });
+    return sections;
+  }
+
+  // ── Create Event ─────────────────────────────────────────────────────────
 
   createBtn.addEventListener('click', async () => {
-    // Load deputies for dropdown
     try {
-      deputies = await Api.get('/api/admin/deputies');
-    } catch (e) { deputies = []; }
+      [deputies, templates] = await Promise.all([
+        Api.get('/api/admin/deputies'),
+        Api.get('/api/templates'),
+      ]);
+    } catch (e) { deputies = []; templates = []; }
 
     const countryOpts = countries.map(c =>
       `<option value="${c.id}">${escapeHtml(c.name_en || c.nameEn || c.name)}</option>`
-    ).join('');
-
-    const deptOpts = departments.map(d =>
-      `<option value="${d.id}">${escapeHtml(d.nameEn || d.name)}</option>`
     ).join('');
 
     const deputyOpts = deputies.map(d =>
@@ -318,9 +375,9 @@
         </select>
       </div>
       <div class="form-group" id="deputyGroup">
-        <label class="form-label">Deputy</label>
+        <label class="form-label">Deputy *</label>
         <select class="form-select" id="newDeputy">
-          <option value="">— Select —</option>
+          <option value="">— Select Deputy —</option>
           ${deputyOpts}
         </select>
       </div>
@@ -344,7 +401,7 @@
         <label class="form-label"><input type="checkbox" id="newCurator" /> Curator Required</label>
       </div>
       <div class="form-group">
-        <label class="form-label">Sections</label>
+        <label class="form-label" style="font-weight:700;">Sections</label>
         <div id="sectionRows"></div>
         <button class="btn btn-outline" type="button" id="addSectionRow" style="margin-top:8px;">+ Add Section</button>
       </div>
@@ -363,17 +420,12 @@
         return;
       }
 
-      // Gather sections
-      const sectionRows = document.querySelectorAll('.section-row');
-      const sections = [];
-      sectionRows.forEach(row => {
-        const sTitle = row.querySelector('.sec-title').value.trim();
-        const deptSelect = row.querySelector('.sec-depts');
-        const deptIds = Array.from(deptSelect.selectedOptions).map(o => parseInt(o.value));
-        if (sTitle) sections.push({ title: sTitle, departmentIds: deptIds });
-      });
+      const sections = getSectionsFromRows();
+      if (sections.length === 0) {
+        alert('Add at least one section');
+        return;
+      }
 
-      // DS ID: For DEPUTY role, use selected deputy. Otherwise, use current user.
       let documentSubmitterId;
       if (dsRole === 'DEPUTY') {
         documentSubmitterId = deputyId || user.id;
@@ -397,28 +449,39 @@
       } catch (err) { alert(err.message); }
     });
 
-    // Section row management
-    const sectionRows = document.getElementById('sectionRows');
-    const addSectionRow = document.getElementById('addSectionRow');
+    const sectionRowsContainer = document.getElementById('sectionRows');
+    const addSectionRowBtn = document.getElementById('addSectionRow');
 
-    function createSectionRow() {
-      const row = document.createElement('div');
-      row.className = 'section-row';
-      row.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:flex-start;';
-      row.innerHTML = `
-        <input class="form-input sec-title" placeholder="Section title" style="flex:1;" />
-        <select class="form-select sec-depts" multiple style="flex:1;min-height:60px;">
-          ${deptOpts}
-        </select>
-        <button class="btn btn-outline" type="button" onclick="this.parentElement.remove()" style="padding:6px 10px;">✕</button>
-      `;
-      sectionRows.appendChild(row);
-    }
+    addSectionRowBtn.addEventListener('click', () => createSectionRow(sectionRowsContainer));
 
-    addSectionRow.addEventListener('click', createSectionRow);
-    createSectionRow(); // Start with one section row
+    // When Deputy is selected → auto-fill sections from their template
+    const deputySelect = document.getElementById('newDeputy');
+    deputySelect.addEventListener('change', () => {
+      const selectedDeputyId = deputySelect.value ? parseInt(deputySelect.value) : null;
+      if (!selectedDeputyId) return;
+
+      // Find template for this deputy
+      const tpl = templates.find(t => t.createdById === selectedDeputyId);
+      if (!tpl || !tpl.sections || tpl.sections.length === 0) return;
+
+      // Clear existing sections and fill from template
+      sectionRowsContainer.innerHTML = '';
+      for (const sec of tpl.sections) {
+        createSectionRow(sectionRowsContainer, sec.title, sec.departmentIds);
+      }
+
+      // Set curator from template
+      document.getElementById('newCurator').checked = tpl.curatorRequired;
+    });
+
+    // Show/hide deputy group based on DS role
+    document.getElementById('newDSRole').addEventListener('change', () => {
+      const dsRole = document.getElementById('newDSRole').value;
+      document.getElementById('deputyGroup').style.display =
+        dsRole === 'DEPUTY' ? '' : 'none';
+    });
   });
 
-  // ── Initial render ─────────────────────────────────────────────────────────
+  // ── Initial render ───────────────────────────────────────────────────────
   render();
 })();

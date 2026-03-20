@@ -4,14 +4,22 @@ const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// GET /api/templates — list current user's templates
+// GET /api/templates — list templates (optionally filter by deputy_id)
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const { rows: templates } = await db.query(
-      `SELECT id, name, document_submitter_role, curator_required, created_at
-       FROM event_templates WHERE created_by_id = $1 ORDER BY name`,
-      [req.user.id]
-    );
+    let query = `SELECT et.id, et.name, et.document_submitter_role, et.curator_required,
+                        et.created_at, et.created_by_id, u.full_name AS created_by_name
+                 FROM event_templates et
+                 JOIN users u ON u.id = et.created_by_id`;
+    const params = [];
+
+    if (req.query.deputy_id) {
+      query += ' WHERE et.created_by_id = $1';
+      params.push(req.query.deputy_id);
+    }
+    query += ' ORDER BY et.name';
+
+    const { rows: templates } = await db.query(query, params);
 
     // Enrich with sections
     const result = [];
@@ -33,6 +41,8 @@ router.get('/', requireAuth, async (req, res) => {
         documentSubmitterRole: t.document_submitter_role,
         curatorRequired: t.curator_required,
         createdAt: t.created_at,
+        createdById: t.created_by_id,
+        createdByName: t.created_by_name,
         sections: sections.map(s => ({
           id: s.id,
           title: s.title,
