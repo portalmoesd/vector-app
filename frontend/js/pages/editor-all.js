@@ -50,33 +50,48 @@
   );
   const contents = await Promise.all(contentPromises);
 
-  container.innerHTML = grid.sections.map((s, i) => {
+  // Render each section with a read-only GCP.RichEditor instance
+  grid.sections.forEach((s, i) => {
     const content = contents[i];
     const status = s.status || 'draft';
 
-    return `
-      <div class="section-card" id="section-${s.sectionId}">
-        <div class="section-card-header" onclick="toggleSection(this)">
-          <h3>${i + 1}. ${escapeHtml(s.sectionLabel)}</h3>
-          <div style="display:flex;gap:12px;align-items:center;">
-            <span class="${statusClass(status)}" style="font-size:13px;">${statusLabel(status)}</span>
-            <span class="toggle">▼</span>
-          </div>
-        </div>
-        <div class="section-card-body">
-          <div class="section-status-bar">
-            <span>Last updated: ${formatDateTime(s.lastUpdatedAt)}</span>
-            ${s.lastUpdatedBy ? `<span>by ${escapeHtml(s.lastUpdatedBy)}</span>` : ''}
-            <a href="/pages/editor.html?event_id=${eventId}&section_id=${s.sectionId}"
-               style="color:var(--accent-blue);">Open in Editor →</a>
-          </div>
-          <div class="section-content-view">
-            ${content.htmlContent || '<em style="color:var(--text-muted);">No content yet</em>'}
-          </div>
+    const card = document.createElement('div');
+    card.className = 'section-card';
+    card.id = `section-${s.sectionId}`;
+    card.innerHTML = `
+      <div class="section-card-header" onclick="toggleSection(this)">
+        <h3>${i + 1}. ${escapeHtml(s.sectionLabel)}</h3>
+        <div style="display:flex;gap:12px;align-items:center;">
+          <span class="${statusClass(status)}" style="font-size:13px;">${statusLabel(status)}</span>
+          <span class="toggle">▼</span>
         </div>
       </div>
+      <div class="section-card-body">
+        <div class="section-status-bar">
+          <span>Last updated: ${formatDateTime(s.lastUpdatedAt)}</span>
+          ${s.lastUpdatedBy ? `<span>by ${escapeHtml(s.lastUpdatedBy)}</span>` : ''}
+          <a href="/pages/editor.html?event_id=${eventId}&section_id=${s.sectionId}"
+             style="color:var(--accent-blue);">Open in Editor →</a>
+        </div>
+        <div class="section-editor-container"></div>
+      </div>
     `;
-  }).join('');
+    container.appendChild(card);
+
+    // Initialize read-only GCP.RichEditor in each section
+    const editorContainer = card.querySelector('.section-editor-container');
+    if (content.htmlContent) {
+      GCP.RichEditor({
+        container: editorContainer,
+        initialHtml: content.htmlContent,
+        authorName: user.fullName || user.username,
+        sectionTitle: s.sectionLabel,
+        readOnly: true,
+      });
+    } else {
+      editorContainer.innerHTML = '<em style="color:var(--text-muted);padding:16px;display:block;">No content yet</em>';
+    }
+  });
 
   // Toggle accordion
   window.toggleSection = function(header) {

@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/css/base.css" />
   <link rel="stylesheet" href="/css/sidebar.css" />
   <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/editor.css" />
   <style>
     .section-nav {
       position: sticky; top: 0; background: var(--bg-card);
@@ -36,9 +37,11 @@
     .section-card-header .toggle { font-size: 18px; color: var(--text-secondary); }
     .section-card-body { overflow: hidden; transition: max-height 0.3s ease; }
     .section-card-body.collapsed { max-height: 0; overflow: hidden; padding: 0; margin: 0; border: 0; }
-    .section-content-view {
-      font-family: 'FiraGO', 'Noto Sans Georgian', Arial, sans-serif;
-      font-size: 14px; line-height: 1.7; min-height: 60px;
+    .section-editor-container .gcp-editor-root {
+      border: none; border-radius: 0;
+    }
+    .section-editor-container .gcp-content {
+      min-height: 60px; max-height: none;
     }
     .section-status-bar {
       display: flex; gap: 12px; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;
@@ -64,6 +67,7 @@
   <script src="/js/core/i18n.js"></script>
   <script src="/js/core/utils.js"></script>
   <script src="/js/core/app.js"></script>
+  <script src="/js/core/editor.js"></script>
   <script src="/js/pages/editor-all.js"></script>
 </body>
 </html>
