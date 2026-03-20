@@ -10,25 +10,47 @@
   <link rel="stylesheet" href="/css/components.css" />
   <link rel="stylesheet" href="/css/georgian-fonts.css" />
   <link rel="stylesheet" href="/css/apple.css" />
+  <link rel="stylesheet" href="/css/dashboard-pipeline.css" />
 </head>
 <body>
   <div class="layout">
     <aside class="sidebar"></aside>
     <main class="main">
       <div class="topbar">
-        <div class="page-title">Super-Collaborator Dashboard</div>
+        <div class="page-title">Super-collaborator Dashboard</div>
       </div>
 
-      <div class="event-selector">
-        <label data-i18n="dashboard.selectEvent">Select event</label>
-        <select id="eventSelect" class="form-select"></select>
+      <!-- Event selector card -->
+      <div class="card dp-event-card">
+        <h3 class="dp-event-card__title">Event</h3>
+        <p class="dp-event-card__desc">Choose an event to review collaborator submissions before they move to the supervisor stage.</p>
+        <div class="dp-event-card__row">
+          <div class="dp-event-card__select-wrap">
+            <label class="dp-event-card__label">Event</label>
+            <select id="eventSelect" class="form-select">
+              <option value="">Select event...</option>
+            </select>
+          </div>
+          <button class="btn btn-outline dp-preview-btn" id="previewBtn" style="display:none;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            PREVIEW
+          </button>
+        </div>
       </div>
 
-      <div class="card">
-        <h3 style="margin-bottom: 16px;">Sections</h3>
-        <div id="sectionsContainer">
-          <div class="empty-state">
-            <p data-i18n="dashboard.noEvents">No events available</p>
+      <!-- Event details (shown when event selected) -->
+      <div id="eventDetails" style="display:none;"></div>
+
+      <!-- Required sections (shown when event selected) -->
+      <div id="sectionsCard" style="display:none;"></div>
+
+      <!-- Upcoming events -->
+      <div class="card dp-upcoming-card">
+        <h3 class="dp-upcoming-card__title">Upcoming events</h3>
+        <div class="dp-upcoming-layout">
+          <div class="dp-calendar" id="miniCalendar"></div>
+          <div class="dp-upcoming-list" id="upcomingList">
+            <div class="empty-state"><p>No upcoming events</p></div>
           </div>
         </div>
       </div>
