@@ -90,6 +90,44 @@ async function migrate() {
         ['System Administrator', 'admin', 'admin@vector-portal.gov.ge', hash, 'ADMIN']
       );
       console.log('Admin user created (admin / admin123).');
+
+      // Seed ministry staff
+      console.log('Seeding ministry staff...');
+      const staffList = require('./data/users.json');
+      const defaultHash = await bcrypt.hash('vector2026', 10);
+
+      // Build department name → id lookup
+      const { rows: allDepts } = await db.query('SELECT id, name_en FROM departments');
+      const deptMap = {};
+      for (const d of allDepts) deptMap[d.name_en] = d.id;
+
+      // Get all country IDs for assignment
+      const { rows: allCountries } = await db.query('SELECT id FROM countries');
+      const countryIds = allCountries.map(c => c.id);
+
+      for (const s of staffList) {
+        const username = s.email.split('@')[0].toLowerCase().replace(/[^a-z0-9.]/g, '');
+        const deptId = deptMap[s.dept] || null;
+
+        const { rows: [newUser] } = await db.query(
+          `INSERT INTO users (full_name, username, email, password_hash, role, department_id, must_change_password)
+           VALUES ($1, $2, $3, $4, $5, $6, true)
+           ON CONFLICT (username) DO NOTHING
+           RETURNING id`,
+          [s.fullName, username, s.email, defaultHash, s.role, deptId]
+        );
+
+        // Assign all countries to COLLABORATOR and SUPER_COLLABORATOR
+        if (newUser && (s.role === 'COLLABORATOR' || s.role === 'SUPER_COLLABORATOR')) {
+          for (const cId of countryIds) {
+            await db.query(
+              'INSERT INTO country_assignments (user_id, country_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+              [newUser.id, cId]
+            );
+          }
+        }
+      }
+      console.log(`Seeded ${staffList.length} staff members.`);
     }
   } catch (err) {
     console.error('Migration error:', err);
