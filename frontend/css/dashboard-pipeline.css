@@ -268,11 +268,14 @@
 }
 .dp-history-toggle:hover { color: var(--text-primary); }
 
-/* Return request notice */
+/* Return request / returned notice */
 .dp-return-notice {
   font-size: 0.78rem;
   color: #dc2626;
   margin-top: 4px;
+}
+.dp-return-notice--returned {
+  color: #ea580c;
 }
 
 /* ─── Upcoming Events ─────────────────────────────────────────────────────── */

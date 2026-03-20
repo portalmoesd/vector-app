@@ -69,10 +69,18 @@
               </tr>
             </thead>
             <tbody>
-              ${mySections.map((s, i) => `
+              ${mySections.map((s, i) => {
+                const notices = [];
+                if (s.returnInfo) {
+                  notices.push(`<div class="dp-return-notice dp-return-notice--returned">Returned by ${escapeHtml(s.returnInfo.from || s.returnInfo.fromRole)}${s.returnInfo.note ? ': ' + escapeHtml(s.returnInfo.note) : ''}</div>`);
+                }
+                if (s.returnRequest) {
+                  notices.push(`<div class="dp-return-notice">Return requested by ${escapeHtml(s.returnRequest.from)}${s.returnRequest.note ? ': ' + escapeHtml(s.returnRequest.note) : ''}</div>`);
+                }
+                return `
                 <tr>
                   <td>${i + 1}</td>
-                  <td>${escapeHtml(s.sectionLabel)}</td>
+                  <td>${escapeHtml(s.sectionLabel)}${notices.length ? notices.join('') : ''}</td>
                   <td><span class="${statusClass(s.status)}">${statusLabel(s.status)}</span></td>
                   <td>${renderProgressBar(s, grid)}</td>
                   <td>${formatDateTime(s.lastUpdatedAt)}</td>
@@ -80,7 +88,7 @@
                     ${renderActions(s, eventId, grid)}
                   </td>
                 </tr>
-              `).join('')}
+              `}).join('')}
             </tbody>
           </table>
         </div>

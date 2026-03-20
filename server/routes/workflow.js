@@ -653,6 +653,26 @@ router.get('/status-grid', requireAuth, async (req, res) => {
         at: rrRows[0].created_at,
       } : null;
 
+      // Load most recent return action for returned sections
+      let returnInfo = null;
+      if (status.startsWith('returned_by_')) {
+        const { rows: riRows } = await db.query(
+          `SELECT user_name, user_role, note, acted_at
+           FROM section_history
+           WHERE event_id = $1 AND section_id = $2 AND action = 'returned'
+           ORDER BY acted_at DESC LIMIT 1`,
+          [eventId, s.section_id]
+        );
+        if (riRows.length > 0) {
+          returnInfo = {
+            from: riRows[0].user_name,
+            fromRole: riRows[0].user_role,
+            note: riRows[0].note,
+            at: riRows[0].acted_at,
+          };
+        }
+      }
+
       // Compute the requesting user's effective role for this section
       const userEffRole = await effectiveRole(req.user, event, sectionDeptIds, chain);
 
@@ -673,6 +693,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
         chain,
         steps,
         returnRequest,
+        returnInfo,
       });
     }
 

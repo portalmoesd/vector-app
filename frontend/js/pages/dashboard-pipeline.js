@@ -250,6 +250,7 @@
 
   function renderSectionRow(section, index, eventId, grid) {
     const returnReq = section.returnRequest;
+    const returnInfo = section.returnInfo;
     const lastUpdated = section.lastUpdatedAt ? formatDateTime(section.lastUpdatedAt) : '';
     const lastUpdatedBy = section.lastUpdatedBy ? escapeHtml(section.lastUpdatedBy) : '';
 
@@ -257,13 +258,22 @@
       ? section.departmentNames.map(n => escapeHtml(n)).join(', ')
       : '';
 
+    // Build notification banners
+    let noticeBanners = '';
+    if (returnInfo) {
+      noticeBanners += `<div class="dp-return-notice dp-return-notice--returned">Returned by ${escapeHtml(returnInfo.from || returnInfo.fromRole)}${returnInfo.note ? ': ' + escapeHtml(returnInfo.note) : ''}</div>`;
+    }
+    if (returnReq) {
+      noticeBanners += `<div class="dp-return-notice">Return requested by ${escapeHtml(returnReq.from)}${returnReq.note ? ': ' + escapeHtml(returnReq.note) : ''}</div>`;
+    }
+
     return `
       <div class="dp-section-row">
         <div class="dp-section-row__header">
           <div class="dp-section-row__info">
             <h4 class="dp-section-row__title">${escapeHtml(section.sectionLabel)}</h4>
             <div class="dp-section-row__meta">${deptInfo ? '<span style="color:var(--accent-blue);font-weight:600;">' + deptInfo + '</span> &middot; ' : ''}${lastUpdated}${lastUpdatedBy ? ' &middot; ' + lastUpdatedBy : ''}</div>
-            ${returnReq ? `<div class="dp-return-notice">Return requested by ${escapeHtml(returnReq.from)}${returnReq.note ? ': ' + escapeHtml(returnReq.note) : ''}</div>` : ''}
+            ${noticeBanners}
           </div>
           <div class="dp-section-row__actions">
             ${renderActionLinks(section, eventId, grid)}
