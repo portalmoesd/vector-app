@@ -57,8 +57,8 @@
     ${content.lastEditedBy ? `<span>Last edited by: ${escapeHtml(content.lastEditedBy)}</span>` : ''}
   `;
 
-  // Enable/disable editing based on whether user is the holder
-  const canEdit = isHolder && (status === 'draft' || status.startsWith('returned_'));
+  // Enable editing if the user is the current holder of the section
+  const canEdit = isHolder;
 
   // ── Initialize GCP.RichEditor ──────────────────────────────────────────────
 
