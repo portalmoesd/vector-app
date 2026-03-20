@@ -369,10 +369,22 @@ router.post('/ask-to-return', requireAuth, async (req, res) => {
 
     const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds, ctx.chain);
 
+    // The user's effective role must be part of this section's chain
+    if (!ctx.chain.includes(userRole)) {
+      return res.status(403).json({ error: 'You are not part of this section\'s approval chain' });
+    }
+
     // The section must NOT be at the requester's stage (they can't ask-to-return their own stage)
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
     if (userRole === holder) {
       return res.status(400).json({ error: 'You currently hold this section — use return instead' });
+    }
+
+    // The section must have already passed the requester's step
+    const userIdx = ctx.chain.indexOf(userRole);
+    const holderIdx = ctx.chain.indexOf(holder);
+    if (holderIdx <= userIdx) {
+      return res.status(400).json({ error: 'The section has not passed your step yet' });
     }
 
     // Broadcast upward to all roles above requester in the chain

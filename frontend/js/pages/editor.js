@@ -119,12 +119,17 @@
       }
     }
 
-    // Ask to Return (available when not the holder and workflow started)
+    // Ask to Return (only if user is in the chain and section has passed their step)
     if (!isHolder && status !== 'draft') {
-      btns.push(`<button id="btnAskReturn" class="warning">
-        <span class="icon" style="--icon-url: url(/assets/ask_to_return_icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
-        Ask to Return
-      </button>`);
+      const chain = sectionInfo.chain || [];
+      const userIdx = chain.indexOf(role);
+      const holderIdx = chain.indexOf(sectionInfo.currentHolderRole);
+      if (userIdx !== -1 && holderIdx > userIdx) {
+        btns.push(`<button id="btnAskReturn" class="warning">
+          <span class="icon" style="--icon-url: url(/assets/ask_to_return_icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
+          Ask to Return
+        </button>`);
+      }
     }
 
     // File upload button

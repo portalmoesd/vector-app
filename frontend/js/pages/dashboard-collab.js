@@ -154,10 +154,15 @@
         </button>`);
       }
     } else if (!isHolder && section.status !== 'draft' && section.status) {
-      // Ask to return (if section is not at user's stage and workflow has started)
-      btns.push(`<button class="action-btn action-ask-return" title="Ask to Return" data-action="ask-to-return" data-event="${eventId}" data-section="${section.sectionId}">
-        <span class="icon" style="--icon-url: url(/assets/ask_to_return_icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url);"></span>
-      </button>`);
+      // Ask to return: only if user is in the chain and section has passed their step
+      const chain = section.chain || [];
+      const userIdx = chain.indexOf(effRole);
+      const holderIdx = chain.indexOf(holder);
+      if (userIdx !== -1 && holderIdx > userIdx) {
+        btns.push(`<button class="action-btn action-ask-return" title="Ask to Return" data-action="ask-to-return" data-event="${eventId}" data-section="${section.sectionId}">
+          <span class="icon" style="--icon-url: url(/assets/ask_to_return_icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url);"></span>
+        </button>`);
+      }
     }
 
     return btns.join('');

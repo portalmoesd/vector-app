@@ -346,10 +346,17 @@
         </button>`);
       }
     } else if (!isHolder && status !== 'draft' && status) {
-      links.push(`<button class="dp-action-link dp-action-link--ask-return" data-action="ask-to-return" data-event="${eventId}" data-section="${section.sectionId}">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-        ASK RETURN
-      </button>`);
+      // Only show Ask Return if the user is in the chain and the section
+      // has already passed their step
+      const chain = section.chain || [];
+      const userIdx = chain.indexOf(effRole);
+      const holderIdx = chain.indexOf(holder);
+      if (userIdx !== -1 && holderIdx > userIdx) {
+        links.push(`<button class="dp-action-link dp-action-link--ask-return" data-action="ask-to-return" data-event="${eventId}" data-section="${section.sectionId}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          ASK RETURN
+        </button>`);
+      }
     }
 
     return links.join('');
