@@ -164,7 +164,85 @@
     });
   });
 
+  // ── Deputy–Supervisor Links ────────────────────────────────────────────────
+  let allUsers = [];
+
+  async function loadLinks() {
+    try {
+      const links = await Api.get('/api/admin/deputy-supervisor-links');
+      if (links.length === 0) {
+        document.getElementById('linksList').innerHTML = '<div class="empty-state"><p>No links defined yet</p></div>';
+        return;
+      }
+      document.getElementById('linksList').innerHTML = `
+        <div class="table-wrap"><table>
+          <thead><tr><th>#</th><th>Deputy</th><th>Supervisor</th><th>Department</th><th>Actions</th></tr></thead>
+          <tbody>${links.map((l, i) => `
+            <tr>
+              <td>${i + 1}</td>
+              <td>${escapeHtml(l.deputyName)}</td>
+              <td>${escapeHtml(l.supervisorName)}</td>
+              <td>${l.supervisorDepartment ? escapeHtml(l.supervisorDepartment) : '—'}</td>
+              <td>
+                <button class="btn btn-danger" style="padding:4px 10px;font-size:12px;" onclick="deleteLink(${l.id})">Delete</button>
+              </td>
+            </tr>
+          `).join('')}</tbody>
+        </table></div>`;
+    } catch (e) {
+      document.getElementById('linksList').innerHTML = `<div class="msg msg-error">${escapeHtml(e.message)}</div>`;
+    }
+  }
+
+  // Expose deleteLink globally
+  window.deleteLink = async function(id) {
+    if (!confirm('Remove this link?')) return;
+    try {
+      await Api.delete(`/api/admin/deputy-supervisor-links/${id}`);
+      loadLinks();
+    } catch (e) { alert(e.message); }
+  };
+
+  document.getElementById('addLinkBtn').addEventListener('click', async () => {
+    // Fetch users for dropdowns
+    if (allUsers.length === 0) {
+      try { allUsers = await Api.get('/api/users'); } catch(e) { alert(e.message); return; }
+    }
+    const deputies = allUsers.filter(u => u.role === 'DEPUTY');
+    const supervisors = allUsers.filter(u => u.role === 'SUPERVISOR');
+
+    const deputyOptions = deputies.map(d => `<option value="${d.id}">${escapeHtml(d.fullName)}</option>`).join('');
+    const supervisorOptions = supervisors.map(s => `<option value="${s.id}">${escapeHtml(s.fullName)} (${s.departmentName || '—'})</option>`).join('');
+
+    showModal('Add Deputy–Supervisor Link', `
+      <div class="form-group">
+        <label class="form-label">Deputy</label>
+        <select class="form-select" id="linkDeputy">
+          <option value="">— Select Deputy —</option>
+          ${deputyOptions}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Supervisor</label>
+        <select class="form-select" id="linkSupervisor">
+          <option value="">— Select Supervisor —</option>
+          ${supervisorOptions}
+        </select>
+      </div>
+    `, async () => {
+      const deputyId = parseInt(document.getElementById('linkDeputy').value);
+      const supervisorId = parseInt(document.getElementById('linkSupervisor').value);
+      if (!deputyId || !supervisorId) return;
+      try {
+        await Api.post('/api/admin/deputy-supervisor-links', { deputyId, supervisorId });
+        hideModal();
+        loadLinks();
+      } catch (e) { alert(e.message); }
+    });
+  });
+
   // ── Init ───────────────────────────────────────────────────────────────────
   departments = await loadDepartments();
   loadUsers();
+  loadLinks();
 })();

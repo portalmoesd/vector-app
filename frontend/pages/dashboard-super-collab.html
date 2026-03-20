@@ -16,8 +16,19 @@
       <div class="topbar">
         <div class="page-title">Super-Collaborator Dashboard</div>
       </div>
+
+      <div class="event-selector">
+        <label data-i18n="dashboard.selectEvent">Select event</label>
+        <select id="eventSelect" class="form-select"></select>
+      </div>
+
       <div class="card">
-        <div class="empty-state"><p>Coming soon</p></div>
+        <h3 style="margin-bottom: 16px;">Sections</h3>
+        <div id="sectionsContainer">
+          <div class="empty-state">
+            <p data-i18n="dashboard.noEvents">No events available</p>
+          </div>
+        </div>
       </div>
     </main>
   </div>
@@ -26,6 +37,6 @@
   <script src="/js/core/i18n.js"></script>
   <script src="/js/core/utils.js"></script>
   <script src="/js/core/app.js"></script>
-  <script>App.init();</script>
+  <script src="/js/pages/dashboard-pipeline.js"></script>
 </body>
 </html>

@@ -26,6 +26,8 @@ app.use('/api/workflow/comments', require('./routes/comments'));
 app.use('/api/workflow/files', require('./routes/files'));
 app.use('/api/workflow', require('./routes/history'));
 app.use('/api/library', require('./routes/library'));
+app.use('/api/admin', require('./routes/admin'));
+app.use('/api/templates', require('./routes/templates'));
 
 // ── Auto-migrate & seed on startup ──────────────────────────────────────────
 

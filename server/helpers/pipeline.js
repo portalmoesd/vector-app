@@ -82,6 +82,78 @@ function returnedByStatus(role) {
   return `returned_by_${role.toLowerCase()}`;
 }
 
+/**
+ * Build the pipeline chain for a section given the event context.
+ *
+ * Returns an ordered list of role steps the section must pass through,
+ * based on the Document Submitter's role and whether curator is required.
+ *
+ * The chain is intentionally simplified to the role-level — department-specific
+ * parallel tracks are managed via the section_departments assignments, while
+ * the status-based progression works on a single linear role chain per section.
+ *
+ * @param {string} dsRole - Document Submitter role (DEPUTY, SUPERVISOR, SUPER_COLLABORATOR)
+ * @param {boolean} curatorRequired - Whether curator review is required
+ * @param {boolean} isCrossDept - Whether this section has cross-department assignments
+ * @returns {string[]} Ordered list of role labels
+ */
+function buildChain(dsRole, curatorRequired, isCrossDept) {
+  // Start with collaborator
+  const chain = [ROLES.COLLABORATOR];
+
+  if (dsRole === 'SUPER_COLLABORATOR') {
+    // Chain C: Collab → SC
+    chain.push(ROLES.SUPER_COLLABORATOR);
+    // For cross-dept, curator is optional between the dept chain and DS
+    // But since SC IS the DS, no extra receiving chain needed
+  } else if (dsRole === 'SUPERVISOR') {
+    // Chain B: Collab → SC → Supervisor
+    chain.push(ROLES.SUPER_COLLABORATOR);
+    if (isCrossDept && curatorRequired) {
+      chain.push('CURATOR');
+    }
+    chain.push(ROLES.SUPERVISOR);
+  } else if (dsRole === 'DEPUTY') {
+    // Chain A: Collab → SC → Supervisor → Deputy
+    chain.push(ROLES.SUPER_COLLABORATOR);
+    if (isCrossDept && curatorRequired) {
+      chain.push('CURATOR');
+    }
+    chain.push(ROLES.SUPERVISOR);
+    chain.push(ROLES.DEPUTY);
+  }
+
+  return chain;
+}
+
+/**
+ * Determine the next role to submit to, given the current user's role
+ * and the section's chain.
+ *
+ * @param {string} userRole - The submitting user's role (or 'CURATOR')
+ * @param {string[]} chain - The pipeline chain for this section
+ * @returns {string|null} The next role in the chain, or null if at the end
+ */
+function nextInChain(userRole, chain) {
+  const idx = chain.indexOf(userRole);
+  if (idx === -1 || idx >= chain.length - 1) return null;
+  return chain[idx + 1];
+}
+
+/**
+ * Check if the user's role is the final approver in the chain (Document Submitter).
+ */
+function isFinalApprover(userRole, chain) {
+  return chain.length > 0 && chain[chain.length - 1] === userRole;
+}
+
+/**
+ * Get the first role in the chain (the original editor level for returns).
+ */
+function firstEditorRole(chain) {
+  return chain.length > 0 ? chain[0] : ROLES.COLLABORATOR;
+}
+
 module.exports = {
   PIPELINE_ORDER,
   STATUS,
@@ -90,4 +162,8 @@ module.exports = {
   submittedToStatus,
   approvedByStatus,
   returnedByStatus,
+  buildChain,
+  nextInChain,
+  isFinalApprover,
+  firstEditorRole,
 };

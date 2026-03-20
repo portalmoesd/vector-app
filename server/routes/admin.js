@@ -1,0 +1,133 @@
+const express = require('express');
+const db = require('../db');
+const { requireAuth, requireRole } = require('../middleware/auth');
+
+const router = express.Router();
+
+// ─── Deputy-Supervisor Links ──────────────────────────────────────────────────
+
+// GET /api/admin/deputy-supervisor-links
+router.get('/deputy-supervisor-links', requireAuth, requireRole('ADMIN'), async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT dsl.id, dsl.deputy_id, dsl.supervisor_id,
+              d.full_name AS deputy_name, s.full_name AS supervisor_name,
+              dept.name_en AS supervisor_department
+       FROM deputy_supervisor_links dsl
+       JOIN users d ON d.id = dsl.deputy_id
+       JOIN users s ON s.id = dsl.supervisor_id
+       LEFT JOIN departments dept ON dept.id = s.department_id
+       ORDER BY d.full_name, s.full_name`
+    );
+    res.json(rows.map(r => ({
+      id: r.id,
+      deputyId: r.deputy_id,
+      deputyName: r.deputy_name,
+      supervisorId: r.supervisor_id,
+      supervisorName: r.supervisor_name,
+      supervisorDepartment: r.supervisor_department,
+    })));
+  } catch (err) {
+    console.error('List links error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/admin/deputy-supervisor-links
+router.post('/deputy-supervisor-links', requireAuth, requireRole('ADMIN'), async (req, res) => {
+  try {
+    const { deputyId, supervisorId } = req.body;
+    if (!deputyId || !supervisorId) {
+      return res.status(400).json({ error: 'deputyId and supervisorId are required' });
+    }
+
+    // Validate roles
+    const { rows: [deputy] } = await db.query(
+      "SELECT id FROM users WHERE id = $1 AND role = 'DEPUTY'", [deputyId]
+    );
+    if (!deputy) return res.status(422).json({ error: 'Invalid deputy user' });
+
+    const { rows: [supervisor] } = await db.query(
+      "SELECT id FROM users WHERE id = $1 AND role = 'SUPERVISOR'", [supervisorId]
+    );
+    if (!supervisor) return res.status(422).json({ error: 'Invalid supervisor user' });
+
+    const { rows } = await db.query(
+      `INSERT INTO deputy_supervisor_links (deputy_id, supervisor_id)
+       VALUES ($1, $2) RETURNING id`,
+      [deputyId, supervisorId]
+    );
+
+    res.status(201).json({ id: rows[0].id, success: true });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'This link already exists' });
+    }
+    console.error('Create link error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/admin/deputy-supervisor-links/:id
+router.delete('/deputy-supervisor-links/:id', requireAuth, requireRole('ADMIN'), async (req, res) => {
+  try {
+    const result = await db.query(
+      'DELETE FROM deputy_supervisor_links WHERE id = $1', [req.params.id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Link not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete link error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── Filtered Supervisor Dropdown ─────────────────────────────────────────────
+
+// GET /api/admin/supervisors?deputy_id=X — get supervisors linked to a deputy
+router.get('/supervisors', requireAuth, async (req, res) => {
+  try {
+    const { deputy_id } = req.query;
+    if (!deputy_id) return res.status(400).json({ error: 'deputy_id is required' });
+
+    const { rows } = await db.query(
+      `SELECT u.id, u.full_name, u.department_id, d.name_en AS department_name
+       FROM deputy_supervisor_links dsl
+       JOIN users u ON u.id = dsl.supervisor_id
+       LEFT JOIN departments d ON d.id = u.department_id
+       WHERE dsl.deputy_id = $1
+       ORDER BY u.full_name`,
+      [deputy_id]
+    );
+    res.json(rows.map(r => ({
+      id: r.id,
+      fullName: r.full_name,
+      departmentId: r.department_id,
+      departmentName: r.department_name,
+    })));
+  } catch (err) {
+    console.error('Filter supervisors error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── Deputies list (for dropdowns) ────────────────────────────────────────────
+
+router.get('/deputies', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, full_name, department_id
+       FROM users WHERE role = 'DEPUTY' ORDER BY full_name`
+    );
+    res.json(rows.map(r => ({
+      id: r.id,
+      fullName: r.full_name,
+      departmentId: r.department_id,
+    })));
+  } catch (err) {
+    console.error('List deputies error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+module.exports = router;
