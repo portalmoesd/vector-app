@@ -36,6 +36,88 @@
     return;
   }
 
+  // Separate departments into internal and external for grouped dropdown
+  const internalDepts = departments.filter(d => !d.isExternal);
+  const externalDepts = departments.filter(d => d.isExternal);
+
+  function buildDeptDropdownOptions(excludeIds) {
+    const excluded = new Set(excludeIds || []);
+    let opts = '<option value="">+ Add department...</option>';
+    if (internalDepts.length > 0) {
+      opts += '<optgroup label="Departments">';
+      internalDepts.forEach(d => {
+        opts += `<option value="${d.id}" ${excluded.has(d.id) ? 'disabled' : ''}>${escapeHtml(d.nameEn || d.name)}</option>`;
+      });
+      opts += '</optgroup>';
+    }
+    if (externalDepts.length > 0) {
+      opts += '<optgroup label="Agencies">';
+      externalDepts.forEach(d => {
+        opts += `<option value="${d.id}" ${excluded.has(d.id) ? 'disabled' : ''}>${escapeHtml(d.nameEn || d.name)}</option>`;
+      });
+      opts += '</optgroup>';
+    }
+    return opts;
+  }
+
+  function initSectionRow(row) {
+    const pillsContainer = row.querySelector('.tpl-dept-pills');
+    const addSelect = row.querySelector('.tpl-dept-add');
+
+    function addDeptPill(deptId) {
+      const d = departments.find(x => x.id === deptId);
+      if (!d) return;
+      if (row.querySelector(`.tpl-dept-pill[data-dept-id="${deptId}"]`)) return;
+      const pill = document.createElement('span');
+      pill.className = d.isExternal ? 'pill pill-yellow tpl-dept-pill' : 'pill pill-blue tpl-dept-pill';
+      pill.dataset.deptId = deptId;
+      pill.style.cssText = 'cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:3px 10px;margin:2px;';
+      pill.title = 'Click to remove';
+      pill.innerHTML = `${escapeHtml(d.nameEn || d.name)} <span style="font-size:14px;line-height:1;opacity:0.6;">\u00d7</span>`;
+      pill.addEventListener('click', () => {
+        pill.remove();
+        const opt = addSelect.querySelector(`option[value="${deptId}"]`);
+        if (opt) opt.disabled = false;
+        updateCount();
+      });
+      pillsContainer.appendChild(pill);
+    }
+
+    function updateCount() {
+      const count = row.querySelectorAll('.tpl-dept-pill').length;
+      row.querySelector('.tpl-dept-count').textContent = count + ' dept(s)';
+    }
+
+    addSelect.addEventListener('change', () => {
+      const deptId = parseInt(addSelect.value);
+      if (!deptId) return;
+      addDeptPill(deptId);
+      addSelect.querySelector(`option[value="${deptId}"]`).disabled = true;
+      addSelect.value = '';
+      updateCount();
+    });
+
+    // Quick-add buttons
+    row.querySelector('.tpl-add-all-depts').addEventListener('click', () => {
+      internalDepts.forEach(d => {
+        addDeptPill(d.id);
+        const opt = addSelect.querySelector(`option[value="${d.id}"]`);
+        if (opt) opt.disabled = true;
+      });
+      updateCount();
+    });
+    row.querySelector('.tpl-add-all-agencies').addEventListener('click', () => {
+      externalDepts.forEach(d => {
+        addDeptPill(d.id);
+        const opt = addSelect.querySelector(`option[value="${d.id}"]`);
+        if (opt) opt.disabled = true;
+      });
+      updateCount();
+    });
+
+    return { addDeptPill, updateCount };
+  }
+
   function renderTemplates() {
     if (templates.length === 0) {
       container.innerHTML = '<div class="empty-state"><p>No templates yet. Create one to preset sections for your events.</p></div>';
@@ -53,7 +135,7 @@
           .join(', ');
         return `<li style="margin-bottom:4px;">
           <strong>${escapeHtml(s.title)}</strong>
-          ${deptNames ? `<span style="color:#666;font-size:12px;"> — ${deptNames}</span>` : ''}
+          ${deptNames ? `<span style="color:#666;font-size:12px;"> \u2014 ${deptNames}</span>` : ''}
         </li>`;
       }).join('');
 
@@ -122,8 +204,8 @@
       const sections = [];
       document.querySelectorAll('#tplSectionRows .tpl-section-row').forEach((row, i) => {
         const title = row.querySelector('.tpl-sec-title').value.trim();
-        const deptIds = Array.from(row.querySelectorAll('.tpl-sec-dept:checked'))
-          .map(cb => parseInt(cb.dataset.deptId));
+        const deptIds = Array.from(row.querySelectorAll('.tpl-dept-pill'))
+          .map(pill => parseInt(pill.dataset.deptId));
         if (title) sections.push({ title, sortOrder: i, departmentIds: deptIds });
       });
 
@@ -143,22 +225,42 @@
     function addSectionRow() {
       const row = document.createElement('div');
       row.className = 'tpl-section-row';
-      row.style.cssText = 'border:1px solid var(--border-color,#ddd);border-radius:8px;padding:12px;margin-bottom:10px;';
+      row.style.cssText = 'border:1px solid var(--border-color,#ddd);border-radius:12px;margin-bottom:10px;overflow:hidden;';
       row.innerHTML = `
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-          <input class="form-input tpl-sec-title" placeholder="Section title" style="flex:1;font-weight:600;" />
-          <button class="btn btn-outline" type="button" style="padding:4px 10px;font-size:12px;color:#dc2626;" onclick="this.closest('.tpl-section-row').remove()">\u2715</button>
+        <div class="tpl-sec-header" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;user-select:none;">
+          <span class="tpl-sec-toggle" style="font-size:11px;color:#888;transition:transform .2s;">\u25b6</span>
+          <input class="form-input tpl-sec-title" placeholder="Section title" style="flex:1;font-weight:600;border:none;padding:0;background:transparent;" onclick="event.stopPropagation()" />
+          <span class="tpl-dept-count" style="font-size:12px;color:#666;white-space:nowrap;">0 dept(s)</span>
+          <button class="btn btn-outline" type="button" style="padding:2px 8px;font-size:11px;color:#dc2626;" onclick="event.stopPropagation();this.closest('.tpl-section-row').remove()">\u00d7</button>
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
-          ${departments.map(d => `
-            <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;">
-              <input type="checkbox" class="tpl-sec-dept" data-dept-id="${d.id}" />
-              ${escapeHtml(d.nameEn || d.name)}
-            </label>
-          `).join('')}
+        <div class="tpl-sec-body" style="display:none;padding:8px 14px 14px 14px;border-top:1px solid var(--border-color,#eee);">
+          <div class="tpl-dept-pills" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;min-height:8px;"></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select class="form-select tpl-dept-add" style="font-size:12px;padding:4px 8px;flex:1;min-width:200px;">
+              ${buildDeptDropdownOptions([])}
+            </select>
+            <button type="button" class="btn btn-outline tpl-add-all-depts" style="padding:3px 10px;font-size:11px;white-space:nowrap;">All Depts</button>
+            <button type="button" class="btn btn-outline tpl-add-all-agencies" style="padding:3px 10px;font-size:11px;white-space:nowrap;">All Agencies</button>
+          </div>
         </div>
       `;
       rowsContainer.appendChild(row);
+
+      // Expand/collapse
+      const header = row.querySelector('.tpl-sec-header');
+      const body = row.querySelector('.tpl-sec-body');
+      const toggle = row.querySelector('.tpl-sec-toggle');
+      header.addEventListener('click', () => {
+        const open = body.style.display !== 'none';
+        body.style.display = open ? 'none' : '';
+        toggle.style.transform = open ? '' : 'rotate(90deg)';
+      });
+
+      initSectionRow(row);
+
+      // Auto-expand new rows
+      body.style.display = '';
+      toggle.style.transform = 'rotate(90deg)';
     }
 
     addBtn.addEventListener('click', addSectionRow);
