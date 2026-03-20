@@ -24,48 +24,180 @@
 
   let departments = [];
   let templates = [];
+  let groupedData = null;
   let onModalSave = null;
 
   try {
-    [departments, templates] = await Promise.all([
+    [departments, templates, groupedData] = await Promise.all([
       Api.get('/api/departments'),
       Api.get('/api/templates'),
+      Api.get('/api/departments/grouped'),
     ]);
   } catch (e) {
     container.innerHTML = `<div class="msg msg-error">${escapeHtml(e.message)}</div>`;
     return;
   }
 
-  // Separate departments into internal and external for grouped dropdown
+  const deptById = {};
+  departments.forEach(d => { deptById[d.id] = d; });
+
   const internalDepts = departments.filter(d => !d.isExternal);
   const externalDepts = departments.filter(d => d.isExternal);
 
-  function buildDeptDropdownOptions(excludeIds) {
-    const excluded = new Set(excludeIds || []);
-    let opts = '<option value="">+ Add department...</option>';
-    if (internalDepts.length > 0) {
-      opts += '<optgroup label="Departments">';
-      internalDepts.forEach(d => {
-        opts += `<option value="${d.id}" ${excluded.has(d.id) ? 'disabled' : ''}>${escapeHtml(d.nameEn || d.name)}</option>`;
+  /* ── Custom Department Picker ─────────────────────────────────────────── */
+
+  function createDeptPicker(row, onAdd, getSelected) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tpl-dept-picker-wrap';
+    wrapper.style.cssText = 'position:relative;flex:1;min-width:200px;';
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'form-input tpl-dept-picker-trigger';
+    trigger.style.cssText = 'width:100%;text-align:left;cursor:pointer;font-size:13px;color:#666;display:flex;align-items:center;justify-content:space-between;padding:6px 10px;';
+    trigger.innerHTML = '+ Add department... <span style="font-size:10px;opacity:.5;">\u25BC</span>';
+
+    const panel = document.createElement('div');
+    panel.className = 'tpl-dept-picker-panel';
+    panel.style.cssText = 'display:none;position:absolute;left:0;right:0;bottom:100%;margin-bottom:4px;background:var(--bg-card,#fff);border:1px solid var(--border-color,#ddd);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:50;max-height:340px;overflow:hidden;display:none;flex-direction:column;';
+
+    // Search input
+    const searchWrap = document.createElement('div');
+    searchWrap.style.cssText = 'padding:8px 10px;border-bottom:1px solid var(--border-color,#eee);';
+    const searchInput = document.createElement('input');
+    searchInput.className = 'form-input';
+    searchInput.placeholder = 'Search departments...';
+    searchInput.style.cssText = 'width:100%;font-size:13px;padding:6px 8px;';
+    searchWrap.appendChild(searchInput);
+
+    // Items container
+    const itemsWrap = document.createElement('div');
+    itemsWrap.style.cssText = 'overflow-y:auto;flex:1;padding:6px 0;';
+
+    panel.appendChild(searchWrap);
+    panel.appendChild(itemsWrap);
+    wrapper.appendChild(trigger);
+    wrapper.appendChild(panel);
+
+    let isOpen = false;
+
+    function buildItems(filter) {
+      const selected = getSelected();
+      const q = (filter || '').toLowerCase();
+      let html = '';
+
+      // Deputies groups
+      if (groupedData && groupedData.deputies) {
+        for (const deputy of groupedData.deputies) {
+          const deptItems = deputy.departmentIds
+            .map(id => deptById[id])
+            .filter(Boolean)
+            .filter(d => !q || (d.nameEn || d.name).toLowerCase().includes(q));
+          if (deptItems.length === 0) continue;
+
+          html += `<div class="tpl-pick-group" style="padding:4px 0;">
+            <div style="padding:4px 14px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;">
+              ${escapeHtml(deputy.deputyName)}
+            </div>`;
+          for (const d of deptItems) {
+            const isSel = selected.has(d.id);
+            const pillClass = d.isExternal ? 'pill-yellow' : 'pill-blue';
+            html += `<div class="tpl-pick-item ${isSel ? 'tpl-pick-disabled' : ''}" data-dept-id="${d.id}" style="padding:5px 14px 5px 24px;font-size:13px;cursor:${isSel ? 'default' : 'pointer'};color:${isSel ? '#aaa' : 'inherit'};display:flex;align-items:center;gap:6px;${!isSel ? '' : 'text-decoration:line-through;opacity:.5;'}">
+              ${d.isExternal ? '<span class="pill ' + pillClass + '" style="font-size:10px;padding:1px 6px;">Agency</span>' : ''}
+              ${escapeHtml(d.nameEn || d.name)}
+            </div>`;
+          }
+          html += '</div>';
+        }
+      }
+
+      // Unassigned departments
+      const unassignedIds = (groupedData && groupedData.unassignedDepartmentIds) || [];
+      const unassignedItems = unassignedIds
+        .map(id => deptById[id])
+        .filter(Boolean)
+        .filter(d => !q || (d.nameEn || d.name).toLowerCase().includes(q));
+
+      if (unassignedItems.length > 0) {
+        html += `<div class="tpl-pick-group" style="padding:4px 0;">
+          <div style="padding:4px 14px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;">
+            Other
+          </div>`;
+        for (const d of unassignedItems) {
+          const isSel = selected.has(d.id);
+          const pillClass = d.isExternal ? 'pill-yellow' : 'pill-blue';
+          html += `<div class="tpl-pick-item ${isSel ? 'tpl-pick-disabled' : ''}" data-dept-id="${d.id}" style="padding:5px 14px 5px 24px;font-size:13px;cursor:${isSel ? 'default' : 'pointer'};color:${isSel ? '#aaa' : 'inherit'};display:flex;align-items:center;gap:6px;${!isSel ? '' : 'text-decoration:line-through;opacity:.5;'}">
+            ${d.isExternal ? '<span class="pill ' + pillClass + '" style="font-size:10px;padding:1px 6px;">Agency</span>' : ''}
+            ${escapeHtml(d.nameEn || d.name)}
+          </div>`;
+        }
+        html += '</div>';
+      }
+
+      if (!html) {
+        html = '<div style="padding:12px 14px;font-size:13px;color:#999;text-align:center;">No departments found</div>';
+      }
+
+      itemsWrap.innerHTML = html;
+
+      // Attach click handlers
+      itemsWrap.querySelectorAll('.tpl-pick-item:not(.tpl-pick-disabled)').forEach(el => {
+        el.addEventListener('click', () => {
+          const id = parseInt(el.dataset.deptId);
+          onAdd(id);
+          buildItems(searchInput.value);
+        });
+        el.addEventListener('mouseenter', () => { el.style.background = 'rgba(10,132,255,.08)'; });
+        el.addEventListener('mouseleave', () => { el.style.background = ''; });
       });
-      opts += '</optgroup>';
     }
-    if (externalDepts.length > 0) {
-      opts += '<optgroup label="Agencies">';
-      externalDepts.forEach(d => {
-        opts += `<option value="${d.id}" ${excluded.has(d.id) ? 'disabled' : ''}>${escapeHtml(d.nameEn || d.name)}</option>`;
-      });
-      opts += '</optgroup>';
+
+    function open() {
+      if (isOpen) return;
+      isOpen = true;
+      panel.style.display = 'flex';
+      searchInput.value = '';
+      buildItems('');
+      searchInput.focus();
     }
-    return opts;
+
+    function close() {
+      if (!isOpen) return;
+      isOpen = false;
+      panel.style.display = 'none';
+    }
+
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (isOpen) close(); else open();
+    });
+
+    searchInput.addEventListener('input', () => buildItems(searchInput.value));
+    searchInput.addEventListener('click', (e) => e.stopPropagation());
+
+    panel.addEventListener('click', (e) => e.stopPropagation());
+
+    // Close when clicking outside
+    document.addEventListener('click', () => close());
+
+    return { wrapper, refresh: () => { if (isOpen) buildItems(searchInput.value); } };
   }
+
+  /* ── Section Row Logic ────────────────────────────────────────────────── */
 
   function initSectionRow(row) {
     const pillsContainer = row.querySelector('.tpl-dept-pills');
-    const addSelect = row.querySelector('.tpl-dept-add');
+    let picker = null;
+
+    function getSelectedIds() {
+      return new Set(
+        Array.from(row.querySelectorAll('.tpl-dept-pill'))
+          .map(p => parseInt(p.dataset.deptId))
+      );
+    }
 
     function addDeptPill(deptId) {
-      const d = departments.find(x => x.id === deptId);
+      const d = deptById[deptId];
       if (!d) return;
       if (row.querySelector(`.tpl-dept-pill[data-dept-id="${deptId}"]`)) return;
       const pill = document.createElement('span');
@@ -76,9 +208,8 @@
       pill.innerHTML = `${escapeHtml(d.nameEn || d.name)} <span style="font-size:14px;line-height:1;opacity:0.6;">\u00d7</span>`;
       pill.addEventListener('click', () => {
         pill.remove();
-        const opt = addSelect.querySelector(`option[value="${deptId}"]`);
-        if (opt) opt.disabled = false;
         updateCount();
+        if (picker) picker.refresh();
       });
       pillsContainer.appendChild(pill);
     }
@@ -88,35 +219,30 @@
       row.querySelector('.tpl-dept-count').textContent = count + ' dept(s)';
     }
 
-    addSelect.addEventListener('change', () => {
-      const deptId = parseInt(addSelect.value);
-      if (!deptId) return;
+    // Create custom picker
+    const pickerContainer = row.querySelector('.tpl-dept-picker-slot');
+    picker = createDeptPicker(row, (deptId) => {
       addDeptPill(deptId);
-      addSelect.querySelector(`option[value="${deptId}"]`).disabled = true;
-      addSelect.value = '';
       updateCount();
-    });
+    }, getSelectedIds);
+    pickerContainer.appendChild(picker.wrapper);
 
     // Quick-add buttons
     row.querySelector('.tpl-add-all-depts').addEventListener('click', () => {
-      internalDepts.forEach(d => {
-        addDeptPill(d.id);
-        const opt = addSelect.querySelector(`option[value="${d.id}"]`);
-        if (opt) opt.disabled = true;
-      });
+      internalDepts.forEach(d => addDeptPill(d.id));
       updateCount();
+      if (picker) picker.refresh();
     });
     row.querySelector('.tpl-add-all-agencies').addEventListener('click', () => {
-      externalDepts.forEach(d => {
-        addDeptPill(d.id);
-        const opt = addSelect.querySelector(`option[value="${d.id}"]`);
-        if (opt) opt.disabled = true;
-      });
+      externalDepts.forEach(d => addDeptPill(d.id));
       updateCount();
+      if (picker) picker.refresh();
     });
 
     return { addDeptPill, updateCount };
   }
+
+  /* ── Render Templates List ────────────────────────────────────────────── */
 
   function renderTemplates() {
     if (templates.length === 0) {
@@ -128,7 +254,7 @@
       const sectionsList = t.sections.map(s => {
         const deptNames = (s.departmentIds || [])
           .map(id => {
-            const d = departments.find(d => d.id === id);
+            const d = deptById[id];
             return d ? escapeHtml(d.nameEn || d.name) : '';
           })
           .filter(Boolean)
@@ -173,6 +299,8 @@
     } catch (e) { alert(e.message); }
   };
 
+  /* ── Modal Helpers ────────────────────────────────────────────────────── */
+
   function showTemplateModal(title, bodyHtml, saveLabel, saveFn) {
     modalTitle.textContent = title;
     modalBody.innerHTML = bodyHtml;
@@ -185,6 +313,8 @@
 
   modalCancel.addEventListener('click', hideTemplateModal);
   modalSave.addEventListener('click', () => { if (onModalSave) onModalSave(); });
+
+  /* ── Create Template ──────────────────────────────────────────────────── */
 
   createBtn.addEventListener('click', () => {
     showTemplateModal('Create Template', `
@@ -236,9 +366,7 @@
         <div class="tpl-sec-body" style="display:none;padding:8px 14px 14px 14px;border-top:1px solid var(--border-color,#eee);">
           <div class="tpl-dept-pills" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;min-height:8px;"></div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <select class="form-select tpl-dept-add" style="font-size:12px;padding:4px 8px;flex:1;min-width:200px;">
-              ${buildDeptDropdownOptions([])}
-            </select>
+            <div class="tpl-dept-picker-slot" style="flex:1;min-width:200px;"></div>
             <button type="button" class="btn btn-outline tpl-add-all-depts" style="padding:3px 10px;font-size:11px;white-space:nowrap;">All Depts</button>
             <button type="button" class="btn btn-outline tpl-add-all-agencies" style="padding:3px 10px;font-size:11px;white-space:nowrap;">All Agencies</button>
           </div>
