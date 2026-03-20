@@ -48,6 +48,9 @@ async function migrate() {
       END $$;
     `);
 
+    // Fix: ensure all ministry departments are marked internal
+    await db.query('UPDATE departments SET is_external = false WHERE is_external = true');
+
     // Seed departments if empty
     const { rows: [{ count: deptCount }] } = await db.query('SELECT count(*)::int AS count FROM departments');
     if (deptCount === 0) {
