@@ -2,6 +2,7 @@
  * Shared pipeline dashboard for Super-Collaborator, Supervisor, and Deputy roles.
  * Shows assigned events, sections with status and progress bar,
  * and micro-action buttons based on the user's role capabilities.
+ * Includes: Send to Library, Approve All, Open All Sections, section history.
  */
 (async function () {
   await App.init();
@@ -11,12 +12,6 @@
 
   const eventSelect = document.getElementById('eventSelect');
   const container = document.getElementById('sectionsContainer');
-
-  // Role capabilities
-  const CAN_EDIT = ['COLLABORATOR', 'SUPER_COLLABORATOR'];
-  const CAN_SUBMIT = ['COLLABORATOR', 'SUPER_COLLABORATOR', 'SUPERVISOR', 'DEPUTY', 'CURATOR'];
-  const CAN_APPROVE = ['SUPER_COLLABORATOR', 'SUPERVISOR', 'DEPUTY', 'CURATOR'];
-  const CAN_RETURN = ['SUPER_COLLABORATOR', 'SUPERVISOR', 'DEPUTY', 'CURATOR'];
 
   // Load events
   let events = [];
@@ -52,8 +47,39 @@
 
       // Determine user's effective role in this event context
       const effectiveRole = getEffectiveRole(user, grid);
+      const isDS = grid.documentSubmitterId === user.id;
+      const allApproved = grid.sections.every(s => s.status && s.status.startsWith('approved_by_'));
 
-      container.innerHTML = `
+      // Build action bar above the table
+      let actionBar = '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">';
+
+      // Open All Sections button
+      actionBar += `<button class="btn btn-outline" onclick="window.location.href='/pages/editor-all.html?event_id=${eventId}'">
+        <span class="icon" style="--icon-url: url(/assets/view-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:16px;height:16px;display:inline-block;background:currentColor;vertical-align:middle;margin-right:4px;"></span>
+        Open All Sections
+      </button>`;
+
+      // Approve All button (if user holds any sections submitted to them)
+      const sectionsToApprove = grid.sections.filter(s => {
+        const expectedStatus = 'submitted_to_' + effectiveRole.toLowerCase();
+        return s.status === expectedStatus && s.currentHolderRole === effectiveRole;
+      });
+      if (sectionsToApprove.length > 1) {
+        actionBar += `<button class="btn btn-primary" id="approveAllBtn" style="background:#16a34a;">
+          Approve All (${sectionsToApprove.length})
+        </button>`;
+      }
+
+      // Send to Library button (only DS when all approved)
+      if (isDS && allApproved) {
+        actionBar += `<button class="btn btn-primary" id="sendToLibraryBtn">
+          Send to Library
+        </button>`;
+      }
+
+      actionBar += '</div>';
+
+      container.innerHTML = actionBar + `
         <div class="table-wrap">
           <table>
             <thead>
@@ -67,18 +93,25 @@
               </tr>
             </thead>
             <tbody>
-              ${grid.sections.map((s, i) => `
+              ${grid.sections.map((s, i) => {
+                const returnReq = s.returnRequest;
+                return `
                 <tr>
                   <td>${i + 1}</td>
-                  <td>${escapeHtml(s.sectionLabel)}</td>
+                  <td>
+                    ${escapeHtml(s.sectionLabel)}
+                    ${returnReq ? `<div class="return-request-notice" style="font-size:11px;color:#dc2626;margin-top:4px;">
+                      Return requested by ${escapeHtml(returnReq.from)}${returnReq.note ? ': ' + escapeHtml(returnReq.note) : ''}
+                    </div>` : ''}
+                  </td>
                   <td><span class="${statusClass(s.status)}">${statusLabel(s.status)}</span></td>
                   <td>${renderProgressBar(s, grid)}</td>
                   <td>${formatDateTime(s.lastUpdatedAt)}</td>
                   <td class="action-cell">
                     ${renderActions(s, eventId, effectiveRole, grid)}
                   </td>
-                </tr>
-              `).join('')}
+                </tr>`;
+              }).join('')}
             </tbody>
           </table>
         </div>
@@ -86,6 +119,38 @@
 
       // Bind action buttons
       bindActions(eventId, grid);
+
+      // Approve All handler
+      const approveAllBtn = document.getElementById('approveAllBtn');
+      if (approveAllBtn) {
+        approveAllBtn.addEventListener('click', async () => {
+          if (!confirm(`Approve all ${sectionsToApprove.length} sections?`)) return;
+          try {
+            for (const s of sectionsToApprove) {
+              await Api.post('/api/workflow/approve', { eventId: parseInt(eventId), sectionId: s.sectionId });
+            }
+            loadSections(eventId);
+          } catch (err) {
+            alert(err.message);
+            loadSections(eventId);
+          }
+        });
+      }
+
+      // Send to Library handler
+      const sendBtn = document.getElementById('sendToLibraryBtn');
+      if (sendBtn) {
+        sendBtn.addEventListener('click', async () => {
+          if (!confirm('Send this document to the library? This marks it as completed.')) return;
+          try {
+            await Api.post('/api/workflow/send-to-library', { eventId: parseInt(eventId) });
+            alert('Document sent to library successfully.');
+            loadSections(eventId);
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      }
     } catch (e) {
       container.innerHTML = `<div class="msg msg-error">${escapeHtml(e.message)}</div>`;
     }
@@ -100,18 +165,18 @@
   }
 
   function renderProgressBar(section, grid) {
-    if (!section.chain || section.chain.length === 0) return '';
     const steps = section.steps || [];
+    if (steps.length === 0) return '';
     const currentStatus = section.status || 'draft';
 
-    return `<div class="progress-bar">${steps.map((step, idx) => {
+    return `<div class="progress-bar">${steps.map((step) => {
       const stepState = getStepState(step.role, currentStatus, section);
       const name = step.actorName || roleLabel(step.role);
       return `<div class="progress-step ${stepState}" title="${escapeHtml(name)}">
         <span class="step-dot"></span>
         <span class="step-label">${escapeHtml(name)}</span>
       </div>`;
-    }).join('<span class="step-arrow">→</span>')}</div>`;
+    }).join('<span class="step-arrow">\u2192</span>')}</div>`;
   }
 
   function getStepState(role, status, section) {
@@ -119,7 +184,6 @@
     const roleIdx = chain.indexOf(role);
     if (roleIdx === -1) return 'todo';
 
-    // Check if this step is done, active, or todo
     if (status === 'draft') {
       return roleIdx === 0 ? 'active' : 'todo';
     }
@@ -172,7 +236,7 @@
           <span class="icon" style="--icon-url: url(/assets/return-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url);"></span>
         </button>`);
       }
-    } else if (!isHolder && section.status !== 'draft') {
+    } else if (!isHolder && section.status !== 'draft' && section.status) {
       // Ask to return (if section is not at user's stage and workflow has started)
       btns.push(`<button class="action-btn action-ask-return" title="Ask to Return" data-action="ask-to-return" data-event="${eventId}" data-section="${section.sectionId}">
         <span class="icon" style="--icon-url: url(/assets/ask_to_return_icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url);"></span>
@@ -192,18 +256,19 @@
 
         try {
           if (action === 'submit') {
+            if (!confirm('Submit this section?')) return;
             await Api.post('/api/workflow/submit', { eventId: evId, sectionId });
           } else if (action === 'approve') {
-            const comment = prompt('Optional comment:');
-            await Api.post('/api/workflow/approve', { eventId: evId, sectionId, comment: comment || undefined });
+            if (!confirm('Approve this section?')) return;
+            await Api.post('/api/workflow/approve', { eventId: evId, sectionId });
           } else if (action === 'return') {
-            const comment = prompt('Return comment (required):');
-            if (!comment) return;
-            await Api.post('/api/workflow/return', { eventId: evId, sectionId, comment });
+            const comment = prompt('Return comment:');
+            if (comment === null) return;
+            await Api.post('/api/workflow/return', { eventId: evId, sectionId, comment: comment || undefined });
           } else if (action === 'ask-to-return') {
             const note = prompt('Reason for return request:');
-            if (!note) return;
-            await Api.post('/api/workflow/ask-to-return', { eventId: evId, sectionId, note });
+            if (note === null) return;
+            await Api.post('/api/workflow/ask-to-return', { eventId: evId, sectionId, note: note || undefined });
           }
           // Reload sections
           loadSections(evId);

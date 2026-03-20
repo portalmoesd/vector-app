@@ -11,9 +11,10 @@ const App = {
       return;
     }
 
-    // Check must_change_password
+    // Check must_change_password — force redirect
     if (user.mustChangePassword && !window.location.pathname.includes('change-password')) {
-      // TODO: redirect to change-password page
+      window.location.href = '/pages/change-password.html';
+      return;
     }
 
     await I18n.init();

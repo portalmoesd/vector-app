@@ -36,25 +36,132 @@ router.get('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
 // POST /api/users — create user (admin only)
 router.post('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
-    const { fullName, username, email, password, role, departmentId, isExternal } = req.body;
+    const { fullName, username, email, password, role, departmentId, isExternal, countryIds } = req.body;
     if (!fullName || !username || !email || !password || !role) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
     const hash = await bcrypt.hash(password, 10);
-    const { rows } = await db.query(
-      `INSERT INTO users (full_name, username, email, password_hash, role, department_id, is_external)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id`,
-      [fullName, username, email, hash, role, departmentId || null, isExternal || false]
-    );
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    res.status(201).json({ id: rows[0].id, success: true });
+      const { rows } = await client.query(
+        `INSERT INTO users (full_name, username, email, password_hash, role, department_id, is_external)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id`,
+        [fullName, username, email, hash, role, departmentId || null, isExternal || false]
+      );
+
+      const userId = rows[0].id;
+
+      // Assign countries for Collaborator/Super-Collaborator
+      if (Array.isArray(countryIds) && countryIds.length > 0) {
+        for (const cId of countryIds) {
+          await client.query(
+            'INSERT INTO country_assignments (user_id, country_id) VALUES ($1, $2)',
+            [userId, cId]
+          );
+        }
+      }
+
+      await client.query('COMMIT');
+      res.status(201).json({ id: userId, success: true });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   } catch (err) {
     if (err.code === '23505') {
       return res.status(409).json({ error: 'Username already exists' });
     }
     console.error('Create user error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /api/users/:id — update user (admin only)
+router.patch('/:id', requireAuth, requireRole('ADMIN'), async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { fullName, email, role, departmentId, isExternal, password, countryIds } = req.body;
+
+    const sets = [];
+    const params = [];
+    let idx = 1;
+
+    if (fullName !== undefined) { sets.push(`full_name = $${idx++}`); params.push(fullName); }
+    if (email !== undefined) { sets.push(`email = $${idx++}`); params.push(email); }
+    if (role !== undefined) { sets.push(`role = $${idx++}`); params.push(role); }
+    if (departmentId !== undefined) { sets.push(`department_id = $${idx++}`); params.push(departmentId || null); }
+    if (isExternal !== undefined) { sets.push(`is_external = $${idx++}`); params.push(isExternal); }
+
+    if (password) {
+      const hash = await bcrypt.hash(password, 10);
+      sets.push(`password_hash = $${idx++}`);
+      params.push(hash);
+      sets.push(`must_change_password = true`);
+    }
+
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      if (sets.length > 0) {
+        sets.push('updated_at = now()');
+        params.push(userId);
+        await client.query(
+          `UPDATE users SET ${sets.join(', ')} WHERE id = $${idx}`,
+          params
+        );
+      }
+
+      // Update country assignments if provided
+      if (countryIds !== undefined) {
+        await client.query('DELETE FROM country_assignments WHERE user_id = $1', [userId]);
+        if (Array.isArray(countryIds) && countryIds.length > 0) {
+          for (const cId of countryIds) {
+            await client.query(
+              'INSERT INTO country_assignments (user_id, country_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+              [userId, cId]
+            );
+          }
+        }
+      }
+
+      await client.query('COMMIT');
+      res.json({ success: true });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Username already exists' });
+    }
+    console.error('Update user error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/users/:id/countries — get country assignments for a user
+router.get('/:id/countries', requireAuth, requireRole('ADMIN'), async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT c.id, c.name_en, c.code
+       FROM country_assignments ca
+       JOIN countries c ON c.id = ca.country_id
+       WHERE ca.user_id = $1
+       ORDER BY c.name_en`,
+      [req.params.id]
+    );
+    res.json(rows.map(r => ({ id: r.id, nameEn: r.name_en, code: r.code })));
+  } catch (err) {
+    console.error('Get user countries error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

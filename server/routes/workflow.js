@@ -511,6 +511,21 @@ router.get('/status-grid', requireAuth, async (req, res) => {
       const status = s.status || 'draft';
       const holderRole = currentHolderRole(status, s.original_submitter_role, s.return_target_role);
 
+      // Load return request for this section (if any)
+      const { rows: rrRows } = await db.query(
+        `SELECT requested_by_name, requested_by_role, note, created_at
+         FROM section_return_requests
+         WHERE event_id = $1 AND section_id = $2
+         ORDER BY created_at DESC LIMIT 1`,
+        [eventId, s.section_id]
+      );
+      const returnRequest = rrRows.length > 0 ? {
+        from: rrRows[0].requested_by_name,
+        fromRole: rrRows[0].requested_by_role,
+        note: rrRows[0].note,
+        at: rrRows[0].created_at,
+      } : null;
+
       enrichedSections.push({
         sectionId: s.section_id,
         sectionLabel: s.section_label,
@@ -525,6 +540,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
         isCrossDept,
         chain,
         steps,
+        returnRequest,
       });
     }
 

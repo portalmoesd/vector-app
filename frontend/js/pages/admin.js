@@ -1,8 +1,22 @@
 /**
  * Admin Panel — Departments, Users, Deputy–Supervisor Links
+ * Features: CRUD, country assignment with region-based checkboxes, user editing
  */
 (async function () {
   await App.init();
+
+  // ── Region definitions (UI-only groupings per §3.4) ─────────────────────────
+  const REGIONS = {
+    'Neighbors': ['BY','UA','MD','RU','AZ','AM','KZ','TJ','KG','UZ','TM'],
+    'EU': ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'],
+    'Other Europe': ['AL','AD','BA','CH','IS','LI','MC','ME','MK','NO','RS','SM','TR','GB','VA','GE','XK'],
+    'North America': ['US','CA','MX','GL','BM'],
+    'Central America & Caribbean': ['BZ','CR','SV','GT','HN','NI','PA','AG','BS','BB','CU','DM','DO','GD','HT','JM','KN','LC','VC','TT','PR'],
+    'South America': ['AR','BO','BR','CL','CO','EC','GY','PY','PE','SR','UY','VE','FK','GF'],
+    'Africa': ['DZ','AO','BJ','BW','BF','BI','CV','CM','CF','TD','KM','CG','CD','CI','DJ','EG','GQ','ER','SZ','ET','GA','GM','GH','GN','GW','KE','LS','LR','LY','MG','MW','ML','MR','MU','MA','MZ','NA','NE','NG','RW','ST','SN','SC','SL','SO','ZA','SS','SD','TZ','TG','TN','UG','ZM','ZW'],
+    'Asia': ['AF','BH','BD','BT','BN','KH','CN','IN','ID','IR','IQ','IL','JP','JO','KW','LA','LB','MY','MV','MN','MM','NP','KP','OM','PK','PH','QA','SA','SG','KR','LK','SY','TW','TH','TL','AE','VN','YE'],
+    'Oceania': ['AU','NZ','FJ','FM','KI','MH','NR','PW','PG','WS','SB','TO','TV','VU'],
+  };
 
   // ── Tab switching ──────────────────────────────────────────────────────────
   document.querySelectorAll('.admin-tab').forEach(btn => {
@@ -36,6 +50,86 @@
 
   modalCancel.addEventListener('click', hideModal);
   modalSave.addEventListener('click', () => { if (onSave) onSave(); });
+
+  // ── Shared data ─────────────────────────────────────────────────────────────
+  let departments = [];
+  let allCountries = [];
+
+  // Load countries once
+  try { allCountries = await Api.get('/api/countries'); } catch(e) { console.error(e); }
+
+  // ── Country picker HTML generation ──────────────────────────────────────────
+
+  function buildCountryPickerHtml(selectedIds) {
+    const selected = new Set(selectedIds || []);
+    let html = '<div class="country-picker" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px;">';
+
+    for (const [region, codes] of Object.entries(REGIONS)) {
+      const countriesInRegion = allCountries.filter(c => codes.includes(c.code));
+      if (countriesInRegion.length === 0) continue;
+
+      const allChecked = countriesInRegion.every(c => selected.has(c.id));
+      const someChecked = countriesInRegion.some(c => selected.has(c.id));
+
+      html += `<div class="region-group" style="margin-bottom:8px;">
+        <label style="font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;padding:4px 0;">
+          <input type="checkbox" class="region-toggle" data-region="${region}"
+            ${allChecked ? 'checked' : ''} ${someChecked && !allChecked ? 'indeterminate' : ''} />
+          ${escapeHtml(region)} (${countriesInRegion.length})
+        </label>
+        <div class="region-countries" style="display:none;padding-left:20px;columns:2;column-gap:12px;">
+          ${countriesInRegion.map(c => `
+            <label style="display:flex;align-items:center;gap:4px;padding:1px 0;font-size:13px;break-inside:avoid;cursor:pointer;">
+              <input type="checkbox" class="country-cb" data-country-id="${c.id}" data-region="${region}"
+                ${selected.has(c.id) ? 'checked' : ''} />
+              ${escapeHtml(c.name_en || c.nameEn || c.name)}
+            </label>
+          `).join('')}
+        </div>
+      </div>`;
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  function initCountryPicker(container) {
+    // Toggle region expand
+    container.querySelectorAll('.region-group > label').forEach(label => {
+      label.addEventListener('click', (e) => {
+        if (e.target.tagName === 'INPUT') return;
+        const countries = label.nextElementSibling;
+        countries.style.display = countries.style.display === 'none' ? '' : 'none';
+      });
+    });
+
+    // Region toggle all
+    container.querySelectorAll('.region-toggle').forEach(toggle => {
+      toggle.addEventListener('change', () => {
+        const region = toggle.dataset.region;
+        container.querySelectorAll(`.country-cb[data-region="${region}"]`).forEach(cb => {
+          cb.checked = toggle.checked;
+        });
+      });
+    });
+
+    // Country checkbox updates region state
+    container.querySelectorAll('.country-cb').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const region = cb.dataset.region;
+        const cbs = container.querySelectorAll(`.country-cb[data-region="${region}"]`);
+        const toggle = container.querySelector(`.region-toggle[data-region="${region}"]`);
+        const checkedCount = Array.from(cbs).filter(c => c.checked).length;
+        toggle.checked = checkedCount === cbs.length;
+        toggle.indeterminate = checkedCount > 0 && checkedCount < cbs.length;
+      });
+    });
+  }
+
+  function getSelectedCountryIds(container) {
+    return Array.from(container.querySelectorAll('.country-cb:checked'))
+      .map(cb => parseInt(cb.dataset.countryId));
+  }
 
   // ── Departments ────────────────────────────────────────────────────────────
   async function loadDepartments() {
@@ -74,14 +168,12 @@
       try {
         await Api.post('/api/departments', { name, isExternal: document.getElementById('deptExternal').checked });
         hideModal();
-        loadDepartments();
+        departments = await loadDepartments();
       } catch (e) { alert(e.message); }
     });
   });
 
   // ── Users ──────────────────────────────────────────────────────────────────
-  let departments = [];
-
   async function loadUsers() {
     try {
       const users = await Api.get('/api/users');
@@ -91,7 +183,7 @@
       }
       document.getElementById('userList').innerHTML = `
         <div class="table-wrap"><table>
-          <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Department</th><th>External</th></tr></thead>
+          <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Department</th><th>External</th><th>Actions</th></tr></thead>
           <tbody>${users.map(u => `
             <tr>
               <td>${escapeHtml(u.fullName)}</td>
@@ -99,6 +191,9 @@
               <td><span class="pill pill-blue">${roleLabel(u.role)}</span></td>
               <td>${u.departmentName ? escapeHtml(u.departmentName) : '—'}</td>
               <td>${u.isExternal ? 'Yes' : 'No'}</td>
+              <td>
+                <button class="btn btn-outline" style="padding:4px 10px;font-size:12px;" onclick="editUser(${u.id})">Edit</button>
+              </td>
             </tr>
           `).join('')}</tbody>
         </table></div>`;
@@ -107,34 +202,33 @@
     }
   }
 
-  document.getElementById('addUserBtn').addEventListener('click', () => {
-    const deptOptions = departments.map(d => `<option value="${d.id}">${escapeHtml(d.name)}</option>`).join('');
-    showModal('Add User', `
+  function userFormHtml(deptOptions, user) {
+    const isEdit = !!user;
+    const needsCountries = !user || user.role === 'COLLABORATOR' || user.role === 'SUPER_COLLABORATOR';
+
+    return `
       <div class="form-group">
         <label class="form-label">Full Name</label>
-        <input class="form-input" id="userFullName" required />
+        <input class="form-input" id="userFullName" value="${isEdit ? escapeHtml(user.fullName) : ''}" required />
       </div>
-      <div class="form-group">
+      ${!isEdit ? `<div class="form-group">
         <label class="form-label">Username</label>
         <input class="form-input" id="userUsername" required />
-      </div>
+      </div>` : ''}
       <div class="form-group">
         <label class="form-label">Email</label>
-        <input class="form-input" type="email" id="userEmail" required />
+        <input class="form-input" type="email" id="userEmail" value="${isEdit ? escapeHtml(user.email) : ''}" required />
       </div>
       <div class="form-group">
-        <label class="form-label">Password</label>
-        <input class="form-input" type="password" id="userPassword" required />
+        <label class="form-label">${isEdit ? 'New Password (leave blank to keep current)' : 'Password'}</label>
+        <input class="form-input" type="password" id="userPassword" ${!isEdit ? 'required' : ''} />
       </div>
       <div class="form-group">
         <label class="form-label">Role</label>
         <select class="form-select" id="userRole">
-          <option value="COLLABORATOR">Collaborator</option>
-          <option value="SUPER_COLLABORATOR">Super-Collaborator</option>
-          <option value="SUPERVISOR">Supervisor</option>
-          <option value="DEPUTY">Deputy</option>
-          <option value="PROTOCOL">Protocol</option>
-          <option value="ADMIN">Admin</option>
+          ${['COLLABORATOR','SUPER_COLLABORATOR','SUPERVISOR','DEPUTY','PROTOCOL','ADMIN'].map(r =>
+            `<option value="${r}" ${isEdit && user.role === r ? 'selected' : ''}>${roleLabel(r)}</option>`
+          ).join('')}
         </select>
       </div>
       <div class="form-group">
@@ -145,9 +239,18 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label"><input type="checkbox" id="userExternal" /> External user</label>
+        <label class="form-label"><input type="checkbox" id="userExternal" ${isEdit && user.isExternal ? 'checked' : ''} /> External user</label>
       </div>
-    `, async () => {
+      <div class="form-group" id="countryAssignmentGroup" style="${needsCountries ? '' : 'display:none;'}">
+        <label class="form-label">Country Assignments</label>
+        <div id="countryPickerContainer"></div>
+      </div>
+    `;
+  }
+
+  document.getElementById('addUserBtn').addEventListener('click', () => {
+    const deptOptions = departments.map(d => `<option value="${d.id}">${escapeHtml(d.name)}</option>`).join('');
+    showModal('Add User', userFormHtml(deptOptions, null), async () => {
       const fullName = document.getElementById('userFullName').value.trim();
       const username = document.getElementById('userUsername').value.trim();
       const email = document.getElementById('userEmail').value.trim();
@@ -155,14 +258,80 @@
       const role = document.getElementById('userRole').value;
       const departmentId = document.getElementById('userDept').value || null;
       const isExternal = document.getElementById('userExternal').checked;
+      const countryIds = getSelectedCountryIds(document.getElementById('countryPickerContainer'));
       if (!fullName || !username || !email || !password) return;
       try {
-        await Api.post('/api/users', { fullName, username, email, password, role, departmentId, isExternal });
+        await Api.post('/api/users', { fullName, username, email, password, role, departmentId, isExternal, countryIds });
         hideModal();
         loadUsers();
       } catch (e) { alert(e.message); }
     });
+
+    // Render country picker
+    const container = document.getElementById('countryPickerContainer');
+    container.innerHTML = buildCountryPickerHtml([]);
+    initCountryPicker(container);
+
+    // Show/hide country picker based on role
+    document.getElementById('userRole').addEventListener('change', () => {
+      const role = document.getElementById('userRole').value;
+      const show = role === 'COLLABORATOR' || role === 'SUPER_COLLABORATOR';
+      document.getElementById('countryAssignmentGroup').style.display = show ? '' : 'none';
+    });
   });
+
+  // Edit user
+  window.editUser = async function(userId) {
+    const users = await Api.get('/api/users');
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    // Load user's country assignments
+    let userCountries = [];
+    try { userCountries = await Api.get(`/api/users/${userId}/countries`); } catch(e) { /* ok */ }
+    const selectedCountryIds = userCountries.map(c => c.id);
+
+    const deptOptions = departments.map(d =>
+      `<option value="${d.id}" ${user.departmentId === d.id ? 'selected' : ''}>${escapeHtml(d.name)}</option>`
+    ).join('');
+
+    showModal('Edit User — ' + user.fullName, userFormHtml(deptOptions, user), async () => {
+      const fullName = document.getElementById('userFullName').value.trim();
+      const email = document.getElementById('userEmail').value.trim();
+      const password = document.getElementById('userPassword').value;
+      const role = document.getElementById('userRole').value;
+      const departmentId = document.getElementById('userDept').value || null;
+      const isExternal = document.getElementById('userExternal').checked;
+      const countryIds = getSelectedCountryIds(document.getElementById('countryPickerContainer'));
+      if (!fullName || !email) return;
+
+      const body = { fullName, email, role, departmentId, isExternal, countryIds };
+      if (password) body.password = password;
+
+      try {
+        await Api.patch(`/api/users/${userId}`, body);
+        hideModal();
+        loadUsers();
+      } catch (e) { alert(e.message); }
+    });
+
+    // Set department select value
+    const deptSelect = document.getElementById('userDept');
+    if (deptSelect && user.departmentId) deptSelect.value = user.departmentId;
+
+    // Render country picker with existing assignments
+    const container = document.getElementById('countryPickerContainer');
+    container.innerHTML = buildCountryPickerHtml(selectedCountryIds);
+    initCountryPicker(container);
+
+    // Show/hide country picker based on role
+    const roleSelect = document.getElementById('userRole');
+    roleSelect.addEventListener('change', () => {
+      const role = roleSelect.value;
+      const show = role === 'COLLABORATOR' || role === 'SUPER_COLLABORATOR';
+      document.getElementById('countryAssignmentGroup').style.display = show ? '' : 'none';
+    });
+  };
 
   // ── Deputy–Supervisor Links ────────────────────────────────────────────────
   let allUsers = [];
