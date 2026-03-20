@@ -1,37 +1,19 @@
--- Vector Portal — Database Schema
--- Run: psql $DATABASE_URL -f server/schema.sql
+-- Vector Portal — Database Schema (idempotent — safe to run multiple times)
 
 BEGIN;
 
 -- ─── Enums ──────────────────────────────────────────────────────────────────
 
-CREATE TYPE user_role AS ENUM (
-  'ADMIN', 'PROTOCOL', 'DEPUTY', 'SUPERVISOR', 'SUPER_COLLABORATOR', 'COLLABORATOR'
-);
-
-CREATE TYPE ds_role AS ENUM (
-  'DEPUTY', 'SUPERVISOR', 'SUPER_COLLABORATOR'
-);
-
-CREATE TYPE event_language AS ENUM (
-  'EN', 'FR', 'AR', 'ES', 'RU', 'ZH', 'PT', 'DE'
-);
-
-CREATE TYPE event_status AS ENUM (
-  'DRAFT', 'IN_PROGRESS', 'COMPLETED', 'ARCHIVED'
-);
-
-CREATE TYPE workflow_step_status AS ENUM (
-  'PENDING', 'IN_PROGRESS', 'APPROVED', 'RETURNED'
-);
-
-CREATE TYPE history_action AS ENUM (
-  'saved', 'submitted', 'returned', 'approved', 'asked_to_return'
-);
+DO $$ BEGIN CREATE TYPE user_role AS ENUM ('ADMIN','PROTOCOL','DEPUTY','SUPERVISOR','SUPER_COLLABORATOR','COLLABORATOR'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE ds_role AS ENUM ('DEPUTY','SUPERVISOR','SUPER_COLLABORATOR'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE event_language AS ENUM ('EN','FR','AR','ES','RU','ZH','PT','DE'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE event_status AS ENUM ('DRAFT','IN_PROGRESS','COMPLETED','ARCHIVED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE workflow_step_status AS ENUM ('PENDING','IN_PROGRESS','APPROVED','RETURNED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE history_action AS ENUM ('saved','submitted','returned','approved','asked_to_return'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ─── Countries ──────────────────────────────────────────────────────────────
 
-CREATE TABLE countries (
+CREATE TABLE IF NOT EXISTS countries (
   id            SERIAL PRIMARY KEY,
   name_en       VARCHAR(120) NOT NULL UNIQUE,
   code          CHAR(2) NOT NULL UNIQUE,
@@ -41,7 +23,7 @@ CREATE TABLE countries (
 
 -- ─── Departments ────────────────────────────────────────────────────────────
 
-CREATE TABLE departments (
+CREATE TABLE IF NOT EXISTS departments (
   id            SERIAL PRIMARY KEY,
   name          VARCHAR(200) NOT NULL,
   is_external   BOOLEAN NOT NULL DEFAULT false,
@@ -51,7 +33,7 @@ CREATE TABLE departments (
 
 -- ─── Users ──────────────────────────────────────────────────────────────────
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id                    SERIAL PRIMARY KEY,
   full_name             VARCHAR(200) NOT NULL,
   username              VARCHAR(100) NOT NULL UNIQUE,
@@ -65,9 +47,9 @@ CREATE TABLE users (
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ─── Country Assignments (Collaborator / Super-Collaborator only) ───────────
+-- ─── Country Assignments ────────────────────────────────────────────────────
 
-CREATE TABLE country_assignments (
+CREATE TABLE IF NOT EXISTS country_assignments (
   user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   country_id INT NOT NULL REFERENCES countries(id) ON DELETE CASCADE,
   PRIMARY KEY (user_id, country_id)
@@ -75,7 +57,7 @@ CREATE TABLE country_assignments (
 
 -- ─── Deputy–Supervisor Links ────────────────────────────────────────────────
 
-CREATE TABLE deputy_supervisor_links (
+CREATE TABLE IF NOT EXISTS deputy_supervisor_links (
   id            SERIAL PRIMARY KEY,
   deputy_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   supervisor_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -84,7 +66,7 @@ CREATE TABLE deputy_supervisor_links (
 
 -- ─── Events ─────────────────────────────────────────────────────────────────
 
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
   id                        SERIAL PRIMARY KEY,
   title                     VARCHAR(500) NOT NULL,
   description               TEXT,
@@ -106,7 +88,7 @@ CREATE TABLE events (
 
 -- ─── Sections ───────────────────────────────────────────────────────────────
 
-CREATE TABLE sections (
+CREATE TABLE IF NOT EXISTS sections (
   id          SERIAL PRIMARY KEY,
   event_id    INT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   title       VARCHAR(500) NOT NULL,
@@ -117,7 +99,7 @@ CREATE TABLE sections (
 
 -- ─── Section–Department Assignment ──────────────────────────────────────────
 
-CREATE TABLE section_departments (
+CREATE TABLE IF NOT EXISTS section_departments (
   section_id    INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
   department_id INT NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
   PRIMARY KEY (section_id, department_id)
@@ -125,7 +107,7 @@ CREATE TABLE section_departments (
 
 -- ─── Workflow Steps ─────────────────────────────────────────────────────────
 
-CREATE TABLE workflow_steps (
+CREATE TABLE IF NOT EXISTS workflow_steps (
   id                SERIAL PRIMARY KEY,
   section_id        INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
   department_id     INT REFERENCES departments(id),
@@ -139,7 +121,7 @@ CREATE TABLE workflow_steps (
 
 -- ─── Section Content ────────────────────────────────────────────────────────
 
-CREATE TABLE section_content (
+CREATE TABLE IF NOT EXISTS section_content (
   id                            SERIAL PRIMARY KEY,
   event_id                      INT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   section_id                    INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
@@ -157,7 +139,7 @@ CREATE TABLE section_content (
 
 -- ─── Section History ────────────────────────────────────────────────────────
 
-CREATE TABLE section_history (
+CREATE TABLE IF NOT EXISTS section_history (
   id          SERIAL PRIMARY KEY,
   event_id    INT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   section_id  INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
@@ -171,11 +153,11 @@ CREATE TABLE section_history (
   acted_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_section_history_lookup ON section_history (event_id, section_id, acted_at);
+CREATE INDEX IF NOT EXISTS idx_section_history_lookup ON section_history (event_id, section_id, acted_at);
 
 -- ─── Section Comments ───────────────────────────────────────────────────────
 
-CREATE TABLE section_comments (
+CREATE TABLE IF NOT EXISTS section_comments (
   id          SERIAL PRIMARY KEY,
   event_id    INT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   section_id  INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
@@ -187,7 +169,7 @@ CREATE TABLE section_comments (
 
 -- ─── Section Return Requests ────────────────────────────────────────────────
 
-CREATE TABLE section_return_requests (
+CREATE TABLE IF NOT EXISTS section_return_requests (
   id                      SERIAL PRIMARY KEY,
   event_id                INT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   section_id              INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
@@ -201,7 +183,7 @@ CREATE TABLE section_return_requests (
 
 -- ─── Event Templates ────────────────────────────────────────────────────────
 
-CREATE TABLE event_templates (
+CREATE TABLE IF NOT EXISTS event_templates (
   id                        SERIAL PRIMARY KEY,
   name                      VARCHAR(300) NOT NULL,
   created_by_id             INT NOT NULL REFERENCES users(id),
@@ -211,14 +193,14 @@ CREATE TABLE event_templates (
   updated_at                TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE event_template_sections (
+CREATE TABLE IF NOT EXISTS event_template_sections (
   id            SERIAL PRIMARY KEY,
   template_id   INT NOT NULL REFERENCES event_templates(id) ON DELETE CASCADE,
   title         VARCHAR(500) NOT NULL,
   sort_order    INT NOT NULL DEFAULT 0
 );
 
-CREATE TABLE event_template_section_departments (
+CREATE TABLE IF NOT EXISTS event_template_section_departments (
   template_section_id INT NOT NULL REFERENCES event_template_sections(id) ON DELETE CASCADE,
   department_id       INT NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
   PRIMARY KEY (template_section_id, department_id)
