@@ -3,29 +3,102 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Vector Portal — Calendar</title>
+  <title>Vector Portal — Events</title>
   <link rel="stylesheet" href="/css/variables.css" />
   <link rel="stylesheet" href="/css/base.css" />
   <link rel="stylesheet" href="/css/sidebar.css" />
   <link rel="stylesheet" href="/css/components.css" />
+  <style>
+    .event-tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); }
+    .event-tab {
+      padding: 10px 20px; border: none; background: none;
+      font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);
+      cursor: pointer; border-bottom: 2px solid transparent;
+      margin-bottom: -2px; font-family: var(--font-primary);
+    }
+    .event-tab:hover { color: var(--text-primary); }
+    .event-tab.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+
+    .filter-bar {
+      display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-end;
+    }
+    .filter-bar .form-group { margin-bottom: 0; flex: 1; min-width: 160px; max-width: 250px; }
+    .filter-bar .form-label { font-size: 0.75rem; }
+
+    .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+    .pagination button {
+      padding: 6px 14px; border: 1px solid var(--border-color);
+      background: var(--bg-card); color: var(--text-primary);
+      border-radius: 4px; cursor: pointer; font-size: 13px;
+    }
+    .pagination button.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+    .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .event-card {
+      border: 1px solid var(--border-color); border-radius: var(--radius-lg);
+      padding: 16px 20px; margin-bottom: 12px; background: var(--bg-card);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .event-card-info h4 { margin: 0 0 4px 0; font-size: 1rem; }
+    .event-card-meta { font-size: 0.8rem; color: var(--text-secondary); display: flex; gap: 16px; flex-wrap: wrap; }
+    .event-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  </style>
 </head>
 <body>
   <div class="layout">
     <aside class="sidebar"></aside>
     <main class="main">
-      <div class="topbar">
-        <div class="page-title">Calendar</div>
+      <div class="topbar" style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="page-title">Events</div>
+        <button class="btn btn-primary" id="createEventBtn" style="display:none;">+ Create Event</button>
       </div>
-      <div class="card">
-        <div class="empty-state"><p>Coming soon</p></div>
+
+      <div class="event-tabs">
+        <button class="event-tab active" data-tab="upcoming">Upcoming</button>
+        <button class="event-tab" data-tab="past">Past Events</button>
+      </div>
+
+      <div class="filter-bar">
+        <div class="form-group">
+          <label class="form-label">Search</label>
+          <input class="form-input" id="filterKeyword" placeholder="Title or occasion..." />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Country</label>
+          <select class="form-select" id="filterCountry"><option value="">All countries</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">From</label>
+          <input class="form-input" type="date" id="filterDateFrom" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">To</label>
+          <input class="form-input" type="date" id="filterDateTo" />
+        </div>
+      </div>
+
+      <div id="eventsList"></div>
+      <div class="pagination" id="pagination"></div>
+
+      <!-- Create / View / Edit Event Modal -->
+      <div id="eventModal" class="modal-overlay" style="display:none;">
+        <div class="modal-card" style="max-width:640px;">
+          <h3 id="eventModalTitle">Create Event</h3>
+          <div id="eventModalBody"></div>
+          <div class="modal-footer">
+            <button class="btn btn-outline" id="eventModalCancel">Cancel</button>
+            <button class="btn btn-primary" id="eventModalSave">Create</button>
+          </div>
+        </div>
       </div>
     </main>
   </div>
+
   <script src="/js/core/config.js"></script>
   <script src="/js/core/api.js"></script>
   <script src="/js/core/i18n.js"></script>
   <script src="/js/core/utils.js"></script>
   <script src="/js/core/app.js"></script>
-  <script>App.init();</script>
+  <script src="/js/pages/calendar.js"></script>
 </body>
 </html>

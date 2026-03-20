@@ -114,6 +114,158 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/events/:id — event detail with sections
+router.get('/:id', requireAuth, async (req, res) => {
+  try {
+    const { rows: [event] } = await db.query(
+      `SELECT e.id, e.title, e.description, e.country_id, e.document_submitter_role,
+              e.document_submitter_id, e.deputy_id, e.curator_required,
+              e.language, e.deadline_date, e.occasion, e.is_active,
+              e.ended_at, e.status, e.created_at,
+              c.name_en AS country_name, c.code AS country_code,
+              ds.full_name AS document_submitter_name,
+              dep.full_name AS deputy_name
+       FROM events e
+       JOIN countries c ON c.id = e.country_id
+       JOIN users ds ON ds.id = e.document_submitter_id
+       LEFT JOIN users dep ON dep.id = e.deputy_id
+       WHERE e.id = $1`,
+      [req.params.id]
+    );
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+
+    const { rows: sections } = await db.query(
+      `SELECT s.id, s.title, s.sort_order,
+              array_agg(sd.department_id) AS department_ids
+       FROM sections s
+       LEFT JOIN section_departments sd ON sd.section_id = s.id
+       WHERE s.event_id = $1
+       GROUP BY s.id
+       ORDER BY s.sort_order`,
+      [req.params.id]
+    );
+
+    res.json({
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      countryId: event.country_id,
+      countryName: event.country_name,
+      countryCode: event.country_code,
+      documentSubmitterRole: event.document_submitter_role,
+      documentSubmitterId: event.document_submitter_id,
+      documentSubmitterName: event.document_submitter_name,
+      deputyId: event.deputy_id,
+      deputyName: event.deputy_name,
+      curatorRequired: event.curator_required,
+      language: event.language,
+      deadlineDate: event.deadline_date,
+      occasion: event.occasion,
+      isActive: event.is_active,
+      endedAt: event.ended_at,
+      status: event.status,
+      createdAt: event.created_at,
+      sections: sections.map(s => ({
+        id: s.id,
+        title: s.title,
+        sortOrder: s.sort_order,
+        departmentIds: (s.department_ids || []).filter(Boolean),
+      })),
+    });
+  } catch (err) {
+    console.error('Get event error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /api/events/:id — edit event
+router.patch('/:id', requireAuth, async (req, res) => {
+  try {
+    if (!canCreateEvent(req.user.role)) {
+      return res.status(403).json({ error: 'Not authorized to edit events' });
+    }
+
+    const { title, language, deadlineDate, occasion } = req.body;
+    const sets = [];
+    const params = [];
+    let idx = 1;
+
+    if (title !== undefined) { sets.push(`title = $${idx++}`); params.push(title); }
+    if (language !== undefined) { sets.push(`language = $${idx++}`); params.push(language); }
+    if (deadlineDate !== undefined) { sets.push(`deadline_date = $${idx++}`); params.push(deadlineDate || null); }
+    if (occasion !== undefined) { sets.push(`occasion = $${idx++}`); params.push(occasion || null); }
+
+    if (sets.length === 0) return res.status(400).json({ error: 'No fields to update' });
+
+    sets.push(`updated_at = now()`);
+    params.push(req.params.id);
+
+    await db.query(
+      `UPDATE events SET ${sets.join(', ')} WHERE id = $${idx}`,
+      params
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Edit event error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/events/:id/sections — add section to existing event
+router.post('/:id/sections', requireAuth, async (req, res) => {
+  try {
+    if (!canCreateEvent(req.user.role)) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+    const { title, departmentIds } = req.body;
+    if (!title) return res.status(400).json({ error: 'title is required' });
+
+    const eventId = req.params.id;
+
+    // Get max sort order
+    const { rows: [maxRow] } = await db.query(
+      'SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM sections WHERE event_id = $1',
+      [eventId]
+    );
+
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const { rows: [section] } = await client.query(
+        'INSERT INTO sections (event_id, title, sort_order) VALUES ($1, $2, $3) RETURNING id',
+        [eventId, title, maxRow.next_order]
+      );
+
+      if (departmentIds && departmentIds.length > 0) {
+        for (const deptId of departmentIds) {
+          await client.query(
+            'INSERT INTO section_departments (section_id, department_id) VALUES ($1, $2)',
+            [section.id, deptId]
+          );
+        }
+      }
+
+      await client.query(
+        'INSERT INTO section_content (event_id, section_id) VALUES ($1, $2)',
+        [eventId, section.id]
+      );
+
+      await client.query('COMMIT');
+      res.status(201).json({ id: section.id, success: true });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('Add section error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // POST /api/events/:id/end — end an event
 router.post('/:id/end', requireAuth, async (req, res) => {
   try {

@@ -8,24 +8,62 @@
   <link rel="stylesheet" href="/css/base.css" />
   <link rel="stylesheet" href="/css/sidebar.css" />
   <link rel="stylesheet" href="/css/components.css" />
+  <style>
+    .section-nav {
+      position: sticky; top: 0; background: var(--bg-card);
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 16px; margin-bottom: 16px; z-index: 10;
+      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    }
+    .section-nav a {
+      padding: 4px 12px; border-radius: 4px; font-size: 13px;
+      text-decoration: none; color: var(--text-secondary);
+      border: 1px solid var(--border-color); white-space: nowrap;
+    }
+    .section-nav a:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .section-nav a.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+
+    .section-card {
+      border: 1px solid var(--border-color); border-radius: var(--radius-lg);
+      padding: 20px 24px; margin-bottom: 16px; background: var(--bg-card);
+    }
+    .section-card-header {
+      display: flex; justify-content: space-between; align-items: center;
+      cursor: pointer; padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color); margin-bottom: 12px;
+    }
+    .section-card-header h3 { margin: 0; font-size: 1rem; }
+    .section-card-header .toggle { font-size: 18px; color: var(--text-secondary); }
+    .section-card-body { overflow: hidden; transition: max-height 0.3s ease; }
+    .section-card-body.collapsed { max-height: 0; overflow: hidden; padding: 0; margin: 0; border: 0; }
+    .section-content-view {
+      font-family: 'FiraGO', 'Noto Sans Georgian', Arial, sans-serif;
+      font-size: 14px; line-height: 1.7; min-height: 60px;
+    }
+    .section-status-bar {
+      display: flex; gap: 12px; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;
+    }
+  </style>
 </head>
 <body>
   <div class="layout">
     <aside class="sidebar"></aside>
     <main class="main">
-      <div class="topbar">
-        <div class="page-title">All Sections</div>
+      <div class="topbar" style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="page-title" id="pageTitle">All Sections</div>
+        <button class="btn btn-outline" id="btnBack">Back to Dashboard</button>
       </div>
-      <div class="card">
-        <div class="empty-state"><p>Coming soon</p></div>
-      </div>
+
+      <div class="section-nav" id="sectionNav"></div>
+      <div id="sectionsContainer"></div>
     </main>
   </div>
+
   <script src="/js/core/config.js"></script>
   <script src="/js/core/api.js"></script>
   <script src="/js/core/i18n.js"></script>
   <script src="/js/core/utils.js"></script>
   <script src="/js/core/app.js"></script>
-  <script>App.init();</script>
+  <script src="/js/pages/editor-all.js"></script>
 </body>
 </html>

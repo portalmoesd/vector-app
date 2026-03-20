@@ -119,6 +119,15 @@
       </button>`);
     }
 
+    // File upload button
+    btns.push(`<button id="btnUpload">
+      <span class="icon" style="--icon-url: url(/assets/upload-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
+      Files
+    </button>`);
+
+    // View all sections
+    btns.push(`<button id="btnViewAll" onclick="window.location.href='/pages/editor-all.html?event_id=${eventId}'">All Sections</button>`);
+
     // Back to dashboard
     btns.push(`<button id="btnBack" style="margin-left: auto;">Back to Dashboard</button>`);
 
@@ -137,6 +146,8 @@
     if (btnApprove) btnApprove.addEventListener('click', handleApprove);
     if (btnReturn) btnReturn.addEventListener('click', handleReturn);
     if (btnAskReturn) btnAskReturn.addEventListener('click', handleAskReturn);
+    const btnUpload = document.getElementById('btnUpload');
+    if (btnUpload) btnUpload.addEventListener('click', handleFiles);
     if (btnBack) btnBack.addEventListener('click', () => {
       window.location.href = dashboardUrl(user.role);
     });
@@ -214,6 +225,67 @@
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 2500);
   }
+
+  // ─── Files ──────────────────────────────────────────────────────────────────
+
+  async function handleFiles() {
+    const filesPanel = document.getElementById('filesPanel');
+    if (filesPanel.style.display === 'none') {
+      filesPanel.style.display = '';
+      loadFiles();
+    } else {
+      filesPanel.style.display = 'none';
+    }
+  }
+
+  async function loadFiles() {
+    const list = document.getElementById('filesList');
+    try {
+      const files = await Api.get(`/api/library/${eventId}/files`);
+      if (!files || files.length === 0) {
+        list.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">No files uploaded</p>';
+        return;
+      }
+      list.innerHTML = files.map(f => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border-color);">
+          <span style="font-size:13px;">${escapeHtml(f.filename)}</span>
+          <a href="${API_BASE}/api/workflow/files/download?event_id=${eventId}&filename=${encodeURIComponent(f.filename)}"
+             class="btn btn-outline" style="padding:4px 10px;font-size:12px;" download>Download</a>
+        </div>
+      `).join('');
+    } catch (e) {
+      list.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">Could not load files</p>';
+    }
+  }
+
+  document.getElementById('fileUploadInput').addEventListener('change', async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const formData = new FormData();
+    formData.append('eventId', eventId);
+    for (const file of files) {
+      formData.append('files', file);
+    }
+
+    try {
+      const token = Api.getToken();
+      const res = await fetch(`${API_BASE}/api/workflow/files/upload`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Upload failed');
+      }
+      showNotification('Files uploaded');
+      loadFiles();
+      e.target.value = '';
+    } catch (err) {
+      alert('Upload failed: ' + err.message);
+    }
+  });
 
   // ─── Comments ────────────────────────────────────────────────────────────────
 

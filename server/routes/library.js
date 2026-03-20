@@ -4,19 +4,28 @@ const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// GET /api/library — list approved documents (scoped to user participation)
+// GET /api/library — list completed/archived events scoped to user participation
 router.get('/', requireAuth, async (req, res) => {
   try {
-    // TODO: implement participation-scoped filtering
+    // Participation-scoped: user must have touched at least one section
     const { rows } = await db.query(
-      `SELECT e.id, e.title, e.language, e.ended_at,
+      `SELECT DISTINCT e.id, e.title, e.language, e.ended_at,
               c.name_en AS country_name, c.code AS country_code,
               ds.full_name AS document_submitter_name
        FROM events e
        JOIN countries c ON c.id = e.country_id
        JOIN users ds ON ds.id = e.document_submitter_id
-       WHERE e.status = 'COMPLETED' OR e.status = 'ARCHIVED'
-       ORDER BY e.ended_at DESC`
+       LEFT JOIN section_history sh ON sh.event_id = e.id
+       WHERE (e.status = 'COMPLETED' OR e.status = 'ARCHIVED')
+         AND (
+           sh.user_id = $1
+           OR e.document_submitter_id = $1
+           OR e.deputy_id = $1
+           OR e.created_by_id = $1
+           OR $2 = 'ADMIN'
+         )
+       ORDER BY e.ended_at DESC`,
+      [req.user.id, req.user.role]
     );
     res.json(rows.map(r => ({
       id: r.id,
@@ -29,6 +38,73 @@ router.get('/', requireAuth, async (req, res) => {
     })));
   } catch (err) {
     console.error('Library list error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/library/:eventId/document — full document with all section content
+router.get('/:eventId/document', requireAuth, async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+
+    const { rows: [event] } = await db.query(
+      `SELECT e.title, e.language, c.name_en AS country_name
+       FROM events e JOIN countries c ON c.id = e.country_id
+       WHERE e.id = $1 AND (e.status = 'COMPLETED' OR e.status = 'ARCHIVED')`,
+      [eventId]
+    );
+    if (!event) return res.status(404).json({ error: 'Document not found' });
+
+    const { rows: sections } = await db.query(
+      `SELECT s.id, s.title, s.sort_order, sc.html_content
+       FROM sections s
+       JOIN section_content sc ON sc.section_id = s.id AND sc.event_id = s.event_id
+       WHERE s.event_id = $1
+       ORDER BY s.sort_order`,
+      [eventId]
+    );
+
+    res.json({
+      eventId: parseInt(eventId),
+      title: event.title,
+      language: event.language,
+      countryName: event.country_name,
+      sections: sections.map(s => ({
+        id: s.id,
+        title: s.title,
+        sortOrder: s.sort_order,
+        htmlContent: s.html_content,
+      })),
+    });
+  } catch (err) {
+    console.error('Library document error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/library/:eventId/files — list files for an event
+router.get('/:eventId/files', requireAuth, async (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const uploadDir = path.join(__dirname, '../../uploads', req.params.eventId);
+
+    if (!fs.existsSync(uploadDir)) {
+      return res.json([]);
+    }
+
+    const files = fs.readdirSync(uploadDir).map(name => {
+      const stats = fs.statSync(path.join(uploadDir, name));
+      return {
+        filename: name,
+        size: stats.size,
+        uploadedAt: stats.mtime,
+      };
+    });
+
+    res.json(files);
+  } catch (err) {
+    console.error('Library files error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

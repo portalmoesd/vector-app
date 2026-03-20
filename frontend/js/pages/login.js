@@ -12,8 +12,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     Api.setUser(data.user);
 
     if (data.user.mustChangePassword) {
-      // TODO: redirect to change-password page
-      window.location.href = '/';
+      window.location.href = '/pages/change-password.html';
     } else {
       window.location.href = '/';
     }
