@@ -59,7 +59,7 @@
 
     const panel = document.createElement('div');
     panel.className = 'tpl-dept-picker-panel';
-    panel.style.cssText = 'display:none;position:absolute;left:0;right:0;bottom:100%;margin-bottom:4px;background:var(--bg-card,#fff);border:1px solid var(--border-color,#ddd);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:50;max-height:340px;overflow:hidden;display:none;flex-direction:column;';
+    panel.style.cssText = 'display:none;position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--bg-card,#fff);border:1px solid var(--border-color,#ddd);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:300;max-height:340px;overflow:hidden;flex-direction:column;';
 
     // Search input
     const searchWrap = document.createElement('div');
@@ -355,7 +355,7 @@
     function addSectionRow() {
       const row = document.createElement('div');
       row.className = 'tpl-section-row';
-      row.style.cssText = 'border:1px solid var(--border-color,#ddd);border-radius:12px;margin-bottom:10px;overflow:hidden;';
+      row.style.cssText = 'border:1px solid var(--border-color,#ddd);border-radius:12px;margin-bottom:10px;';
       row.innerHTML = `
         <div class="tpl-sec-header" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;user-select:none;">
           <span class="tpl-sec-toggle" style="font-size:11px;color:#888;transition:transform .2s;">\u25b6</span>
