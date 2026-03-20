@@ -118,6 +118,7 @@ tr:hover td {
 .pill-green { background: rgba(22,163,74,0.12); color: var(--accent-green); }
 .pill-red { background: rgba(220,38,38,0.12); color: var(--accent-red); }
 .pill-yellow { background: rgba(234,179,8,0.12); color: #a16207; }
+.pill-purple { background: rgba(124,58,237,0.12); color: #7c3aed; }
 .pill-gray { background: rgba(100,116,139,0.12); color: var(--text-secondary); }
 
 /* ─── Status Indicators ──────────────────────────────────────────────────── */

@@ -111,6 +111,73 @@ router.get('/supervisors', requireAuth, async (req, res) => {
   }
 });
 
+// ─── Department Hierarchy ─────────────────────────────────────────────────────
+
+// GET /api/admin/department-hierarchy — shows Dept → Supervisor(s) → SC(s) → Collaborator(s)
+router.get('/department-hierarchy', requireAuth, async (req, res) => {
+  try {
+    const { rows: depts } = await db.query(
+      `SELECT id, name, name_en, is_external FROM departments ORDER BY name_en`
+    );
+    const { rows: users } = await db.query(
+      `SELECT id, full_name, email, role, department_id
+       FROM users
+       WHERE department_id IS NOT NULL
+         AND role IN ('SUPERVISOR', 'SUPER_COLLABORATOR', 'COLLABORATOR')
+       ORDER BY role, full_name`
+    );
+
+    // Group users by department
+    const byDept = {};
+    for (const u of users) {
+      if (!byDept[u.department_id]) byDept[u.department_id] = [];
+      byDept[u.department_id].push({
+        id: u.id,
+        fullName: u.full_name,
+        email: u.email,
+        role: u.role,
+      });
+    }
+
+    // Also fetch deputy links to show which deputy oversees which departments
+    const { rows: links } = await db.query(
+      `SELECT dsl.deputy_id, dsl.supervisor_id, d.full_name AS deputy_name, s.department_id
+       FROM deputy_supervisor_links dsl
+       JOIN users d ON d.id = dsl.deputy_id
+       JOIN users s ON s.id = dsl.supervisor_id
+       WHERE s.department_id IS NOT NULL`
+    );
+
+    // Map department → deputy names
+    const deptDeputies = {};
+    for (const l of links) {
+      if (!deptDeputies[l.department_id]) deptDeputies[l.department_id] = new Set();
+      deptDeputies[l.department_id].add(l.deputy_name);
+    }
+
+    const hierarchy = depts
+      .filter(d => byDept[d.id] && byDept[d.id].length > 0)
+      .map(d => {
+        const members = byDept[d.id] || [];
+        return {
+          departmentId: d.id,
+          departmentName: d.name,
+          departmentNameEn: d.name_en,
+          isExternal: d.is_external,
+          deputies: Array.from(deptDeputies[d.id] || []),
+          supervisors: members.filter(u => u.role === 'SUPERVISOR'),
+          superCollaborators: members.filter(u => u.role === 'SUPER_COLLABORATOR'),
+          collaborators: members.filter(u => u.role === 'COLLABORATOR'),
+        };
+      });
+
+    res.json(hierarchy);
+  } catch (err) {
+    console.error('Department hierarchy error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ─── Deputies list (for dropdowns) ────────────────────────────────────────────
 
 router.get('/deputies', requireAuth, async (req, res) => {

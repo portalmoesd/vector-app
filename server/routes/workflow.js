@@ -469,10 +469,14 @@ router.get('/status-grid', requireAuth, async (req, res) => {
     const enrichedSections = [];
     for (const s of sections) {
       const { rows: deptRows } = await db.query(
-        'SELECT department_id FROM section_departments WHERE section_id = $1',
+        `SELECT sd.department_id, d.name_en AS department_name
+         FROM section_departments sd
+         LEFT JOIN departments d ON d.id = sd.department_id
+         WHERE sd.section_id = $1`,
         [s.section_id]
       );
       const sectionDeptIds = deptRows.map(r => r.department_id);
+      const sectionDeptNames = deptRows.map(r => r.department_name).filter(Boolean);
       const isCrossDept = sectionDeptIds.some(d => d !== dsDeptId);
       const chain = buildChain(event.document_submitter_role, event.curator_required, isCrossDept);
 
@@ -481,13 +485,20 @@ router.get('/status-grid', requireAuth, async (req, res) => {
       for (const role of chain) {
         let actorName = null;
         let actorId = null;
+        let deptName = null;
 
         if (role === 'CURATOR' && event.deputy_id) {
-          const { rows: [dep] } = await db.query('SELECT id, full_name FROM users WHERE id = $1', [event.deputy_id]);
-          if (dep) { actorName = dep.full_name; actorId = dep.id; }
+          const { rows: [dep] } = await db.query(
+            `SELECT u.id, u.full_name, d.name_en AS department_name
+             FROM users u LEFT JOIN departments d ON d.id = u.department_id
+             WHERE u.id = $1`, [event.deputy_id]);
+          if (dep) { actorName = dep.full_name; actorId = dep.id; deptName = dep.department_name; }
         } else if (role === ROLES.DEPUTY && event.document_submitter_role === 'DEPUTY') {
-          const { rows: [dep] } = await db.query('SELECT id, full_name FROM users WHERE id = $1', [event.document_submitter_id]);
-          if (dep) { actorName = dep.full_name; actorId = dep.id; }
+          const { rows: [dep] } = await db.query(
+            `SELECT u.id, u.full_name, d.name_en AS department_name
+             FROM users u LEFT JOIN departments d ON d.id = u.department_id
+             WHERE u.id = $1`, [event.document_submitter_id]);
+          if (dep) { actorName = dep.full_name; actorId = dep.id; deptName = dep.department_name; }
         } else {
           // Find a user with this role in any assigned department (or DS dept for receiving chain roles)
           const searchDepts = (role === ROLES.SUPERVISOR || role === ROLES.SUPER_COLLABORATOR)
@@ -496,16 +507,18 @@ router.get('/status-grid', requireAuth, async (req, res) => {
 
           if (searchDepts.length > 0 && searchDepts[0]) {
             const { rows: [user] } = await db.query(
-              `SELECT id, full_name FROM users
-               WHERE role = $1 AND department_id = ANY($2) AND id != 0
-               ORDER BY id LIMIT 1`,
+              `SELECT u.id, u.full_name, d.name_en AS department_name
+               FROM users u
+               LEFT JOIN departments d ON d.id = u.department_id
+               WHERE u.role = $1 AND u.department_id = ANY($2) AND u.id != 0
+               ORDER BY u.id LIMIT 1`,
               [role, searchDepts]
             );
-            if (user) { actorName = user.full_name; actorId = user.id; }
+            if (user) { actorName = user.full_name; actorId = user.id; deptName = user.department_name; }
           }
         }
 
-        steps.push({ role, actorName, actorId });
+        steps.push({ role, actorName, actorId, departmentName: deptName });
       }
 
       const status = s.status || 'draft';
@@ -537,6 +550,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
         returnTargetRole: s.return_target_role,
         currentHolderRole: holderRole,
         departmentIds: sectionDeptIds,
+        departmentNames: sectionDeptNames,
         isCrossDept,
         chain,
         steps,

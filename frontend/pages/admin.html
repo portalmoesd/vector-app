@@ -24,6 +24,7 @@
         <button class="admin-tab active" data-tab="departments">Departments</button>
         <button class="admin-tab" data-tab="users">Users</button>
         <button class="admin-tab" data-tab="links">Deputy–Supervisor Links</button>
+        <button class="admin-tab" data-tab="hierarchy">Department Hierarchy</button>
       </div>
 
       <!-- Departments Tab -->
@@ -56,6 +57,19 @@
             <button class="btn btn-primary" id="addLinkBtn">+ Add Link</button>
           </div>
           <div id="linksList"><div class="empty-state"><p>Loading...</p></div></div>
+        </div>
+      </div>
+
+      <!-- Department Hierarchy Tab -->
+      <div class="admin-panel" id="tab-hierarchy" style="display:none;">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3>Department Hierarchy</h3>
+          </div>
+          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:18px;">
+            Shows how Supervisors, Super-Collaborators, and Collaborators are grouped within each department.
+          </p>
+          <div id="hierarchyList"><div class="empty-state"><p>Loading...</p></div></div>
         </div>
       </div>
 

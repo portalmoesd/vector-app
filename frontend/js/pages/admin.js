@@ -410,8 +410,57 @@
     });
   });
 
+  // ── Department Hierarchy ──────────────────────────────────────────────────
+  async function loadHierarchy() {
+    try {
+      const data = await Api.get('/api/admin/department-hierarchy');
+      if (data.length === 0) {
+        document.getElementById('hierarchyList').innerHTML = '<div class="empty-state"><p>No departments with assigned users</p></div>';
+        return;
+      }
+      document.getElementById('hierarchyList').innerHTML = data.map(dept => {
+        const deputyBadges = dept.deputies.length > 0
+          ? dept.deputies.map(d => `<span class="pill pill-purple" style="font-size:11px;">${escapeHtml(d)}</span>`).join(' ')
+          : '<span style="color:var(--text-muted);font-size:12px;">No deputy linked</span>';
+
+        const renderUsers = (users, pillClass) => users.length > 0
+          ? users.map(u => `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;">
+              <span class="pill ${pillClass}" style="font-size:11px;">${escapeHtml(u.fullName)}</span>
+              <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(u.email)}</span>
+            </div>`).join('')
+          : '<span style="color:var(--text-muted);font-size:12px;padding-left:4px;">— None —</span>';
+
+        return `<div class="dept-hierarchy-card" style="border:1px solid var(--border-color);border-radius:12px;padding:18px 20px;margin-bottom:14px;background:var(--bg-card);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h4 style="margin:0;font-size:0.95rem;">${escapeHtml(dept.departmentNameEn || dept.departmentName)}</h4>
+            ${dept.isExternal ? '<span class="pill pill-yellow" style="font-size:11px;">Agency</span>' : ''}
+          </div>
+          <div style="margin-bottom:10px;">
+            <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Deputy</div>
+            <div style="padding-left:4px;">${deputyBadges}</div>
+          </div>
+          <div style="margin-bottom:10px;">
+            <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Supervisors</div>
+            ${renderUsers(dept.supervisors, 'pill-blue')}
+          </div>
+          <div style="margin-bottom:10px;">
+            <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Super-Collaborators</div>
+            ${renderUsers(dept.superCollaborators, 'pill-green')}
+          </div>
+          <div>
+            <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Collaborators</div>
+            ${renderUsers(dept.collaborators, 'pill-blue')}
+          </div>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      document.getElementById('hierarchyList').innerHTML = `<div class="msg msg-error">${escapeHtml(e.message)}</div>`;
+    }
+  }
+
   // ── Init ───────────────────────────────────────────────────────────────────
   departments = await loadDepartments();
   loadUsers();
   loadLinks();
+  loadHierarchy();
 })();

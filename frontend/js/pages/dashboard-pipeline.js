@@ -234,12 +234,16 @@
     const lastUpdated = section.lastUpdatedAt ? formatDateTime(section.lastUpdatedAt) : '';
     const lastUpdatedBy = section.lastUpdatedBy ? escapeHtml(section.lastUpdatedBy) : '';
 
+    const deptInfo = (section.departmentNames && section.departmentNames.length > 0)
+      ? section.departmentNames.map(n => escapeHtml(n)).join(', ')
+      : '';
+
     return `
       <div class="dp-section-row">
         <div class="dp-section-row__header">
           <div class="dp-section-row__info">
             <h4 class="dp-section-row__title">${escapeHtml(section.sectionLabel)}</h4>
-            <div class="dp-section-row__meta">${lastUpdated}${lastUpdatedBy ? ' &middot; ' + lastUpdatedBy : ''}</div>
+            <div class="dp-section-row__meta">${deptInfo ? '<span style="color:var(--accent-blue);font-weight:600;">' + deptInfo + '</span> &middot; ' : ''}${lastUpdated}${lastUpdatedBy ? ' &middot; ' + lastUpdatedBy : ''}</div>
             ${returnReq ? `<div class="dp-return-notice">Return requested by ${escapeHtml(returnReq.from)}${returnReq.note ? ': ' + escapeHtml(returnReq.note) : ''}</div>` : ''}
           </div>
           <div class="dp-section-row__actions">
@@ -273,10 +277,12 @@
     const stepsHtml = steps.map((step, i) => {
       const state = stepStates[i];
       const name = step.actorName || roleLabel(step.role);
+      const dept = step.departmentName || '';
       return `
         <div class="dp-pipeline__step dp-pipeline__step--${state}">
           <span class="dp-pipeline__dot">${i + 1}</span>
-          <span class="dp-pipeline__name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+          <span class="dp-pipeline__name" title="${escapeHtml(name)}${dept ? ' (' + escapeHtml(dept) + ')' : ''}">${escapeHtml(name)}</span>
+          ${dept ? `<span class="dp-pipeline__dept">${escapeHtml(dept)}</span>` : ''}
         </div>
       `;
     }).join('');
