@@ -296,12 +296,12 @@
     const stepsHtml = steps.map((step, i) => {
       const state = stepStates[i];
       const name = step.actorName || roleLabel(step.role);
-      const dept = step.departmentName || '';
+      const subtitle = step.departmentName || (step.role === 'CURATOR' || step.role === 'DEPUTY' ? roleLabel(step.role) : '');
       return `
         <div class="dp-pipeline__step dp-pipeline__step--${state}">
           <span class="dp-pipeline__dot">${i + 1}</span>
-          <span class="dp-pipeline__name" title="${escapeHtml(name)}${dept ? ' (' + escapeHtml(dept) + ')' : ''}">${escapeHtml(name)}</span>
-          ${dept ? `<span class="dp-pipeline__dept">${escapeHtml(dept)}</span>` : ''}
+          <span class="dp-pipeline__name" title="${escapeHtml(name)}${subtitle ? ' (' + escapeHtml(subtitle) + ')' : ''}">${escapeHtml(name)}</span>
+          ${subtitle ? `<span class="dp-pipeline__dept">${escapeHtml(subtitle)}</span>` : ''}
         </div>
       `;
     }).join('');
