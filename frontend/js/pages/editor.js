@@ -1,9 +1,7 @@
 /**
- * Section Editor
- * - Loads section content from the API
- * - Provides rich text editing (contenteditable)
- * - Workflow actions: Save, Submit, Approve, Return, Ask to Return
- * - Comments and history panels
+ * Section Editor — uses GCP.RichEditor for content editing.
+ * Workflow actions: Save, Submit, Approve, Return, Ask to Return
+ * Comments and history panels below.
  */
 (async function () {
   await App.init();
@@ -16,11 +14,11 @@
   const sectionId = parseInt(params.get('section_id'));
 
   if (!eventId || !sectionId) {
-    document.getElementById('editorContent').innerHTML = '<p>Missing event_id or section_id</p>';
+    document.getElementById('richEditorContainer').innerHTML =
+      '<div class="msg msg-error" style="margin:24px;">Missing event_id or section_id</div>';
     return;
   }
 
-  const editorContent = document.getElementById('editorContent');
   const actionToolbar = document.getElementById('actionToolbar');
   const sectionMeta = document.getElementById('sectionMeta');
   const editorTitle = document.getElementById('editorTitle');
@@ -33,13 +31,15 @@
       Api.get(`/api/workflow/section-content?event_id=${eventId}&section_id=${sectionId}`),
     ]);
   } catch (e) {
-    editorContent.innerHTML = `<div class="msg msg-error">${escapeHtml(e.message)}</div>`;
+    document.getElementById('richEditorContainer').innerHTML =
+      `<div class="msg msg-error" style="margin:24px;">${escapeHtml(e.message)}</div>`;
     return;
   }
 
   sectionInfo = grid.sections.find(s => s.sectionId === sectionId);
   if (!sectionInfo) {
-    editorContent.innerHTML = '<div class="msg msg-error">Section not found in event</div>';
+    document.getElementById('richEditorContainer').innerHTML =
+      '<div class="msg msg-error" style="margin:24px;">Section not found in event</div>';
     return;
   }
 
@@ -57,12 +57,27 @@
     ${content.lastEditedBy ? `<span>Last edited by: ${escapeHtml(content.lastEditedBy)}</span>` : ''}
   `;
 
-  // Load content
-  editorContent.innerHTML = content.htmlContent || '';
-
   // Enable/disable editing based on whether user is the holder
   const canEdit = isHolder && (status === 'draft' || status.startsWith('returned_'));
-  editorContent.contentEditable = canEdit ? 'true' : 'false';
+
+  // ── Initialize GCP.RichEditor ──────────────────────────────────────────────
+
+  const richEditor = GCP.RichEditor({
+    container: document.getElementById('richEditorContainer'),
+    initialHtml: content.htmlContent || '',
+    authorName: user.fullName || user.username,
+    sectionTitle: sectionInfo.sectionLabel,
+    readOnly: !canEdit,
+    onCommentsClick(visible) {
+      // Toggle comments sidebar within the editor
+    },
+    onDeleteComment(commentId) {
+      // Could sync with API here
+    },
+    onReplyComment(commentId, reply) {
+      // Could sync with API here
+    },
+  });
 
   // Build action toolbar
   buildToolbar(status, effectiveRole, isHolder, canEdit);
@@ -153,11 +168,13 @@
     });
   }
 
+  // ── Workflow actions (use richEditor.getHtml() instead of contentEditable) ──
+
   async function handleSave() {
     try {
       await Api.post('/api/workflow/save', {
         eventId, sectionId,
-        htmlContent: editorContent.innerHTML,
+        htmlContent: richEditor.getHtml(),
       });
       showNotification('Saved successfully');
     } catch (e) {
@@ -168,12 +185,11 @@
   async function handleSubmit() {
     if (!confirm('Submit this section to the next reviewer?')) return;
     try {
-      // Save first
       await Api.post('/api/workflow/save', {
         eventId, sectionId,
-        htmlContent: editorContent.innerHTML,
+        htmlContent: richEditor.getHtml(),
       });
-      const result = await Api.post('/api/workflow/submit', { eventId, sectionId });
+      await Api.post('/api/workflow/submit', { eventId, sectionId });
       showNotification('Submitted successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
@@ -299,7 +315,10 @@
       }
       list.innerHTML = comments.map(c => `
         <div class="comment-card">
-          <div class="comment-meta">${escapeHtml(c.userName || 'User')} — ${formatDateTime(c.createdAt)}</div>
+          <div class="comment-meta">
+            <span class="gcp-avatar" style="background:${GCP.authorColor(c.userName || 'User')};width:20px;height:20px;font-size:8px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:700;">${GCP.authorInitials(c.userName || 'User')}</span>
+            ${escapeHtml(c.userName || 'User')} — ${formatDateTime(c.createdAt)}
+          </div>
           <div>${escapeHtml(c.content)}</div>
         </div>
       `).join('');
@@ -325,7 +344,8 @@
 
   async function loadHistory() {
     try {
-      const history = await Api.get(`/api/workflow/section-history?event_id=${eventId}&section_id=${sectionId}`);
+      const result = await Api.get(`/api/workflow/section-history?event_id=${eventId}&section_id=${sectionId}`);
+      const history = result.history || result;
       const list = document.getElementById('historyList');
       if (!history || history.length === 0) {
         list.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">No history yet</p>';
