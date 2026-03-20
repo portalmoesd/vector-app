@@ -370,6 +370,12 @@ router.post('/return', requireAuth, async (req, res) => {
        resolvedUser.full_name, userRole, comment || null]
     );
 
+    // Clear any pending ask-to-return requests — the return fulfills them
+    await db.query(
+      'DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2',
+      [eventId, sectionId]
+    );
+
     res.json({ success: true, newStatus: toStatus, returnTargetRole: returnTarget });
   } catch (err) {
     console.error('Return error:', err);
