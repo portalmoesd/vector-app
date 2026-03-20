@@ -17,6 +17,19 @@ const {
 
 const router = express.Router();
 
+// ─── Helper: resolve user full name + department from DB ──────────────────────
+// JWT doesn't carry full_name, so we look it up for history/audit records.
+async function resolveUser(jwtUser) {
+  const { rows: [row] } = await db.query(
+    'SELECT full_name, department_id FROM users WHERE id = $1', [jwtUser.id]
+  );
+  return {
+    ...jwtUser,
+    full_name: row ? row.full_name : jwtUser.username,
+    department_id: row ? row.department_id : jwtUser.departmentId || null,
+  };
+}
+
 // ─── Helper: load section context ─────────────────────────────────────────────
 
 async function loadSectionContext(eventId, sectionId) {
@@ -161,10 +174,13 @@ router.post('/submit', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'eventId and sectionId are required' });
     }
 
-    const ctx = await loadSectionContext(eventId, sectionId);
+    const [ctx, resolvedUser] = await Promise.all([
+      loadSectionContext(eventId, sectionId),
+      resolveUser(req.user),
+    ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds, ctx.chain);
+    const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
 
     // Verify user is the current holder
@@ -204,7 +220,7 @@ router.post('/submit', requireAuth, async (req, res) => {
     await db.query(
       `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role)
        VALUES ($1, $2, 'submitted', $3, $4, $5, $6, $7)`,
-      [eventId, sectionId, fromStatus, toStatus, req.user.id, req.user.fullName || req.user.full_name, userRole]
+      [eventId, sectionId, fromStatus, toStatus, req.user.id, resolvedUser.full_name, userRole]
     );
 
     // Clear any pending return requests for this section
@@ -229,10 +245,13 @@ router.post('/approve', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'eventId and sectionId are required' });
     }
 
-    const ctx = await loadSectionContext(eventId, sectionId);
+    const [ctx, resolvedUser] = await Promise.all([
+      loadSectionContext(eventId, sectionId),
+      resolveUser(req.user),
+    ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds, ctx.chain);
+    const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
 
     // Must be submitted to this role
@@ -275,7 +294,7 @@ router.post('/approve', requireAuth, async (req, res) => {
       `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role, note)
        VALUES ($1, $2, 'approved', $3, $4, $5, $6, $7, $8)`,
       [eventId, sectionId, fromStatus, toStatus, req.user.id,
-       req.user.fullName || req.user.full_name, userRole, comment || null]
+       resolvedUser.full_name, userRole, comment || null]
     );
 
     // Clear any pending return requests
@@ -305,10 +324,13 @@ router.post('/return', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'eventId and sectionId are required' });
     }
 
-    const ctx = await loadSectionContext(eventId, sectionId);
+    const [ctx, resolvedUser] = await Promise.all([
+      loadSectionContext(eventId, sectionId),
+      resolveUser(req.user),
+    ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds, ctx.chain);
+    const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
 
     if (userRole !== holder) {
@@ -345,7 +367,7 @@ router.post('/return', requireAuth, async (req, res) => {
       `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role, note)
        VALUES ($1, $2, 'returned', $3, $4, $5, $6, $7, $8)`,
       [eventId, sectionId, fromStatus, toStatus, req.user.id,
-       req.user.fullName || req.user.full_name, userRole, comment || null]
+       resolvedUser.full_name, userRole, comment || null]
     );
 
     res.json({ success: true, newStatus: toStatus, returnTargetRole: returnTarget });
@@ -364,10 +386,13 @@ router.post('/ask-to-return', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'eventId and sectionId are required' });
     }
 
-    const ctx = await loadSectionContext(eventId, sectionId);
+    const [ctx, resolvedUser] = await Promise.all([
+      loadSectionContext(eventId, sectionId),
+      resolveUser(req.user),
+    ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = await effectiveRole(req.user, ctx.event, ctx.sectionDeptIds, ctx.chain);
+    const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
 
     // The user's effective role must be part of this section's chain
     if (!ctx.chain.includes(userRole)) {
@@ -393,8 +418,7 @@ router.post('/ask-to-return', requireAuth, async (req, res) => {
        (event_id, section_id, requested_by_user_id, requested_by_name, requested_by_role, broadcast_above_role, note)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [eventId, sectionId, req.user.id,
-       req.user.fullName || req.user.full_name,
-       userRole, userRole, note || null]
+       resolvedUser.full_name, userRole, userRole, note || null]
     );
 
     // Record history
@@ -402,7 +426,7 @@ router.post('/ask-to-return', requireAuth, async (req, res) => {
       `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role, note)
        VALUES ($1, $2, 'asked_to_return', $3, $3, $4, $5, $6, $7)`,
       [eventId, sectionId, ctx.sectionStatus, req.user.id,
-       req.user.fullName || req.user.full_name, userRole, note || null]
+       resolvedUser.full_name, userRole, note || null]
     );
 
     res.json({ success: true });
