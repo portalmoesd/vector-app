@@ -67,7 +67,7 @@
     }
 
     upcomingListEl.innerHTML = upcoming.slice(0, 5).map(e => `
-      <div class="dp-upcoming-event">
+      <div class="dp-upcoming-event" data-event-id="${e.id}" style="cursor:pointer;">
         <h4 class="dp-upcoming-event__title">${escapeHtml(e.title)}</h4>
         <div class="dp-upcoming-event__pills">
           <span class="dp-upcoming-event__pill">${escapeHtml(e.countryName)}</span>
@@ -77,6 +77,14 @@
         ${e.occasion ? `<p class="dp-upcoming-event__desc">${escapeHtml(e.occasion)}</p>` : ''}
       </div>
     `).join('');
+
+    upcomingListEl.querySelectorAll('[data-event-id]').forEach(card => {
+      card.addEventListener('click', () => {
+        const id = card.dataset.eventId;
+        eventSelect.value = id;
+        loadSections(id);
+      });
+    });
   }
 
   function renderMiniCalendar(date) {
