@@ -258,21 +258,20 @@
     } catch (e) { alert(e.message); }
   };
 
-  // ── Section row with department checkboxes ───────────────────────────────
+  // ── Section row — collapsible dropdown for departments ─────────────────
 
   function createSectionRow(container, title, selectedDeptIds) {
     const row = document.createElement('div');
     row.className = 'section-row';
-    row.style.cssText = 'border:1px solid var(--border-color,#ddd);border-radius:8px;padding:12px;margin-bottom:10px;background:var(--bg-card,#fff);';
+    row.style.cssText = 'border:1px solid var(--border-color,#ddd);border-radius:8px;margin-bottom:8px;background:var(--bg-card,#fff);overflow:hidden;';
     const selected = new Set(selectedDeptIds || []);
+    const deptCount = selectedDeptIds ? selectedDeptIds.length : 0;
 
-    // Only show departments that are in the selected set (from template)
-    // Plus allow adding more via a dropdown
     const deptCheckboxes = selectedDeptIds && selectedDeptIds.length > 0
       ? selectedDeptIds.map(dId => {
           const d = deptById[dId];
           if (!d) return '';
-          return `<label style="display:flex;align-items:center;gap:4px;padding:2px 0;font-size:13px;cursor:pointer;">
+          return `<label style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:13px;cursor:pointer;">
             <input type="checkbox" class="sec-dept-cb" data-dept-id="${d.id}" checked />
             ${escapeHtml(d.nameEn || d.name)}
           </label>`;
@@ -280,15 +279,17 @@
       : '';
 
     row.innerHTML = `
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-        <input class="form-input sec-title" placeholder="Section title" style="flex:1;font-weight:600;" value="${title ? escapeHtml(title) : ''}" />
-        <button class="btn btn-outline" type="button" style="padding:4px 10px;font-size:12px;color:#dc2626;" onclick="this.closest('.section-row').remove()">\u2715 Remove</button>
+      <div class="sec-header" style="display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;user-select:none;">
+        <span class="sec-toggle" style="font-size:11px;color:#888;transition:transform .2s;">\u25B6</span>
+        <input class="form-input sec-title" placeholder="Section title" style="flex:1;font-weight:600;border:none;padding:0;background:transparent;" value="${title ? escapeHtml(title) : ''}" onclick="event.stopPropagation()" />
+        <span class="sec-dept-count" style="font-size:12px;color:#666;white-space:nowrap;">${deptCount} dept(s)</span>
+        <button class="btn btn-outline" type="button" style="padding:2px 8px;font-size:11px;color:#dc2626;" onclick="event.stopPropagation();this.closest('.section-row').remove()">\u2715</button>
       </div>
-      <div class="sec-depts-container" style="padding-left:4px;">
-        ${deptCheckboxes}
-      </div>
-      <div style="margin-top:6px;">
-        <select class="form-select sec-add-dept" style="font-size:12px;padding:4px 8px;">
+      <div class="sec-body" style="display:none;padding:0 12px 12px 30px;border-top:1px solid var(--border-color,#eee);">
+        <div class="sec-depts-container" style="padding:8px 0;">
+          ${deptCheckboxes}
+        </div>
+        <select class="form-select sec-add-dept" style="font-size:12px;padding:4px 8px;margin-top:4px;">
           <option value="">+ Add department...</option>
           ${departments.map(d =>
             `<option value="${d.id}" ${selected.has(d.id) ? 'disabled' : ''}>${escapeHtml(d.nameEn || d.name)}</option>`
@@ -299,6 +300,25 @@
 
     container.appendChild(row);
 
+    // Toggle expand/collapse
+    const header = row.querySelector('.sec-header');
+    const body = row.querySelector('.sec-body');
+    const toggle = row.querySelector('.sec-toggle');
+    header.addEventListener('click', () => {
+      const open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : '';
+      toggle.style.transform = open ? '' : 'rotate(90deg)';
+    });
+
+    // Update dept count when checkboxes change
+    function updateCount() {
+      const count = row.querySelectorAll('.sec-dept-cb:checked').length;
+      row.querySelector('.sec-dept-count').textContent = count + ' dept(s)';
+    }
+    row.addEventListener('change', (e) => {
+      if (e.target.classList.contains('sec-dept-cb')) updateCount();
+    });
+
     // Add department on select
     const addDeptSelect = row.querySelector('.sec-add-dept');
     addDeptSelect.addEventListener('change', () => {
@@ -307,21 +327,19 @@
       const d = deptById[deptId];
       if (!d) return;
 
-      // Check if already added
       const existing = row.querySelector(`.sec-dept-cb[data-dept-id="${deptId}"]`);
       if (existing) { addDeptSelect.value = ''; return; }
 
       const label = document.createElement('label');
-      label.style.cssText = 'display:flex;align-items:center;gap:4px;padding:2px 0;font-size:13px;cursor:pointer;';
+      label.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 0;font-size:13px;cursor:pointer;';
       label.innerHTML = `
         <input type="checkbox" class="sec-dept-cb" data-dept-id="${d.id}" checked />
         ${escapeHtml(d.nameEn || d.name)}
       `;
       row.querySelector('.sec-depts-container').appendChild(label);
-
-      // Disable in dropdown
       addDeptSelect.querySelector(`option[value="${deptId}"]`).disabled = true;
       addDeptSelect.value = '';
+      updateCount();
     });
   }
 
