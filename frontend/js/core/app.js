@@ -1,5 +1,5 @@
 /**
- * App shell — sidebar, theme toggle, language toggle, auth guard.
+ * App shell — sidebar, language toggle, auth guard.
  */
 const App = {
   async init() {
@@ -19,7 +19,6 @@ const App = {
 
     await I18n.init();
     this.renderSidebar(user);
-    this.initTheme();
   },
 
   renderSidebar(user) {
@@ -62,9 +61,6 @@ const App = {
           </div>
         </div>
         <div class="sidebar-controls">
-          <button class="sidebar-btn" id="themeToggle" title="Toggle theme">
-            <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" fill="currentColor"/></svg>
-          </button>
           <button class="sidebar-btn" id="langToggle" title="Toggle language">
             <span class="lang-label">${I18n.getLocale() === 'ka' ? 'EN' : 'KA'}</span>
           </button>
@@ -75,25 +71,8 @@ const App = {
       </div>
     `;
 
-    document.getElementById('themeToggle')?.addEventListener('click', () => this.toggleTheme());
     document.getElementById('langToggle')?.addEventListener('click', () => this.toggleLang());
     document.getElementById('logoutBtn')?.addEventListener('click', () => this.logout());
-  },
-
-  initTheme() {
-    const saved = localStorage.getItem('theme');
-    if (saved) {
-      document.body.setAttribute('data-theme', saved);
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      document.body.setAttribute('data-theme', 'dark');
-    }
-  },
-
-  toggleTheme() {
-    const current = document.body.getAttribute('data-theme');
-    const next = current === 'dark' ? 'light' : 'dark';
-    document.body.setAttribute('data-theme', next);
-    localStorage.setItem('theme', next);
   },
 
   async toggleLang() {

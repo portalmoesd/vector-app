@@ -40,8 +40,8 @@ a:hover { text-decoration: underline; }
 
 .sidebar {
   width: var(--sidebar-width);
-  background: var(--bg-sidebar);
-  color: var(--text-sidebar);
+  background: #f8fafc;
+  color: #1e293b;
   display: flex;
   flex-direction: column;
   position: fixed;
