@@ -171,7 +171,9 @@ async function migrate() {
 
       for (const s of staffList) {
         const username = s.email.split('@')[0].toLowerCase().replace(/[^a-z0-9.]/g, '');
-        const deptId = deptMap[s.dept] || null;
+        // Deputies oversee multiple departments via deputy_department_links,
+        // so their department_id is left NULL.
+        const deptId = s.role === 'DEPUTY' ? null : (deptMap[s.dept] || null);
 
         const { rows: [newUser] } = await db.query(
           `INSERT INTO users (full_name, username, email, password_hash, role, department_id, must_change_password)
@@ -221,28 +223,25 @@ async function migrate() {
 
     // ── Ensure Deputy users exist (idempotent) ────────────────────────────────
     const deputyUsers = [
-      { fullName: 'Mariam Kvrivishvili', email: 'mkvrivishvili@moesd.gov.ge', dept: 'Internal Audit Department' },
-      { fullName: 'Nino Enukidze', email: 'nenukidze@moesd.gov.ge', dept: 'Legal Department' },
-      { fullName: 'Genadi Arveladze', email: 'garveladze@moesd.gov.ge', dept: 'Foreign Trade Policy Department' },
-      { fullName: 'Inga Pkhaladze', email: 'ipkhaladze@moesd.gov.ge', dept: 'Energy Reforms Department' },
-      { fullName: 'Tamar Ioseliani', email: 'tioseliani@moesd.gov.ge', dept: 'Transport and Logistics Development Policy Department' },
-      { fullName: 'Vakhtang Tsitsadze', email: 'vtsitsadze@moesd.gov.ge', dept: 'Economic Analysis and Reforms Department' },
-      { fullName: 'Irakli Nadareishvili', email: 'inadareishvili@moesd.gov.ge', dept: 'Capital Market Development and Pension Reform Department' },
+      { fullName: 'Mariam Kvrivishvili', email: 'mkvrivishvili@moesd.gov.ge' },
+      { fullName: 'Nino Enukidze', email: 'nenukidze@moesd.gov.ge' },
+      { fullName: 'Genadi Arveladze', email: 'garveladze@moesd.gov.ge' },
+      { fullName: 'Inga Pkhaladze', email: 'ipkhaladze@moesd.gov.ge' },
+      { fullName: 'Tamar Ioseliani', email: 'tioseliani@moesd.gov.ge' },
+      { fullName: 'Vakhtang Tsitsadze', email: 'vtsitsadze@moesd.gov.ge' },
+      { fullName: 'Irakli Nadareishvili', email: 'inadareishvili@moesd.gov.ge' },
     ];
 
-    const { rows: allDeptsForDeputy } = await db.query('SELECT id, name_en FROM departments');
-    const deptMapForDeputy = {};
-    for (const d of allDeptsForDeputy) deptMapForDeputy[d.name_en] = d.id;
-
+    // Deputies oversee multiple departments via deputy_department_links,
+    // so department_id on the users table is left NULL.
     const defaultHashDeputy = await bcrypt.hash('vector2026', 10);
     for (const dep of deputyUsers) {
       const username = dep.email.split('@')[0].toLowerCase().replace(/[^a-z0-9.]/g, '');
-      const deptId = deptMapForDeputy[dep.dept] || null;
       await db.query(
         `INSERT INTO users (full_name, username, email, password_hash, role, department_id, must_change_password)
-         VALUES ($1, $2, $3, $4, 'DEPUTY', $5, true)
-         ON CONFLICT (username) DO NOTHING`,
-        [dep.fullName, username, dep.email, defaultHashDeputy, deptId]
+         VALUES ($1, $2, $3, $4, 'DEPUTY', NULL, true)
+         ON CONFLICT (username) DO UPDATE SET department_id = NULL`,
+        [dep.fullName, username, dep.email, defaultHashDeputy]
       );
     }
 

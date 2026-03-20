@@ -42,10 +42,13 @@
 
     try {
       const grid = await Api.get(`/api/workflow/status-grid?event_id=${eventId}`);
-      // Filter to only show sections assigned to the current user's department
-      const mySections = (grid.sections || []).filter(s =>
-        s.departmentIds && s.departmentIds.includes(user.departmentId)
-      );
+      // Filter sections: Deputies see all sections.
+      // Other users only see sections assigned to their department.
+      const mySections = user.role === 'DEPUTY'
+        ? (grid.sections || [])
+        : (grid.sections || []).filter(s =>
+            s.departmentIds && s.departmentIds.includes(user.departmentId)
+          );
 
       if (mySections.length === 0) {
         container.innerHTML = '<div class="empty-state"><p>No sections for this event</p></div>';

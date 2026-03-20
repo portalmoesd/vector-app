@@ -177,10 +177,11 @@
       const container = sectionsCardEl || legacyContainer;
 
       const isDS = grid.documentSubmitterId === user.id;
+      const isDeputy = user.role === 'DEPUTY';
 
-      // Filter sections: non-DS users only see sections assigned to their department.
-      // DS and Deputy (acting as curator) see all sections.
-      const visibleSections = isDS
+      // Filter sections: DS and Deputies see all sections.
+      // Other users only see sections assigned to their department.
+      const visibleSections = (isDS || isDeputy)
         ? (grid.sections || [])
         : (grid.sections || []).filter(s =>
             s.departmentIds && s.departmentIds.includes(user.departmentId)
