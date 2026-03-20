@@ -79,9 +79,10 @@ async function migrate() {
       console.log(`Seeded ${countries.length} countries.`);
     }
 
-    // Seed admin user if no users exist
+    // Seed admin user if not exists
     const { rows: [{ count: userCount }] } = await db.query('SELECT count(*)::int AS count FROM users');
-    if (userCount === 0) {
+    const { rows: [{ exists: adminExists }] } = await db.query("SELECT EXISTS(SELECT 1 FROM users WHERE username='admin') AS exists");
+    if (!adminExists) {
       console.log('Creating default admin user...');
       const hash = await bcrypt.hash('admin123', 10);
       await db.query(
@@ -90,8 +91,10 @@ async function migrate() {
         ['System Administrator', 'admin', 'admin@vector-portal.gov.ge', hash, 'ADMIN']
       );
       console.log('Admin user created (admin / admin123).');
+    }
 
-      // Seed ministry staff
+    // Seed ministry staff if not already seeded
+    if (userCount <= 1) {
       console.log('Seeding ministry staff...');
       const staffList = require('./data/users.json');
       const defaultHash = await bcrypt.hash('vector2026', 10);
