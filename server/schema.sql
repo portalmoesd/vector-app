@@ -65,6 +65,14 @@ CREATE TABLE IF NOT EXISTS deputy_supervisor_links (
   UNIQUE (deputy_id, supervisor_id)
 );
 
+-- ─── Deputy–Department Links (direct mapping from org chart) ──────────────
+
+CREATE TABLE IF NOT EXISTS deputy_department_links (
+  deputy_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  department_id INT NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+  PRIMARY KEY (deputy_id, department_id)
+);
+
 -- ─── Events ─────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS events (

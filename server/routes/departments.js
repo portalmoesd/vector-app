@@ -46,16 +46,13 @@ router.get('/grouped', requireAuth, async (req, res) => {
       'SELECT id, name, name_en, is_external FROM departments ORDER BY name_en'
     );
 
-    // Get deputy → department mapping through supervisor links
+    // Get deputy → department mapping through direct deputy-department links
     const { rows: links } = await db.query(
-      `SELECT DISTINCT d.id AS deputy_id, d.full_name AS deputy_name,
-              dept.id AS department_id
-       FROM deputy_supervisor_links dsl
-       JOIN users d ON d.id = dsl.deputy_id
-       JOIN users s ON s.id = dsl.supervisor_id
-       JOIN departments dept ON dept.id = s.department_id
-       WHERE s.department_id IS NOT NULL
-       ORDER BY d.full_name`
+      `SELECT ddl.deputy_id, u.full_name AS deputy_name,
+              ddl.department_id
+       FROM deputy_department_links ddl
+       JOIN users u ON u.id = ddl.deputy_id
+       ORDER BY u.full_name, ddl.department_id`
     );
 
     // Group departments by deputy

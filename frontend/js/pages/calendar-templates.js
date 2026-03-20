@@ -67,7 +67,7 @@
 
     const panel = document.createElement('div');
     panel.className = 'tpl-dept-picker-panel';
-    panel.style.cssText = 'display:none;position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--bg-card,#fff);border:1px solid var(--border-color,#ddd);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:300;max-height:340px;overflow:hidden;flex-direction:column;';
+    panel.style.cssText = 'display:none;position:fixed;background:var(--bg-card,#fff);border:1px solid var(--border-color,#ddd);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:9999;max-height:420px;overflow:hidden;flex-direction:column;';
 
     // Search input
     const searchWrap = document.createElement('div');
@@ -140,6 +140,11 @@
     function open() {
       if (isOpen) return;
       isOpen = true;
+      // Position fixed panel below the trigger button
+      const rect = trigger.getBoundingClientRect();
+      panel.style.left = rect.left + 'px';
+      panel.style.top = (rect.bottom + 4) + 'px';
+      panel.style.width = rect.width + 'px';
       panel.style.display = 'flex';
       searchInput.value = '';
       buildItems('');

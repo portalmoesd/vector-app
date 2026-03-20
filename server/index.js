@@ -338,6 +338,27 @@ async function migrate() {
     }
     console.log('Deputy–Supervisor links ensured.');
 
+    // ── Create Deputy–Department links (direct org chart mapping, idempotent) ──
+    for (const link of deputySupervisorLinks) {
+      const { rows: [deputyUser] } = await db.query(
+        'SELECT id FROM users WHERE username = $1',
+        [link.deputy]
+      );
+      if (!deputyUser) continue;
+
+      for (const deptName of link.supervisorDepts) {
+        const deptId = deptMapForDeputy[deptName];
+        if (!deptId) continue;
+        await db.query(
+          `INSERT INTO deputy_department_links (deputy_id, department_id)
+           VALUES ($1, $2)
+           ON CONFLICT (deputy_id, department_id) DO NOTHING`,
+          [deputyUser.id, deptId]
+        );
+      }
+    }
+    console.log('Deputy–Department links ensured.');
+
     // ── Seed Event Templates with section-department mappings (idempotent) ────
     const { rows: [{ count: templateCount }] } = await db.query('SELECT count(*)::int AS count FROM event_templates');
     if (templateCount === 0) {
