@@ -4,7 +4,6 @@ const { requireAuth } = require('../middleware/auth');
 const { ROLES } = require('../helpers/roles');
 const {
   STATUS,
-  baseRole,
   buildChain,
   nextInChain,
   isFinalApprover,
@@ -719,6 +718,29 @@ router.get('/status-grid', requireAuth, async (req, res) => {
       [eventId]
     );
 
+    // Build a lookup of the last actor per (section, role) from history.
+    // Used to show who actually acted on multi-user steps instead of a static pick.
+    const { rows: historyRows } = await db.query(
+      `SELECT DISTINCT ON (sh.section_id, sh.user_role)
+         sh.section_id, sh.user_role, sh.user_id, sh.user_name,
+         d.name_en AS department_name
+       FROM section_history sh
+       LEFT JOIN users u ON u.id = sh.user_id
+       LEFT JOIN departments d ON d.id = u.department_id
+       WHERE sh.event_id = $1
+       ORDER BY sh.section_id, sh.user_role, sh.acted_at DESC`,
+      [eventId]
+    );
+    const historyActors = {};
+    for (const h of historyRows) {
+      if (!historyActors[h.section_id]) historyActors[h.section_id] = {};
+      historyActors[h.section_id][h.user_role] = {
+        actorName: h.user_name,
+        actorId: h.user_id,
+        departmentName: h.department_name,
+      };
+    }
+
     // Get department assignments and actor names for each section
     const enrichedSections = [];
     for (const s of sections) {
@@ -758,34 +780,14 @@ router.get('/status-grid', requireAuth, async (req, res) => {
           const { rows: [dep] } = await db.query(
             `SELECT id, full_name FROM users WHERE id = $1`, [event.document_submitter_id]);
           if (dep) { actorName = dep.full_name; actorId = dep.id; deptName = null; }
-        } else if (step.startsWith('RECEIVING_')) {
-          // Receiving chain: search in home department using the base role,
-          // filtered by the event's country assignment
-          const dbRole = baseRole(step);
-          if (dsDeptId) {
-            const { rows: [user] } = await db.query(
-              `SELECT u.id, u.full_name, d.name_en AS department_name
-               FROM users u
-               LEFT JOIN departments d ON d.id = u.department_id
-               JOIN country_assignments ca ON ca.user_id = u.id AND ca.country_id = $3
-               WHERE u.role = $1 AND u.department_id = $2 AND u.id != 0
-               ORDER BY u.id LIMIT 1`,
-              [dbRole, dsDeptId, event.country_id]);
-            if (user) { actorName = user.full_name; actorId = user.id; deptName = user.department_name; }
-          }
         } else {
-          // Section department chain: search in the section's assigned departments,
-          // filtered by the event's country assignment
-          if (sectionDeptIds.length > 0 && sectionDeptIds[0]) {
-            const { rows: [user] } = await db.query(
-              `SELECT u.id, u.full_name, d.name_en AS department_name
-               FROM users u
-               LEFT JOIN departments d ON d.id = u.department_id
-               JOIN country_assignments ca ON ca.user_id = u.id AND ca.country_id = $3
-               WHERE u.role = $1 AND u.department_id = ANY($2) AND u.id != 0
-               ORDER BY u.id LIMIT 1`,
-              [step, sectionDeptIds, event.country_id]);
-            if (user) { actorName = user.full_name; actorId = user.id; deptName = user.department_name; }
+          // Multi-user roles (Collaborator, SC, Supervisor, Receiving_*):
+          // Only show name after someone actually acted — use history lookup.
+          const hist = (historyActors[s.section_id] || {})[step];
+          if (hist) {
+            actorName = hist.actorName;
+            actorId = hist.actorId;
+            deptName = hist.departmentName;
           }
         }
 
