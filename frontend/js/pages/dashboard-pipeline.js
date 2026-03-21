@@ -122,7 +122,8 @@
       let cls = 'dp-cal-grid__day';
       if (isToday) cls += ' dp-cal-grid__day--today';
       if (hasEvent) cls += ' dp-cal-grid__day--has-event';
-      daysHtml += `<span class="${cls}">${d}</span>`;
+      const dateAttr = hasEvent ? ` data-cal-date="${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}"` : '';
+      daysHtml += `<span class="${cls}"${dateAttr}>${d}</span>`;
     }
 
     miniCalendarEl.innerHTML = `
@@ -139,6 +140,24 @@
     });
     document.getElementById('calNext')?.addEventListener('click', () => {
       renderMiniCalendar(new Date(year, month + 1, 1));
+    });
+
+    // Click a date with events → highlight matching upcoming event cards
+    miniCalendarEl.querySelectorAll('[data-cal-date]').forEach(day => {
+      day.addEventListener('click', () => {
+        const clickedDate = day.dataset.calDate;
+        const matchingIds = activeEvents
+          .filter(e => e.deadlineDate && e.deadlineDate.startsWith(clickedDate))
+          .map(e => String(e.id));
+        if (!matchingIds.length) return;
+        document.querySelectorAll('.dp-upcoming-event[data-event-id]').forEach(card => {
+          if (matchingIds.includes(card.dataset.eventId)) {
+            card.classList.add('dp-upcoming-event--highlight');
+            card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            setTimeout(() => card.classList.remove('dp-upcoming-event--highlight'), 1000);
+          }
+        });
+      });
     });
   }
 

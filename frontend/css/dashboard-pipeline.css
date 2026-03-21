@@ -387,6 +387,18 @@
   border-radius: var(--radius-lg);
   padding: 16px 18px;
   background: var(--bg-card);
+  transition: background 180ms ease, box-shadow 180ms ease;
+}
+.dp-upcoming-event:hover {
+  background: rgba(235,243,255,.88);
+  box-shadow: var(--shadow-md);
+}
+.dp-upcoming-event--highlight {
+  animation: eventHighlight 1s ease;
+}
+@keyframes eventHighlight {
+  0%   { background: rgba(59,130,246,0.25); box-shadow: 0 0 0 3px rgba(59,130,246,0.3); }
+  100% { background: var(--bg-card); box-shadow: none; }
 }
 .dp-upcoming-event__title {
   font-size: 0.95rem;

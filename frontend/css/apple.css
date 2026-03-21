@@ -288,7 +288,7 @@ hr, .divider{
   box-shadow: var(--shadow-sm);
   transition: 180ms ease;
 }
-.event-card:hover{ transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.event-card:hover{ transform: translateY(-1px); box-shadow: var(--shadow-md); background: rgba(235,243,255,.88); }
 .event-card--clickable{
   cursor: pointer;
 }
