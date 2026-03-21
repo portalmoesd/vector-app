@@ -180,11 +180,13 @@
       const isDeputy = user.role === 'DEPUTY';
 
       // Filter sections: DS and Deputies see all sections.
-      // Other users only see sections assigned to their department.
+      // Other users see sections assigned to their department,
+      // OR sections where they are the current holder in a cross-dept chain.
       const visibleSections = (isDS || isDeputy)
         ? (grid.sections || [])
         : (grid.sections || []).filter(s =>
-            s.departmentIds && s.departmentIds.includes(user.departmentId)
+            (s.departmentIds && s.departmentIds.includes(user.departmentId)) ||
+            (s.userEffectiveRole && s.userEffectiveRole === s.currentHolderRole)
           );
 
       if (visibleSections.length === 0) {

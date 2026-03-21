@@ -43,11 +43,13 @@
     try {
       const grid = await Api.get(`/api/workflow/status-grid?event_id=${eventId}`);
       // Filter sections: Deputies see all sections.
-      // Other users only see sections assigned to their department.
+      // Other users see sections assigned to their department,
+      // OR sections where they are the current holder in a cross-dept chain.
       const mySections = user.role === 'DEPUTY'
         ? (grid.sections || [])
         : (grid.sections || []).filter(s =>
-            s.departmentIds && s.departmentIds.includes(user.departmentId)
+            (s.departmentIds && s.departmentIds.includes(user.departmentId)) ||
+            (s.userEffectiveRole && s.userEffectiveRole === s.currentHolderRole)
           );
 
       if (mySections.length === 0) {
