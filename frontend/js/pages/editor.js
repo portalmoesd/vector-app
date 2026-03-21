@@ -138,12 +138,6 @@
           Return
         </button>`);
       }
-      if (sectionInfo.canPush) {
-        btns.push(`<button id="btnPushSection" class="warning">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-          Push Section
-        </button>`);
-      }
     }
 
     // Ask to Return (only if user is in the chain and section has passed their step)
@@ -157,6 +151,14 @@
           Ask to Return
         </button>`);
       }
+    }
+
+    // Push Section — shown for both holders and non-holders when canPush is true
+    if (sectionInfo.canPush) {
+      btns.push(`<button id="btnPushSection" class="warning">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+        Push Section
+      </button>`);
     }
 
     // File upload button

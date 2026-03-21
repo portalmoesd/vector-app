@@ -359,12 +359,6 @@
           RETURN
         </button>`);
       }
-      if (section.canPush) {
-        links.push(`<button class="dp-action-link dp-action-link--push" data-action="push-section" data-event="${eventId}" data-section="${section.sectionId}">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-          PUSH SECTION
-        </button>`);
-      }
     } else if (!isHolder && status !== 'draft' && status) {
       // Only show Ask Return if the user is in the chain and the section
       // has already passed their step
@@ -377,6 +371,14 @@
           ASK RETURN
         </button>`);
       }
+    }
+
+    // Push Section — shown for both holders and non-holders when canPush is true
+    if (section.canPush) {
+      links.push(`<button class="dp-action-link dp-action-link--push" data-action="push-section" data-event="${eventId}" data-section="${section.sectionId}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+        PUSH SECTION
+      </button>`);
     }
 
     return links.join('');

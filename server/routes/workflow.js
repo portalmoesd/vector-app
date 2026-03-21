@@ -569,7 +569,7 @@ router.post('/push-section', requireAuth, async (req, res) => {
 
     const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
-    const isLastActor = ctx.lastUpdatedByUserId === req.user.id;
+    const isLastActor = ctx.lastUpdatedByUserId != null && ctx.lastUpdatedByUserId == req.user.id;
 
     if (!canPushSection(userRole, ctx.chain, ctx.isCrossDept, holder, isLastActor)) {
       return res.status(400).json({ error: 'Push is not available for this section' });
@@ -790,7 +790,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
         isCrossDept,
         chain,
         steps,
-        canPush: canPushSection(userEffRole, chain, isCrossDept, holderRole, s.last_updated_by_user_id === req.user.id),
+        canPush: canPushSection(userEffRole, chain, isCrossDept, holderRole, s.last_updated_by_user_id != null && s.last_updated_by_user_id == req.user.id),
         returnRequest,
         returnInfo,
       });
