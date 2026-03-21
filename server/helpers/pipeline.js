@@ -179,26 +179,47 @@ function firstEditorRole(chain) {
  * Determine whether a Department B user can "push" a cross-dept section
  * directly to RECEIVING_SUPER_COLLABORATOR, bypassing remaining Dept B steps.
  *
- * @param {string} userRole - The user's effective role
- * @param {string[]} chain  - The pipeline chain for this section
- * @param {boolean} isCrossDept - Whether the section is cross-department
+ * Two scenarios:
+ *  1. User IS the current holder — they can push instead of submitting/approving
+ *     through the normal chain (only when there's >1 step to RECEIVING_SC).
+ *  2. User is NOT the holder — they already submitted/approved, the section
+ *     moved to the next step, but the next person is unresponsive. The user
+ *     can still push as long as:
+ *       a) they were the last person to act (lastUpdatedByUserId matches)
+ *       b) the section is currently held by a role between the user and RECEIVING_SC
+ *
+ * @param {string}   userRole            - The user's effective role
+ * @param {string[]} chain               - The pipeline chain for this section
+ * @param {boolean}  isCrossDept         - Whether the section is cross-department
+ * @param {string}   [holderRole]        - Current holder role (optional, for non-holder check)
+ * @param {boolean}  [isLastActor=false] - Whether this user was the last to update the section
  * @returns {boolean}
  */
-function canPushSection(userRole, chain, isCrossDept) {
+function canPushSection(userRole, chain, isCrossDept, holderRole, isLastActor) {
   if (!isCrossDept || !chain || !chain.includes('RECEIVING_SUPER_COLLABORATOR')) return false;
 
-  // Only non-RECEIVING Dept B roles that are NOT the last step before RECEIVING_SC
   const pushableRoles = [ROLES.COLLABORATOR, ROLES.SUPER_COLLABORATOR, ROLES.SUPERVISOR];
   if (!pushableRoles.includes(userRole)) return false;
 
-  // Find positions in the chain
   const userIdx = chain.indexOf(userRole);
   const receivingScIdx = chain.indexOf('RECEIVING_SUPER_COLLABORATOR');
   if (userIdx === -1 || receivingScIdx === -1) return false;
 
-  // The user must be before RECEIVING_SC and there must be at least one
-  // step between them (otherwise normal approve/submit already goes there).
-  return (receivingScIdx - userIdx) > 1;
+  const isHolder = !holderRole || holderRole === userRole;
+
+  if (isHolder) {
+    // Holder case: must have >1 step gap to RECEIVING_SC
+    return (receivingScIdx - userIdx) > 1;
+  }
+
+  // Non-holder case: the user already submitted/approved but next in chain
+  // is unresponsive. Allow push if:
+  //  - user was the last actor on the section
+  //  - section is currently at a role between user and RECEIVING_SC
+  if (!isLastActor) return false;
+  const holderIdx = chain.indexOf(holderRole);
+  if (holderIdx === -1) return false;
+  return holderIdx > userIdx && holderIdx < receivingScIdx;
 }
 
 module.exports = {

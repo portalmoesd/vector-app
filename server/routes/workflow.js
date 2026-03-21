@@ -43,7 +43,7 @@ async function loadSectionContext(eventId, sectionId) {
   if (!event) return null;
 
   const { rows: [sc] } = await db.query(
-    `SELECT status, original_submitter_role, return_target_role
+    `SELECT status, original_submitter_role, return_target_role, last_updated_by_user_id
      FROM section_content WHERE event_id = $1 AND section_id = $2`,
     [eventId, sectionId]
   );
@@ -77,6 +77,7 @@ async function loadSectionContext(eventId, sectionId) {
     sectionStatus: sc.status || 'draft',
     originalSubmitterRole: sc.original_submitter_role,
     returnTargetRole: sc.return_target_role,
+    lastUpdatedByUserId: sc.last_updated_by_user_id,
     chain,
     isCrossDept,
     dsDeptId,
@@ -568,20 +569,10 @@ router.post('/push-section', requireAuth, async (req, res) => {
 
     const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
+    const isLastActor = ctx.lastUpdatedByUserId === req.user.id;
 
-    if (userRole !== holder) {
-      return res.status(403).json({ error: `Section is held by ${holder}, not ${userRole}` });
-    }
-
-    if (!canPushSection(userRole, ctx.chain, ctx.isCrossDept)) {
+    if (!canPushSection(userRole, ctx.chain, ctx.isCrossDept, holder, isLastActor)) {
       return res.status(400).json({ error: 'Push is not available for this section' });
-    }
-
-    // Verify section is in an actionable status for this holder
-    const isSubmittable = ctx.sectionStatus === 'draft' || ctx.sectionStatus.startsWith('returned_');
-    const isApprovable = ctx.sectionStatus === submittedToStatus(userRole);
-    if (!isSubmittable && !isApprovable) {
-      return res.status(400).json({ error: `Cannot push — section status is ${ctx.sectionStatus}` });
     }
 
     const fromStatus = ctx.sectionStatus;
@@ -657,6 +648,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
       `SELECT s.id AS section_id, s.title AS section_label,
               sc.status, sc.status_comment, sc.last_updated_at,
               sc.original_submitter_role, sc.return_target_role,
+              sc.last_updated_by_user_id,
               u.full_name AS last_updated_by,
               sc.last_content_edited_by_user_id
        FROM sections s
@@ -798,7 +790,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
         isCrossDept,
         chain,
         steps,
-        canPush: canPushSection(userEffRole, chain, isCrossDept),
+        canPush: canPushSection(userEffRole, chain, isCrossDept, holderRole, s.last_updated_by_user_id === req.user.id),
         returnRequest,
         returnInfo,
       });
