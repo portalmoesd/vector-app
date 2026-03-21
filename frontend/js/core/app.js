@@ -30,8 +30,7 @@ const App = {
 
     sidebar.innerHTML = `
       <div class="sidebar-header">
-        <img src="/assets/portal-logo-new.svg" alt="Logo" class="sidebar-logo" />
-        <span class="sidebar-title">Vector Portal</span>
+        <img src="/assets/portal-logo-new.svg" alt="Vector" class="sidebar-logo" />
       </div>
       <nav class="sidebar-nav">
         <a href="${dashUrl}" class="sidebar-link ${currentPath.includes('dashboard') ? 'active' : ''}">
