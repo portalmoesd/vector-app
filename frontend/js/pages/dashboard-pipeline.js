@@ -359,6 +359,12 @@
           RETURN
         </button>`);
       }
+      if (section.canPush) {
+        links.push(`<button class="dp-action-link dp-action-link--push" data-action="push-section" data-event="${eventId}" data-section="${section.sectionId}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+          PUSH SECTION
+        </button>`);
+      }
     } else if (!isHolder && status !== 'draft' && status) {
       // Only show Ask Return if the user is in the chain and the section
       // has already passed their step
@@ -427,6 +433,9 @@
             const note = prompt('Reason for return request:');
             if (note === null) return;
             await Api.post('/api/workflow/ask-to-return', { eventId: evId, sectionId, note: note || undefined });
+          } else if (action === 'push-section') {
+            if (!confirm('Push this section directly to the responsible department?')) return;
+            await Api.post('/api/workflow/push-section', { eventId: evId, sectionId });
           }
           loadSections(evId);
         } catch (err) {

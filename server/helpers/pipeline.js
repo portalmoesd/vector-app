@@ -175,6 +175,32 @@ function firstEditorRole(chain) {
   return chain.length > 0 ? chain[0] : ROLES.COLLABORATOR;
 }
 
+/**
+ * Determine whether a Department B user can "push" a cross-dept section
+ * directly to RECEIVING_SUPER_COLLABORATOR, bypassing remaining Dept B steps.
+ *
+ * @param {string} userRole - The user's effective role
+ * @param {string[]} chain  - The pipeline chain for this section
+ * @param {boolean} isCrossDept - Whether the section is cross-department
+ * @returns {boolean}
+ */
+function canPushSection(userRole, chain, isCrossDept) {
+  if (!isCrossDept || !chain || !chain.includes('RECEIVING_SUPER_COLLABORATOR')) return false;
+
+  // Only non-RECEIVING Dept B roles that are NOT the last step before RECEIVING_SC
+  const pushableRoles = [ROLES.COLLABORATOR, ROLES.SUPER_COLLABORATOR, ROLES.SUPERVISOR];
+  if (!pushableRoles.includes(userRole)) return false;
+
+  // Find positions in the chain
+  const userIdx = chain.indexOf(userRole);
+  const receivingScIdx = chain.indexOf('RECEIVING_SUPER_COLLABORATOR');
+  if (userIdx === -1 || receivingScIdx === -1) return false;
+
+  // The user must be before RECEIVING_SC and there must be at least one
+  // step between them (otherwise normal approve/submit already goes there).
+  return (receivingScIdx - userIdx) > 1;
+}
+
 module.exports = {
   STATUS,
   baseRole,
@@ -186,4 +212,5 @@ module.exports = {
   nextInChain,
   isFinalApprover,
   firstEditorRole,
+  canPushSection,
 };

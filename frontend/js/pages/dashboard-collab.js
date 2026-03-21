@@ -167,6 +167,11 @@
           <span class="icon" style="--icon-url: url(/assets/submit-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url);"></span>
         </button>`);
       }
+      if (section.canPush) {
+        btns.push(`<button class="action-btn action-push" title="Push Section" data-action="push-section" data-event="${eventId}" data-section="${section.sectionId}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+        </button>`);
+      }
     } else if (!isHolder && section.status !== 'draft' && section.status) {
       // Ask to return: only if user is in the chain and section has passed their step
       const chain = section.chain || [];
@@ -198,6 +203,9 @@
             const note = prompt('Reason for return request:');
             if (note === null) return;
             await Api.post('/api/workflow/ask-to-return', { eventId: evId, sectionId, note: note || undefined });
+          } else if (action === 'push-section') {
+            if (!confirm('Push this section directly to the responsible department?')) return;
+            await Api.post('/api/workflow/push-section', { eventId: evId, sectionId });
           }
           loadSections(evId);
         } catch (err) {

@@ -13,6 +13,7 @@ const {
   approvedByStatus,
   returnedByStatus,
   currentHolderRole,
+  canPushSection,
 } = require('../helpers/pipeline');
 
 const router = express.Router();
@@ -550,6 +551,77 @@ router.post('/send-to-library', requireAuth, async (req, res) => {
   }
 });
 
+// ─── POST /api/workflow/push-section ──────────────────────────────────────────
+
+router.post('/push-section', requireAuth, async (req, res) => {
+  try {
+    const { eventId, sectionId } = req.body;
+    if (!eventId || !sectionId) {
+      return res.status(400).json({ error: 'eventId and sectionId are required' });
+    }
+
+    const [ctx, resolvedUser] = await Promise.all([
+      loadSectionContext(eventId, sectionId),
+      resolveUser(req.user),
+    ]);
+    if (!ctx) return res.status(404).json({ error: 'Section not found' });
+
+    const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
+    const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
+
+    if (userRole !== holder) {
+      return res.status(403).json({ error: `Section is held by ${holder}, not ${userRole}` });
+    }
+
+    if (!canPushSection(userRole, ctx.chain, ctx.isCrossDept)) {
+      return res.status(400).json({ error: 'Push is not available for this section' });
+    }
+
+    // Verify section is in an actionable status for this holder
+    const isSubmittable = ctx.sectionStatus === 'draft' || ctx.sectionStatus.startsWith('returned_');
+    const isApprovable = ctx.sectionStatus === submittedToStatus(userRole);
+    if (!isSubmittable && !isApprovable) {
+      return res.status(400).json({ error: `Cannot push — section status is ${ctx.sectionStatus}` });
+    }
+
+    const fromStatus = ctx.sectionStatus;
+    const toStatus = submittedToStatus('RECEIVING_SUPER_COLLABORATOR');
+    const origRole = ctx.originalSubmitterRole || userRole;
+
+    await db.query(
+      `UPDATE section_content
+       SET status = $1, original_submitter_role = $2,
+           last_updated_by_user_id = $3, last_updated_at = now(),
+           status_comment = NULL, return_target_role = NULL
+       WHERE event_id = $4 AND section_id = $5`,
+      [toStatus, origRole, req.user.id, eventId, sectionId]
+    );
+
+    // Update event to IN_PROGRESS if still DRAFT
+    if (ctx.event.event_status === 'DRAFT') {
+      await db.query("UPDATE events SET status = 'IN_PROGRESS', updated_at = now() WHERE id = $1", [eventId]);
+    }
+
+    // Record history
+    await db.query(
+      `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role)
+       VALUES ($1, $2, 'pushed', $3, $4, $5, $6, $7)`,
+      [eventId, sectionId, fromStatus, toStatus, req.user.id, resolvedUser.full_name, userRole]
+    );
+
+    // Clear any pending return requests
+    await db.query(
+      'DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2',
+      [eventId, sectionId]
+    );
+
+    res.json({ success: true, newStatus: toStatus });
+  } catch (err) {
+    console.error('Push section error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ─── GET /api/workflow/status-grid ────────────────────────────────────────────
 
 router.get('/status-grid', requireAuth, async (req, res) => {
@@ -726,6 +798,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
         isCrossDept,
         chain,
         steps,
+        canPush: canPushSection(userEffRole, chain, isCrossDept),
         returnRequest,
         returnInfo,
       });

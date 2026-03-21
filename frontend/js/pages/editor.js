@@ -138,6 +138,12 @@
           Return
         </button>`);
       }
+      if (sectionInfo.canPush) {
+        btns.push(`<button id="btnPushSection" class="warning">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+          Push Section
+        </button>`);
+      }
     }
 
     // Ask to Return (only if user is in the chain and section has passed their step)
@@ -173,6 +179,7 @@
     const btnApprove = document.getElementById('btnApprove');
     const btnReturn = document.getElementById('btnReturn');
     const btnAskReturn = document.getElementById('btnAskReturn');
+    const btnPushSection = document.getElementById('btnPushSection');
     const btnBack = document.getElementById('btnBack');
 
     if (btnSave) btnSave.addEventListener('click', handleSave);
@@ -180,6 +187,7 @@
     if (btnApprove) btnApprove.addEventListener('click', handleApprove);
     if (btnReturn) btnReturn.addEventListener('click', handleReturn);
     if (btnAskReturn) btnAskReturn.addEventListener('click', handleAskReturn);
+    if (btnPushSection) btnPushSection.addEventListener('click', handlePushSection);
     const btnUpload = document.getElementById('btnUpload');
     if (btnUpload) btnUpload.addEventListener('click', handleFiles);
     if (btnBack) btnBack.addEventListener('click', () => {
@@ -249,6 +257,17 @@
       showNotification('Return request sent');
     } catch (e) {
       alert('Request failed: ' + e.message);
+    }
+  }
+
+  async function handlePushSection() {
+    if (!confirm('Push this section directly to the responsible department?')) return;
+    try {
+      await Api.post('/api/workflow/push-section', { eventId, sectionId });
+      showNotification('Section pushed successfully');
+      setTimeout(() => window.location.reload(), 800);
+    } catch (e) {
+      alert('Push failed: ' + e.message);
     }
   }
 
