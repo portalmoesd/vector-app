@@ -7,6 +7,7 @@
 (async function () {
   await App.init();
 
+  let activePopover = null;
   const user = Api.getUser();
   if (!user) return;
 
@@ -144,6 +145,7 @@
   // ── Load sections for selected event ─────────────────────────────────────
 
   async function loadSections(eventId) {
+    closeStagePopover();
     if (!eventId) {
       if (eventDetailsEl) eventDetailsEl.style.display = 'none';
       if (sectionsCardEl) sectionsCardEl.style.display = 'none';
@@ -239,6 +241,7 @@
       }
 
       bindActions(eventId, grid);
+      bindStagePopover();
       bindApproveAll(eventId, sectionsToApprove);
       bindSendToLibrary(eventId);
 
@@ -282,13 +285,13 @@
             ${renderActionLinks(section, eventId, grid)}
           </div>
         </div>
-        ${renderPipeline(section, grid)}
+        ${renderPipeline(section, grid, eventId)}
         <button class="dp-history-toggle" data-section-id="${section.sectionId}">History &#9660;</button>
       </div>
     `;
   }
 
-  function renderPipeline(section, grid) {
+  function renderPipeline(section, grid, eventId) {
     const steps = section.steps || [];
     if (steps.length === 0) return '';
     const currentStatus = section.status || 'draft';
@@ -313,7 +316,7 @@
       const subtitle = step.departmentName || (step.role === 'CURATOR' || step.role === 'DEPUTY' ? roleLabel(step.role) : '');
       return `
         <div class="dp-pipeline__step dp-pipeline__step--${state}${skipped ? ' dp-pipeline__step--skipped' : ''}">
-          <span class="dp-pipeline__dot">${i + 1}</span>
+          <span class="dp-pipeline__dot" data-stage-action="show-users" data-stage-event="${eventId}" data-stage-section="${section.sectionId}" data-stage-role="${step.role}">${i + 1}</span>
           <span class="dp-pipeline__name" title="${escapeHtml(name)}${subtitle ? ' (' + escapeHtml(subtitle) + ')' : ''}">${escapeHtml(name)}</span>
           ${subtitle ? `<span class="dp-pipeline__dept">${escapeHtml(subtitle)}</span>` : ''}
         </div>
@@ -391,6 +394,81 @@
     }
 
     return links.join('');
+  }
+
+  // ── Stage Users Popover ──────────────────────────────────────────────────
+
+  function closeStagePopover() {
+    if (activePopover) {
+      activePopover.remove();
+      activePopover = null;
+    }
+  }
+
+  function createStagePopover(anchorEl, initialHtml) {
+    const popover = document.createElement('div');
+    popover.className = 'dp-stage-popover';
+    popover.innerHTML = `
+      <div class="dp-popover__header">
+        <span class="dp-popover__title">Eligible Users</span>
+        <button class="dp-popover__close">&times;</button>
+      </div>
+      <div class="dp-popover__body">${initialHtml}</div>
+    `;
+    document.body.appendChild(popover);
+    activePopover = popover;
+
+    // Position below the anchor dot
+    const rect = anchorEl.getBoundingClientRect();
+    const popW = popover.offsetWidth;
+    let top = rect.bottom + 8;
+    let left = rect.left + rect.width / 2 - popW / 2;
+    if (left < 8) left = 8;
+    if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+    popover.style.top = top + 'px';
+    popover.style.left = left + 'px';
+
+    popover.querySelector('.dp-popover__close').addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeStagePopover();
+    });
+    popover.addEventListener('click', (e) => e.stopPropagation());
+
+    return popover;
+  }
+
+  function renderStageUsers(data) {
+    if (!data.users || data.users.length === 0) {
+      return '<div class="dp-popover__empty">No eligible users</div>';
+    }
+    const label = roleLabel(data.role);
+    const rows = data.users.map(u => `
+      <div class="dp-popover__user">
+        <span class="dp-popover__user-name">${escapeHtml(u.fullName)}</span>
+        ${u.departmentName ? `<span class="dp-popover__user-dept">${escapeHtml(u.departmentName)}</span>` : ''}
+      </div>
+    `).join('');
+    return `<div class="dp-popover__role-title">${escapeHtml(label)}</div>${rows}`;
+  }
+
+  function bindStagePopover() {
+    document.querySelectorAll('[data-stage-action="show-users"]').forEach(dot => {
+      dot.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        closeStagePopover();
+        const eventId = dot.dataset.stageEvent;
+        const sectionId = dot.dataset.stageSection;
+        const role = dot.dataset.stageRole;
+        const popover = createStagePopover(dot, '<div class="dp-popover__loading">Loading…</div>');
+        try {
+          const data = await Api.get(`/api/workflow/stage-users?event_id=${eventId}&section_id=${sectionId}&role=${encodeURIComponent(role)}`);
+          popover.querySelector('.dp-popover__body').innerHTML = renderStageUsers(data);
+        } catch (err) {
+          popover.querySelector('.dp-popover__body').innerHTML = `<div class="dp-popover__empty">${escapeHtml(err.message)}</div>`;
+        }
+      });
+    });
+    document.addEventListener('click', closeStagePopover);
   }
 
   function getStepState(role, status, section) {

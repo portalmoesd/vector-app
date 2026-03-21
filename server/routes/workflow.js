@@ -4,6 +4,7 @@ const { requireAuth } = require('../middleware/auth');
 const { ROLES } = require('../helpers/roles');
 const {
   STATUS,
+  baseRole,
   buildChain,
   nextInChain,
   isFinalApprover,
@@ -870,6 +871,115 @@ router.get('/status-grid', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('Status grid error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /api/workflow/stage-users ─────────────────────────────────────────────
+
+router.get('/stage-users', requireAuth, async (req, res) => {
+  try {
+    const { event_id, section_id, role } = req.query;
+    if (!event_id || !section_id || !role) {
+      return res.status(400).json({ error: 'event_id, section_id, and role are required' });
+    }
+
+    const { rows: [event] } = await db.query(
+      `SELECT id, document_submitter_role, document_submitter_id,
+              supervisor_id, curator_required, country_id
+       FROM events WHERE id = $1`,
+      [event_id]
+    );
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+
+    // Resolve home department (same logic as status-grid)
+    let dsDeptId = null;
+    if (event.document_submitter_role === 'DEPUTY' && event.supervisor_id) {
+      const { rows: [sup] } = await db.query(
+        'SELECT department_id FROM users WHERE id = $1', [event.supervisor_id]
+      );
+      dsDeptId = sup ? sup.department_id : null;
+    } else {
+      const { rows: [dsUser] } = await db.query(
+        'SELECT department_id FROM users WHERE id = $1', [event.document_submitter_id]
+      );
+      dsDeptId = dsUser ? dsUser.department_id : null;
+    }
+
+    // Section departments
+    const { rows: deptRows } = await db.query(
+      'SELECT department_id FROM section_departments WHERE section_id = $1',
+      [section_id]
+    );
+    const sectionDeptIds = deptRows.map(r => r.department_id);
+    const isCrossDept = sectionDeptIds.some(d => d !== dsDeptId);
+    const chain = buildChain(event.document_submitter_role, event.curator_required, isCrossDept);
+
+    if (!chain.includes(role)) {
+      return res.status(400).json({ error: 'Role is not in the approval chain for this section' });
+    }
+
+    let users = [];
+
+    if (role === 'CURATOR') {
+      const { rows } = await db.query(
+        `SELECT u.id, u.full_name, d.name_en AS department_name
+         FROM deputy_department_links ddl
+         JOIN users u ON u.id = ddl.deputy_id
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE ddl.department_id = ANY($1) AND u.id != $2
+         ORDER BY u.full_name`,
+        [sectionDeptIds, event.document_submitter_id]
+      );
+      users = rows;
+    } else if (role === 'DEPUTY') {
+      const { rows } = await db.query(
+        `SELECT u.id, u.full_name, d.name_en AS department_name
+         FROM users u
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE u.id = $1`,
+        [event.document_submitter_id]
+      );
+      users = rows;
+    } else if (role.startsWith('RECEIVING_')) {
+      const dbRole = baseRole(role);
+      if (dsDeptId) {
+        const { rows } = await db.query(
+          `SELECT u.id, u.full_name, d.name_en AS department_name
+           FROM users u
+           LEFT JOIN departments d ON d.id = u.department_id
+           JOIN country_assignments ca ON ca.user_id = u.id AND ca.country_id = $3
+           WHERE u.role = $1 AND u.department_id = $2
+           ORDER BY u.full_name`,
+          [dbRole, dsDeptId, event.country_id]
+        );
+        users = rows;
+      }
+    } else {
+      if (sectionDeptIds.length > 0 && sectionDeptIds[0]) {
+        const { rows } = await db.query(
+          `SELECT u.id, u.full_name, d.name_en AS department_name
+           FROM users u
+           LEFT JOIN departments d ON d.id = u.department_id
+           JOIN country_assignments ca ON ca.user_id = u.id AND ca.country_id = $3
+           WHERE u.role = $1 AND u.department_id = ANY($2)
+           ORDER BY u.full_name`,
+          [role, sectionDeptIds, event.country_id]
+        );
+        users = rows;
+      }
+    }
+
+    res.json({
+      role,
+      users: users.map(u => ({
+        id: u.id,
+        fullName: u.full_name,
+        departmentName: u.department_name,
+      })),
+    });
+  } catch (err) {
+    console.error('Stage users error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

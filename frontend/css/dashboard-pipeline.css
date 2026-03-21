@@ -198,6 +198,11 @@
   border: 2px solid var(--border-color);
   background: #fff;
   color: var(--text-muted);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.dp-pipeline__dot:hover {
+  transform: scale(1.15);
 }
 .dp-pipeline__step--done .dp-pipeline__dot {
   background: #3b82f6;
@@ -434,4 +439,80 @@
   letter-spacing: 0.5px;
   border-bottom: 1px solid var(--border-color);
   margin-bottom: 12px;
+}
+
+/* ─── Stage Users Popover ─────────────────────────────────────────────────── */
+
+.dp-stage-popover {
+  position: fixed;
+  z-index: 100;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 200px;
+  max-width: 300px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.dp-popover__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+.dp-popover__title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.dp-popover__close {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+.dp-popover__close:hover { color: var(--text-primary); }
+.dp-popover__body {
+  padding: 10px 14px;
+}
+.dp-popover__role-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-blue);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.dp-popover__user {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.dp-popover__user:last-child {
+  border-bottom: none;
+}
+.dp-popover__user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.dp-popover__user-dept {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.dp-popover__empty,
+.dp-popover__loading {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 12px 0;
 }
