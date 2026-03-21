@@ -276,8 +276,9 @@ router.post('/approve', requireAuth, async (req, res) => {
       // Final approval — mark as approved by DS
       toStatus = approvedByStatus(userRole);
     } else {
-      // Mid-chain approval — approved by this role
-      toStatus = approvedByStatus(userRole);
+      // Mid-chain approval — submit to the next role in the chain
+      const nextRole = nextInChain(userRole, ctx.chain);
+      toStatus = submittedToStatus(nextRole);
     }
 
     await db.query(
