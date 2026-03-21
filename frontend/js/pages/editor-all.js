@@ -34,6 +34,15 @@
     return;
   }
 
+  // Only the Document Submitter and Deputies may view all sections at once
+  const isDS = grid.documentSubmitterId === user.id;
+  const isDeputy = user.role === 'DEPUTY';
+  if (!isDS && !isDeputy) {
+    document.getElementById('sectionsContainer').innerHTML =
+      '<div class="msg msg-error">Access denied — only the Document Submitter and Deputy can view all sections.</div>';
+    return;
+  }
+
   document.getElementById('pageTitle').textContent = `${event.title} — All Sections`;
 
   // Build section navigation

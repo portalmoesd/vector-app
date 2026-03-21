@@ -209,7 +209,9 @@
       });
 
       let headerActions = '';
-      headerActions += `<button class="btn btn-outline" onclick="window.location.href='/pages/editor-all.html?event_id=${eventId}'">Open all Sections</button>`;
+      if (isDS || isDeputy) {
+        headerActions += `<button class="btn btn-outline" onclick="window.location.href='/pages/editor-all.html?event_id=${eventId}'">Open all Sections</button>`;
+      }
       if (sectionsToApprove.length > 1) {
         headerActions += `<button class="btn dp-approve-all-btn" id="approveAllBtn">Approve all sections</button>`;
       }
