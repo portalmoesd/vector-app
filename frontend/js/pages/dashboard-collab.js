@@ -44,13 +44,13 @@
       const grid = await Api.get(`/api/workflow/status-grid?event_id=${eventId}`);
       // Filter sections: Deputies see all sections.
       // Other users see sections assigned to their department,
-      // OR sections where they participate in the approval chain
+      // OR sections where they are a specific actor in the approval chain
       // (e.g. RECEIVING_ roles from a different department).
       const mySections = user.role === 'DEPUTY'
         ? (grid.sections || [])
         : (grid.sections || []).filter(s =>
             (s.departmentIds && s.departmentIds.includes(user.departmentId)) ||
-            (s.userEffectiveRole && s.chain && s.chain.includes(s.userEffectiveRole))
+            (s.steps && s.steps.some(st => st.actorId === user.id))
           );
 
       if (mySections.length === 0) {
