@@ -1,622 +1,1557 @@
 /**
- * GCP — Global Component Provider
- * Custom rich text editor with track changes, inline comments, and full formatting.
- * Based on contenteditable — no external library dependency.
+ * GCP Rich Editor — lightweight contenteditable editor (no external deps)
+ * Exposes: window.GCP.RichEditor({ container, initialHtml, authorName, onCommentsClick })
+ *
+ * Track Changes:
+ *  - Always recording — no toggle needed to start.
+ *  - "Changes" button = Show / Hide markup only.
+ *  - Each author gets a unique Word-style colour (8-colour palette).
+ *  - Author initials shown as inline chips on every change when visible.
+ *  - Reviewing pane lists every change with author, excerpt, time,
+ *    and per-change Accept / Reject buttons.
+ *  - Self-corrections silently cancel: deleting your own insertion removes
+ *    the <ins> without adding a <del>.
  */
-const GCP = (function () {
-  'use strict';
+(function () {
 
-  // ─── Author palette (8 colors for track changes attribution) ───────────────
-  const AUTHOR_COLORS = [
-    '#2563eb', '#dc2626', '#16a34a', '#9333ea',
-    '#ea580c', '#0891b2', '#be185d', '#854d0e',
+  // ── Constants ──────────────────────────────────────────────────────────────
+
+  const FONT_FAMILIES = [
+    { label: 'Font',                value: '' },
+    { label: 'Arial',               value: 'Arial' },
+    { label: 'Sylfaen',             value: 'Sylfaen' },
+    { label: 'Calibri',             value: 'Calibri' },
+    { label: 'Noto Sans Georgian',  value: 'Noto Sans Georgian' },
+    { label: 'Noto Serif Georgian', value: 'Noto Serif Georgian' },
+    { label: 'FiraGO',              value: 'FiraGO' },
   ];
 
+  const FONT_SIZES = [
+    { label: 'Size',              value: '' },
+    { label: '8',                 value: '8' },
+    { label: '9',                 value: '9' },
+    { label: '10',                value: '10' },
+    { label: '11 (Recommended)',  value: '11' },
+    { label: '12',                value: '12' },
+    { label: '14',                value: '14' },
+    { label: '16',                value: '16' },
+    { label: '18',                value: '18' },
+    { label: '20',                value: '20' },
+    { label: '24',                value: '24' },
+    { label: '28',                value: '28' },
+    { label: '36',                value: '36' },
+    { label: '48',                value: '48' },
+    { label: '72',                value: '72' },
+  ];
+
+  const TOOLS = [
+    { cmd: 'bold',          icon: '<b>B</b>',          title: 'Bold (Ctrl+B)' },
+    { cmd: 'italic',        icon: '<i>I</i>',          title: 'Italic (Ctrl+I)' },
+    { cmd: 'underline',     icon: '<u>U</u>',          title: 'Underline (Ctrl+U)' },
+    { sep: true },
+    { cmd: 'h2',            icon: 'H2',                title: 'Heading 2' },
+    { cmd: 'h3',            icon: 'H3',                title: 'Heading 3' },
+    { sep: true },
+    { cmd: 'insertUnorderedList', icon: '&#8226;&#8212;', title: 'Bullet list' },
+    { cmd: 'insertOrderedList',   icon: '1.',            title: 'Numbered list' },
+    { sep: true },
+    { cmd: 'justifyLeft',   icon: '<svg viewBox="0 0 14 12" width="14" height="12" fill="currentColor" aria-hidden="true"><rect x="0" y="0" width="14" height="1.8" rx=".6"/><rect x="0" y="3.4" width="9" height="1.8" rx=".6"/><rect x="0" y="6.8" width="14" height="1.8" rx=".6"/><rect x="0" y="10.2" width="9" height="1.8" rx=".6"/></svg>', title: 'Align left' },
+    { cmd: 'justifyCenter', icon: '<svg viewBox="0 0 14 12" width="14" height="12" fill="currentColor" aria-hidden="true"><rect x="0" y="0" width="14" height="1.8" rx=".6"/><rect x="2.5" y="3.4" width="9" height="1.8" rx=".6"/><rect x="0" y="6.8" width="14" height="1.8" rx=".6"/><rect x="2.5" y="10.2" width="9" height="1.8" rx=".6"/></svg>', title: 'Center' },
+    { cmd: 'justifyRight',  icon: '<svg viewBox="0 0 14 12" width="14" height="12" fill="currentColor" aria-hidden="true"><rect x="0" y="0" width="14" height="1.8" rx=".6"/><rect x="5" y="3.4" width="9" height="1.8" rx=".6"/><rect x="0" y="6.8" width="14" height="1.8" rx=".6"/><rect x="5" y="10.2" width="9" height="1.8" rx=".6"/></svg>', title: 'Align right' },
+    { cmd: 'justifyFull',   icon: '<svg viewBox="0 0 14 12" width="14" height="12" fill="currentColor" aria-hidden="true"><rect x="0" y="0" width="14" height="1.8" rx=".6"/><rect x="0" y="3.4" width="14" height="1.8" rx=".6"/><rect x="0" y="6.8" width="14" height="1.8" rx=".6"/><rect x="0" y="10.2" width="14" height="1.8" rx=".6"/></svg>', title: 'Justify' },
+    { sep: true },
+    { cmd: 'removeFormat',  icon: '&#10005;',          title: 'Clear formatting' },
+  ];
+
+  // Word-style 8-colour author palette  [text/border, background]
+  const TC_PALETTE = [
+    ['#1d4ed8', 'rgba(29,78,216,.11)'],
+    ['#b91c1c', 'rgba(185,28,28,.11)'],
+    ['#15803d', 'rgba(21,128,61,.11)'],
+    ['#7c3aed', 'rgba(124,58,237,.11)'],
+    ['#c2410c', 'rgba(194,65,12,.11)'],
+    ['#0f766e', 'rgba(15,118,110,.11)'],
+    ['#9d174d', 'rgba(157,23,77,.11)'],
+    ['#3730a3', 'rgba(55,48,163,.11)'],
+  ];
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  function authorColorIdx(name) {
+    let h = 0;
+    for (let i = 0; i < (name || '').length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    return h % TC_PALETTE.length;
+  }
+
+  function getInitials(name) {
+    return (name || '').split(/\s+/).filter(Boolean).slice(0, 2)
+      .map(s => s[0] && s[0].toUpperCase()).filter(Boolean).join('') || '?';
+  }
+
+  function escHtml(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function fmtTime(iso) {
+    if (!iso) return '';
+    try { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+    catch (_) { return ''; }
+  }
+
+  // ── Backward-compat helpers exposed on window.GCP ─────────────────────────
   function authorColor(name) {
-    let hash = 0;
-    for (let i = 0; i < (name || '').length; i++) {
-      hash = ((hash << 5) - hash) + name.charCodeAt(i);
-      hash |= 0;
-    }
-    return AUTHOR_COLORS[Math.abs(hash) % AUTHOR_COLORS.length];
+    return TC_PALETTE[authorColorIdx(name)][0];
   }
-
   function authorInitials(name) {
-    if (!name) return '??';
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    return name.substring(0, 2).toUpperCase();
+    return getInitials(name);
   }
 
-  // ─── Unique ID generator ───────────────────────────────────────────────────
-  let _idCounter = 0;
-  function uid() { return 'gcp-' + (++_idCounter) + '-' + Date.now().toString(36); }
+  // ── Styles ─────────────────────────────────────────────────────────────────
 
-  // ─── RichEditor ─────────────────────────────────────────────────────────────
+  const TOOLBAR_CSS = `
+    .gcp-re-wrap { display:flex; flex-direction:column; border:1px solid var(--border,#e5e7eb); border-radius:14px; overflow:hidden; background:var(--card,#fff); }
+    .gcp-re-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:2px; padding:6px 8px; border-bottom:1px solid var(--border,#e5e7eb); background:rgba(0,0,0,.02); }
+    .gcp-re-btn { display:inline-flex; align-items:center; justify-content:center; gap:4px; min-width:30px; height:30px; padding:0 7px; border-radius:8px; border:1px solid transparent; background:transparent; cursor:pointer; font-size:13px; font-weight:700; color:var(--text,#1f2a37); transition:background .12s,border-color .12s; }
+    .gcp-re-btn:hover { background:rgba(0,0,0,.06); border-color:rgba(0,0,0,.10); }
+    .gcp-re-btn.active { background:rgba(10,132,255,.14); border-color:rgba(10,132,255,.30); color:#0a84ff; }
+    .gcp-re-sep { width:1px; height:22px; background:var(--border,#e5e7eb); margin:0 3px; align-self:center; flex-shrink:0; }
+    .gcp-re-select { height:30px; padding:0 5px; border-radius:8px; border:1px solid transparent; background:transparent; cursor:pointer; font-size:12px; font-weight:600; color:var(--text,#1f2a37); outline:none; max-width:130px; transition:background .12s,border-color .12s; }
+    .gcp-re-select:hover { background:rgba(0,0,0,.06); border-color:rgba(0,0,0,.10); }
+    .gcp-re-color-wrap { position:relative; display:inline-flex; align-items:center; justify-content:center; min-width:30px; height:30px; padding:0 7px; border-radius:8px; border:1px solid transparent; background:transparent; cursor:pointer; transition:background .12s,border-color .12s; overflow:hidden; }
+    .gcp-re-color-wrap:hover { background:rgba(0,0,0,.06); border-color:rgba(0,0,0,.10); }
+    .gcp-re-color-label { display:flex; flex-direction:column; align-items:center; gap:1px; pointer-events:none; }
+    .gcp-re-color-a { font-size:13px; font-weight:900; line-height:1; color:var(--text,#1f2a37); }
+    .gcp-re-color-bar { height:3px; width:14px; border-radius:2px; background:#000; }
+    .gcp-re-color-input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; border:none; padding:0; }
+    [data-theme="dark"] .gcp-re-wrap { background:rgba(30,33,44,.92); }
+    [data-theme="dark"] .gcp-re-toolbar { background:rgba(22,25,34,.60); }
+    [data-theme="dark"] .gcp-re-btn { color:#c0cce0; }
+    [data-theme="dark"] .gcp-re-btn:hover { background:rgba(255,255,255,.07); }
+    [data-theme="dark"] .gcp-re-btn.active { background:rgba(33,150,243,.20); color:#90caf9; }
+    [data-theme="dark"] .gcp-re-body { color:#e8ecf4; }
+    [data-theme="dark"] .gcp-re-select { color:#c0cce0; }
+    [data-theme="dark"] .gcp-re-select:hover { background:rgba(255,255,255,.07); }
+    [data-theme="dark"] .gcp-re-color-a { color:#c0cce0; }
+    .gcp-re-tc-badge { display:inline-flex; align-items:center; justify-content:center; min-width:15px; height:15px; padding:0 3px; border-radius:999px; background:rgba(220,38,38,.15); color:#b91c1c; font-size:10px; font-weight:800; line-height:1; }
+    .gcp-re-btn.tc-active { background:rgba(245,158,11,.15); border-color:rgba(217,119,6,.38); color:#92400e; }
+    .gcp-re-btn.tc-active .gcp-re-tc-badge { background:rgba(59,130,246,.14); color:#1d4ed8; }
+    [data-theme="dark"] .gcp-re-btn.tc-active { background:rgba(245,158,11,.20); color:#fcd34d; }
+    .gcp-re-cmt-badge { display:inline-flex; align-items:center; justify-content:center; min-width:15px; height:15px; padding:0 3px; border-radius:999px; background:rgba(3,105,161,.14); color:#0369a1; font-size:10px; font-weight:800; line-height:1; }
+    .gcp-re-tc-bar { display:flex; align-items:center; gap:8px; padding:5px 10px; border-bottom:1px solid var(--border,#e5e7eb); background:rgba(245,158,11,.06); font-size:12px; font-weight:600; color:#78350f; }
+    .gcp-re-tc-bar-left { flex:1; display:flex; flex-direction:column; gap:1px; min-width:0; }
+    .gcp-re-tc-summary { font-size:12px; font-weight:700; }
+    .gcp-re-tc-authors-row { font-size:11px; font-weight:500; color:#92400e; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .gcp-re-tc-bar-actions { display:flex; gap:5px; flex-shrink:0; }
+    .gcp-re-tc-action { padding:2px 9px; border-radius:6px; border:1px solid; cursor:pointer; font-size:11px; font-weight:700; background:transparent; line-height:1.6; }
+    .gcp-re-tc-action.accept { border-color:rgba(22,163,74,.35); color:#15803d; }
+    .gcp-re-tc-action.accept:hover { background:rgba(22,163,74,.10); }
+    .gcp-re-tc-action.reject { border-color:rgba(220,38,38,.35); color:#b91c1c; }
+    .gcp-re-tc-action.reject:hover { background:rgba(220,38,38,.10); }
+    [data-theme="dark"] .gcp-re-tc-bar { background:rgba(120,80,10,.16); color:#fcd34d; }
+    [data-theme="dark"] .gcp-re-tc-authors-row { color:#fbbf24; }
+    .gcp-re-tc-pane { display:none; }
+    .gcp-re-content-row { display:flex; overflow-y:auto; overflow-x:auto; min-height:400px; align-items:flex-start; position:relative; background:#e8eaed; padding:40px 32px 64px; gap:24px; justify-content:center; }
+    .gcp-re-body { flex:0 0 794px; width:794px; box-sizing:border-box; min-height:1123px; padding:96px; outline:none; font-size:15px; line-height:1.65; color:var(--text,#1f2a37); overflow-y:visible; background:#fff; box-shadow:0 4px 16px rgba(0,0,0,.18); }
+    .gcp-re-body:empty::before { content:attr(data-placeholder); color:var(--muted,#6b7280); pointer-events:none; }
+    .gcp-re-body h2 { font-size:1.3em; font-weight:800; margin:.8em 0 .3em; }
+    .gcp-re-body h3 { font-size:1.1em; font-weight:700; margin:.7em 0 .25em; }
+    .gcp-re-body ul,.gcp-re-body ol { margin:.4em 0; padding-left:1.6em; }
+    .gcp-re-body li { margin:.2em 0; }
+    .gcp-re-body p { margin:.3em 0; }
+    .gcp-re-wrap.tc-visible .gcp-re-body .gcp-tc-changed { border-left:3px solid #b91c1c; padding-left:6px; margin-left:-9px; }
+    .gcp-re-margin { width:0; flex-shrink:0; position:relative; overflow:visible; }
+    .gcp-re-wrap.tc-visible .gcp-re-margin,.gcp-re-wrap.has-comments .gcp-re-margin { width:240px; }
+    .gcp-re-connectors { position:absolute; top:0; left:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
+    .gcp-re-balloon-avatar { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; font-size:9px; font-weight:800; color:#fff; flex-shrink:0; }
+    .gcp-re-balloon { position:absolute; left:8px; right:4px; background:#fff; border-radius:8px; padding:7px 10px; box-shadow:0 1px 6px rgba(15,23,42,.10); font-size:11px; box-sizing:border-box; border:1px solid #e2e8f0; }
+    .gcp-re-balloon--del { border-left:3px solid #dc2626; background:#fff8f8; }
+    .gcp-re-balloon--ins { border-left:3px solid var(--tc-bcolor,#1d4ed8); background:#f8faff; }
+    .gcp-re-balloon--cmt { border-left:3px solid #f59e0b; background:#fffdf5; }
+    .gcp-re-balloon--tc-group { border-left:3px solid #64748b; background:#f8fafc; }
+    .gcp-re-balloon-change-count { font-size:10px; color:#64748b; margin-top:1px; }
+    .gcp-re-snippet { font-size:10px; font-family:monospace; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .gcp-re-snippet--wrap { white-space:pre-wrap; overflow:visible; text-overflow:unset; }
+    .gcp-re-snippet-ins { color:#15803d; }
+    .gcp-re-snippet-del { color:#b91c1c; text-decoration:line-through; }
+    .gcp-re-balloon-expand { margin-top:4px; background:none; border:none; padding:0; font-size:10px; font-weight:700; color:#0a84ff; cursor:pointer; line-height:1.4; }
+    .gcp-re-balloon-expand:hover { text-decoration:underline; }
+    .gcp-re-balloon-header { display:flex; align-items:center; gap:5px; margin-bottom:4px; }
+    .gcp-re-balloon-author { font-weight:800; color:#0f172a; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .gcp-re-balloon-time { color:#94a3b8; white-space:nowrap; flex-shrink:0; }
+    .gcp-re-balloon-body { color:#334155; line-height:1.4; word-break:break-word; }
+    .gcp-re-balloon-kind { display:inline-block; font-size:9px; font-weight:800; padding:1px 4px; border-radius:3px; margin-right:3px; vertical-align:middle; }
+    .gcp-re-balloon-kind.del { background:rgba(220,38,38,.12); color:#dc2626; }
+    .gcp-re-balloon-kind.ins { background:rgba(29,78,216,.12); color:#1d4ed8; }
+    .gcp-re-balloon-kind.cmt { background:rgba(245,158,11,.14); color:#b45309; }
+    .gcp-re-balloon-btns { display:flex; gap:3px; margin-top:5px; }
+    .gcp-re-balloon-acc,.gcp-re-balloon-rej,.gcp-re-balloon-del { font-size:10px; font-weight:800; border:none; border-radius:4px; padding:2px 7px; cursor:pointer; line-height:1.4; transition:background .1s; }
+    .gcp-re-balloon-acc { background:rgba(21,128,61,.12); color:#15803d; }
+    .gcp-re-balloon-acc:hover { background:rgba(21,128,61,.22); }
+    .gcp-re-balloon-rej { background:rgba(185,28,28,.12); color:#b91c1c; }
+    .gcp-re-balloon-rej:hover { background:rgba(185,28,28,.22); }
+    .gcp-re-balloon-del { background:rgba(185,28,28,.10); color:#b91c1c; }
+    .gcp-re-balloon-del:hover { background:rgba(185,28,28,.22); }
+    .gcp-re-wrap.gcp-fullscreen { position:fixed; inset:0; z-index:9990; border-radius:0; border:none; width:100vw; height:100dvh; display:flex; flex-direction:column; background:#f1f5f9 !important; }
+    .gcp-re-wrap.gcp-fullscreen .gcp-re-content-row { flex:1 1 0; min-height:0; overflow-y:auto; overflow-x:auto; padding:40px 32px 64px; gap:24px; justify-content:center; }
+    .gcp-re-wrap.gcp-fullscreen .gcp-re-body { flex:0 0 794px; width:794px; box-sizing:border-box; min-height:1123px; background:#ffffff; box-shadow:0 4px 16px rgba(0,0,0,.18); border-radius:0; padding:96px; }
+    .gcp-re-fs-titlebar { display:none; align-items:center; gap:10px; padding:10px 56px; background:#ffffff; border-bottom:1px solid #e2e8f0; flex-shrink:0; }
+    .gcp-re-wrap.gcp-fullscreen .gcp-re-fs-titlebar { display:flex; }
+    .gcp-re-fs-title { font-size:14px; font-weight:700; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    [data-theme="dark"] .gcp-re-wrap.gcp-fullscreen { background:#161b27 !important; }
+    [data-theme="dark"] .gcp-re-wrap.gcp-fullscreen .gcp-re-body { background:#1e212c; box-shadow:0 1px 4px rgba(0,0,0,.25); }
+    [data-theme="dark"] .gcp-re-wrap.gcp-fullscreen .gcp-re-fs-titlebar { background:#1e212c; border-color:#2d3348; }
+    [data-theme="dark"] .gcp-re-fs-title { color:#f1f5f9; }
+    .gcp-re-btn-fullscreen-icon-expand,.gcp-re-btn-fullscreen-icon-compress { pointer-events:none; }
+    .gcp-re-wrap:not(.gcp-fullscreen) .gcp-re-btn-fullscreen-icon-compress { display:none; }
+    .gcp-re-wrap.gcp-fullscreen .gcp-re-btn-fullscreen-icon-expand { display:none; }
+    .gcp-re-ctx { position:fixed; z-index:9999; background:#fff; border:1px solid #e2e8f0; border-radius:9px; box-shadow:0 4px 20px rgba(15,23,42,.14); padding:4px; min-width:160px; }
+    .gcp-re-ctx-item { display:flex; align-items:center; gap:7px; padding:7px 12px; border-radius:6px; font-size:13px; font-weight:600; color:#0f172a; cursor:pointer; white-space:nowrap; transition:background .1s; }
+    .gcp-re-ctx-item:hover { background:rgba(10,132,255,.09); color:#0a84ff; }
+    .gcp-re-ctx-sep { height:1px; background:#e2e8f0; margin:3px 0; }
+    .gcp-re-ctx-tbl-row { display:flex; align-items:center; gap:3px; padding:3px 10px; }
+    .gcp-re-ctx-tbl-lbl { font-size:10px; font-weight:800; color:#64748b; flex:0 0 58px; }
+    .gcp-re-ctx-tbl-btn { font-size:10px; font-weight:700; padding:2px 6px; border:1px solid #e2e8f0; border-radius:3px; cursor:pointer; background:#f8fafc; color:#334155; line-height:1.4; white-space:nowrap; }
+    .gcp-re-ctx-tbl-btn:hover { background:#dbeafe; border-color:#93c5fd; color:#1d4ed8; }
+    [data-theme="dark"] .gcp-re-ctx-tbl-btn { background:#2a2d3e; border-color:#3d4155; color:#c0cce0; }
+    [data-theme="dark"] .gcp-re-ctx-tbl-btn:hover { background:rgba(29,78,216,.25); border-color:#4f87e8; color:#93c5fd; }
+    [data-theme="dark"] .gcp-re-ctx { background:#1e212c; border-color:rgba(255,255,255,.10); }
+    [data-theme="dark"] .gcp-re-ctx-item { color:#e8ecf4; }
+    [data-theme="dark"] .gcp-re-ctx-item:hover { background:rgba(10,132,255,.15); color:#60a5fa; }
+    .gcp-re-body ins[data-tc-id] { text-decoration:none; background:none; padding:0; font-style:normal; }
+    .gcp-re-body del[data-tc-id] { display:none; }
+    .gcp-re-wrap.tc-visible .gcp-re-body ins[data-tc-id] { text-decoration-line:underline; text-decoration-style:dotted; text-decoration-color:var(--tc-color,#1d4ed8); background:var(--tc-bg,rgba(29,78,216,.11)); border-radius:2px; padding:0 1px; cursor:default; font-style:normal; }
+    .gcp-re-wrap.tc-visible .gcp-re-body del[data-tc-id] { display:inline; text-decoration:line-through; text-decoration-color:var(--tc-color,#b91c1c); color:var(--tc-color,#b91c1c); border-radius:2px; padding:0 1px; cursor:default; }
+    [data-theme="dark"] .gcp-re-wrap.tc-visible .gcp-re-body ins[data-tc-id] { background:color-mix(in srgb, var(--tc-color,#1d4ed8) 18%, transparent); }
+    [data-theme="dark"] .gcp-re-wrap.tc-visible .gcp-re-body del[data-tc-id] { background:color-mix(in srgb, var(--tc-color,#b91c1c) 18%, transparent); }
+    .gcp-re-body [data-tc-fmt-id] { border-radius:2px; }
+    .gcp-re-wrap.tc-visible .gcp-re-body [data-tc-fmt-id] { outline:1.5px dotted var(--tc-color,#7c3aed); background:rgba(124,58,237,.07); border-radius:2px; padding:0 1px; cursor:default; }
+    [data-theme="dark"] .gcp-re-wrap.tc-visible .gcp-re-body [data-tc-fmt-id] { background:rgba(124,58,237,.15); }
+    .gcp-re-balloon-kind.fmt { background:rgba(124,58,237,.12); color:#7c3aed; }
+    .gcp-re-cmt-replies { margin-top:6px; padding-top:6px; border-top:1px solid rgba(0,0,0,.08); display:flex; flex-direction:column; gap:5px; }
+    .gcp-re-cmt-reply { padding:0; }
+    .gcp-re-cmt-reply-form { margin-top:6px; padding-top:6px; border-top:1px solid rgba(0,0,0,.08); }
+    .gcp-re-cmt-reply-input { width:100%; box-sizing:border-box; border:1px solid #e2e8f0; border-radius:6px; padding:5px 8px; font-size:11px; resize:none; outline:none; font-family:inherit; line-height:1.4; }
+    .gcp-re-cmt-reply-input:focus { border-color:#93c5fd; box-shadow:0 0 0 2px rgba(147,197,253,.25); }
+    .gcp-re-balloon-reply { background:rgba(3,105,161,.10); color:#0369a1; font-size:10px; font-weight:800; border:none; border-radius:4px; padding:2px 7px; cursor:pointer; line-height:1.4; transition:background .1s; }
+    .gcp-re-balloon-reply:hover { background:rgba(3,105,161,.20); }
+    .gcp-re-cmt-reply-send { background:rgba(21,128,61,.12); color:#15803d; font-size:10px; font-weight:800; border:none; border-radius:4px; padding:2px 7px; cursor:pointer; line-height:1.4; transition:background .1s; }
+    .gcp-re-cmt-reply-send:hover { background:rgba(21,128,61,.22); }
+    .gcp-re-cmt-reply-send:disabled { opacity:.5; cursor:default; }
+    .gcp-re-cmt-reply-cancel { background:transparent; color:#64748b; font-size:10px; font-weight:700; border:none; border-radius:4px; padding:2px 7px; cursor:pointer; line-height:1.4; transition:background .1s; }
+    .gcp-re-cmt-reply-cancel:hover { background:rgba(0,0,0,.06); }
+    .gcp-re-wrap.has-comments .gcp-re-body .gcp-cmt-anchor { background:rgba(255,210,0,.30); border-bottom:2px solid #d97706; border-radius:2px; cursor:default; box-shadow:0 0 0 1px rgba(217,119,6,.20); }
+    .gcp-re-wrap.has-comments .gcp-re-body .gcp-cmt-anchor:hover { background:rgba(255,210,0,.50); box-shadow:0 0 0 1px rgba(217,119,6,.45); }
+    .gcp-re-palette { position:fixed; z-index:10000; background:#fff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 6px 24px rgba(15,23,42,.16); padding:10px; min-width:196px; }
+    .gcp-re-palette-grid { display:grid; grid-template-columns:repeat(8,20px); gap:3px; }
+    .gcp-re-palette-swatch { width:20px; height:20px; border-radius:3px; border:1px solid rgba(0,0,0,.12); cursor:pointer; transition:transform .1s,box-shadow .1s; }
+    .gcp-re-palette-swatch:hover { transform:scale(1.2); box-shadow:0 0 0 2px rgba(10,132,255,.5); z-index:1; position:relative; }
+    .gcp-re-palette-divider { height:1px; background:#e2e8f0; margin:8px 0; }
+    .gcp-re-palette-custom { display:flex; align-items:center; gap:6px; font-size:11px; color:#0369a1; font-weight:700; cursor:pointer; padding:3px 2px; border-radius:5px; }
+    .gcp-re-palette-custom:hover { background:rgba(3,105,161,.08); }
+    .gcp-re-palette-custom input[type="color"] { width:20px; height:20px; border:none; padding:0; border-radius:3px; cursor:pointer; }
+    [data-theme="dark"] .gcp-re-palette { background:#1e212c; border-color:rgba(255,255,255,.1); }
+    [data-theme="dark"] .gcp-re-palette-custom { color:#60a5fa; }
+    .gcp-re-tbl-picker { position:fixed; z-index:10000; background:#fff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 6px 24px rgba(15,23,42,.16); padding:10px; }
+    .gcp-re-tbl-grid { display:grid; grid-template-columns:repeat(8,22px); gap:2px; }
+    .gcp-re-tbl-cell { width:22px; height:22px; border:1px solid #d1d5db; border-radius:2px; background:#f8fafc; cursor:pointer; box-sizing:border-box; }
+    .gcp-re-tbl-cell.hi { background:#dbeafe; border-color:#93c5fd; }
+    .gcp-re-tbl-label { text-align:center; font-size:11px; color:#64748b; margin-top:6px; font-weight:600; }
+    [data-theme="dark"] .gcp-re-tbl-picker { background:#1e212c; border-color:rgba(255,255,255,.1); }
+    [data-theme="dark"] .gcp-re-tbl-cell { background:#252836; border-color:#3d4155; }
+    [data-theme="dark"] .gcp-re-tbl-cell.hi { background:rgba(29,78,216,.25); border-color:#4f87e8; }
+    .gcp-re-body table { border-collapse:collapse; width:100%; margin:.5em 0; }
+    .gcp-re-body th,.gcp-re-body td { border:1px solid #d1d5db; padding:6px 10px; font-size:14px; min-width:48px; vertical-align:top; }
+    .gcp-re-body th { background:#f1f5f9; font-weight:700; text-align:left; }
+    .gcp-re-body td:focus,.gcp-re-body th:focus { outline:2px solid #93c5fd; outline-offset:-1px; }
+  `;
 
-  function RichEditor(opts) {
-    const {
-      container,
-      initialHtml = '',
-      authorName = 'Unknown',
-      sectionTitle = '',
-      readOnly = false,
-      onCommentsClick,
-      onDeleteComment,
-      onReplyComment,
-    } = opts;
+  let styleInjected = false;
+  function injectStyle() {
+    if (styleInjected) return;
+    styleInjected = true;
+    const s = document.createElement('style');
+    s.textContent = TOOLBAR_CSS;
+    document.head.appendChild(s);
+  }
 
-    const editorId = uid();
-    const color = authorColor(authorName);
-    let trackChanges = true;
-    let comments = [];
+  function execCmd(cmd, value) { document.execCommand(cmd, false, value || null); }
 
-    // ── Build DOM ──────────────────────────────────────────────────────────
+  function applyFontSizePt(pt) {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount || sel.isCollapsed) return;
+    document.querySelectorAll('font[size="7"]').forEach(el => el.setAttribute('data-pre','1'));
+    document.execCommand('fontSize', false, '7');
+    document.querySelectorAll('font[size="7"]:not([data-pre])').forEach(el => {
+      const span = document.createElement('span');
+      span.style.fontSize = pt + 'pt';
+      if (el.color) span.style.color = el.color;
+      if (el.face)  span.style.fontFamily = el.face;
+      while (el.firstChild) span.appendChild(el.firstChild);
+      el.parentNode.replaceChild(span, el);
+    });
+    document.querySelectorAll('font[size="7"][data-pre]').forEach(el => el.removeAttribute('data-pre'));
+  }
 
-    container.innerHTML = '';
-    container.classList.add('gcp-editor-root');
+  function handleHeading(tag) {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    let block = range.commonAncestorContainer;
+    while (block && block.nodeType !== Node.ELEMENT_NODE) block = block.parentNode;
+    if (block && block.tagName && block.tagName.toLowerCase() === tag)
+      document.execCommand('formatBlock', false, 'p');
+    else
+      document.execCommand('formatBlock', false, tag);
+  }
 
-    // Toolbar
+  // ── RichEditor factory ─────────────────────────────────────────────────────
+
+  function RichEditor({ container, initialHtml, placeholder, authorName, sectionTitle, readOnly, onCommentsClick, onDeleteComment, onReplyComment }) {
+    injectStyle();
+
+    const wrap = document.createElement('div');
+    wrap.className = 'gcp-re-wrap';
+
     const toolbar = document.createElement('div');
-    toolbar.className = 'gcp-toolbar';
-    toolbar.innerHTML = buildToolbarHtml();
-    container.appendChild(toolbar);
+    toolbar.className = 'gcp-re-toolbar';
+    toolbar.setAttribute('aria-label', 'Editor toolbar');
 
-    // Format bar
-    const formatBar = document.createElement('div');
-    formatBar.className = 'gcp-format-bar';
-    formatBar.innerHTML = buildFormatBarHtml();
-    container.appendChild(formatBar);
+    const body = document.createElement('div');
+    body.className = 'gcp-re-body';
+    body.contentEditable = readOnly ? 'false' : 'true';
+    body.setAttribute('role', 'textbox');
+    body.setAttribute('aria-multiline', 'true');
+    body.setAttribute('data-placeholder', placeholder || 'Start typing…');
+    if (initialHtml) body.innerHTML = initialHtml;
 
-    // Content area
-    const contentArea = document.createElement('div');
-    contentArea.className = 'gcp-content';
-    contentArea.contentEditable = readOnly ? 'false' : 'true';
-    contentArea.spellcheck = true;
-    contentArea.innerHTML = initialHtml;
-    container.appendChild(contentArea);
+    // ── Track Changes state ──────────────────────────────────────────────────
+    const tc = { visible: false, authorName: authorName || 'Unknown', counter: 0 };
+    function newTcId() { return `tc${Date.now()}${++tc.counter}`; }
 
-    // Comment sidebar
-    const commentSidebar = document.createElement('div');
-    commentSidebar.className = 'gcp-comment-sidebar';
-    commentSidebar.style.display = 'none';
-    container.appendChild(commentSidebar);
+    const FMT_TOGGLE = new Set(['bold','italic','underline','strikeThrough','superscript','subscript']);
+    const FMT_VALUE  = new Set(['fontName','fontSize','foreColor','backColor']);
+    const FMT_CMD_LABELS = {
+      bold:'Bold', italic:'Italic', underline:'Underline', strikeThrough:'Strikethrough',
+      superscript:'Superscript', subscript:'Subscript',
+      fontName:'Font', fontSize:'Font size', foreColor:'Colour', backColor:'Highlight',
+    };
 
-    // ── Toolbar HTML ───────────────────────────────────────────────────────
-
-    function buildToolbarHtml() {
-      return `
-        <div class="gcp-toolbar-group">
-          <button class="gcp-tb-btn" data-cmd="undo" title="Undo (Ctrl+Z)">↶</button>
-          <button class="gcp-tb-btn" data-cmd="redo" title="Redo (Ctrl+Y)">↷</button>
-          <span class="gcp-tb-sep"></span>
-          <button class="gcp-tb-btn gcp-tb-toggle ${trackChanges ? 'active' : ''}" data-action="toggleTrack" title="Track Changes">
-            TC
-          </button>
-          <button class="gcp-tb-btn" data-action="addComment" title="Add Comment">💬</button>
-          <span class="gcp-tb-sep"></span>
-          <button class="gcp-tb-btn" data-action="toggleComments" title="Toggle Comments Panel">
-            Comments
-          </button>
-        </div>
-      `;
-    }
-
-    function buildFormatBarHtml() {
-      return `
-        <div class="gcp-format-group">
-          <button class="gcp-fmt-btn" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
-          <button class="gcp-fmt-btn" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
-          <button class="gcp-fmt-btn" data-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button>
-          <span class="gcp-tb-sep"></span>
-          <button class="gcp-fmt-btn" data-cmd="formatBlock" data-value="H2" title="Heading 2">H2</button>
-          <button class="gcp-fmt-btn" data-cmd="formatBlock" data-value="H3" title="Heading 3">H3</button>
-          <button class="gcp-fmt-btn" data-cmd="formatBlock" data-value="P" title="Paragraph">¶</button>
-          <span class="gcp-tb-sep"></span>
-          <button class="gcp-fmt-btn" data-cmd="insertUnorderedList" title="Bullet List">•</button>
-          <button class="gcp-fmt-btn" data-cmd="insertOrderedList" title="Numbered List">1.</button>
-          <span class="gcp-tb-sep"></span>
-          <button class="gcp-fmt-btn" data-cmd="justifyLeft" title="Align Left">⫷</button>
-          <button class="gcp-fmt-btn" data-cmd="justifyCenter" title="Align Center">⫸</button>
-          <button class="gcp-fmt-btn" data-cmd="justifyRight" title="Align Right">⫹</button>
-          <button class="gcp-fmt-btn" data-cmd="justifyFull" title="Justify">☰</button>
-          <span class="gcp-tb-sep"></span>
-          <select class="gcp-fmt-select" data-cmd="fontName" title="Font">
-            <option value="FiraGO">FiraGO</option>
-            <option value="Arial">Arial</option>
-            <option value="Calibri">Calibri</option>
-            <option value="Noto Sans Georgian">Noto Sans</option>
-            <option value="Noto Serif Georgian">Noto Serif</option>
-            <option value="Sylfaen">Sylfaen</option>
-          </select>
-          <select class="gcp-fmt-select gcp-fmt-size" data-cmd="fontSize" title="Font Size">
-            <option value="1">8</option>
-            <option value="2">10</option>
-            <option value="3" selected>12</option>
-            <option value="4">14</option>
-            <option value="5">18</option>
-            <option value="6">24</option>
-            <option value="7">36</option>
-          </select>
-          <span class="gcp-tb-sep"></span>
-          <input type="color" class="gcp-color-picker" data-cmd="foreColor" value="#1e293b" title="Text Color" />
-          <button class="gcp-fmt-btn" data-cmd="removeFormat" title="Clear Formatting">✕</button>
-        </div>
-      `;
-    }
-
-    // ── Format bar events ──────────────────────────────────────────────────
-
-    formatBar.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-cmd]');
-      if (!btn || btn.tagName === 'SELECT' || btn.tagName === 'INPUT') return;
-      e.preventDefault();
-      contentArea.focus();
-      const cmd = btn.dataset.cmd;
-      const val = btn.dataset.value || null;
-
-      if (trackChanges && isFormatCommand(cmd)) {
-        wrapTrackChange('format');
-      }
-      document.execCommand(cmd, false, val);
-    });
-
-    formatBar.querySelectorAll('select[data-cmd]').forEach(sel => {
-      sel.addEventListener('change', () => {
-        contentArea.focus();
-        document.execCommand(sel.dataset.cmd, false, sel.value);
-      });
-    });
-
-    formatBar.querySelectorAll('input[type="color"]').forEach(inp => {
-      inp.addEventListener('input', () => {
-        contentArea.focus();
-        document.execCommand(inp.dataset.cmd, false, inp.value);
-      });
-    });
-
-    function isFormatCommand(cmd) {
-      return ['bold', 'italic', 'underline', 'fontName', 'fontSize', 'foreColor',
-              'formatBlock', 'justifyLeft', 'justifyCenter', 'justifyRight', 'justifyFull'].includes(cmd);
-    }
-
-    // ── Toolbar actions ────────────────────────────────────────────────────
-
-    toolbar.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-cmd], [data-action]');
-      if (!btn) return;
-      e.preventDefault();
-
-      if (btn.dataset.cmd) {
-        contentArea.focus();
-        document.execCommand(btn.dataset.cmd, false, null);
+    function trackFmtChange(cmd, value) {
+      const sel = window.getSelection();
+      const hasSelection = sel && sel.rangeCount > 0 && !sel.isCollapsed;
+      if (!hasSelection || (!FMT_TOGGLE.has(cmd) && !FMT_VALUE.has(cmd))) {
+        execCmd(cmd, value !== undefined ? value : null);
         return;
       }
-
-      const action = btn.dataset.action;
-      if (action === 'toggleTrack') {
-        trackChanges = !trackChanges;
-        btn.classList.toggle('active', trackChanges);
-      } else if (action === 'addComment') {
-        addCommentAtSelection();
-      } else if (action === 'toggleComments') {
-        const visible = commentSidebar.style.display !== 'none';
-        commentSidebar.style.display = visible ? 'none' : '';
-        if (!visible) renderComments();
-        if (onCommentsClick) onCommentsClick(!visible);
-      }
-    });
-
-    // ── Track Changes ──────────────────────────────────────────────────────
-
-    // Intercept keydown for track changes on text input
-    contentArea.addEventListener('beforeinput', (e) => {
-      if (readOnly || !trackChanges) return;
-
-      if (e.inputType === 'deleteContentBackward' || e.inputType === 'deleteContentForward') {
-        const sel = window.getSelection();
-        if (!sel.rangeCount) return;
-
-        const range = sel.getRangeAt(0);
-
-        // If there's a selection, wrap it as deleted
-        if (!range.collapsed) {
-          e.preventDefault();
-          wrapSelectionAsDeleted(range);
-          return;
-        }
-
-        // Single character deletion
-        if (e.inputType === 'deleteContentBackward') {
-          // Check if previous character is inside an <ins> by the same author
-          const node = sel.anchorNode;
-          const insEl = node && node.parentElement && node.parentElement.closest('ins[data-author="' + authorName + '"]');
-          if (insEl) {
-            // Let the browser handle — deleting own insertions is a real delete
-            return;
-          }
-          e.preventDefault();
-          // Select the character before cursor and wrap as deleted
-          const charRange = document.createRange();
-          try {
-            if (sel.anchorOffset > 0) {
-              charRange.setStart(sel.anchorNode, sel.anchorOffset - 1);
-              charRange.setEnd(sel.anchorNode, sel.anchorOffset);
-            } else {
-              return; // At start of text node
-            }
-          } catch { return; }
-          wrapSelectionAsDeleted(charRange);
-        } else if (e.inputType === 'deleteContentForward') {
-          const node = sel.anchorNode;
-          const insEl = node && node.parentElement && node.parentElement.closest('ins[data-author="' + authorName + '"]');
-          if (insEl) return;
-          e.preventDefault();
-          const charRange = document.createRange();
-          try {
-            if (sel.anchorNode.length && sel.anchorOffset < sel.anchorNode.length) {
-              charRange.setStart(sel.anchorNode, sel.anchorOffset);
-              charRange.setEnd(sel.anchorNode, sel.anchorOffset + 1);
-            } else {
-              return;
-            }
-          } catch { return; }
-          wrapSelectionAsDeleted(charRange);
-        }
-      } else if (e.inputType === 'insertText' || e.inputType === 'insertParagraph') {
-        // Check if we're already inside our own <ins>
-        const sel = window.getSelection();
-        if (!sel.rangeCount) return;
-        const node = sel.anchorNode;
-        const existingIns = node && (node.nodeType === 3 ? node.parentElement : node);
-        if (existingIns && existingIns.closest && existingIns.closest('ins[data-author="' + authorName + '"]')) {
-          // Already in our own insertion — let browser handle normally
-          return;
-        }
-
-        // Wrap new text in an <ins> element
-        if (e.inputType === 'insertText' && e.data) {
-          e.preventDefault();
-          insertTrackedText(e.data);
-        }
-      }
-    });
-
-    function wrapSelectionAsDeleted(range) {
-      const contents = range.extractContents();
-      const del = document.createElement('del');
-      del.setAttribute('data-author', authorName);
-      del.setAttribute('data-time', new Date().toISOString());
-      del.style.color = color;
-      del.style.textDecoration = 'line-through';
-      del.style.opacity = '0.7';
-      del.appendChild(contents);
-      range.insertNode(del);
-
-      // Move cursor after the del
-      const newRange = document.createRange();
-      newRange.setStartAfter(del);
-      newRange.collapse(true);
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(newRange);
+      const range = sel.getRangeAt(0).cloneRange();
+      const oldVal = FMT_TOGGLE.has(cmd)
+        ? String(document.queryCommandState(cmd))
+        : (document.queryCommandValue(cmd) || '');
+      execCmd(cmd, value !== undefined ? value : null);
+      try {
+        sel.removeAllRanges(); sel.addRange(range);
+        const id = newTcId();
+        const [color] = TC_PALETTE[authorColorIdx(tc.authorName)];
+        const mark = document.createElement('span');
+        mark.setAttribute('data-tc-fmt-id',  id);
+        mark.setAttribute('data-tc-fmt-cmd', cmd);
+        mark.setAttribute('data-tc-fmt-old', oldVal);
+        if (value !== undefined && value !== null) mark.setAttribute('data-tc-fmt-val', String(value));
+        mark.setAttribute('data-tc-author',   tc.authorName);
+        mark.setAttribute('data-tc-initials', getInitials(tc.authorName));
+        mark.setAttribute('data-tc-time',     new Date().toISOString());
+        mark.style.setProperty('--tc-color',  color);
+        range.surroundContents(mark);
+        sel.removeAllRanges();
+      } catch (_) { /* multi-block selection — skip wrapping */ }
+      updateTcBar();
     }
 
-    function insertTrackedText(text) {
+    // ── TC bar ──────────────────────────────────────────────────────────────
+    const tcBar = document.createElement('div');
+    tcBar.className = 'gcp-re-tc-bar';
+    tcBar.style.display = 'none';
+
+    const tcBarLeft = document.createElement('div');
+    tcBarLeft.className = 'gcp-re-tc-bar-left';
+    const tcSummary = document.createElement('div');
+    tcSummary.className = 'gcp-re-tc-summary';
+    const tcAuthorsRow = document.createElement('div');
+    tcAuthorsRow.className = 'gcp-re-tc-authors-row';
+    tcBarLeft.appendChild(tcSummary);
+    tcBarLeft.appendChild(tcAuthorsRow);
+
+    const tcBarActions = document.createElement('div');
+    tcBarActions.className = 'gcp-re-tc-bar-actions';
+    const tcAcceptAll = document.createElement('button');
+    tcAcceptAll.type = 'button'; tcAcceptAll.className = 'gcp-re-tc-action accept';
+    tcAcceptAll.textContent = 'Accept All';
+    const tcRejectAll = document.createElement('button');
+    tcRejectAll.type = 'button'; tcRejectAll.className = 'gcp-re-tc-action reject';
+    tcRejectAll.textContent = 'Reject All';
+    tcBarActions.appendChild(tcAcceptAll);
+    tcBarActions.appendChild(tcRejectAll);
+    tcBar.appendChild(tcBarLeft);
+    tcBar.appendChild(tcBarActions);
+
+    const tcPane = document.createElement('div');
+    tcPane.className = 'gcp-re-tc-pane';
+    tcPane.style.display = 'none';
+
+    // ── Stored comments ────────────────────────────────────────────────────
+    let storedComments = [];
+    let cmtPanelVisible = true;
+
+    // ── Selection save/restore ─────────────────────────────────────────────
+    let savedRange = null;
+    function saveSelection() {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) savedRange = sel.getRangeAt(0).cloneRange();
+    }
+    function restoreSelection() {
+      if (!savedRange) return;
+      const sel = window.getSelection();
+      sel.removeAllRanges(); sel.addRange(savedRange);
+    }
+    body.addEventListener('focusout', saveSelection);
+
+    // ── Font family ──────────────────────────────────────────────────────────
+    const fontFamilySelect = document.createElement('select');
+    fontFamilySelect.className = 'gcp-re-select';
+    fontFamilySelect.title = 'Font family';
+    fontFamilySelect.setAttribute('aria-label', 'Font family');
+    FONT_FAMILIES.forEach(f => {
+      const opt = document.createElement('option');
+      opt.value = f.value; opt.textContent = f.label;
+      fontFamilySelect.appendChild(opt);
+    });
+    fontFamilySelect.addEventListener('mousedown', saveSelection);
+    fontFamilySelect.addEventListener('change', () => {
+      if (fontFamilySelect.value) { restoreSelection(); trackFmtChange('fontName', fontFamilySelect.value); }
+      fontFamilySelect.value = ''; body.focus();
+    });
+    toolbar.appendChild(fontFamilySelect);
+
+    // ── Font size ────────────────────────────────────────────────────────────
+    const fontSizeSelect = document.createElement('select');
+    fontSizeSelect.className = 'gcp-re-select';
+    fontSizeSelect.title = 'Font size';
+    fontSizeSelect.setAttribute('aria-label', 'Font size');
+    FONT_SIZES.forEach(f => {
+      const opt = document.createElement('option');
+      opt.value = f.value; opt.textContent = f.label;
+      fontSizeSelect.appendChild(opt);
+    });
+    fontSizeSelect.addEventListener('mousedown', saveSelection);
+    fontSizeSelect.addEventListener('change', () => {
+      const pt = fontSizeSelect.value;
+      if (pt) { restoreSelection(); applyFontSizePt(pt); }
+      fontSizeSelect.value = ''; body.focus();
+    });
+    toolbar.appendChild(fontSizeSelect);
+
+    // ── Colour palette helper ─────────────────────────────────────────────────
+    const COLOUR_PALETTE = [
+      '#000000','#1f2937','#374151','#6b7280','#9ca3af','#d1d5db','#f3f4f6','#ffffff',
+      '#5f0f40','#9a031e','#e05252','#f95738','#e36414','#fb8b24','#f4d35e','#ebebd3',
+      '#def2f1','#b0d4db','#4878a0','#083d77','#3aafa9','#2b7a78','#0f4c5c','#17252a',
+    ];
+    let activePalette = null;
+    function closePalette() { if (activePalette) { activePalette.remove(); activePalette = null; } }
+    document.addEventListener('mousedown', e => {
+      if (activePalette && !activePalette.contains(e.target)) closePalette();
+    }, true);
+
+    function makePalettePopup(anchorOrPos, applyColor) {
+      closePalette();
+      const pop = document.createElement('div');
+      pop.className = 'gcp-re-palette';
+      const grid = document.createElement('div');
+      grid.className = 'gcp-re-palette-grid';
+      COLOUR_PALETTE.forEach(hex => {
+        const sw = document.createElement('button');
+        sw.type = 'button'; sw.className = 'gcp-re-palette-swatch';
+        sw.style.background = hex; sw.title = hex;
+        sw.addEventListener('mousedown', e => e.preventDefault());
+        sw.addEventListener('click', () => { closePalette(); applyColor(hex); });
+        grid.appendChild(sw);
+      });
+      pop.appendChild(grid);
+      const div = document.createElement('div'); div.className = 'gcp-re-palette-divider';
+      pop.appendChild(div);
+      const customRow = document.createElement('label');
+      customRow.className = 'gcp-re-palette-custom';
+      customRow.textContent = 'Custom colour…';
+      const customInput = document.createElement('input');
+      customInput.type = 'color'; customInput.value = '#000000';
+      customInput.addEventListener('change', () => { closePalette(); applyColor(customInput.value); });
+      customRow.appendChild(customInput);
+      pop.appendChild(customRow);
+      document.body.appendChild(pop);
+      let baseTop, baseLeft;
+      if (anchorOrPos && 'x' in anchorOrPos) {
+        baseTop = anchorOrPos.y + 4; baseLeft = anchorOrPos.x;
+      } else {
+        const r = anchorOrPos.getBoundingClientRect();
+        baseTop = r.bottom + 4; baseLeft = r.left;
+      }
+      let top = baseTop, left = baseLeft;
+      if (left + pop.offsetWidth  > window.innerWidth  - 8) left = window.innerWidth  - pop.offsetWidth  - 8;
+      if (top  + pop.offsetHeight > window.innerHeight - 8) top  = baseTop - pop.offsetHeight - 8;
+      pop.style.top = top + 'px'; pop.style.left = left + 'px';
+      activePalette = pop;
+    }
+
+    // ── Font colour button ────────────────────────────────────────────────────
+    const colorWrap = document.createElement('span');
+    colorWrap.className = 'gcp-re-color-wrap'; colorWrap.title = 'Font colour';
+    colorWrap.style.cursor = 'pointer';
+    const colorLabel = document.createElement('span');
+    colorLabel.className = 'gcp-re-color-label'; colorLabel.setAttribute('aria-hidden', 'true');
+    const colorA = document.createElement('span');
+    colorA.className = 'gcp-re-color-a'; colorA.textContent = 'A';
+    const colorBar = document.createElement('span'); colorBar.className = 'gcp-re-color-bar';
+    colorLabel.appendChild(colorA); colorLabel.appendChild(colorBar);
+    colorWrap.appendChild(colorLabel);
+    colorWrap.addEventListener('mousedown', e => { e.preventDefault(); saveSelection(); });
+    colorWrap.addEventListener('click', () => {
+      makePalettePopup(colorWrap, hex => {
+        colorBar.style.background = hex;
+        restoreSelection(); trackFmtChange('foreColor', hex); body.focus();
+      });
+    });
+    toolbar.appendChild(colorWrap);
+
+    // ── Background colour button ──────────────────────────────────────────────
+    const bgColorWrap = document.createElement('span');
+    bgColorWrap.className = 'gcp-re-color-wrap'; bgColorWrap.title = 'Highlight / background colour';
+    bgColorWrap.style.cursor = 'pointer';
+    const bgColorLabel = document.createElement('span');
+    bgColorLabel.className = 'gcp-re-color-label'; bgColorLabel.setAttribute('aria-hidden', 'true');
+    const bgColorA = document.createElement('span');
+    bgColorA.className = 'gcp-re-color-a'; bgColorA.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+    bgColorA.innerHTML = '<svg width="14" height="13" viewBox="0 0 14 13" fill="none" style="display:block"><path d="M4.5 4 C4.5 1.5 9.5 1.5 9.5 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M3 4.5 L4 11 L10 11 L11 4.5 Z" fill="currentColor" opacity="0.85"/></svg>';
+    const bgColorBar = document.createElement('span'); bgColorBar.className = 'gcp-re-color-bar';
+    bgColorBar.style.background = '#ffff00';
+    bgColorLabel.appendChild(bgColorA); bgColorLabel.appendChild(bgColorBar);
+    bgColorWrap.appendChild(bgColorLabel);
+    bgColorWrap.addEventListener('mousedown', e => { e.preventDefault(); saveSelection(); });
+    bgColorWrap.addEventListener('click', () => {
+      makePalettePopup(bgColorWrap, hex => {
+        bgColorBar.style.background = hex;
+        restoreSelection(); trackFmtChange('backColor', hex); body.focus();
+      });
+    });
+    toolbar.appendChild(bgColorWrap);
+
+    // Separator
+    const firstSep = document.createElement('span');
+    firstSep.className = 'gcp-re-sep'; firstSep.setAttribute('aria-hidden', 'true');
+    toolbar.appendChild(firstSep);
+
+    // ── Format buttons ───────────────────────────────────────────────────────
+    TOOLS.forEach(tool => {
+      if (tool.sep) {
+        const sep = document.createElement('span');
+        sep.className = 'gcp-re-sep'; sep.setAttribute('aria-hidden', 'true');
+        toolbar.appendChild(sep); return;
+      }
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'gcp-re-btn';
+      btn.innerHTML = tool.icon; btn.title = tool.title;
+      btn.setAttribute('aria-label', tool.title); btn.dataset.cmd = tool.cmd;
+      btn.addEventListener('mousedown', e => {
+        e.preventDefault();
+        if (tool.cmd === 'h2' || tool.cmd === 'h3') handleHeading(tool.cmd);
+        else trackFmtChange(tool.cmd);
+        body.focus(); updateActive();
+      });
+      toolbar.appendChild(btn);
+    });
+
+    // ── Insert Table button ───────────────────────────────────────────────────
+    const tblSep = document.createElement('span');
+    tblSep.className = 'gcp-re-sep'; tblSep.setAttribute('aria-hidden', 'true');
+    toolbar.appendChild(tblSep);
+
+    const tblBtn = document.createElement('button');
+    tblBtn.type = 'button'; tblBtn.className = 'gcp-re-btn';
+    tblBtn.title = 'Insert table';
+    tblBtn.setAttribute('aria-label', 'Insert table');
+    tblBtn.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="1" y1="5.5" x2="15" y2="5.5" stroke="currentColor" stroke-width="1.2"/><line x1="1" y1="10" x2="15" y2="10" stroke="currentColor" stroke-width="1.2"/><line x1="5.5" y1="1" x2="5.5" y2="15" stroke="currentColor" stroke-width="1.2"/><line x1="10" y1="1" x2="10" y2="15" stroke="currentColor" stroke-width="1.2"/></svg>';
+    toolbar.appendChild(tblBtn);
+
+    let activeTblPicker = null;
+    function closeTblPicker() { if (activeTblPicker) { activeTblPicker.remove(); activeTblPicker = null; } }
+    document.addEventListener('mousedown', e => {
+      if (activeTblPicker && !activeTblPicker.contains(e.target) && e.target !== tblBtn) closeTblPicker();
+    }, true);
+
+    tblBtn.addEventListener('mousedown', e => e.preventDefault());
+    tblBtn.addEventListener('click', () => {
+      if (activeTblPicker) { closeTblPicker(); return; }
+      saveSelection();
+      const ROWS = 8, COLS = 8;
+      const picker = document.createElement('div');
+      picker.className = 'gcp-re-tbl-picker';
+      const grid = document.createElement('div');
+      grid.className = 'gcp-re-tbl-grid';
+      const label = document.createElement('div');
+      label.className = 'gcp-re-tbl-label'; label.textContent = 'Insert table';
+      let hoverR = 0, hoverC = 0;
+      function updateGrid(r, c) {
+        hoverR = r; hoverC = c;
+        label.textContent = (r && c) ? `${r} × ${c} table` : 'Insert table';
+        grid.querySelectorAll('.gcp-re-tbl-cell').forEach(cell => {
+          const cr = +cell.dataset.r, cc = +cell.dataset.c;
+          cell.classList.toggle('hi', cr <= r && cc <= c);
+        });
+      }
+      for (let r = 1; r <= ROWS; r++) {
+        for (let c = 1; c <= COLS; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'gcp-re-tbl-cell';
+          cell.dataset.r = r; cell.dataset.c = c;
+          cell.addEventListener('mousemove', () => updateGrid(r, c));
+          cell.addEventListener('click', () => {
+            closeTblPicker();
+            restoreSelection();
+            insertTable(r, c);
+            body.focus();
+          });
+          grid.appendChild(cell);
+        }
+      }
+      picker.addEventListener('mouseleave', () => updateGrid(0, 0));
+      picker.appendChild(grid);
+      picker.appendChild(label);
+      document.body.appendChild(picker);
+      const bRect = tblBtn.getBoundingClientRect();
+      let top = bRect.bottom + 4, left = bRect.left;
+      if (left + picker.offsetWidth > window.innerWidth - 8) left = window.innerWidth - picker.offsetWidth - 8;
+      picker.style.top = top + 'px'; picker.style.left = left + 'px';
+      activeTblPicker = picker;
+    });
+
+    function insertTable(rows, cols) {
+      let html = '<table><tbody>';
+      for (let r = 0; r < rows; r++) {
+        html += '<tr>';
+        for (let c = 0; c < cols; c++) html += '<td>&nbsp;</td>';
+        html += '</tr>';
+      }
+      html += '</tbody></table><p><br></p>';
+      document.execCommand('insertHTML', false, html);
+    }
+
+    // ── Spacer ────────────────────────────────────────────────────────────────
+    const toolbarSpacer = document.createElement('span');
+    toolbarSpacer.style.cssText = 'flex:1;';
+    toolbar.appendChild(toolbarSpacer);
+
+    // ── Track Changes toggle button ──────────────────────────────────────────
+    const tcSepEl = document.createElement('span');
+    tcSepEl.className = 'gcp-re-sep'; tcSepEl.setAttribute('aria-hidden', 'true');
+    toolbar.appendChild(tcSepEl);
+
+    const tcBtn = document.createElement('button');
+    tcBtn.type = 'button'; tcBtn.className = 'gcp-re-btn';
+    tcBtn.title = 'Show / Hide Changes';
+    tcBtn.setAttribute('aria-label', 'Show or hide tracked changes');
+    tcBtn.setAttribute('aria-pressed', 'false');
+
+    const tcBtnLabel = document.createElement('span');
+    tcBtnLabel.textContent = 'Changes';
+    const tcBadge = document.createElement('span');
+    tcBadge.className = 'gcp-re-tc-badge'; tcBadge.style.display = 'none';
+    tcBtn.appendChild(tcBtnLabel); tcBtn.appendChild(tcBadge);
+    toolbar.appendChild(tcBtn);
+
+    // ── Comments button ──────────────────────────────────────────────────────
+    const cmtSep = document.createElement('span');
+    cmtSep.className = 'gcp-re-sep'; cmtSep.setAttribute('aria-hidden', 'true');
+    toolbar.appendChild(cmtSep);
+
+    const cmtBtn = document.createElement('button');
+    cmtBtn.type = 'button'; cmtBtn.className = 'gcp-re-btn';
+    cmtBtn.title = 'Comments';
+    cmtBtn.setAttribute('aria-label', 'Toggle comments panel');
+    cmtBtn.innerHTML = '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true" style="flex-shrink:0"><path d="M14 1H2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h5.586l2.707 2.707a1 1 0 0 0 1.414 0L14 12h0a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg>';
+    const cmtBadge = document.createElement('span');
+    cmtBadge.className = 'gcp-re-cmt-badge'; cmtBadge.style.display = 'none';
+    cmtBtn.appendChild(cmtBadge);
+    toolbar.appendChild(cmtBtn);
+
+    // ── Fullscreen button ────────────────────────────────────────────────────
+    const fsSep = document.createElement('span');
+    fsSep.className = 'gcp-re-sep'; fsSep.setAttribute('aria-hidden', 'true');
+    toolbar.appendChild(fsSep);
+
+    const fsBtn = document.createElement('button');
+    fsBtn.type = 'button'; fsBtn.className = 'gcp-re-btn';
+    fsBtn.setAttribute('aria-label', 'Toggle fullscreen');
+    fsBtn.title = 'Fullscreen (Esc to exit)';
+    fsBtn.innerHTML = '<svg class="gcp-re-btn-fullscreen-icon-expand" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4"/></svg><svg class="gcp-re-btn-fullscreen-icon-compress" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 1v4H1M15 5h-4V1M11 15v-4h4M1 11h4v4"/></svg>';
+    toolbar.appendChild(fsBtn);
+
+    let fsActive = false;
+    let fsOriginalParent = null;
+    let fsOriginalNextSibling = null;
+    function toggleFullscreen(force) {
+      fsActive = force !== undefined ? force : !fsActive;
+      if (fsActive) {
+        fsOriginalParent = wrap.parentNode;
+        fsOriginalNextSibling = wrap.nextSibling;
+        document.body.appendChild(wrap);
+      } else {
+        if (fsOriginalParent) {
+          fsOriginalParent.insertBefore(wrap, fsOriginalNextSibling || null);
+        }
+      }
+      wrap.classList.toggle('gcp-fullscreen', fsActive);
+      document.body.style.overflow = fsActive ? 'hidden' : '';
+      fsBtn.setAttribute('aria-pressed', String(fsActive));
+      positionBalloons();
+    }
+    fsBtn.addEventListener('click', () => toggleFullscreen());
+
+    // ── DOM assembly ─────────────────────────────────────────────────────────
+    const contentRow = document.createElement('div');
+    contentRow.className = 'gcp-re-content-row';
+    const marginEl = document.createElement('div');
+    marginEl.className = 'gcp-re-margin';
+    contentRow.appendChild(body);
+    contentRow.appendChild(marginEl);
+    contentRow.addEventListener('scroll', positionBalloons);
+
+    const fsTitleBar = document.createElement('div');
+    fsTitleBar.className = 'gcp-re-fs-titlebar';
+    const fsTitleEl = document.createElement('span');
+    fsTitleEl.className = 'gcp-re-fs-title';
+    fsTitleEl.textContent = sectionTitle || '';
+    fsTitleBar.appendChild(fsTitleEl);
+
+    wrap.appendChild(toolbar);
+    wrap.appendChild(tcBar);
+    wrap.appendChild(fsTitleBar);
+    wrap.appendChild(contentRow);
+    container.innerHTML = '';
+    container.appendChild(wrap);
+
+    // ── TC helpers ───────────────────────────────────────────────────────────
+
+    function getChangeEntries() {
+      const seen = new Set();
+      const entries = [];
+      body.querySelectorAll('[data-tc-id], [data-tc-fmt-id]').forEach(el => {
+        const isFmt = el.hasAttribute('data-tc-fmt-id');
+        const id = isFmt ? el.getAttribute('data-tc-fmt-id') : el.getAttribute('data-tc-id');
+        if (seen.has(id)) return;
+        seen.add(id);
+        entries.push({
+          id,
+          kind:    isFmt ? 'fmt' : el.tagName.toLowerCase(),
+          fmtCmd:  isFmt ? (el.getAttribute('data-tc-fmt-cmd') || '') : '',
+          author:  el.getAttribute('data-tc-author')   || 'Unknown',
+          initials:el.getAttribute('data-tc-initials') || '?',
+          time:    el.getAttribute('data-tc-time')     || '',
+          color:   el.style.getPropertyValue('--tc-color') || '#1d4ed8',
+          text:    el.textContent || '',
+        });
+      });
+      return entries;
+    }
+
+    function countChanges() {
+      const ids = new Set();
+      body.querySelectorAll('[data-tc-id]').forEach(e => ids.add(e.getAttribute('data-tc-id')));
+      body.querySelectorAll('[data-tc-fmt-id]').forEach(e => ids.add(e.getAttribute('data-tc-fmt-id')));
+      return ids.size;
+    }
+
+    function getAuthors() {
+      const map = new Map();
+      body.querySelectorAll('[data-tc-id], [data-tc-fmt-id]').forEach(el => {
+        const a = el.getAttribute('data-tc-author') || 'Unknown';
+        map.set(a, (map.get(a) || 0) + 1);
+      });
+      return [...map.keys()];
+    }
+
+    function updateTcBar() {
+      const n = countChanges();
+      if (n > 0) { tcBadge.textContent = String(n); tcBadge.style.display = ''; }
+      else tcBadge.style.display = 'none';
+      wrap.classList.toggle('tc-visible', tc.visible);
+      wrap.classList.toggle('has-comments', storedComments.length > 0 && cmtPanelVisible);
+      tcBtn.classList.toggle('tc-active', tc.visible);
+      tcBtn.setAttribute('aria-pressed', String(tc.visible));
+      const hasCmts = storedComments.length > 0;
+      const show = tc.visible && (n > 0 || hasCmts);
+      tcBar.style.display = show ? '' : 'none';
+      if (show) {
+        const parts = [];
+        if (n > 0) parts.push(`${n} tracked change${n === 1 ? '' : 's'}`);
+        if (hasCmts) parts.push(`${storedComments.length} comment${storedComments.length === 1 ? '' : 's'}`);
+        tcSummary.textContent = parts.join(' · ');
+        tcAuthorsRow.textContent = getAuthors().join(' · ');
+      }
+      updateChangeMarkers();
+      positionBalloons();
+    }
+
+    function updateChangeMarkers() {
+      body.querySelectorAll('.gcp-tc-changed').forEach(el => el.classList.remove('gcp-tc-changed'));
+      if (!tc.visible) return;
+      body.querySelectorAll('[data-tc-id], [data-tc-fmt-id]').forEach(el => {
+        let block = el.parentElement;
+        while (block && block !== body) {
+          const tag = block.tagName.toLowerCase();
+          if (['p','li','h1','h2','h3','h4','h5','h6','div','blockquote'].includes(tag)) {
+            block.classList.add('gcp-tc-changed'); break;
+          }
+          block = block.parentElement;
+        }
+      });
+    }
+
+    function noOverlap(idealTop, slots) {
+      let top = Math.max(0, idealTop);
+      for (const s of slots) {
+        if (top < s.top + s.h + 6 && top + 20 > s.top) top = s.top + s.h + 6;
+      }
+      return top;
+    }
+
+    let _positionBalloonRafId = 0;
+    function positionBalloons() {
+      marginEl.innerHTML = '';
+      const oldSvg = contentRow.querySelector('.gcp-re-connectors');
+      if (oldSvg) oldSvg.remove();
+      const hasCmts = storedComments.length > 0 && cmtPanelVisible;
+      if (!tc.visible && !hasCmts) return;
+      cancelAnimationFrame(_positionBalloonRafId);
+      _positionBalloonRafId = requestAnimationFrame(() => {
+        const crRect = contentRow.getBoundingClientRect();
+        const mRect  = marginEl.getBoundingClientRect();
+        const scrollTop  = contentRow.scrollTop;
+        const scrollLeft = contentRow.scrollLeft;
+        const slots = [];
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'gcp-re-connectors');
+        svg.setAttribute('width',  String(contentRow.scrollWidth));
+        svg.setAttribute('height', String(contentRow.scrollHeight));
+        svg.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;overflow:visible;';
+        contentRow.appendChild(svg);
+        const mOffLeft = mRect.left - crRect.left + scrollLeft;
+        const mOffTop  = mRect.top  - crRect.top  + scrollTop;
+        const bodyRight = body.getBoundingClientRect().right - crRect.left + scrollLeft;
+
+        function drawConnector(anchorEl, balloonTop, balloonH, color) {
+          if (!anchorEl) return;
+          const aRect = anchorEl.getBoundingClientRect();
+          const x1 = aRect.right  - crRect.left + scrollLeft;
+          const y1 = aRect.bottom - crRect.top  + scrollTop;
+          const xElbow = bodyRight;
+          const yElbow = y1;
+          const x2 = mOffLeft + 2;
+          const y2 = mOffTop + balloonTop + Math.min(balloonH, 26) / 2;
+          const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+          poly.setAttribute('points', `${x1},${y1} ${xElbow},${yElbow} ${x2},${y2}`);
+          poly.setAttribute('fill', 'none');
+          poly.setAttribute('stroke', color);
+          poly.setAttribute('stroke-width', '1');
+          poly.setAttribute('stroke-dasharray', '4,3');
+          poly.setAttribute('opacity', '0.55');
+          svg.appendChild(poly);
+        }
+
+        // TC change balloons
+        if (tc.visible) {
+          const BLOCK_TAGS = new Set(['p','li','h1','h2','h3','h4','h5','h6','div','blockquote']);
+          function entryBlock(entry) {
+            const isFmt = entry.kind === 'fmt';
+            const sel = isFmt ? `[data-tc-fmt-id="${CSS.escape(entry.id)}"]` : `[data-tc-id="${CSS.escape(entry.id)}"]`;
+            const el = body.querySelector(sel);
+            if (!el) return null;
+            let blk = el.parentElement;
+            while (blk && blk !== body) {
+              if (BLOCK_TAGS.has(blk.tagName.toLowerCase())) return blk;
+              blk = blk.parentElement;
+            }
+            return body;
+          }
+
+          const groups = [];
+          getChangeEntries().forEach(entry => {
+            const t = entry.time ? new Date(entry.time).getTime() : 0;
+            const block = entryBlock(entry);
+            const last = groups[groups.length - 1];
+            if (last && last.author === entry.author && Math.abs(t - last.lastT) < 60000 && last.blockEl === block) {
+              last.ids.push(entry.id);
+              last.entries.push(entry);
+              last.lastT = t;
+            } else {
+              groups.push({ author: entry.author, initials: entry.initials, color: entry.color, time: entry.time, ids: [entry.id], entries: [entry], lastT: t, blockEl: block });
+            }
+          });
+
+          groups.forEach(group => {
+            const anchor = body.querySelector(`[data-tc-id="${CSS.escape(group.ids[0])}"]`);
+            const ideal = anchor ? anchor.getBoundingClientRect().top - mRect.top : 0;
+            const top = noOverlap(ideal, slots);
+            const b = document.createElement('div');
+            b.className = 'gcp-re-balloon gcp-re-balloon--tc-group';
+            b.style.top = top + 'px';
+            const n = group.ids.length;
+            const fmtLabels = group.entries.filter(e => e.kind === 'fmt' && e.fmtCmd).map(e => FMT_CMD_LABELS[e.fmtCmd] || e.fmtCmd).filter((v, i, a) => a.indexOf(v) === i);
+            const txtCount = group.entries.filter(e => e.kind !== 'fmt').length;
+            let countLabel = `${n} change${n === 1 ? '' : 's'}`;
+            if (fmtLabels.length > 0 && txtCount === 0) countLabel = `Formatted · ${fmtLabels.join(', ')}`;
+            else if (fmtLabels.length > 0) countLabel = `${n} changes · ${fmtLabels.join(', ')}`;
+            const allTextEntries = group.entries.filter(e => e.kind === 'ins' || e.kind === 'del');
+            const needsExpand = allTextEntries.length > 2 || allTextEntries.some(e => e.text.length > 38);
+            const snippetLines = allTextEntries.slice(0, 2).map(e => {
+              const sign = e.kind === 'ins' ? '+' : '−';
+              const cls  = e.kind === 'ins' ? 'gcp-re-snippet-ins' : 'gcp-re-snippet-del';
+              const txt  = e.text.length > 38 ? e.text.slice(0, 38) + '…' : e.text;
+              return `<div class="gcp-re-snippet ${cls}">${sign} ${escHtml(txt)}</div>`;
+            }).join('');
+            const snippetLinesExpanded = allTextEntries.map(e => {
+              const sign = e.kind === 'ins' ? '+' : '−';
+              const cls  = e.kind === 'ins' ? 'gcp-re-snippet-ins' : 'gcp-re-snippet-del';
+              return `<div class="gcp-re-snippet gcp-re-snippet--wrap ${cls}">${sign} ${escHtml(e.text)}</div>`;
+            }).join('');
+            b.innerHTML = `
+              <div class="gcp-re-balloon-header">
+                <span class="gcp-re-balloon-avatar" style="background:${escHtml(group.color)}">${escHtml(group.initials)}</span>
+                <span class="gcp-re-balloon-author">${escHtml(group.author)}</span>
+                <span class="gcp-re-balloon-time">${escHtml(fmtTime(group.time))}</span>
+              </div>
+              <div class="gcp-re-snippets-collapsed">${snippetLines || `<div class="gcp-re-balloon-change-count">${escHtml(countLabel)}</div>`}</div>
+              ${needsExpand ? `<div class="gcp-re-snippets-expanded" style="display:none">${snippetLinesExpanded}</div>` : ''}
+              ${needsExpand ? `<button class="gcp-re-balloon-expand" type="button">Show more</button>` : ''}
+              <div class="gcp-re-balloon-btns">
+                <button class="gcp-re-balloon-acc" type="button">✓ Accept</button>
+                <button class="gcp-re-balloon-rej" type="button">✗ Reject</button>
+              </div>`;
+            b.querySelector('.gcp-re-balloon-acc').addEventListener('click', () => { group.ids.forEach(id => acceptChange(id)); });
+            b.querySelector('.gcp-re-balloon-rej').addEventListener('click', () => { group.ids.forEach(id => rejectChange(id)); });
+            if (needsExpand) {
+              const expandBtn = b.querySelector('.gcp-re-balloon-expand');
+              const collapsedView = b.querySelector('.gcp-re-snippets-collapsed');
+              const expandedView = b.querySelector('.gcp-re-snippets-expanded');
+              expandBtn.addEventListener('click', () => {
+                const isExpanded = expandedView.style.display !== 'none';
+                collapsedView.style.display = isExpanded ? '' : 'none';
+                expandedView.style.display  = isExpanded ? 'none' : '';
+                expandBtn.textContent = isExpanded ? 'Show more' : 'Show less';
+              });
+            }
+            marginEl.appendChild(b);
+            const h = Math.max(b.offsetHeight, 72);
+            slots.push({ top, h });
+            drawConnector(anchor, top, h, group.color);
+          });
+        }
+
+        // Comment balloons
+        function cmtAvatar(name) {
+          const p = ['#1d4ed8','#b91c1c','#15803d','#7c3aed','#c2410c','#0f766e','#9d174d','#3730a3'];
+          const ini = (name || 'Unknown').split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0] && s[0].toUpperCase()).filter(Boolean).join('') || '?';
+          let h = 0; for (let i = 0; i < (name || '').length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+          return { ini, color: p[h % p.length] };
+        }
+        function cmtEntryHtml(c) {
+          const { ini, color } = cmtAvatar(c.author_name || 'Unknown');
+          return `<div class="gcp-re-balloon-header">
+              <span class="gcp-re-balloon-avatar" style="background:${color}">${escHtml(ini)}</span>
+              <span class="gcp-re-balloon-author">${escHtml(c.author_name || 'Unknown')}</span>
+              <span class="gcp-re-balloon-time">${escHtml(fmtTime(c.created_at))}</span>
+            </div>
+            <div class="gcp-re-balloon-body">${escHtml(c.comment_text || '')}</div>`;
+        }
+
+        if (!cmtPanelVisible) return;
+
+        const repliesMap = {};
+        storedComments.forEach(c => {
+          if (c.parent_id) {
+            if (!repliesMap[c.parent_id]) repliesMap[c.parent_id] = [];
+            repliesMap[c.parent_id].push(c);
+          }
+        });
+        const rootComments = storedComments.filter(c => !c.parent_id);
+
+        rootComments.forEach(c => {
+          let ideal = slots.length ? (slots[slots.length - 1].top + slots[slots.length - 1].h + 6) : 0;
+          let anchor = null;
+          if (c.anchor_id) {
+            anchor = body.querySelector(`[data-cmt-anchor-id="${c.anchor_id}"]`);
+            if (anchor) ideal = anchor.getBoundingClientRect().top - mRect.top;
+          }
+          const top = noOverlap(ideal, slots);
+          const replies = repliesMap[c.id] || [];
+          const b = document.createElement('div');
+          b.className = 'gcp-re-balloon gcp-re-balloon--cmt';
+          b.style.top = top + 'px';
+          const rootDelHtml = c.can_delete ? '<button class="gcp-re-root-del gcp-re-balloon-del" type="button">✗ Delete</button>' : '';
+          const repliesHtml = replies.map((r, ri) =>
+            `<div class="gcp-re-cmt-reply" data-ri="${ri}">
+              ${cmtEntryHtml(r)}
+              ${r.can_delete ? '<div class="gcp-re-balloon-btns"><button class="gcp-re-reply-del gcp-re-balloon-del" type="button">✗ Delete</button></div>' : ''}
+            </div>`
+          ).join('');
+          b.innerHTML = `
+            ${cmtEntryHtml(c)}
+            <div class="gcp-re-balloon-btns">
+              ${rootDelHtml}
+              <button class="gcp-re-balloon-reply" type="button">↩ Reply</button>
+            </div>
+            ${replies.length ? `<div class="gcp-re-cmt-replies">${repliesHtml}</div>` : ''}
+            <div class="gcp-re-cmt-reply-form" style="display:none">
+              <textarea class="gcp-re-cmt-reply-input" rows="2" placeholder="Write a reply…"></textarea>
+              <div class="gcp-re-balloon-btns" style="margin-top:4px">
+                <button class="gcp-re-cmt-reply-send" type="button">Send</button>
+                <button class="gcp-re-cmt-reply-cancel" type="button">Cancel</button>
+              </div>
+            </div>`;
+          if (c.can_delete) {
+            b.querySelector('.gcp-re-root-del').addEventListener('click', () => {
+              if (onDeleteComment) onDeleteComment(c.id, c.anchor_id || null);
+            });
+          }
+          b.querySelectorAll('.gcp-re-reply-del').forEach((btn, i) => {
+            btn.addEventListener('click', () => {
+              if (onDeleteComment) onDeleteComment(replies[i].id, null);
+            });
+          });
+          const replyBtn   = b.querySelector('.gcp-re-balloon-reply');
+          const replyForm  = b.querySelector('.gcp-re-cmt-reply-form');
+          const replyInput = b.querySelector('.gcp-re-cmt-reply-input');
+          const replySend  = b.querySelector('.gcp-re-cmt-reply-send');
+          const replyCancel = b.querySelector('.gcp-re-cmt-reply-cancel');
+          replyBtn.addEventListener('click', () => {
+            replyForm.style.display = '';
+            b.style.zIndex = '10';
+            replyInput.focus();
+          });
+          replyCancel.addEventListener('click', () => {
+            replyForm.style.display = 'none';
+            b.style.zIndex = '';
+            replyInput.value = '';
+          });
+          replySend.addEventListener('click', async () => {
+            const text = replyInput.value.trim();
+            if (!text) return;
+            replySend.disabled = true;
+            b.style.zIndex = '';
+            if (onReplyComment) onReplyComment(c.id, text);
+          });
+          replyInput.addEventListener('keydown', e => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); replySend.click(); }
+            if (e.key === 'Escape') replyCancel.click();
+          });
+          marginEl.appendChild(b);
+          const bh = Math.max(b.offsetHeight, 62);
+          slots.push({ top, h: bh });
+          drawConnector(anchor, top, bh, '#d97706');
+        });
+      });
+    }
+
+    function _unwrapFmtReject(el) {
+      const cmd    = el.getAttribute('data-tc-fmt-cmd') || '';
+      const oldVal = el.getAttribute('data-tc-fmt-old') || '';
+      const range  = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel.removeAllRanges(); sel.addRange(range);
+      if (FMT_TOGGLE.has(cmd)) {
+        if (String(document.queryCommandState(cmd)) !== oldVal) execCmd(cmd);
+      } else if (FMT_VALUE.has(cmd)) {
+        if (oldVal) execCmd(cmd, oldVal);
+      }
+      sel.removeAllRanges();
+      while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+      el.remove();
+    }
+
+    function acceptChange(id) {
+      body.querySelectorAll(`del[data-tc-id="${CSS.escape(id)}"]`).forEach(el => el.remove());
+      body.querySelectorAll(`ins[data-tc-id="${CSS.escape(id)}"]`).forEach(el => {
+        while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+        el.remove();
+      });
+      body.querySelectorAll(`[data-tc-fmt-id="${CSS.escape(id)}"]`).forEach(el => {
+        while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+        el.remove();
+      });
+      body.normalize(); updateTcBar();
+    }
+
+    function rejectChange(id) {
+      body.querySelectorAll(`ins[data-tc-id="${CSS.escape(id)}"]`).forEach(el => el.remove());
+      body.querySelectorAll(`del[data-tc-id="${CSS.escape(id)}"]`).forEach(el => {
+        while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+        el.remove();
+      });
+      body.querySelectorAll(`[data-tc-fmt-id="${CSS.escape(id)}"]`).forEach(_unwrapFmtReject);
+      body.normalize(); updateTcBar();
+    }
+
+    function acceptAllChanges() {
+      body.querySelectorAll('del[data-tc-id]').forEach(el => el.remove());
+      body.querySelectorAll('ins[data-tc-id]').forEach(el => {
+        while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+        el.remove();
+      });
+      body.querySelectorAll('[data-tc-fmt-id]').forEach(el => {
+        while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+        el.remove();
+      });
+      body.normalize(); tc.visible = false; updateTcBar();
+    }
+
+    function rejectAllChanges() {
+      body.querySelectorAll('ins[data-tc-id]').forEach(el => el.remove());
+      body.querySelectorAll('del[data-tc-id]').forEach(el => {
+        while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+        el.remove();
+      });
+      [...body.querySelectorAll('[data-tc-fmt-id]')].forEach(_unwrapFmtReject);
+      body.normalize(); tc.visible = false; updateTcBar();
+    }
+
+    function hasTrackedChanges() {
+      return !!(body.querySelector('[data-tc-id]') || body.querySelector('[data-tc-fmt-id]'));
+    }
+
+    function getCleanHtml() {
+      const clone = body.cloneNode(true);
+      clone.querySelectorAll('del[data-tc-id]').forEach(el => el.remove());
+      clone.querySelectorAll('ins[data-tc-id]').forEach(el => {
+        while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+        el.remove();
+      });
+      clone.querySelectorAll('[data-tc-fmt-id]').forEach(el => {
+        while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+        el.remove();
+      });
+      clone.querySelectorAll('.gcp-cmt-anchor').forEach(el => {
+        while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+        el.remove();
+      });
+      return clone.innerHTML.replace(/(<br\s*\/?>|\s|&nbsp;)*$/, '').trim();
+    }
+
+    function removeCommentAnchor(anchorId) {
+      const span = body.querySelector(`.gcp-cmt-anchor[data-cmt-anchor-id="${anchorId}"]`);
+      if (!span) return;
+      while (span.firstChild) span.parentNode.insertBefore(span.firstChild, span);
+      span.remove();
+    }
+
+    // ── TC mutation helpers ──────────────────────────────────────────────────
+
+    function mergeAdjacentIns() {
+      let merged = true;
+      while (merged) {
+        merged = false;
+        body.querySelectorAll('ins[data-tc-id]').forEach(el => {
+          let next = el.nextSibling;
+          while (next && next.nodeType === Node.TEXT_NODE && !next.textContent) next = next.nextSibling;
+          if (next && next.nodeType === Node.ELEMENT_NODE && next.tagName === 'INS' &&
+              next.hasAttribute('data-tc-id') &&
+              next.getAttribute('data-tc-author') === el.getAttribute('data-tc-author')) {
+            while (next.firstChild) el.appendChild(next.firstChild);
+            next.remove();
+            merged = true;
+          }
+        });
+      }
+      body.normalize();
+    }
+
+    function applyAuthorAttrs(el) {
+      const idx = authorColorIdx(tc.authorName);
+      const [color, bg] = TC_PALETTE[idx];
+      el.setAttribute('data-tc-author',   tc.authorName);
+      el.setAttribute('data-tc-initials', getInitials(tc.authorName));
+      el.setAttribute('data-tc-color',    String(idx));
+      el.setAttribute('data-tc-time',     new Date().toISOString());
+      el.style.setProperty('--tc-color', color);
+      el.style.setProperty('--tc-bg', bg);
+      el.title = `${tc.authorName}`;
+    }
+
+    function getSelfIns(node) {
+      let el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+      while (el && el !== body) {
+        if (el.tagName === 'INS' && el.getAttribute('data-tc-author') === tc.authorName) return el;
+        el = el.parentElement;
+      }
+      return null;
+    }
+
+    function staticToRange(sr) {
+      const r = document.createRange();
+      r.setStart(sr.startContainer, sr.startOffset);
+      r.setEnd(sr.endContainer, sr.endOffset);
+      return r;
+    }
+
+    function wrapRangeAsDeletion(range, placeCursorAfter) {
+      if (range.collapsed) return null;
+      const selfIns = getSelfIns(range.startContainer);
+      if (selfIns && selfIns.contains(range.endContainer)) {
+        try {
+          range.deleteContents();
+          if (selfIns.isConnected && !selfIns.textContent) selfIns.remove();
+          const sel = window.getSelection();
+          sel.removeAllRanges(); sel.addRange(range);
+        } catch (_) {}
+        updateTcBar();
+        return null;
+      }
+      try {
+        const id = newTcId();
+        const frag = range.cloneContents();
+        const del = document.createElement('del');
+        del.setAttribute('data-tc-id', id);
+        applyAuthorAttrs(del);
+        del.appendChild(frag);
+        range.deleteContents();
+        range.insertNode(del);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        const r = document.createRange();
+        placeCursorAfter ? r.setStartAfter(del) : r.setStartBefore(del);
+        r.collapse(true); sel.addRange(r);
+        return del;
+      } catch (_) {
+        try { range.deleteContents(); } catch (__) {}
+        return null;
+      }
+    }
+
+    function insertTracked(text) {
+      if (!text) return;
       const sel = window.getSelection();
       if (!sel.rangeCount) return;
-
-      // If selection is non-collapsed, delete first
       const range = sel.getRangeAt(0);
-      if (!range.collapsed) {
-        wrapSelectionAsDeleted(range);
+      const { startContainer, startOffset } = range;
+      if (startContainer.nodeType === Node.TEXT_NODE) {
+        const parent = startContainer.parentElement;
+        if (parent && parent.tagName === 'INS' &&
+            parent.getAttribute('data-tc-author') === tc.authorName) {
+          const before = startContainer.textContent.slice(0, startOffset);
+          const after  = startContainer.textContent.slice(startOffset);
+          startContainer.textContent = before + text + after;
+          const r = document.createRange();
+          r.setStart(startContainer, before.length + text.length);
+          r.collapse(true); sel.removeAllRanges(); sel.addRange(r);
+          return;
+        }
       }
-
+      const id = newTcId();
       const ins = document.createElement('ins');
-      ins.setAttribute('data-author', authorName);
-      ins.setAttribute('data-time', new Date().toISOString());
-      ins.style.color = color;
-      ins.style.textDecoration = 'underline';
+      ins.setAttribute('data-tc-id', id);
+      applyAuthorAttrs(ins);
       ins.textContent = text;
-
-      const r = sel.getRangeAt(0);
-      r.insertNode(ins);
-
-      // Move cursor inside ins at end
-      const newRange = document.createRange();
-      newRange.setStart(ins.firstChild || ins, ins.firstChild ? ins.firstChild.length : 0);
-      newRange.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(newRange);
+      range.insertNode(ins);
+      const r = document.createRange();
+      const tn = ins.firstChild;
+      r.setStart(tn, tn.length); r.collapse(true);
+      sel.removeAllRanges(); sel.addRange(r);
     }
 
-    function wrapTrackChange(type) {
-      // Format changes are tracked by wrapping the applied formatting change
-      // We add a data attribute to the formatted element for attribution
-      // This is a lightweight approach — actual implementation would need MutationObserver
+    // ── Button event handlers ────────────────────────────────────────────────
+
+    tcBtn.addEventListener('mousedown', e => e.preventDefault());
+    tcBtn.addEventListener('click', () => { tc.visible = !tc.visible; updateTcBar(); });
+
+    tcAcceptAll.addEventListener('mousedown', e => e.preventDefault());
+    tcAcceptAll.addEventListener('click', () => { acceptAllChanges(); body.focus(); });
+    tcRejectAll.addEventListener('mousedown', e => e.preventDefault());
+    tcRejectAll.addEventListener('click', () => { rejectAllChanges(); body.focus(); });
+
+    function createCommentAnchor() {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.rangeCount) return null;
+      const range = sel.getRangeAt(0);
+      if (!body.contains(range.commonAncestorContainer)) return null;
+      const anchorId = 'cmt-' + Math.random().toString(36).slice(2, 10);
+      const span = document.createElement('span');
+      span.className = 'gcp-cmt-anchor';
+      span.setAttribute('data-cmt-anchor-id', anchorId);
+      try {
+        const frag = range.extractContents();
+        span.appendChild(frag);
+        range.insertNode(span);
+        sel.removeAllRanges();
+        return anchorId;
+      } catch(_) { return null; }
     }
 
-    // ── Context menu (insert table) ─────────────────────────────────────────
+    cmtBtn.addEventListener('mousedown', e => e.preventDefault());
+    cmtBtn.addEventListener('click', () => {
+      cmtPanelVisible = !cmtPanelVisible;
+      cmtBtn.classList.toggle('active', cmtPanelVisible && storedComments.length > 0);
+      updateTcBar();
+    });
 
-    contentArea.addEventListener('contextmenu', (e) => {
-      if (readOnly) return;
+    // ── Right-click context menu ──────────────────────────────────────────────
+    let activeCtxMenu = null;
+    function removeCtxMenu() {
+      if (activeCtxMenu) { activeCtxMenu.remove(); activeCtxMenu = null; }
+    }
+    body.addEventListener('contextmenu', e => {
+      if (!body.isContentEditable) return;
       e.preventDefault();
-
-      // Remove existing context menu
-      const existing = container.querySelector('.gcp-context-menu');
-      if (existing) existing.remove();
+      removeCtxMenu();
 
       const menu = document.createElement('div');
-      menu.className = 'gcp-context-menu';
-      menu.style.left = (e.offsetX) + 'px';
-      menu.style.top = (e.offsetY) + 'px';
-      menu.innerHTML = `
-        <div class="gcp-ctx-item" data-action="insertTable">Insert Table (3×3)</div>
-        <div class="gcp-ctx-item" data-action="insertHr">Insert Horizontal Rule</div>
-      `;
-      contentArea.appendChild(menu);
+      menu.className = 'gcp-re-ctx';
+      menu.style.left = e.clientX + 'px';
+      menu.style.top  = e.clientY + 'px';
 
-      menu.addEventListener('click', (ev) => {
-        const item = ev.target.closest('[data-action]');
-        if (!item) return;
-        if (item.dataset.action === 'insertTable') {
-          const table = '<table border="1" style="border-collapse:collapse;width:100%;"><tbody>' +
-            '<tr><td style="padding:6px;border:1px solid var(--border-color);">&nbsp;</td><td style="padding:6px;border:1px solid var(--border-color);">&nbsp;</td><td style="padding:6px;border:1px solid var(--border-color);">&nbsp;</td></tr>'.repeat(3) +
-            '</tbody></table><p><br></p>';
-          document.execCommand('insertHTML', false, table);
-        } else if (item.dataset.action === 'insertHr') {
-          document.execCommand('insertHTML', false, '<hr><p><br></p>');
+      const addCmt = document.createElement('div');
+      addCmt.className = 'gcp-re-ctx-item';
+      addCmt.innerHTML = '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M14 1H2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h5.586l2.707 2.707a1 1 0 0 0 1.414 0L14 12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg> Add Comment';
+      addCmt.addEventListener('mousedown', ev => ev.preventDefault());
+      addCmt.addEventListener('click', () => {
+        removeCtxMenu();
+        const anchorId = createCommentAnchor();
+        if (onCommentsClick) onCommentsClick(anchorId);
+      });
+      menu.appendChild(addCmt);
+
+      const tableCell = e.target.closest('td,th');
+      if (tableCell) {
+        const pos = { x: e.clientX, y: e.clientY };
+        const table = tableCell.closest('table');
+        const colIdx = [...tableCell.parentElement.children].indexOf(tableCell);
+        const rowCells  = () => [...tableCell.closest('tr').querySelectorAll('td,th')];
+        const colCells  = () => [...table.querySelectorAll('tr')].flatMap(r => r.children[colIdx] ? [r.children[colIdx]] : []);
+        const allCells  = () => [...table.querySelectorAll('td,th')];
+
+        const BORDERS = [
+          { t: 'None',   v: 'none' },
+          { t: 'Thin',   v: '1px solid #d1d5db' },
+          { t: 'Medium', v: '1.5px solid #64748b' },
+          { t: 'Thick',  v: '2px solid #1e293b' },
+          { t: 'Dashed', v: '1px dashed #94a3b8' },
+        ];
+
+        function makeRow(labelText, btns) {
+          const row = document.createElement('div');
+          row.className = 'gcp-re-ctx-tbl-row';
+          const lbl = document.createElement('span');
+          lbl.className = 'gcp-re-ctx-tbl-lbl'; lbl.textContent = labelText;
+          row.appendChild(lbl);
+          btns.forEach(({ text, title, action }) => {
+            const b = document.createElement('button');
+            b.type = 'button'; b.className = 'gcp-re-ctx-tbl-btn';
+            b.textContent = text; if (title) b.title = title;
+            b.addEventListener('mousedown', ev => ev.preventDefault());
+            b.addEventListener('click', () => { removeCtxMenu(); action(); });
+            row.appendChild(b);
+          });
+          return row;
         }
-        menu.remove();
-      });
 
-      // Close on click outside
-      setTimeout(() => {
-        const close = () => { menu.remove(); document.removeEventListener('click', close); };
-        document.addEventListener('click', close);
-      }, 10);
+        const sep1 = document.createElement('div'); sep1.className = 'gcp-re-ctx-sep'; menu.appendChild(sep1);
+        menu.appendChild(makeRow('Fill:', [
+          { text: 'Cell',   action: () => makePalettePopup(pos, h => { tableCell.style.backgroundColor = h; }) },
+          { text: 'Row',    action: () => makePalettePopup(pos, h => { rowCells().forEach(c => { c.style.backgroundColor = h; }); }) },
+          { text: 'Column', action: () => makePalettePopup(pos, h => { colCells().forEach(c => { c.style.backgroundColor = h; }); }) },
+          { text: 'All',    action: () => makePalettePopup(pos, h => { allCells().forEach(c => { c.style.backgroundColor = h; }); }) },
+        ]));
+
+        const sep2 = document.createElement('div'); sep2.className = 'gcp-re-ctx-sep'; menu.appendChild(sep2);
+        [
+          { label: 'Row grid:',  getCells: rowCells },
+          { label: 'Col grid:',  getCells: colCells },
+          { label: 'All grid:',  getCells: allCells },
+        ].forEach(({ label, getCells }) => {
+          menu.appendChild(makeRow(label, [
+            ...BORDERS.map(({ t, v }) => ({
+              text: t, title: t,
+              action: () => { getCells().forEach(c => { c.style.border = v; }); },
+            })),
+            { text: '🎨', title: 'Grid colour', action: () => makePalettePopup(pos, h => { getCells().forEach(c => { c.style.borderColor = h; }); }) },
+          ]));
+        });
+      }
+
+      const tcEl = e.target.closest('[data-tc-id]');
+      if (tcEl) {
+        const sep = document.createElement('div'); sep.className = 'gcp-re-ctx-sep';
+        menu.appendChild(sep);
+        const tcId = tcEl.getAttribute('data-tc-id');
+        const accItem = document.createElement('div');
+        accItem.className = 'gcp-re-ctx-item';
+        accItem.textContent = '✓ Accept Change';
+        accItem.addEventListener('click', () => { removeCtxMenu(); acceptChange(tcId); });
+        menu.appendChild(accItem);
+        const rejItem = document.createElement('div');
+        rejItem.className = 'gcp-re-ctx-item';
+        rejItem.textContent = '✗ Reject Change';
+        rejItem.addEventListener('click', () => { removeCtxMenu(); rejectChange(tcId); });
+        menu.appendChild(rejItem);
+      }
+
+      document.body.appendChild(menu);
+      activeCtxMenu = menu;
     });
+    document.addEventListener('click', removeCtxMenu, { capture: true });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') removeCtxMenu(); });
 
-    // ── Comments ───────────────────────────────────────────────────────────
+    // ── beforeinput: always intercept text mutations ─────────────────────────
 
-    function addCommentAtSelection() {
-      const sel = window.getSelection();
-      if (!sel.rangeCount || sel.isCollapsed) {
-        alert('Select some text first to add a comment.');
-        return;
+    const TC_INPUT_TYPES = new Set([
+      'insertText', 'insertReplacementText',
+      'deleteContentBackward', 'deleteContentForward',
+      'deleteWordBackward', 'deleteWordForward',
+      'deleteHardLineBackward', 'deleteHardLineForward',
+      'deleteSoftLineBackward', 'deleteSoftLineForward',
+      'deleteByCut', 'insertFromPaste', 'insertFromDrop',
+    ]);
+
+    body.addEventListener('beforeinput', e => {
+      if (!TC_INPUT_TYPES.has(e.inputType) || !body.isContentEditable) return;
+
+      if (e.inputType.startsWith('delete') && e.getTargetRanges) {
+        const sr = e.getTargetRanges();
+        if (sr.length > 0 && !staticToRange(sr[0]).toString()) return;
       }
 
-      const range = sel.getRangeAt(0);
-      const anchorId = uid();
-
-      // Highlight the selected text
-      const mark = document.createElement('mark');
-      mark.className = 'gcp-comment-anchor';
-      mark.dataset.commentId = anchorId;
-      mark.style.backgroundColor = 'rgba(255,213,79,0.4)';
-
-      try {
-        range.surroundContents(mark);
-      } catch {
-        // If range crosses element boundaries, use extractContents
-        const contents = range.extractContents();
-        mark.appendChild(contents);
-        range.insertNode(mark);
-      }
-
-      // Open inline comment form
-      showCommentForm(anchorId, mark);
-    }
-
-    function showCommentForm(anchorId, anchorEl) {
-      const form = document.createElement('div');
-      form.className = 'gcp-comment-form-inline';
-
-      // Position near the anchor
-      const rect = anchorEl.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-      form.style.top = (rect.bottom - containerRect.top + 4) + 'px';
-      form.style.right = '0';
-
-      form.innerHTML = `
-        <div class="gcp-comment-author">
-          <span class="gcp-avatar" style="background:${color}">${authorInitials(authorName)}</span>
-          <span>${escapeHtml(authorName)}</span>
-        </div>
-        <textarea class="gcp-comment-input" placeholder="Add a comment..." rows="2"></textarea>
-        <div class="gcp-comment-actions">
-          <button class="gcp-btn-sm gcp-btn-cancel">Cancel</button>
-          <button class="gcp-btn-sm gcp-btn-primary">Add</button>
-        </div>
-      `;
-
-      container.appendChild(form);
-      const textarea = form.querySelector('textarea');
-      textarea.focus();
-
-      textarea.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') { cancelComment(); }
-        if (e.key === 'Enter' && e.ctrlKey) { submitComment(); }
-      });
-
-      form.querySelector('.gcp-btn-cancel').addEventListener('click', cancelComment);
-      form.querySelector('.gcp-btn-primary').addEventListener('click', submitComment);
-
-      function cancelComment() {
-        form.remove();
-        // Unwrap the mark
-        const parent = anchorEl.parentNode;
-        while (anchorEl.firstChild) parent.insertBefore(anchorEl.firstChild, anchorEl);
-        anchorEl.remove();
-      }
-
-      function submitComment() {
-        const text = textarea.value.trim();
-        if (!text) return;
-        comments.push({
-          id: anchorId,
-          anchorId,
-          author: authorName,
-          color,
-          text,
-          time: new Date().toISOString(),
-          replies: [],
-        });
-        form.remove();
-        renderComments();
-      }
-    }
-
-    function renderComments() {
-      if (!comments.length) {
-        commentSidebar.innerHTML = '<p style="color:var(--text-muted);font-size:13px;padding:12px;">No comments</p>';
-        return;
-      }
-
-      commentSidebar.innerHTML = comments.map(c => `
-        <div class="gcp-comment-card" data-id="${c.id}">
-          <div class="gcp-comment-header">
-            <span class="gcp-avatar" style="background:${c.color}">${authorInitials(c.author)}</span>
-            <span class="gcp-comment-name">${escapeHtml(c.author)}</span>
-            <span class="gcp-comment-time">${new Date(c.time).toLocaleString()}</span>
-            <button class="gcp-comment-delete" data-delete="${c.id}" title="Delete">✕</button>
-          </div>
-          <div class="gcp-comment-text">${escapeHtml(c.text)}</div>
-          ${c.replies.map(r => `
-            <div class="gcp-comment-reply">
-              <span class="gcp-avatar gcp-avatar-sm" style="background:${authorColor(r.author)}">${authorInitials(r.author)}</span>
-              <span>${escapeHtml(r.author)}:</span> ${escapeHtml(r.text)}
-            </div>
-          `).join('')}
-          <div class="gcp-reply-form">
-            <input class="gcp-reply-input" placeholder="Reply..." data-reply-to="${c.id}" />
-          </div>
-        </div>
-      `).join('');
-
-      // Bind delete
-      commentSidebar.querySelectorAll('[data-delete]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const id = btn.dataset.delete;
-          comments = comments.filter(c => c.id !== id);
-          // Remove highlight
-          const mark = contentArea.querySelector(`[data-comment-id="${id}"]`);
-          if (mark) {
-            const parent = mark.parentNode;
-            while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
-            mark.remove();
-          }
-          renderComments();
-          if (onDeleteComment) onDeleteComment(id);
-        });
-      });
-
-      // Bind reply
-      commentSidebar.querySelectorAll('.gcp-reply-input').forEach(input => {
-        input.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            const text = input.value.trim();
-            if (!text) return;
-            const commentId = input.dataset.replyTo;
-            const comment = comments.find(c => c.id === commentId);
-            if (comment) {
-              const reply = { author: authorName, text, time: new Date().toISOString() };
-              comment.replies.push(reply);
-              renderComments();
-              if (onReplyComment) onReplyComment(commentId, reply);
-            }
-          }
-        });
-      });
-    }
-
-    // ── Keyboard shortcuts ─────────────────────────────────────────────────
-
-    contentArea.addEventListener('keydown', (e) => {
-      if (e.ctrlKey || e.metaKey) {
-        if (e.key === 'b') { e.preventDefault(); document.execCommand('bold'); }
-        if (e.key === 'i') { e.preventDefault(); document.execCommand('italic'); }
-        if (e.key === 'u') { e.preventDefault(); document.execCommand('underline'); }
-      }
-    });
-
-    // ── Public API ─────────────────────────────────────────────────────────
-
-    function escapeHtml(s) {
-      const d = document.createElement('div');
-      d.textContent = s;
-      return d.innerHTML;
-    }
-
-    return {
-      getHtml() { return contentArea.innerHTML; },
-      setHtml(html) { contentArea.innerHTML = html; },
-      getContentElement() { return contentArea; },
-      setReadOnly(val) {
-        contentArea.contentEditable = val ? 'false' : 'true';
-      },
-      isTrackChangesEnabled() { return trackChanges; },
-      setTrackChanges(val) {
-        trackChanges = val;
-        const btn = toolbar.querySelector('[data-action="toggleTrack"]');
-        if (btn) btn.classList.toggle('active', val);
-      },
-      setComments(arr) {
-        comments = arr || [];
-        renderComments();
-      },
-      getComments() { return comments; },
-      focus() { contentArea.focus(); },
-      destroy() { container.innerHTML = ''; },
-    };
-  }
-
-  // ─── SimpleEditor ───────────────────────────────────────────────────────────
-
-  function createSimpleEditor(container, opts = {}) {
-    const { placeholder = 'Enter text...' } = opts;
-    const id = uid();
-
-    container.innerHTML = '';
-    container.classList.add('gcp-simple-root');
-
-    const bar = document.createElement('div');
-    bar.className = 'gcp-simple-bar';
-    bar.innerHTML = `
-      <button class="gcp-fmt-btn" data-cmd="bold" title="Bold"><b>B</b></button>
-      <button class="gcp-fmt-btn" data-cmd="italic" title="Italic"><i>I</i></button>
-      <button class="gcp-fmt-btn" data-cmd="underline" title="Underline"><u>U</u></button>
-      <input type="color" class="gcp-color-picker" data-cmd="foreColor" value="#1e293b" title="Text Color" />
-    `;
-    container.appendChild(bar);
-
-    const area = document.createElement('div');
-    area.className = 'gcp-simple-content';
-    area.contentEditable = 'true';
-    area.setAttribute('data-placeholder', placeholder);
-    container.appendChild(area);
-
-    bar.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-cmd]');
-      if (!btn || btn.tagName === 'INPUT') return;
       e.preventDefault();
-      area.focus();
-      document.execCommand(btn.dataset.cmd, false, null);
+
+      const staticRanges = e.getTargetRanges ? e.getTargetRanges() : [];
+      const targetRange = staticRanges[0]
+        ? staticToRange(staticRanges[0])
+        : (window.getSelection().rangeCount ? window.getSelection().getRangeAt(0).cloneRange() : null);
+      if (!targetRange) return;
+
+      const type = e.inputType;
+      if (type === 'insertText' || type === 'insertReplacementText') {
+        if (!targetRange.collapsed) wrapRangeAsDeletion(targetRange, true);
+        insertTracked(e.data);
+      } else if (type === 'insertFromPaste' || type === 'insertFromDrop') {
+        if (!targetRange.collapsed) wrapRangeAsDeletion(targetRange, true);
+        const text = (e.dataTransfer || null)?.getData('text/plain') || '';
+        if (text) insertTracked(text);
+      } else if (type === 'deleteByCut') {
+        if (!targetRange.collapsed) wrapRangeAsDeletion(targetRange, false);
+      } else if (type.startsWith('delete')) {
+        wrapRangeAsDeletion(targetRange, false);
+      }
+      updateTcBar();
     });
 
-    bar.querySelector('input[type="color"]').addEventListener('input', (e) => {
-      area.focus();
-      document.execCommand('foreColor', false, e.target.value);
+    // ── Active state update ──────────────────────────────────────────────────
+
+    function updateActive() {
+      toolbar.querySelectorAll('.gcp-re-btn').forEach(btn => {
+        const cmd = btn.dataset.cmd;
+        if (!cmd || cmd === 'h2' || cmd === 'h3' || cmd === 'removeFormat') {
+          btn.classList.remove('active'); return;
+        }
+        try { btn.classList.toggle('active', document.queryCommandState(cmd)); } catch (_) {}
+      });
+    }
+
+    body.addEventListener('keyup', updateActive);
+    body.addEventListener('mouseup', updateActive);
+    body.addEventListener('selectionchange', updateActive);
+
+    body.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
+        if (e.key === 'b') { e.preventDefault(); trackFmtChange('bold');      updateActive(); }
+        if (e.key === 'i') { e.preventDefault(); trackFmtChange('italic');    updateActive(); }
+        if (e.key === 'u') { e.preventDefault(); trackFmtChange('underline'); updateActive(); }
+      }
+      if (e.key === 'Escape' && fsActive) { e.preventDefault(); toggleFullscreen(false); }
     });
+
+    // ── Public API ───────────────────────────────────────────────────────────
+
+    function getHtml() {
+      return body.innerHTML.replace(/(<br\s*\/?>|\s|&nbsp;)*$/, '').trim();
+    }
+
+    function setHtml(html) { body.innerHTML = html || ''; mergeAdjacentIns(); updateTcBar(); }
+    function destroy() {
+      if (fsActive) {
+        document.body.style.overflow = '';
+        if (fsOriginalParent) fsOriginalParent.insertBefore(wrap, fsOriginalNextSibling || null);
+      }
+      document.removeEventListener('keydown', onDocKeydown);
+      _cmtAnchorObserver.disconnect();
+      clearTimeout(_orphanTimer);
+      container.innerHTML = '';
+    }
+    function focus() { body.focus(); }
+
+    function setCommentsActive(active) {
+      cmtPanelVisible = active;
+      cmtBtn.classList.toggle('active', active && storedComments.length > 0);
+    }
+    function setCommentsBadge(n) {
+      if (n > 0) { cmtBadge.textContent = String(n); cmtBadge.style.display = ''; }
+      else cmtBadge.style.display = 'none';
+      cmtBtn.classList.toggle('active', cmtPanelVisible && n > 0);
+    }
+    function setComments(comments) {
+      storedComments = comments || [];
+      setCommentsBadge(storedComments.length);
+      updateTcBar();
+      positionBalloons();
+    }
+
+    function onDocKeydown(e) {
+      if (e.key === 'Escape' && fsActive) { e.preventDefault(); toggleFullscreen(false); }
+    }
+    document.addEventListener('keydown', onDocKeydown);
+
+    if (initialHtml) mergeAdjacentIns();
+    updateTcBar();
+
+    // ── Auto-delete comments whose anchor was removed ───────────────────────
+    let _orphanTimer = null;
+    function checkOrphanedComments() {
+      clearTimeout(_orphanTimer);
+      _orphanTimer = setTimeout(() => {
+        const present = new Set(
+          [...body.querySelectorAll('.gcp-cmt-anchor[data-cmt-anchor-id]')]
+            .map(el => el.getAttribute('data-cmt-anchor-id'))
+        );
+        storedComments.forEach(c => {
+          if (c.anchor_id && !present.has(c.anchor_id)) {
+            if (onDeleteComment) onDeleteComment(c.id, c.anchor_id);
+          }
+        });
+      }, 250);
+    }
+    const _cmtAnchorObserver = new MutationObserver(checkOrphanedComments);
+    _cmtAnchorObserver.observe(body, { childList: true, subtree: true });
 
     return {
-      getHtml() { return area.innerHTML; },
-      setHtml(html) { area.innerHTML = html; },
-      focus() { area.focus(); },
-      destroy() { container.innerHTML = ''; },
+      getHtml, getCleanHtml, setHtml, destroy, focus, el: body,
+      acceptAllChanges, rejectAllChanges, hasTrackedChanges,
+      setCommentsActive, setCommentsBadge, setComments, removeCommentAnchor,
+      toggleFullscreen,
     };
   }
 
-  return { RichEditor, createSimpleEditor, authorColor, authorInitials };
+  // ── Expose on window.GCP ─────────────────────────────────────────────────
+  window.GCP = window.GCP || {};
+  window.GCP.RichEditor = RichEditor;
+  window.GCP.authorColor = authorColor;
+  window.GCP.authorInitials = authorInitials;
+
 })();

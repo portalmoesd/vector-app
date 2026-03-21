@@ -68,14 +68,35 @@
     authorName: user.fullName || user.username,
     sectionTitle: sectionInfo.sectionLabel,
     readOnly: !canEdit,
-    onCommentsClick(visible) {
-      // Toggle comments sidebar within the editor
+    onCommentsClick(anchorId) {
+      // anchorId is set when user selects text and adds a comment via context menu
+      if (anchorId) {
+        const text = prompt('Enter your comment:');
+        if (text && text.trim()) {
+          Api.post('/api/workflow/comments', {
+            eventId, sectionId, content: text.trim(), anchorId,
+            htmlContent: richEditor.getHtml(),
+          }).then(() => loadComments()).catch(e => alert('Failed: ' + e.message));
+        } else {
+          // Cancel — remove the anchor
+          richEditor.removeCommentAnchor(anchorId);
+        }
+      }
     },
-    onDeleteComment(commentId) {
-      // Could sync with API here
+    async onDeleteComment(commentId, anchorId) {
+      try {
+        await Api.post('/api/workflow/comments/delete', { commentId });
+        if (anchorId) richEditor.removeCommentAnchor(anchorId);
+        loadComments();
+      } catch (e) { console.error('Delete comment failed:', e); }
     },
-    onReplyComment(commentId, reply) {
-      // Could sync with API here
+    async onReplyComment(parentId, text) {
+      try {
+        await Api.post('/api/workflow/comments', {
+          eventId, sectionId, content: text, parentId,
+        });
+        loadComments();
+      } catch (e) { alert('Reply failed: ' + e.message); }
     },
   });
 
@@ -306,6 +327,20 @@
   async function loadComments() {
     try {
       const comments = await Api.get(`/api/workflow/comments?event_id=${eventId}&section_id=${sectionId}`);
+
+      // Feed comments into the editor's margin balloons
+      const editorComments = (comments || []).map(c => ({
+        id: c.id,
+        anchor_id: c.anchorId || null,
+        parent_id: c.parentId || null,
+        author_name: c.userName || 'User',
+        comment_text: c.content || '',
+        created_at: c.createdAt || new Date().toISOString(),
+        can_delete: c.userId === user.id || user.role === 'admin',
+      }));
+      richEditor.setComments(editorComments);
+
+      // Also render in the below-editor comments list
       const list = document.getElementById('commentsList');
       if (!comments || comments.length === 0) {
         list.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">No comments yet</p>';
