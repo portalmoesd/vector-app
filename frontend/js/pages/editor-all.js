@@ -34,12 +34,12 @@
     return;
   }
 
-  // Only the Document Submitter and Deputies may view all sections at once
+  // Only DS, Deputy, Supervisor, and Super-Collaborator may view all sections
   const isDS = grid.documentSubmitterId === user.id;
-  const isDeputy = user.role === 'DEPUTY';
-  if (!isDS && !isDeputy) {
+  const canViewAll = isDS || user.role === 'DEPUTY' || user.role === 'SUPERVISOR' || user.role === 'SUPER_COLLABORATOR';
+  if (!canViewAll) {
     document.getElementById('sectionsContainer').innerHTML =
-      '<div class="msg msg-error">Access denied — only the Document Submitter and Deputy can view all sections.</div>';
+      '<div class="msg msg-error">Access denied — you do not have permission to view all sections.</div>';
     return;
   }
 

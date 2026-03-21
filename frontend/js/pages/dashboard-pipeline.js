@@ -209,7 +209,7 @@
       });
 
       let headerActions = '';
-      if (isDS || isDeputy) {
+      if (isDS || isDeputy || user.role === 'SUPERVISOR' || user.role === 'SUPER_COLLABORATOR') {
         headerActions += `<button class="btn btn-outline" onclick="window.location.href='/pages/editor-all.html?event_id=${eventId}'">Open all Sections</button>`;
       }
       if (sectionsToApprove.length > 1) {
