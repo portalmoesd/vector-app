@@ -222,6 +222,41 @@ function canPushSection(userRole, chain, isCrossDept, holderRole, isLastActor) {
   return holderIdx > userIdx && holderIdx < receivingScIdx;
 }
 
+/**
+ * Determine whether a user can "pull" a section to themselves from a user
+ * earlier in the approval chain.
+ *
+ * Rules:
+ *  - User must be in the chain at a position AFTER the current holder
+ *  - Both user and holder must be on the same side of the RECEIVING_ boundary
+ *    (Department A cannot pull from Department B)
+ *
+ * @param {string}   userRole   - The user's effective role
+ * @param {string[]} chain      - The pipeline chain for this section
+ * @param {string}   holderRole - Current holder role
+ * @returns {boolean}
+ */
+function canPullSection(userRole, chain, holderRole) {
+  if (!chain || chain.length < 2 || !holderRole) return false;
+
+  const userIdx = chain.indexOf(userRole);
+  const holderIdx = chain.indexOf(holderRole);
+  if (userIdx === -1 || holderIdx === -1) return false;
+
+  // User must be AFTER the holder in the chain
+  if (userIdx <= holderIdx) return false;
+
+  // Department boundary: can't pull across the RECEIVING_ boundary
+  const boundaryIdx = chain.findIndex(r => r.startsWith('RECEIVING_'));
+  if (boundaryIdx !== -1) {
+    const userBeforeBoundary = userIdx < boundaryIdx;
+    const holderBeforeBoundary = holderIdx < boundaryIdx;
+    if (userBeforeBoundary !== holderBeforeBoundary) return false;
+  }
+
+  return true;
+}
+
 module.exports = {
   STATUS,
   baseRole,
@@ -234,4 +269,5 @@ module.exports = {
   isFinalApprover,
   firstEditorRole,
   canPushSection,
+  canPullSection,
 };

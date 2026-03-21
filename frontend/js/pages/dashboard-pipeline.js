@@ -381,6 +381,14 @@
       </button>`);
     }
 
+    // Pull Section — pull from a user earlier in the chain
+    if (section.canPull) {
+      links.push(`<button class="dp-action-link dp-action-link--pull" data-action="pull-section" data-event="${eventId}" data-section="${section.sectionId}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+        PULL SECTION
+      </button>`);
+    }
+
     return links.join('');
   }
 
@@ -438,6 +446,9 @@
           } else if (action === 'push-section') {
             if (!confirm('Push this section directly to the responsible department?')) return;
             await Api.post('/api/workflow/push-section', { eventId: evId, sectionId });
+          } else if (action === 'pull-section') {
+            if (!confirm('Pull this section to yourself?')) return;
+            await Api.post('/api/workflow/pull-section', { eventId: evId, sectionId });
           }
           loadSections(evId);
         } catch (err) {

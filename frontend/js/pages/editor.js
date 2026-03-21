@@ -161,6 +161,14 @@
       </button>`);
     }
 
+    // Pull Section — pull from a user earlier in the chain
+    if (sectionInfo.canPull) {
+      btns.push(`<button id="btnPullSection" class="warning" style="background:#7c3aed;border-color:#7c3aed;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+        Pull Section
+      </button>`);
+    }
+
     // File upload button
     btns.push(`<button id="btnUpload">
       <span class="icon" style="--icon-url: url(/assets/upload-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
@@ -182,6 +190,7 @@
     const btnReturn = document.getElementById('btnReturn');
     const btnAskReturn = document.getElementById('btnAskReturn');
     const btnPushSection = document.getElementById('btnPushSection');
+    const btnPullSection = document.getElementById('btnPullSection');
     const btnBack = document.getElementById('btnBack');
 
     if (btnSave) btnSave.addEventListener('click', handleSave);
@@ -190,6 +199,7 @@
     if (btnReturn) btnReturn.addEventListener('click', handleReturn);
     if (btnAskReturn) btnAskReturn.addEventListener('click', handleAskReturn);
     if (btnPushSection) btnPushSection.addEventListener('click', handlePushSection);
+    if (btnPullSection) btnPullSection.addEventListener('click', handlePullSection);
     const btnUpload = document.getElementById('btnUpload');
     if (btnUpload) btnUpload.addEventListener('click', handleFiles);
     if (btnBack) btnBack.addEventListener('click', () => {
@@ -270,6 +280,17 @@
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
       alert('Push failed: ' + e.message);
+    }
+  }
+
+  async function handlePullSection() {
+    if (!confirm('Pull this section to yourself?')) return;
+    try {
+      await Api.post('/api/workflow/pull-section', { eventId, sectionId });
+      showNotification('Section pulled successfully');
+      setTimeout(() => window.location.reload(), 800);
+    } catch (e) {
+      alert('Pull failed: ' + e.message);
     }
   }
 

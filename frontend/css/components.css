@@ -339,3 +339,5 @@ tr:hover td {
 .action-approve .icon { background-color: var(--accent-green) !important; }
 .action-return .icon { background-color: var(--accent-red) !important; }
 .action-ask-return .icon { background-color: #a16207 !important; }
+.action-pull { color: #7c3aed; }
+.action-pull:hover { color: #6d28d9; }

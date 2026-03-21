@@ -165,6 +165,8 @@
 .dp-action-link--submit:hover { color: #2563eb; }
 .dp-action-link--ask-return { color: #a16207; }
 .dp-action-link--ask-return:hover { color: #854d0e; }
+.dp-action-link--pull { color: #7c3aed; }
+.dp-action-link--pull:hover { color: #6d28d9; }
 
 /* Pipeline progress (numbered circles) */
 .dp-pipeline {
