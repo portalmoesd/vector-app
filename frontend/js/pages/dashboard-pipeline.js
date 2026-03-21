@@ -181,12 +181,13 @@
 
       // Filter sections: DS and Deputies see all sections.
       // Other users see sections assigned to their department,
-      // OR sections where they are the current holder in a cross-dept chain.
+      // OR sections where they participate in the approval chain
+      // (e.g. RECEIVING_ roles from a different department).
       const visibleSections = (isDS || isDeputy)
         ? (grid.sections || [])
         : (grid.sections || []).filter(s =>
             (s.departmentIds && s.departmentIds.includes(user.departmentId)) ||
-            (s.userEffectiveRole && s.userEffectiveRole === s.currentHolderRole)
+            (s.userEffectiveRole && s.chain && s.chain.includes(s.userEffectiveRole))
           );
 
       if (visibleSections.length === 0) {
