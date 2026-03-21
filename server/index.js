@@ -585,6 +585,48 @@ async function migrate() {
       console.log(`Default Template created (${defaultSections.length} sections).`);
     }
 
+    // ── Fix stuck mid-chain approved_by_ statuses ────────────────────────────
+    // A previous bug set approved_by_<role> for mid-chain approvals instead of
+    // submitted_to_<nextRole>. Fix any sections still stuck in that state.
+    const { buildChain, nextInChain, isFinalApprover, submittedToStatus: subToStatus } = require('./helpers/pipeline');
+    const { rows: stuckSections } = await db.query(
+      `SELECT sc.event_id, sc.section_id, sc.status,
+              e.document_submitter_role, e.curator_required, e.supervisor_id, e.document_submitter_id
+       FROM section_content sc
+       JOIN events e ON e.id = sc.event_id
+       WHERE sc.status LIKE 'approved_by_%'`
+    );
+    for (const row of stuckSections) {
+      const approverRole = row.status.replace('approved_by_', '').toUpperCase();
+
+      // Determine if cross-dept for this section
+      let dsDeptId = null;
+      if (row.document_submitter_role === 'DEPUTY' && row.supervisor_id) {
+        const { rows: [sv] } = await db.query('SELECT department_id FROM users WHERE id = $1', [row.supervisor_id]);
+        dsDeptId = sv ? sv.department_id : null;
+      } else {
+        const { rows: [dsU] } = await db.query('SELECT department_id FROM users WHERE id = $1', [row.document_submitter_id]);
+        dsDeptId = dsU ? dsU.department_id : null;
+      }
+      const { rows: sdRows } = await db.query('SELECT department_id FROM section_departments WHERE section_id = $1', [row.section_id]);
+      const isCrossDept = sdRows.some(d => d.department_id !== dsDeptId);
+
+      const chain = buildChain(row.document_submitter_role, row.curator_required, isCrossDept);
+
+      // Only fix mid-chain approvals (not final approvals)
+      if (!isFinalApprover(approverRole, chain)) {
+        const nextRole = nextInChain(approverRole, chain);
+        if (nextRole) {
+          const newStatus = subToStatus(nextRole);
+          await db.query(
+            'UPDATE section_content SET status = $1 WHERE event_id = $2 AND section_id = $3',
+            [newStatus, row.event_id, row.section_id]
+          );
+          console.log(`Fixed stuck section: event=${row.event_id} section=${row.section_id} ${row.status} → ${newStatus}`);
+        }
+      }
+    }
+
   } catch (err) {
     console.error('Migration error:', err);
   }

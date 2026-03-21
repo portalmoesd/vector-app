@@ -138,6 +138,23 @@ router.post('/save', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'eventId and sectionId are required' });
     }
 
+    // Authorization: only the current holder can save, and only in editable statuses
+    const [ctx, resolvedUser] = await Promise.all([
+      loadSectionContext(eventId, sectionId),
+      resolveUser(req.user),
+    ]);
+    if (!ctx) return res.status(404).json({ error: 'Section not found' });
+
+    const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
+    const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
+
+    if (userRole !== holder) {
+      return res.status(403).json({ error: `Section is held by ${holder}, not ${userRole}` });
+    }
+    if (ctx.sectionStatus !== 'draft' && !ctx.sectionStatus.startsWith('returned_')) {
+      return res.status(400).json({ error: 'Section is not in an editable status' });
+    }
+
     await db.query(
       `UPDATE section_content
        SET html_content = $1,
@@ -188,6 +205,11 @@ router.post('/submit', requireAuth, async (req, res) => {
       return res.status(403).json({
         error: `Section is held by ${holder}, not ${userRole}`,
       });
+    }
+
+    // Verify section is in a submittable status (draft or returned)
+    if (ctx.sectionStatus !== 'draft' && !ctx.sectionStatus.startsWith('returned_')) {
+      return res.status(400).json({ error: `Cannot submit — section status is ${ctx.sectionStatus}` });
     }
 
     // Find the next role in the chain
