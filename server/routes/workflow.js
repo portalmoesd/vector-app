@@ -948,8 +948,10 @@ router.get('/stage-users', requireAuth, async (req, res) => {
           `SELECT u.id, u.full_name, d.name_en AS department_name
            FROM users u
            LEFT JOIN departments d ON d.id = u.department_id
-           JOIN country_assignments ca ON ca.user_id = u.id AND ca.country_id = $3
+           LEFT JOIN country_assignments ca ON ca.user_id = u.id AND ca.country_id = $3
            WHERE u.role = $1 AND u.department_id = $2
+             AND (ca.user_id IS NOT NULL
+                  OR NOT EXISTS (SELECT 1 FROM country_assignments ca2 WHERE ca2.user_id = u.id))
            ORDER BY u.full_name`,
           [dbRole, dsDeptId, event.country_id]
         );
@@ -961,8 +963,10 @@ router.get('/stage-users', requireAuth, async (req, res) => {
           `SELECT u.id, u.full_name, d.name_en AS department_name
            FROM users u
            LEFT JOIN departments d ON d.id = u.department_id
-           JOIN country_assignments ca ON ca.user_id = u.id AND ca.country_id = $3
+           LEFT JOIN country_assignments ca ON ca.user_id = u.id AND ca.country_id = $3
            WHERE u.role = $1 AND u.department_id = ANY($2)
+             AND (ca.user_id IS NOT NULL
+                  OR NOT EXISTS (SELECT 1 FROM country_assignments ca2 WHERE ca2.user_id = u.id))
            ORDER BY u.full_name`,
           [role, sectionDeptIds, event.country_id]
         );
