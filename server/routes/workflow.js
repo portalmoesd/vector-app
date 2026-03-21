@@ -92,6 +92,8 @@ async function loadSectionContext(eventId, sectionId) {
  * - Otherwise → the user's base role
  */
 async function effectiveRole(user, event, sectionDeptIds, chain) {
+  // Normalize department_id (JWT uses camelCase, resolveUser uses snake_case)
+  const userDeptId = parseInt(user.department_id || user.departmentId) || null;
   // Deputy as Curator
   if (user.role === ROLES.DEPUTY && event.document_submitter_id !== user.id && sectionDeptIds) {
     const { rows } = await db.query(
@@ -113,7 +115,7 @@ async function effectiveRole(user, event, sectionDeptIds, chain) {
       // If the user's base role is also in the chain as a non-receiving step
       // AND the user is in one of the section's departments, they are the
       // section department actor, not the receiving chain actor.
-      const isInSectionDept = sectionDeptIds.includes(user.department_id);
+      const isInSectionDept = sectionDeptIds.includes(userDeptId);
       if (chain.includes(user.role) && isInSectionDept) {
         return user.role;
       }
@@ -131,7 +133,7 @@ async function effectiveRole(user, event, sectionDeptIds, chain) {
         );
         homeDeptId = dsUser ? dsUser.department_id : null;
       }
-      if (homeDeptId && user.department_id === homeDeptId) {
+      if (homeDeptId && userDeptId === homeDeptId) {
         return receivingLabel;
       }
     }
@@ -706,6 +708,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
 
       // Compute the requesting user's effective role for this section
       const userEffRole = await effectiveRole(req.user, event, sectionDeptIds, chain);
+
 
       enrichedSections.push({
         sectionId: s.section_id,
