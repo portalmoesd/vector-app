@@ -151,9 +151,6 @@ router.post('/save', requireAuth, async (req, res) => {
     if (userRole !== holder) {
       return res.status(403).json({ error: `Section is held by ${holder}, not ${userRole}` });
     }
-    if (ctx.sectionStatus !== 'draft' && !ctx.sectionStatus.startsWith('returned_')) {
-      return res.status(400).json({ error: 'Section is not in an editable status' });
-    }
 
     await db.query(
       `UPDATE section_content
