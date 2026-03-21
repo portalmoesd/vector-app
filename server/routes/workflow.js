@@ -103,11 +103,22 @@ async function effectiveRole(user, event, sectionDeptIds, chain) {
   }
 
   // Check if user belongs to the receiving chain (home department)
-  if (chain) {
+  // But only if the user is NOT already acting as the section department's
+  // actor for the same base role. A user in the section's department fills
+  // the non-RECEIVING step; a user in the DS home department (but NOT in
+  // the section's department) fills the RECEIVING_ step.
+  if (chain && sectionDeptIds) {
     const receivingLabel = 'RECEIVING_' + user.role;
     if (chain.includes(receivingLabel)) {
-      // For Deputy DS, use the Responsible Supervisor's department as "home"
-      // since Deputies oversee multiple departments.
+      // If the user's base role is also in the chain as a non-receiving step
+      // AND the user is in one of the section's departments, they are the
+      // section department actor, not the receiving chain actor.
+      const isInSectionDept = sectionDeptIds.includes(user.department_id);
+      if (chain.includes(user.role) && isInSectionDept) {
+        return user.role;
+      }
+
+      // Otherwise check if user is in the DS home department
       let homeDeptId = null;
       if (event.document_submitter_role === 'DEPUTY' && event.supervisor_id) {
         const { rows: [sv] } = await db.query(
