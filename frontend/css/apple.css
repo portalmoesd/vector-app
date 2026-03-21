@@ -36,12 +36,12 @@ body{
 
 /* Topbar */
 .topbar{
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,.62);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border-radius: var(--radius);
-  box-shadow: 0 6px 18px rgba(0,0,0,.06);
+  border: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 .page-title{
   font-size: 20px;
