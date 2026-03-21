@@ -791,7 +791,8 @@ router.get('/status-grid', requireAuth, async (req, res) => {
           }
         }
 
-        steps.push({ role: step, actorName, actorId, departmentName: deptName });
+        const acted = !!(historyActors[s.section_id] || {})[step];
+        steps.push({ role: step, actorName, actorId, departmentName: deptName, acted });
       }
 
       const status = s.status || 'draft';

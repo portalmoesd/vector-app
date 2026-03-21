@@ -215,6 +215,9 @@
   border-color: #cbd5e1;
   color: #94a3b8;
 }
+.dp-pipeline__step--skipped {
+  opacity: 0.4;
+}
 .dp-pipeline__name {
   font-size: 0.68rem;
   color: var(--text-secondary);

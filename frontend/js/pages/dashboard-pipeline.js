@@ -308,10 +308,11 @@
 
     const stepsHtml = steps.map((step, i) => {
       const state = stepStates[i];
+      const skipped = state === 'done' && !step.acted;
       const name = step.actorName || roleLabel(step.role);
       const subtitle = step.departmentName || (step.role === 'CURATOR' || step.role === 'DEPUTY' ? roleLabel(step.role) : '');
       return `
-        <div class="dp-pipeline__step dp-pipeline__step--${state}">
+        <div class="dp-pipeline__step dp-pipeline__step--${state}${skipped ? ' dp-pipeline__step--skipped' : ''}">
           <span class="dp-pipeline__dot">${i + 1}</span>
           <span class="dp-pipeline__name" title="${escapeHtml(name)}${subtitle ? ' (' + escapeHtml(subtitle) + ')' : ''}">${escapeHtml(name)}</span>
           ${subtitle ? `<span class="dp-pipeline__dept">${escapeHtml(subtitle)}</span>` : ''}
