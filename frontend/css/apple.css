@@ -11,7 +11,7 @@
   --success: #34c759;
   --warn: #ff9f0a;
   --shadow: 0 14px 40px rgba(0,0,0,.10);
-  --radius: 22px;
+  --radius: var(--radius-lg);
   --sidebar-w: 300px;
   --font: ui-sans-serif, system-ui, -apple-system, "SF Pro Display","SF Pro Text", Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
 }
