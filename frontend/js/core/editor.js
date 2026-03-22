@@ -274,6 +274,22 @@
       .gcp-re-wrap.gcp-fullscreen .gcp-re-content-row { padding:16px 4px 40px; }
       .gcp-re-wrap.gcp-fullscreen .gcp-re-body { flex:1 1 auto; width:100% !important; min-width:0; padding:32px 20px; min-height:400px; }
     }
+    .gcp-re-mobile-sheet-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.3); z-index:9998; }
+    .gcp-re-mobile-sheet-overlay.visible { display:block; }
+    .gcp-re-mobile-sheet { position:fixed; bottom:0; left:0; right:0; z-index:9999; background:#fff; border-radius:14px 14px 0 0; box-shadow:0 -4px 24px rgba(0,0,0,.18); padding:16px 20px 24px; max-height:50vh; overflow-y:auto; transform:translateY(100%); transition:transform .25s ease; }
+    .gcp-re-mobile-sheet.visible { transform:translateY(0); }
+    .gcp-re-mobile-sheet-handle { width:36px; height:4px; border-radius:2px; background:#cbd5e1; margin:0 auto 12px; }
+    .gcp-re-mobile-sheet .gcp-re-balloon-header { display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+    .gcp-re-mobile-sheet .gcp-re-balloon-avatar { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; font-size:10px; font-weight:800; color:#fff; flex-shrink:0; }
+    .gcp-re-mobile-sheet .gcp-re-balloon-author { font-weight:800; font-size:14px; color:#0f172a; }
+    .gcp-re-mobile-sheet .gcp-re-balloon-time { color:#94a3b8; font-size:12px; margin-left:auto; }
+    .gcp-re-mobile-sheet .gcp-re-snippet { font-size:13px; font-family:monospace; margin:4px 0; white-space:pre-wrap; }
+    .gcp-re-mobile-sheet .gcp-re-snippet-ins { color:#15803d; }
+    .gcp-re-mobile-sheet .gcp-re-snippet-del { color:#b91c1c; text-decoration:line-through; }
+    .gcp-re-mobile-sheet .gcp-re-mobile-sheet-btns { display:flex; gap:8px; margin-top:14px; }
+    .gcp-re-mobile-sheet .gcp-re-mobile-sheet-btns button { flex:1; padding:10px; border-radius:10px; font-size:14px; font-weight:700; border:none; cursor:pointer; }
+    .gcp-re-mobile-sheet .gcp-re-mobile-sheet-btn-accept { background:rgba(21,128,61,.12); color:#15803d; }
+    .gcp-re-mobile-sheet .gcp-re-mobile-sheet-btn-reject { background:rgba(185,28,28,.12); color:#b91c1c; }
   `;
 
   let styleInjected = false;
@@ -1286,6 +1302,67 @@
     tcAcceptAll.addEventListener('click', () => { acceptAllChanges(); body.focus(); });
     tcRejectAll.addEventListener('mousedown', e => e.preventDefault());
     tcRejectAll.addEventListener('click', () => { rejectAllChanges(); body.focus(); });
+
+    // ── Mobile tap-to-reveal sheet for tracked changes ──────────────────────
+    const mobileSheetOverlay = document.createElement('div');
+    mobileSheetOverlay.className = 'gcp-re-mobile-sheet-overlay';
+    const mobileSheet = document.createElement('div');
+    mobileSheet.className = 'gcp-re-mobile-sheet';
+    mobileSheet.innerHTML = '<div class="gcp-re-mobile-sheet-handle"></div>';
+    document.body.appendChild(mobileSheetOverlay);
+    document.body.appendChild(mobileSheet);
+
+    function closeMobileSheet() {
+      mobileSheet.classList.remove('visible');
+      mobileSheetOverlay.classList.remove('visible');
+    }
+    mobileSheetOverlay.addEventListener('click', closeMobileSheet);
+
+    function openMobileSheet(el) {
+      const isFmt = el.hasAttribute('data-tc-fmt-id');
+      const id = isFmt ? el.getAttribute('data-tc-fmt-id') : el.getAttribute('data-tc-id');
+      if (!id) return;
+      const author = el.getAttribute('data-tc-author') || 'Unknown';
+      const initials = el.getAttribute('data-tc-initials') || '?';
+      const time = el.getAttribute('data-tc-time') || '';
+      const color = el.style.getPropertyValue('--tc-color') || '#1d4ed8';
+      const kind = isFmt ? 'fmt' : el.tagName.toLowerCase();
+      const text = el.textContent || '';
+      const fmtCmd = isFmt ? (el.getAttribute('data-tc-fmt-cmd') || '') : '';
+
+      let snippetHtml = '';
+      if (kind === 'ins') {
+        snippetHtml = `<div class="gcp-re-snippet gcp-re-snippet-ins">+ ${escHtml(text)}</div>`;
+      } else if (kind === 'del') {
+        snippetHtml = `<div class="gcp-re-snippet gcp-re-snippet-del">− ${escHtml(text)}</div>`;
+      } else if (kind === 'fmt') {
+        const label = FMT_CMD_LABELS[fmtCmd] || fmtCmd || 'Format change';
+        snippetHtml = `<div class="gcp-re-snippet" style="color:#7c3aed;">Formatted: ${escHtml(label)}</div>`;
+      }
+
+      mobileSheet.innerHTML = `
+        <div class="gcp-re-mobile-sheet-handle"></div>
+        <div class="gcp-re-balloon-header">
+          <span class="gcp-re-balloon-avatar" style="background:${escHtml(color)}">${escHtml(initials)}</span>
+          <span class="gcp-re-balloon-author">${escHtml(author)}</span>
+          <span class="gcp-re-balloon-time">${escHtml(fmtTime(time))}</span>
+        </div>
+        ${snippetHtml}
+        <div class="gcp-re-mobile-sheet-btns">
+          <button class="gcp-re-mobile-sheet-btn-accept" type="button">✓ Accept</button>
+          <button class="gcp-re-mobile-sheet-btn-reject" type="button">✗ Reject</button>
+        </div>`;
+      mobileSheet.querySelector('.gcp-re-mobile-sheet-btn-accept').addEventListener('click', () => { acceptChange(id); closeMobileSheet(); updateTcBar(); });
+      mobileSheet.querySelector('.gcp-re-mobile-sheet-btn-reject').addEventListener('click', () => { rejectChange(id); closeMobileSheet(); updateTcBar(); });
+      mobileSheetOverlay.classList.add('visible');
+      requestAnimationFrame(() => mobileSheet.classList.add('visible'));
+    }
+
+    body.addEventListener('click', (e) => {
+      if (window.innerWidth > 820 || !tc.visible) return;
+      const tcEl = e.target.closest('[data-tc-id], [data-tc-fmt-id]');
+      if (tcEl) { e.preventDefault(); openMobileSheet(tcEl); }
+    });
 
     function createCommentAnchor() {
       const sel = window.getSelection();
