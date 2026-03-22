@@ -90,15 +90,30 @@ router.get('/supervisors', requireAuth, async (req, res) => {
     const { deputy_id } = req.query;
     if (!deputy_id) return res.status(400).json({ error: 'deputy_id is required' });
 
-    const { rows } = await db.query(
-      `SELECT u.id, u.full_name, u.department_id, d.name_en AS department_name
-       FROM deputy_supervisor_links dsl
-       JOIN users u ON u.id = dsl.supervisor_id
-       LEFT JOIN departments d ON d.id = u.department_id
-       WHERE dsl.deputy_id = $1
-       ORDER BY u.full_name`,
-      [deputy_id]
-    );
+    const { role, id: userId } = req.user;
+    const isUnrestricted = role === 'ADMIN' || role === 'PROTOCOL';
+
+    let query, params;
+    if (isUnrestricted) {
+      query = `SELECT u.id, u.full_name, u.department_id, d.name_en AS department_name
+               FROM deputy_supervisor_links dsl
+               JOIN users u ON u.id = dsl.supervisor_id
+               LEFT JOIN departments d ON d.id = u.department_id
+               WHERE dsl.deputy_id = $1
+               ORDER BY u.full_name`;
+      params = [deputy_id];
+    } else {
+      // Non-admin users can only select themselves as responsible supervisor
+      query = `SELECT u.id, u.full_name, u.department_id, d.name_en AS department_name
+               FROM deputy_supervisor_links dsl
+               JOIN users u ON u.id = dsl.supervisor_id
+               LEFT JOIN departments d ON d.id = u.department_id
+               WHERE dsl.deputy_id = $1 AND dsl.supervisor_id = $2
+               ORDER BY u.full_name`;
+      params = [deputy_id, userId];
+    }
+
+    const { rows } = await db.query(query, params);
     res.json(rows.map(r => ({
       id: r.id,
       fullName: r.full_name,
