@@ -108,11 +108,24 @@
   loadHistory();
 
   function buildToolbar(status, role, isHolder, canEdit) {
-    const btns = [];
+    const leftBtns = [];
+    const rightBtns = [];
+
+    // Left side: Back to Dashboard + All Sections
+    leftBtns.push(`<button id="btnBack" class="tb-outline">Back to Dashboard</button>`);
+    leftBtns.push(`<button id="btnViewAll" class="tb-outline" onclick="window.location.href='/pages/editor-all.html?event_id=${eventId}'">All Sections</button>`);
+
+    // Right side: action buttons
+
+    // File upload button
+    rightBtns.push(`<button id="btnUpload" class="tb-outline">
+      <span class="icon" style="--icon-url: url(/assets/upload-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
+      Files
+    </button>`);
 
     // Save (if can edit)
     if (canEdit) {
-      btns.push(`<button id="btnSave" class="primary">
+      rightBtns.push(`<button id="btnSave" class="tb-outline tb-outline--blue">
         <span class="icon" style="--icon-url: url(/assets/save-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
         Save
       </button>`);
@@ -121,7 +134,7 @@
     if (isHolder) {
       // Submit (from draft or returned)
       if (status === 'draft' || status.startsWith('returned_')) {
-        btns.push(`<button id="btnSubmit" class="primary">
+        rightBtns.push(`<button id="btnSubmit" class="tb-outline tb-outline--blue">
           <span class="icon" style="--icon-url: url(/assets/submit-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
           Submit
         </button>`);
@@ -129,11 +142,11 @@
 
       // Approve + Return (when submitted to this role)
       if (status === `submitted_to_${role.toLowerCase()}`) {
-        btns.push(`<button id="btnApprove" class="success">
+        rightBtns.push(`<button id="btnApprove" class="tb-outline tb-outline--green">
           <span class="icon" style="--icon-url: url(/assets/approve-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
           Approve
         </button>`);
-        btns.push(`<button id="btnReturn" class="danger">
+        rightBtns.push(`<button id="btnReturn" class="tb-outline tb-outline--red">
           <span class="icon" style="--icon-url: url(/assets/return-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
           Return
         </button>`);
@@ -146,7 +159,7 @@
       const userIdx = chain.indexOf(role);
       const holderIdx = chain.indexOf(sectionInfo.currentHolderRole);
       if (userIdx !== -1 && holderIdx > userIdx) {
-        btns.push(`<button id="btnAskReturn" class="warning">
+        rightBtns.push(`<button id="btnAskReturn" class="tb-outline tb-outline--orange">
           <span class="icon" style="--icon-url: url(/assets/ask_to_return_icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
           Ask to Return
         </button>`);
@@ -155,7 +168,7 @@
 
     // Push Section — shown for both holders and non-holders when canPush is true
     if (sectionInfo.canPush) {
-      btns.push(`<button id="btnPushSection" class="warning">
+      rightBtns.push(`<button id="btnPushSection" class="tb-outline tb-outline--orange">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
         Push Section
       </button>`);
@@ -163,25 +176,13 @@
 
     // Pull Section — pull from a user earlier in the chain
     if (sectionInfo.canPull) {
-      btns.push(`<button id="btnPullSection" class="warning" style="background:#7c3aed;border-color:#7c3aed;">
+      rightBtns.push(`<button id="btnPullSection" class="tb-outline tb-outline--purple">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
         Pull Section
       </button>`);
     }
 
-    // File upload button
-    btns.push(`<button id="btnUpload">
-      <span class="icon" style="--icon-url: url(/assets/upload-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
-      Files
-    </button>`);
-
-    // View all sections
-    btns.push(`<button id="btnViewAll" onclick="window.location.href='/pages/editor-all.html?event_id=${eventId}'">All Sections</button>`);
-
-    // Back to dashboard
-    btns.push(`<button id="btnBack" style="margin-left: auto;">Back to Dashboard</button>`);
-
-    actionToolbar.innerHTML = btns.join('');
+    actionToolbar.innerHTML = leftBtns.join('') + '<span class="tb-spacer"></span>' + rightBtns.join('');
 
     // Bind events
     const btnSave = document.getElementById('btnSave');
