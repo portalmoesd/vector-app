@@ -906,12 +906,14 @@
         const mOffLeft = mRect.left - crRect.left + scrollLeft;
         const mOffTop  = mRect.top  - crRect.top  + scrollTop;
         const bodyRight = body.getBoundingClientRect().right - crRect.left + scrollLeft;
+        const bodyPadRight = parseFloat(getComputedStyle(body).paddingRight) || 0;
+        const contentRight = bodyRight - bodyPadRight;
 
         function drawConnector(anchorEl, balloonTop, balloonH, color) {
           if (!anchorEl) return;
           const aRect = anchorEl.getBoundingClientRect();
           // Body right edge at anchor's vertical center
-          const x1 = bodyRight;
+          const x1 = contentRight;
           const y1 = aRect.top + aRect.height / 2 - crRect.top + scrollTop;
           // Balloon left edge, vertically centered near top
           const x2 = mOffLeft + 2;
