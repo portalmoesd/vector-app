@@ -209,7 +209,7 @@
           ${e.deputyName ? `<p><strong>Deputy:</strong> ${escapeHtml(e.deputyName)}</p>` : ''}
           ${e.supervisorName ? `<p><strong>Responsible Supervisor:</strong> ${escapeHtml(e.supervisorName)}</p>` : ''}
           <p><strong>Curator Required:</strong> ${e.curatorRequired ? 'Yes' : 'No'}</p>
-          ${e.occasion ? `<p><strong>Task:</strong> ${escapeHtml(e.occasion)}</p>` : ''}
+          ${e.occasion ? `<div><strong>Task:</strong> ${e.occasion}</div>` : ''}
           ${e.deadlineDate ? `<p><strong>Deadline:</strong> ${formatDate(e.deadlineDate)}</p>` : ''}
           <p><strong>Status:</strong> ${e.status}</p>
           <p><strong>Sections:</strong></p>

@@ -75,7 +75,7 @@
           ${e.deadlineDate ? `<span class="dp-upcoming-event__pill">Deadline: ${formatDate(e.deadlineDate)}</span>` : ''}
           <span class="dp-upcoming-event__pill dp-upcoming-event__pill--lang">${e.language || 'EN'}</span>
         </div>
-        ${e.occasion ? `<p class="dp-upcoming-event__desc">${escapeHtml(e.occasion)}</p>` : ''}
+        ${e.occasion ? `<div class="dp-upcoming-event__desc">${e.occasion}</div>` : ''}
       </div>
     `).join('');
 
@@ -183,7 +183,7 @@
       if (eventDetailsEl && ev) {
         eventDetailsEl.style.display = '';
         eventDetailsEl.innerHTML = `
-            ${ev.occasion ? `<div class="dp-event-details__body">${escapeHtml(ev.occasion)}</div>` : ''}
+            ${ev.occasion ? `<div class="dp-event-details__body">${ev.occasion}</div>` : ''}
             <div class="dp-event-details__meta">
               <span class="dp-event-details__meta-item">Country <strong>${escapeHtml(ev.countryName)}</strong></span>
               <span class="dp-event-details__meta-item">Language <span class="dp-lang-pill">${ev.language || 'EN'}</span></span>
