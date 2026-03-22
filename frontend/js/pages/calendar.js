@@ -433,9 +433,9 @@
         <div class="form-group">
           <label class="form-label">Language</label>
           <select class="form-select" id="newLanguage">
-            ${['EN','FR','AR','ES','RU','ZH','PT','DE'].map(l =>
-              `<option value="${l}">${l}</option>`
-            ).join('')}
+            <option value="EN">English</option>
+            <option value="KA">ქართული</option>
+            <option value="RU">Русский</option>
           </select>
         </div>
         <div class="form-group">
