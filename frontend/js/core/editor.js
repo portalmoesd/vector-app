@@ -269,8 +269,8 @@
       .gcp-re-content-row { padding:16px 4px 40px; }
       .gcp-re-body { flex:1 1 auto; width:100% !important; min-width:0; padding:32px 20px; min-height:400px; }
       .gcp-re-wrap.tc-visible .gcp-re-margin,
-      .gcp-re-wrap.has-comments .gcp-re-margin { width:0; }
-      .gcp-re-balloon { position:fixed; bottom:0; left:0; right:0; border-radius:12px 12px 0 0; box-shadow:0 -4px 20px rgba(0,0,0,.15); z-index:100; }
+      .gcp-re-wrap.has-comments .gcp-re-margin { width:0; overflow:hidden; }
+      .gcp-re-balloon { display:none; }
       .gcp-re-wrap.gcp-fullscreen .gcp-re-content-row { padding:16px 4px 40px; }
       .gcp-re-wrap.gcp-fullscreen .gcp-re-body { flex:1 1 auto; width:100% !important; min-width:0; padding:32px 20px; min-height:400px; }
     }
