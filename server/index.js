@@ -58,6 +58,14 @@ async function migrate() {
       END $$;
     `);
 
+    // Add parent_id column to section_comments if missing (for reply threads)
+    await db.query(`
+      DO $$ BEGIN
+        ALTER TABLE section_comments ADD COLUMN IF NOT EXISTS parent_id INT REFERENCES section_comments(id) ON DELETE CASCADE;
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$;
+    `);
+
     // Make created_by_id nullable (for system Default Template)
     await db.query(`
       ALTER TABLE event_templates ALTER COLUMN created_by_id DROP NOT NULL;

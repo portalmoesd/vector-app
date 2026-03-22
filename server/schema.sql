@@ -175,6 +175,7 @@ CREATE TABLE IF NOT EXISTS section_comments (
   event_id    INT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   section_id  INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
   user_id     INT NOT NULL REFERENCES users(id),
+  parent_id   INT REFERENCES section_comments(id) ON DELETE CASCADE,
   anchor_id   VARCHAR(100),
   content     TEXT NOT NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
