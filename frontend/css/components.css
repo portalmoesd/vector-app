@@ -224,6 +224,7 @@ tr:hover td {
   padding: 24px 28px;
   width: 100%;
   max-width: 480px;
+  margin: 16px;
   box-shadow: var(--shadow-lg);
 }
 
