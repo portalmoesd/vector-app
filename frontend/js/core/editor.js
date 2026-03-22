@@ -910,14 +910,12 @@
         function drawConnector(anchorEl, balloonTop, balloonH, color) {
           if (!anchorEl) return;
           const aRect = anchorEl.getBoundingClientRect();
-          const x1 = aRect.right  - crRect.left + scrollLeft;
-          const y1 = aRect.bottom - crRect.top  + scrollTop;
-          const xElbow = bodyRight;
-          const yElbow = y1;
+          const x1 = bodyRight;
+          const y1 = aRect.top + aRect.height / 2 - crRect.top + scrollTop;
           const x2 = mOffLeft + 2;
           const y2 = mOffTop + balloonTop + Math.min(balloonH, 26) / 2;
           const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-          poly.setAttribute('points', `${x1},${y1} ${xElbow},${yElbow} ${x2},${y2}`);
+          poly.setAttribute('points', `${x1},${y1} ${x1},${y2} ${x2},${y2}`);
           poly.setAttribute('fill', 'none');
           poly.setAttribute('stroke', color);
           poly.setAttribute('stroke-width', '1');
