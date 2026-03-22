@@ -372,10 +372,21 @@
 
     const FMT_TOGGLE = new Set(['bold','italic','underline','strikeThrough','superscript','subscript']);
     const FMT_VALUE  = new Set(['fontName','fontSize','foreColor','backColor']);
+    const FMT_BLOCK  = new Set([
+      'h2','h3',
+      'insertUnorderedList','insertOrderedList',
+      'justifyLeft','justifyCenter','justifyRight','justifyFull',
+      'removeFormat',
+    ]);
     const FMT_CMD_LABELS = {
       bold:'Bold', italic:'Italic', underline:'Underline', strikeThrough:'Strikethrough',
       superscript:'Superscript', subscript:'Subscript',
       fontName:'Font', fontSize:'Font size', foreColor:'Colour', backColor:'Highlight',
+      h2:'Heading 2', h3:'Heading 3',
+      insertUnorderedList:'Bullet list', insertOrderedList:'Numbered list',
+      justifyLeft:'Align left', justifyCenter:'Centre',
+      justifyRight:'Align right', justifyFull:'Justify',
+      removeFormat:'Clear formatting',
     };
 
     function trackFmtChange(cmd, value) {
@@ -389,7 +400,8 @@
       const oldVal = FMT_TOGGLE.has(cmd)
         ? String(document.queryCommandState(cmd))
         : (document.queryCommandValue(cmd) || '');
-      execCmd(cmd, value !== undefined ? value : null);
+      if (cmd === 'fontSize') applyFontSizePt(value);
+      else execCmd(cmd, value !== undefined ? value : null);
       try {
         sel.removeAllRanges(); sel.addRange(range);
         const id = newTcId();
@@ -406,6 +418,73 @@
         range.surroundContents(mark);
         sel.removeAllRanges();
       } catch (_) { /* multi-block selection — skip wrapping */ }
+      updateTcBar();
+    }
+
+    const TC_BLOCK_TAGS = /^(P|H[1-6]|LI|DIV|BLOCKQUOTE|UL|OL|TR|TD|TH)$/i;
+    function isBlockEl(el) { return el && el.nodeType === 1 && TC_BLOCK_TAGS.test(el.tagName); }
+
+    function stripTcAttrs(el) {
+      ['data-tc-fmt-id','data-tc-fmt-cmd','data-tc-fmt-old','data-tc-fmt-val',
+       'data-tc-author','data-tc-initials','data-tc-time'].forEach(a => el.removeAttribute(a));
+      el.style.removeProperty('--tc-color');
+    }
+
+    function getBlocksInRange(range) {
+      const blocks = [];
+      const seen = new Set();
+      let node = range.startContainer;
+      if (node.nodeType !== 1) node = node.parentElement;
+      const end = range.endContainer;
+      if (!node) return blocks;
+      function addBlock(n) {
+        let blk = n;
+        while (blk && blk !== body) {
+          if (isBlockEl(blk) && blk.parentElement === body) { if (!seen.has(blk)) { seen.add(blk); blocks.push(blk); } return; }
+          if (isBlockEl(blk)) { if (!seen.has(blk)) { seen.add(blk); blocks.push(blk); } return; }
+          blk = blk.parentElement;
+        }
+        if (!seen.has(body)) { seen.add(body); blocks.push(body); }
+      }
+      addBlock(node);
+      if (end !== node) addBlock(end.nodeType === 1 ? end : end.parentElement);
+      return blocks;
+    }
+
+    function trackBlockFmtChange(cmd) {
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) {
+        if (cmd === 'h2' || cmd === 'h3') handleHeading(cmd);
+        else execCmd(cmd);
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      const blocksBefore = getBlocksInRange(range);
+      const oldStates = blocksBefore.map(b => ({
+        tag: b.tagName.toLowerCase(),
+        align: b.style.textAlign || '',
+      }));
+
+      if (cmd === 'h2' || cmd === 'h3') handleHeading(cmd);
+      else execCmd(cmd);
+
+      // Re-query blocks after the command (tags may have changed)
+      const selAfter = window.getSelection();
+      const rangeAfter = selAfter && selAfter.rangeCount ? selAfter.getRangeAt(0) : range;
+      const blocksAfter = getBlocksInRange(rangeAfter);
+
+      const id = newTcId();
+      const [color] = TC_PALETTE[authorColorIdx(tc.authorName)];
+      blocksAfter.forEach((block, i) => {
+        const old = oldStates[i] || oldStates[0] || { tag: 'p', align: '' };
+        block.setAttribute('data-tc-fmt-id',  id);
+        block.setAttribute('data-tc-fmt-cmd', cmd);
+        block.setAttribute('data-tc-fmt-old', cmd.startsWith('justify') ? old.align : old.tag);
+        block.setAttribute('data-tc-author',   tc.authorName);
+        block.setAttribute('data-tc-initials', getInitials(tc.authorName));
+        block.setAttribute('data-tc-time',     new Date().toISOString());
+        block.style.setProperty('--tc-color',  color);
+      });
       updateTcBar();
     }
 
@@ -487,7 +566,7 @@
     fontSizeSelect.addEventListener('mousedown', saveSelection);
     fontSizeSelect.addEventListener('change', () => {
       const pt = fontSizeSelect.value;
-      if (pt) { restoreSelection(); applyFontSizePt(pt); }
+      if (pt) { restoreSelection(); trackFmtChange('fontSize', pt); }
       fontSizeSelect.value = ''; body.focus();
     });
     toolbar.appendChild(fontSizeSelect);
@@ -604,7 +683,7 @@
       btn.setAttribute('aria-label', tool.title); btn.dataset.cmd = tool.cmd;
       btn.addEventListener('mousedown', e => {
         e.preventDefault();
-        if (tool.cmd === 'h2' || tool.cmd === 'h3') handleHeading(tool.cmd);
+        if (FMT_BLOCK.has(tool.cmd)) trackBlockFmtChange(tool.cmd);
         else trackFmtChange(tool.cmd);
         body.focus(); updateActive();
       });
@@ -855,7 +934,8 @@
       body.querySelectorAll('.gcp-tc-changed').forEach(el => el.classList.remove('gcp-tc-changed'));
       if (!tc.visible) return;
       body.querySelectorAll('[data-tc-id], [data-tc-fmt-id]').forEach(el => {
-        let block = el.parentElement;
+        // If the element itself is a block with tracking attrs, mark it directly
+        let block = isBlockEl(el) && el.hasAttribute('data-tc-fmt-id') ? el : el.parentElement;
         while (block && block !== body) {
           const tag = block.tagName.toLowerCase();
           if (['p','li','h1','h2','h3','h4','h5','h6','div','blockquote'].includes(tag)) {
@@ -934,6 +1014,8 @@
             const sel = isFmt ? `[data-tc-fmt-id="${CSS.escape(entry.id)}"]` : `[data-tc-id="${CSS.escape(entry.id)}"]`;
             const el = body.querySelector(sel);
             if (!el) return null;
+            // If the element itself is a block (block-level format change), return it
+            if (BLOCK_TAGS.has(el.tagName.toLowerCase())) return el;
             let blk = el.parentElement;
             while (blk && blk !== body) {
               if (BLOCK_TAGS.has(blk.tagName.toLowerCase())) return blk;
@@ -1141,6 +1223,33 @@
     function _unwrapFmtReject(el) {
       const cmd    = el.getAttribute('data-tc-fmt-cmd') || '';
       const oldVal = el.getAttribute('data-tc-fmt-old') || '';
+      // Block-level format rejection
+      if (isBlockEl(el)) {
+        if (cmd === 'h2' || cmd === 'h3') {
+          const newEl = document.createElement(oldVal || 'p');
+          while (el.firstChild) newEl.appendChild(el.firstChild);
+          // Copy non-tc attributes
+          for (const attr of [...el.attributes]) {
+            if (!attr.name.startsWith('data-tc-') && attr.name !== 'style') newEl.setAttribute(attr.name, attr.value);
+          }
+          el.parentNode.replaceChild(newEl, el);
+        } else if (cmd === 'insertUnorderedList' || cmd === 'insertOrderedList') {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          const sel = window.getSelection();
+          sel.removeAllRanges(); sel.addRange(range);
+          execCmd(cmd); // toggles list off
+          sel.removeAllRanges();
+        } else if (cmd.startsWith('justify')) {
+          el.style.textAlign = oldVal || '';
+          stripTcAttrs(el);
+        } else {
+          // removeFormat or unknown — just strip tracking attrs
+          stripTcAttrs(el);
+        }
+        return;
+      }
+      // Inline format rejection
       const range  = document.createRange();
       range.selectNodeContents(el);
       const sel = window.getSelection();
@@ -1162,8 +1271,8 @@
         el.remove();
       });
       body.querySelectorAll(`[data-tc-fmt-id="${CSS.escape(id)}"]`).forEach(el => {
-        while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
-        el.remove();
+        if (isBlockEl(el)) { stripTcAttrs(el); }
+        else { while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el); el.remove(); }
       });
       body.normalize(); updateTcBar();
     }
@@ -1185,8 +1294,8 @@
         el.remove();
       });
       body.querySelectorAll('[data-tc-fmt-id]').forEach(el => {
-        while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
-        el.remove();
+        if (isBlockEl(el)) { stripTcAttrs(el); }
+        else { while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el); el.remove(); }
       });
       body.normalize(); tc.visible = false; updateTcBar();
     }
@@ -1213,8 +1322,8 @@
         el.remove();
       });
       clone.querySelectorAll('[data-tc-fmt-id]').forEach(el => {
-        while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
-        el.remove();
+        if (isBlockEl(el)) { stripTcAttrs(el); }
+        else { while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el); el.remove(); }
       });
       clone.querySelectorAll('.gcp-cmt-anchor').forEach(el => {
         while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
