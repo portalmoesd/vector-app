@@ -111,7 +111,7 @@ router.post('/', requireAuth, async (req, res) => {
         } else if (documentSubmitterRole === 'SUPER_COLLABORATOR') {
           const { rows } = await db.query(
             `SELECT 1 FROM users WHERE id = $1 AND role = 'SUPER_COLLABORATOR' AND department_id = $2`,
-            [documentSubmitterId, req.user.department_id]
+            [documentSubmitterId, req.user.departmentId]
           );
           allowed = rows.length > 0;
         }
@@ -121,7 +121,7 @@ router.post('/', requireAuth, async (req, res) => {
         } else if (documentSubmitterRole === 'SUPERVISOR') {
           const { rows } = await db.query(
             `SELECT 1 FROM users WHERE id = $1 AND role = 'SUPERVISOR' AND department_id = $2`,
-            [documentSubmitterId, req.user.department_id]
+            [documentSubmitterId, req.user.departmentId]
           );
           allowed = rows.length > 0;
         } else if (documentSubmitterRole === 'DEPUTY') {
@@ -129,7 +129,7 @@ router.post('/', requireAuth, async (req, res) => {
             `SELECT 1 FROM deputy_supervisor_links dsl
              JOIN users s ON s.id = dsl.supervisor_id
              WHERE dsl.deputy_id = $1 AND s.department_id = $2`,
-            [documentSubmitterId, req.user.department_id]
+            [documentSubmitterId, req.user.departmentId]
           );
           allowed = rows.length > 0;
         }

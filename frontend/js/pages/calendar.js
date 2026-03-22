@@ -477,7 +477,7 @@
       const countryId = parseInt(document.getElementById('newCountry').value);
       const dsRole = document.getElementById('newDSRole').value;
       const deputyId = document.getElementById('newDeputy').value ? parseInt(document.getElementById('newDeputy').value) : null;
-      const supervisorId = document.getElementById('newSupervisor').value ? parseInt(document.getElementById('newSupervisor').value) : null;
+      let supervisorId = document.getElementById('newSupervisor').value ? parseInt(document.getElementById('newSupervisor').value) : null;
       const language = document.getElementById('newLanguage').value;
       const deadlineDate = document.getElementById('newDeadline').value || null;
       const occasion = newOccasionEditor.getHtml() || null;
@@ -503,6 +503,11 @@
         documentSubmitterId = document.getElementById('newDSSC').value ? parseInt(document.getElementById('newDSSC').value) : user.id;
       } else {
         documentSubmitterId = user.id;
+      }
+
+      // DS=SUPERVISOR: responsible supervisor is the same person as the DS
+      if (dsRole === 'SUPERVISOR') {
+        supervisorId = documentSubmitterId;
       }
 
       try {
@@ -583,7 +588,8 @@
       const dsRole = document.getElementById('newDSRole').value;
       document.getElementById('deputyGroup').style.display =
         dsRole === 'DEPUTY' ? '' : 'none';
-      document.getElementById('supervisorGroup').style.display = '';
+      document.getElementById('supervisorGroup').style.display =
+        (dsRole === 'DEPUTY' || dsRole === 'SUPER_COLLABORATOR') ? '' : 'none';
       document.getElementById('dsSupervisorGroup').style.display =
         dsRole === 'SUPERVISOR' ? '' : 'none';
       document.getElementById('dsSCGroup').style.display =

@@ -224,7 +224,7 @@ router.get('/all-supervisors', requireAuth, async (req, res) => {
 // GET /api/admin/linked-deputies — deputies the current user can assign as DS
 router.get('/linked-deputies', requireAuth, async (req, res) => {
   try {
-    const { role, id, department_id } = req.user;
+    const { role, id, departmentId } = req.user;
     let rows;
 
     if (role === 'ADMIN' || role === 'PROTOCOL') {
@@ -253,7 +253,7 @@ router.get('/linked-deputies', requireAuth, async (req, res) => {
          JOIN users u ON u.id = dsl.deputy_id
          JOIN users s ON s.id = dsl.supervisor_id
          WHERE s.department_id = $1
-         ORDER BY u.full_name`, [department_id]
+         ORDER BY u.full_name`, [departmentId]
       ));
     } else {
       rows = [];
@@ -273,7 +273,7 @@ router.get('/linked-deputies', requireAuth, async (req, res) => {
 // GET /api/admin/linked-supervisors — supervisors the current user can assign as DS
 router.get('/linked-supervisors', requireAuth, async (req, res) => {
   try {
-    const { role, id, department_id } = req.user;
+    const { role, id, departmentId } = req.user;
     let rows;
 
     if (role === 'ADMIN' || role === 'PROTOCOL') {
@@ -309,7 +309,7 @@ router.get('/linked-supervisors', requireAuth, async (req, res) => {
          FROM users u
          LEFT JOIN departments d ON d.id = u.department_id
          WHERE u.role = 'SUPERVISOR' AND u.department_id = $1
-         ORDER BY u.full_name`, [department_id]
+         ORDER BY u.full_name`, [departmentId]
       ));
     } else {
       rows = [];
@@ -329,7 +329,7 @@ router.get('/linked-supervisors', requireAuth, async (req, res) => {
 // GET /api/admin/linked-super-collaborators — SCs the current user can assign as DS
 router.get('/linked-super-collaborators', requireAuth, async (req, res) => {
   try {
-    const { role, id, department_id } = req.user;
+    const { role, id, departmentId } = req.user;
     let rows;
 
     if (role === 'ADMIN' || role === 'PROTOCOL') {
@@ -361,7 +361,7 @@ router.get('/linked-super-collaborators', requireAuth, async (req, res) => {
          FROM users u
          LEFT JOIN departments d ON d.id = u.department_id
          WHERE u.role = 'SUPER_COLLABORATOR' AND u.department_id = $1
-         ORDER BY u.full_name`, [department_id]
+         ORDER BY u.full_name`, [departmentId]
       ));
     } else if (role === 'SUPER_COLLABORATOR') {
       // Only themselves
