@@ -373,10 +373,12 @@
 
   // ── Create Event ─────────────────────────────────────────────────────────
 
+  const isUnrestricted = user.role === 'ADMIN' || user.role === 'PROTOCOL';
+
   createBtn.addEventListener('click', async () => {
     try {
       [deputies, templates] = await Promise.all([
-        Api.get('/api/admin/deputies'),
+        Api.get(isUnrestricted ? '/api/admin/deputies' : '/api/admin/linked-deputies'),
         Api.get('/api/templates'),
       ]);
     } catch (e) { deputies = []; templates = []; }
@@ -593,7 +595,7 @@
       }
       if (dsRole === 'SUPERVISOR') {
         try {
-          const list = await Api.get('/api/admin/all-supervisors');
+          const list = await Api.get(isUnrestricted ? '/api/admin/all-supervisors' : '/api/admin/linked-supervisors');
           document.getElementById('newDSSupervisor').innerHTML = '<option value="">— Select Supervisor —</option>' +
             list.map(s => `<option value="${s.id}">${escapeHtml(s.fullName)}${s.departmentName ? ' — ' + escapeHtml(s.departmentName) : ''}</option>`).join('');
         } catch (e) {
@@ -602,7 +604,7 @@
       }
       if (dsRole === 'SUPER_COLLABORATOR') {
         try {
-          const list = await Api.get('/api/admin/all-super-collaborators');
+          const list = await Api.get(isUnrestricted ? '/api/admin/all-super-collaborators' : '/api/admin/linked-super-collaborators');
           document.getElementById('newDSSC').innerHTML = '<option value="">— Select Super-Collaborator —</option>' +
             list.map(s => `<option value="${s.id}">${escapeHtml(s.fullName)}${s.departmentName ? ' — ' + escapeHtml(s.departmentName) : ''}</option>`).join('');
         } catch (e) {

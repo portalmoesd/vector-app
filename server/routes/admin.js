@@ -219,6 +219,173 @@ router.get('/all-supervisors', requireAuth, async (req, res) => {
   }
 });
 
+// ─── Role-aware linked endpoints (for event creation dropdowns) ──────────────
+
+// GET /api/admin/linked-deputies — deputies the current user can assign as DS
+router.get('/linked-deputies', requireAuth, async (req, res) => {
+  try {
+    const { role, id, department_id } = req.user;
+    let rows;
+
+    if (role === 'ADMIN' || role === 'PROTOCOL') {
+      ({ rows } = await db.query(
+        `SELECT id, full_name, department_id FROM users WHERE role = 'DEPUTY' ORDER BY full_name`
+      ));
+    } else if (role === 'DEPUTY') {
+      // Only themselves
+      ({ rows } = await db.query(
+        `SELECT id, full_name, department_id FROM users WHERE id = $1`, [id]
+      ));
+    } else if (role === 'SUPERVISOR') {
+      // Deputies linked to this supervisor
+      ({ rows } = await db.query(
+        `SELECT u.id, u.full_name, u.department_id
+         FROM deputy_supervisor_links dsl
+         JOIN users u ON u.id = dsl.deputy_id
+         WHERE dsl.supervisor_id = $1
+         ORDER BY u.full_name`, [id]
+      ));
+    } else if (role === 'SUPER_COLLABORATOR') {
+      // Deputies linked to supervisors in the same department
+      ({ rows } = await db.query(
+        `SELECT DISTINCT u.id, u.full_name, u.department_id
+         FROM deputy_supervisor_links dsl
+         JOIN users u ON u.id = dsl.deputy_id
+         JOIN users s ON s.id = dsl.supervisor_id
+         WHERE s.department_id = $1
+         ORDER BY u.full_name`, [department_id]
+      ));
+    } else {
+      rows = [];
+    }
+
+    res.json(rows.map(r => ({
+      id: r.id,
+      fullName: r.full_name,
+      departmentId: r.department_id,
+    })));
+  } catch (err) {
+    console.error('Linked deputies error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/admin/linked-supervisors — supervisors the current user can assign as DS
+router.get('/linked-supervisors', requireAuth, async (req, res) => {
+  try {
+    const { role, id, department_id } = req.user;
+    let rows;
+
+    if (role === 'ADMIN' || role === 'PROTOCOL') {
+      ({ rows } = await db.query(
+        `SELECT u.id, u.full_name, d.name_en AS department_name
+         FROM users u
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE u.role = 'SUPERVISOR'
+         ORDER BY u.full_name`
+      ));
+    } else if (role === 'DEPUTY') {
+      // Supervisors linked to this deputy
+      ({ rows } = await db.query(
+        `SELECT u.id, u.full_name, d.name_en AS department_name
+         FROM deputy_supervisor_links dsl
+         JOIN users u ON u.id = dsl.supervisor_id
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE dsl.deputy_id = $1
+         ORDER BY u.full_name`, [id]
+      ));
+    } else if (role === 'SUPERVISOR') {
+      // Only themselves
+      ({ rows } = await db.query(
+        `SELECT u.id, u.full_name, d.name_en AS department_name
+         FROM users u
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE u.id = $1`, [id]
+      ));
+    } else if (role === 'SUPER_COLLABORATOR') {
+      // Supervisors in the same department
+      ({ rows } = await db.query(
+        `SELECT u.id, u.full_name, d.name_en AS department_name
+         FROM users u
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE u.role = 'SUPERVISOR' AND u.department_id = $1
+         ORDER BY u.full_name`, [department_id]
+      ));
+    } else {
+      rows = [];
+    }
+
+    res.json(rows.map(r => ({
+      id: r.id,
+      fullName: r.full_name,
+      departmentName: r.department_name,
+    })));
+  } catch (err) {
+    console.error('Linked supervisors error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/admin/linked-super-collaborators — SCs the current user can assign as DS
+router.get('/linked-super-collaborators', requireAuth, async (req, res) => {
+  try {
+    const { role, id, department_id } = req.user;
+    let rows;
+
+    if (role === 'ADMIN' || role === 'PROTOCOL') {
+      ({ rows } = await db.query(
+        `SELECT u.id, u.full_name, d.name_en AS department_name
+         FROM users u
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE u.role = 'SUPER_COLLABORATOR'
+         ORDER BY u.full_name`
+      ));
+    } else if (role === 'DEPUTY') {
+      // SCs in departments of linked supervisors
+      ({ rows } = await db.query(
+        `SELECT DISTINCT u.id, u.full_name, d.name_en AS department_name
+         FROM users u
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE u.role = 'SUPER_COLLABORATOR'
+           AND u.department_id IN (
+             SELECT s.department_id FROM deputy_supervisor_links dsl
+             JOIN users s ON s.id = dsl.supervisor_id
+             WHERE dsl.deputy_id = $1 AND s.department_id IS NOT NULL
+           )
+         ORDER BY u.full_name`, [id]
+      ));
+    } else if (role === 'SUPERVISOR') {
+      // SCs in the same department
+      ({ rows } = await db.query(
+        `SELECT u.id, u.full_name, d.name_en AS department_name
+         FROM users u
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE u.role = 'SUPER_COLLABORATOR' AND u.department_id = $1
+         ORDER BY u.full_name`, [department_id]
+      ));
+    } else if (role === 'SUPER_COLLABORATOR') {
+      // Only themselves
+      ({ rows } = await db.query(
+        `SELECT u.id, u.full_name, d.name_en AS department_name
+         FROM users u
+         LEFT JOIN departments d ON d.id = u.department_id
+         WHERE u.id = $1`, [id]
+      ));
+    } else {
+      rows = [];
+    }
+
+    res.json(rows.map(r => ({
+      id: r.id,
+      fullName: r.full_name,
+      departmentName: r.department_name,
+    })));
+  } catch (err) {
+    console.error('Linked super-collaborators error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ─── All super-collaborators list (for dropdowns) ────────────────────────────
 
 router.get('/all-super-collaborators', requireAuth, async (req, res) => {

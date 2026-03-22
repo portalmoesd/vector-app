@@ -73,6 +73,73 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // ── Role-based DS assignment validation ──────────────────────────────
+    const creatorRole = req.user.role;
+    if (creatorRole !== ROLES.ADMIN && creatorRole !== ROLES.PROTOCOL) {
+      let allowed = false;
+
+      if (creatorRole === ROLES.DEPUTY) {
+        if (documentSubmitterRole === 'DEPUTY') {
+          allowed = documentSubmitterId === req.user.id;
+        } else if (documentSubmitterRole === 'SUPERVISOR') {
+          const { rows } = await db.query(
+            `SELECT 1 FROM deputy_supervisor_links WHERE deputy_id = $1 AND supervisor_id = $2`,
+            [req.user.id, documentSubmitterId]
+          );
+          allowed = rows.length > 0;
+        } else if (documentSubmitterRole === 'SUPER_COLLABORATOR') {
+          const { rows } = await db.query(
+            `SELECT 1 FROM users WHERE id = $1 AND role = 'SUPER_COLLABORATOR'
+               AND department_id IN (
+                 SELECT s.department_id FROM deputy_supervisor_links dsl
+                 JOIN users s ON s.id = dsl.supervisor_id
+                 WHERE dsl.deputy_id = $2 AND s.department_id IS NOT NULL
+               )`,
+            [documentSubmitterId, req.user.id]
+          );
+          allowed = rows.length > 0;
+        }
+      } else if (creatorRole === ROLES.SUPERVISOR) {
+        if (documentSubmitterRole === 'SUPERVISOR') {
+          allowed = documentSubmitterId === req.user.id;
+        } else if (documentSubmitterRole === 'DEPUTY') {
+          const { rows } = await db.query(
+            `SELECT 1 FROM deputy_supervisor_links WHERE supervisor_id = $1 AND deputy_id = $2`,
+            [req.user.id, documentSubmitterId]
+          );
+          allowed = rows.length > 0;
+        } else if (documentSubmitterRole === 'SUPER_COLLABORATOR') {
+          const { rows } = await db.query(
+            `SELECT 1 FROM users WHERE id = $1 AND role = 'SUPER_COLLABORATOR' AND department_id = $2`,
+            [documentSubmitterId, req.user.department_id]
+          );
+          allowed = rows.length > 0;
+        }
+      } else if (creatorRole === ROLES.SUPER_COLLABORATOR) {
+        if (documentSubmitterRole === 'SUPER_COLLABORATOR') {
+          allowed = documentSubmitterId === req.user.id;
+        } else if (documentSubmitterRole === 'SUPERVISOR') {
+          const { rows } = await db.query(
+            `SELECT 1 FROM users WHERE id = $1 AND role = 'SUPERVISOR' AND department_id = $2`,
+            [documentSubmitterId, req.user.department_id]
+          );
+          allowed = rows.length > 0;
+        } else if (documentSubmitterRole === 'DEPUTY') {
+          const { rows } = await db.query(
+            `SELECT 1 FROM deputy_supervisor_links dsl
+             JOIN users s ON s.id = dsl.supervisor_id
+             WHERE dsl.deputy_id = $1 AND s.department_id = $2`,
+            [documentSubmitterId, req.user.department_id]
+          );
+          allowed = rows.length > 0;
+        }
+      }
+
+      if (!allowed) {
+        return res.status(403).json({ error: 'You are not authorized to assign this document submitter' });
+      }
+    }
+
     const client = await db.pool.connect();
     try {
       await client.query('BEGIN');
