@@ -239,7 +239,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Task</label>
-          <textarea class="form-input" id="editOccasion" rows="2">${escapeHtml(e.occasion || '')}</textarea>
+          <div id="editOccasionWrap"></div>
         </div>
       `, 'Save', async () => {
         try {
@@ -247,13 +247,15 @@
             title: document.getElementById('editTitle').value.trim(),
             language: document.getElementById('editLanguage').value,
             deadlineDate: document.getElementById('editDeadline').value || null,
-            occasion: document.getElementById('editOccasion').value.trim() || null,
+            occasion: editOccasionEditor.getHtml() || null,
           });
           hideModal();
           events = await Api.get('/api/events');
           render();
         } catch (err) { alert(err.message); }
       });
+      const editOccasionEditor = window.GCP.createSimpleEditor(document.getElementById('editOccasionWrap'), { placeholder: 'Enter task description...' });
+      editOccasionEditor.setHtml(e.occasion || '');
     } catch (e) { alert(e.message); }
   };
 
@@ -433,7 +435,7 @@
         </div>
         <div class="form-group" style="grid-column:1/-1;">
           <label class="form-label">Task</label>
-          <textarea class="form-input" id="newOccasion" rows="2"></textarea>
+          <div id="newOccasionWrap"></div>
         </div>
         <div class="form-group" style="grid-column:1/-1;">
           <label class="form-label">Template</label>
@@ -455,7 +457,7 @@
       const supervisorId = document.getElementById('newSupervisor').value ? parseInt(document.getElementById('newSupervisor').value) : null;
       const language = document.getElementById('newLanguage').value;
       const deadlineDate = document.getElementById('newDeadline').value || null;
-      const occasion = document.getElementById('newOccasion').value.trim() || null;
+      const occasion = newOccasionEditor.getHtml() || null;
       const curatorRequired = document.getElementById('newCurator').checked;
 
       if (!title || !countryId || !dsRole) {
@@ -492,6 +494,8 @@
         render();
       } catch (err) { alert(err.message); }
     });
+
+    const newOccasionEditor = window.GCP.createSimpleEditor(document.getElementById('newOccasionWrap'), { placeholder: 'Enter task description...' });
 
     const sectionRowsContainer = document.getElementById('sectionRows');
     const addSectionRowBtn = document.getElementById('addSectionRow');
