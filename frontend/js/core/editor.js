@@ -873,10 +873,12 @@
       return { ini, color: p[h % p.length] };
     }
 
-    function noOverlap(idealTop, slots) {
+    const expandedGroups = new Set();
+
+    function noOverlap(idealTop, slots, incomingH = 72) {
       let top = Math.max(0, idealTop);
       for (const s of slots) {
-        if (top < s.top + s.h + 6 && top + 20 > s.top) top = s.top + s.h + 6;
+        if (top < s.top + s.h + 6 && top + incomingH > s.top) top = s.top + s.h + 6;
       }
       return top;
     }
@@ -887,7 +889,7 @@
       const oldSvg = contentRow.querySelector('.gcp-re-connectors');
       if (oldSvg) oldSvg.remove();
       const hasCmts = storedComments.length > 0 && cmtPanelVisible;
-      if (!tc.visible && !hasCmts) return;
+      if (!tc.visible && !hasCmts) { marginEl.style.minHeight = ''; return; }
       cancelAnimationFrame(_positionBalloonRafId);
       _positionBalloonRafId = requestAnimationFrame(() => {
         const crRect = contentRow.getBoundingClientRect();
@@ -996,14 +998,23 @@
             b.querySelector('.gcp-re-balloon-acc').addEventListener('click', () => { group.ids.forEach(id => acceptChange(id)); });
             b.querySelector('.gcp-re-balloon-rej').addEventListener('click', () => { group.ids.forEach(id => rejectChange(id)); });
             if (needsExpand) {
+              const groupKey = group.ids[0];
               const expandBtn = b.querySelector('.gcp-re-balloon-expand');
               const collapsedView = b.querySelector('.gcp-re-snippets-collapsed');
               const expandedView = b.querySelector('.gcp-re-snippets-expanded');
+              // Restore persisted expand state
+              if (expandedGroups.has(groupKey)) {
+                collapsedView.style.display = 'none';
+                expandedView.style.display  = '';
+                expandBtn.textContent = 'Show less';
+              }
               expandBtn.addEventListener('click', () => {
                 const isExpanded = expandedView.style.display !== 'none';
                 collapsedView.style.display = isExpanded ? '' : 'none';
                 expandedView.style.display  = isExpanded ? 'none' : '';
                 expandBtn.textContent = isExpanded ? 'Show more' : 'Show less';
+                if (isExpanded) expandedGroups.delete(groupKey); else expandedGroups.add(groupKey);
+                positionBalloons();
               });
             }
             marginEl.appendChild(b);
@@ -1024,7 +1035,19 @@
             <div class="gcp-re-balloon-body">${escHtml(c.comment_text || '')}</div>`;
         }
 
-        if (!cmtPanelVisible) return;
+        // Ensure margin is tall enough to show all balloons and SVG covers the full area
+        function updateMarginHeight() {
+          if (slots.length > 0) {
+            const lastSlot = slots[slots.length - 1];
+            const totalBottom = lastSlot.top + lastSlot.h + 20;
+            marginEl.style.minHeight = totalBottom + 'px';
+            svg.setAttribute('height', String(Math.max(contentRow.scrollHeight, totalBottom + mOffTop)));
+          } else {
+            marginEl.style.minHeight = '';
+          }
+        }
+
+        if (!cmtPanelVisible) { updateMarginHeight(); return; }
 
         const repliesMap = {};
         storedComments.forEach(c => {
@@ -1092,6 +1115,7 @@
             replyForm.style.display = 'none';
             b.style.zIndex = '';
             replyInput.value = '';
+            positionBalloons();
           });
           replySend.addEventListener('click', async () => {
             const text = replyInput.value.trim();
@@ -1109,6 +1133,8 @@
           slots.push({ top, h: bh });
           drawConnector(anchor, top, bh, '#d97706');
         });
+
+        updateMarginHeight();
       });
     }
 
