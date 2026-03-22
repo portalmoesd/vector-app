@@ -265,6 +265,15 @@
     .gcp-re-body th,.gcp-re-body td { border:1px solid #d1d5db; padding:6px 10px; font-size:14px; min-width:48px; vertical-align:top; }
     .gcp-re-body th { background:#f1f5f9; font-weight:700; text-align:left; }
     .gcp-re-body td:focus,.gcp-re-body th:focus { outline:2px solid #93c5fd; outline-offset:-1px; }
+    @media (max-width: 820px) {
+      .gcp-re-content-row { padding:16px 4px 40px; }
+      .gcp-re-body { flex:1 1 auto; width:100% !important; min-width:0; padding:32px 20px; min-height:400px; }
+      .gcp-re-wrap.tc-visible .gcp-re-margin,
+      .gcp-re-wrap.has-comments .gcp-re-margin { width:0; }
+      .gcp-re-balloon { position:fixed; bottom:0; left:0; right:0; border-radius:12px 12px 0 0; box-shadow:0 -4px 20px rgba(0,0,0,.15); z-index:100; }
+      .gcp-re-wrap.gcp-fullscreen .gcp-re-content-row { padding:16px 4px 40px; }
+      .gcp-re-wrap.gcp-fullscreen .gcp-re-body { flex:1 1 auto; width:100% !important; min-width:0; padding:32px 20px; min-height:400px; }
+    }
   `;
 
   let styleInjected = false;
