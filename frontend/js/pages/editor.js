@@ -462,37 +462,54 @@
 
       list.innerHTML = orderedRoles.map(stage => {
         const entries = collapseEntries(byRole[stage.role]);
-        const eventsHtml = entries.map(h => {
-          const ac = ACTION_COLORS[h.action] || { bg: '#f1f5f9', color: '#475569', label: h.action };
-          const actor = escapeHtml(h.userName || 'Unknown');
-          const date = formatDateTime(h.actedAt);
-          const label = h.action === 'saved' && h._count > 1
-            ? `${ac.label} (\u00d7${h._count})` : ac.label;
 
-          if (h.action === 'returned' || h.action === 'asked_to_return') {
-            const noteHtml = h.note
-              ? escapeHtml(h.note)
-              : '<span class="sh-return-note__empty">No comment provided</span>';
+        // Group entries by actor name (preserve order)
+        const actorGroups = [];
+        let curGroup = null;
+        for (const h of entries) {
+          const name = h.userName || 'Unknown';
+          if (!curGroup || curGroup.name !== name) {
+            curGroup = { name, events: [] };
+            actorGroups.push(curGroup);
+          }
+          curGroup.events.push(h);
+        }
+
+        const groupsHtml = actorGroups.map(g => {
+          const eventsHtml = g.events.map(h => {
+            const ac = ACTION_COLORS[h.action] || { bg: '#f1f5f9', color: '#475569', label: h.action };
+            const date = formatDateTime(h.actedAt);
+            const label = h.action === 'saved' && h._count > 1
+              ? `${ac.label} (\u00d7${h._count})` : ac.label;
+
+            if (h.action === 'returned' || h.action === 'asked_to_return') {
+              const noteHtml = h.note
+                ? escapeHtml(h.note)
+                : '<span class="sh-return-note__empty">No comment provided</span>';
+              return `<div class="sh-event">
+                <details class="sh-return-details${h.action === 'asked_to_return' ? ' sh-return-details--ask' : ''}">
+                  <summary>${escapeHtml(label)}</summary>
+                  <div class="sh-return-note">${noteHtml}</div>
+                </details>
+                <span class="sh-date">${date}</span>
+              </div>`;
+            }
+
             return `<div class="sh-event">
-              <span class="sh-actor">${actor}</span>
-              <details class="sh-return-details${h.action === 'asked_to_return' ? ' sh-return-details--ask' : ''}">
-                <summary>${escapeHtml(label)}</summary>
-                <div class="sh-return-note">${noteHtml}</div>
-              </details>
+              <span class="sh-action-tag" style="background:${ac.bg};color:${ac.color}">${escapeHtml(label)}</span>
               <span class="sh-date">${date}</span>
             </div>`;
-          }
+          }).join('');
 
-          return `<div class="sh-event">
-            <span class="sh-actor">${actor}</span>
-            <span class="sh-action-tag" style="background:${ac.bg};color:${ac.color}">${escapeHtml(label)}</span>
-            <span class="sh-date">${date}</span>
+          return `<div class="sh-actor-group">
+            <div class="sh-actor">${escapeHtml(g.name)}</div>
+            <div class="sh-events">${eventsHtml}</div>
           </div>`;
         }).join('');
 
         return `<div class="sh-stage">
           <div class="sh-stage-label">${escapeHtml(stage.label.toUpperCase())}</div>
-          <div class="sh-events">${eventsHtml}</div>
+          ${groupsHtml}
         </div>`;
       }).join('');
     } catch (e) {
