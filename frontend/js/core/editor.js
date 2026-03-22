@@ -910,17 +910,20 @@
         function drawConnector(anchorEl, balloonTop, balloonH, color) {
           if (!anchorEl) return;
           const aRect = anchorEl.getBoundingClientRect();
-          const x1 = bodyRight;
-          const y1 = aRect.top + aRect.height / 2 - crRect.top + scrollTop;
-          const x2 = mOffLeft + 2;
-          const y2 = mOffTop + balloonTop + Math.min(balloonH, 26) / 2;
+          // Anchor: where the changed text ends (right edge, vertical center)
+          const ax = aRect.right - crRect.left + scrollLeft;
+          const ay = aRect.top + aRect.height / 2 - crRect.top + scrollTop;
+          // Balloon: left edge, vertically centered near top
+          const bx = mOffLeft + 2;
+          const by = mOffTop + balloonTop + Math.min(balloonH, 26) / 2;
+          // Path: balloon-left → body-right (horizontal) → anchor-Y (vertical) → anchor-right (into text)
           const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-          poly.setAttribute('points', `${x1},${y1} ${x1},${y2} ${x2},${y2}`);
+          poly.setAttribute('points', `${bx},${by} ${bodyRight},${by} ${bodyRight},${ay} ${ax},${ay}`);
           poly.setAttribute('fill', 'none');
           poly.setAttribute('stroke', color);
           poly.setAttribute('stroke-width', '1');
-          poly.setAttribute('stroke-dasharray', '4,3');
-          poly.setAttribute('opacity', '0.55');
+          poly.setAttribute('stroke-dasharray', '3,3');
+          poly.setAttribute('opacity', '0.7');
           svg.appendChild(poly);
         }
 
@@ -1018,7 +1021,7 @@
             marginEl.appendChild(b);
             const h = Math.max(b.offsetHeight, 72);
             slots.push({ top, h });
-            drawConnector(anchor, top, h, group.color);
+            drawConnector(anchor, top, h, '#b91c1c');
           });
         }
 
