@@ -583,15 +583,21 @@
       const dsRole = document.getElementById('newDSRole').value;
       document.getElementById('deputyGroup').style.display =
         dsRole === 'DEPUTY' ? '' : 'none';
-      document.getElementById('supervisorGroup').style.display =
-        dsRole === 'DEPUTY' ? '' : 'none';
+      document.getElementById('supervisorGroup').style.display = '';
       document.getElementById('dsSupervisorGroup').style.display =
         dsRole === 'SUPERVISOR' ? '' : 'none';
       document.getElementById('dsSCGroup').style.display =
         dsRole === 'SUPER_COLLABORATOR' ? '' : 'none';
 
       if (dsRole !== 'DEPUTY') {
-        document.getElementById('newSupervisor').innerHTML = '<option value="">— Select Supervisor —</option>';
+        // For non-DEPUTY DS roles, populate Responsible Supervisor from linked endpoints
+        try {
+          const list = await Api.get(isUnrestricted ? '/api/admin/all-supervisors' : '/api/admin/linked-supervisors');
+          document.getElementById('newSupervisor').innerHTML = '<option value="">— Select Supervisor —</option>' +
+            list.map(s => `<option value="${s.id}">${escapeHtml(s.fullName)}${s.departmentName ? ' — ' + escapeHtml(s.departmentName) : ''}</option>`).join('');
+        } catch (e) {
+          document.getElementById('newSupervisor').innerHTML = '<option value="">— No supervisors found —</option>';
+        }
       }
       if (dsRole === 'SUPERVISOR') {
         try {
