@@ -406,11 +406,11 @@
   ];
 
   const ACTION_COLORS = {
-    saved:           { bg: '#f1f5f9', color: '#475569', label: 'Edited' },
+    saved:           { bg: '#ede9fe', color: '#5b21b6', label: 'Edited' },
     submitted:       { bg: '#dbeafe', color: '#1d4ed8', label: 'Submitted' },
     approved:        { bg: '#dcfce7', color: '#15803d', label: 'Approved' },
-    returned:        { bg: '#fee2e2', color: '#dc2626', label: 'Returned' },
-    asked_to_return: { bg: '#fef9c3', color: '#a16207', label: 'Asked to Return' },
+    returned:        { bg: '#fee2e2', color: '#b91c1c', label: 'Returned' },
+    asked_to_return: { bg: '#fef3c7', color: '#92400e', label: 'Asked to Return' },
     pushed:          { bg: '#e0e7ff', color: '#4338ca', label: 'Pushed' },
     pulled:          { bg: '#e0e7ff', color: '#4338ca', label: 'Pulled' },
   };
