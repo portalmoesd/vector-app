@@ -235,7 +235,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Deadline</label>
-          <input class="form-input" type="date" id="editDeadline" value="${e.deadlineDate || ''}" />
+          <input class="form-input" type="date" id="editDeadline" lang="en-GB" value="${e.deadlineDate || ''}" />
         </div>
         <div class="form-group">
           <label class="form-label">Task</label>
@@ -426,7 +426,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Deadline</label>
-          <input class="form-input" type="date" id="newDeadline" />
+          <input class="form-input" type="date" id="newDeadline" lang="en-GB" />
         </div>
         <div class="form-group">
           <label class="form-label"><input type="checkbox" id="newCurator" style="margin-right:6px;" /> Curator Required</label>
