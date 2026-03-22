@@ -58,7 +58,11 @@
   const filterDateFrom = document.getElementById('filterDateFrom');
   const filterDateTo = document.getElementById('filterDateTo');
 
-  [filterKeyword, filterCountry, filterDateFrom, filterDateTo].forEach(el => {
+  const fpOpts = { dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y', locale: { firstDayOfWeek: 1 }, onChange: () => { currentPage = 1; render(); } };
+  flatpickr(filterDateFrom, fpOpts);
+  flatpickr(filterDateTo, fpOpts);
+
+  [filterKeyword, filterCountry].forEach(el => {
     el.addEventListener('input', () => { currentPage = 1; render(); });
     el.addEventListener('change', () => { currentPage = 1; render(); });
   });
@@ -235,7 +239,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Deadline</label>
-          <input class="form-input" type="date" id="editDeadline" lang="en-GB" value="${e.deadlineDate || ''}" />
+          <input class="form-input" type="text" id="editDeadline" placeholder="dd/mm/yyyy" />
         </div>
         <div class="form-group">
           <label class="form-label">Task</label>
@@ -256,6 +260,7 @@
       });
       const editOccasionEditor = window.GCP.createSimpleEditor(document.getElementById('editOccasionWrap'), { placeholder: 'Enter task description...' });
       editOccasionEditor.setHtml(e.occasion || '');
+      flatpickr('#editDeadline', { dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y', defaultDate: e.deadlineDate || null, locale: { firstDayOfWeek: 1 } });
     } catch (e) { alert(e.message); }
   };
 
@@ -440,7 +445,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Deadline</label>
-          <input class="form-input" type="date" id="newDeadline" lang="en-GB" />
+          <input class="form-input" type="text" id="newDeadline" placeholder="dd/mm/yyyy" />
         </div>
         <div class="form-group">
           <label class="form-label">Curator Required</label>
@@ -516,6 +521,8 @@
     });
 
     const newOccasionEditor = window.GCP.createSimpleEditor(document.getElementById('newOccasionWrap'), { placeholder: 'Enter task description...' });
+
+    flatpickr('#newDeadline', { dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y', locale: { firstDayOfWeek: 1 } });
 
     const sectionRowsContainer = document.getElementById('sectionRows');
     const addSectionRowBtn = document.getElementById('addSectionRow');

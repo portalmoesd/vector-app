@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/css/components.css" />
   <link rel="stylesheet" href="/css/georgian-fonts.css" />
   <link rel="stylesheet" href="/css/apple.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
   <style>
     .event-tabs {
       display: flex; gap: 4px; margin-bottom: 20px;
@@ -84,11 +85,11 @@
         </div>
         <div class="form-group">
           <label class="form-label">From</label>
-          <input class="form-input" type="date" id="filterDateFrom" lang="en-GB" />
+          <input class="form-input" type="text" id="filterDateFrom" placeholder="dd/mm/yyyy" />
         </div>
         <div class="form-group">
           <label class="form-label">To</label>
-          <input class="form-input" type="date" id="filterDateTo" lang="en-GB" />
+          <input class="form-input" type="text" id="filterDateTo" placeholder="dd/mm/yyyy" />
         </div>
       </div>
 
@@ -132,6 +133,7 @@
     </main>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="/js/core/config.js"></script>
   <script src="/js/core/api.js"></script>
   <script src="/js/core/i18n.js"></script>
