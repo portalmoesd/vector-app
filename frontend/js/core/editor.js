@@ -271,6 +271,7 @@
       .gcp-re-wrap.tc-visible .gcp-re-margin,
       .gcp-re-wrap.has-comments .gcp-re-margin { width:0; overflow:hidden; }
       .gcp-re-balloon { display:none; }
+      .gcp-re-connectors { display:none; }
       .gcp-re-wrap.gcp-fullscreen .gcp-re-content-row { padding:16px 4px 40px; }
       .gcp-re-wrap.gcp-fullscreen .gcp-re-body { flex:1 1 auto; width:100% !important; min-width:0; padding:32px 20px; min-height:400px; }
     }
