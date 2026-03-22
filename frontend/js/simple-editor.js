@@ -161,6 +161,13 @@
     body.setAttribute('data-placeholder', opts.placeholder || 'Enter task description...');
     wrap.appendChild(body);
 
+    // Strip formatting from pasted content — insert as plain text
+    body.addEventListener('paste', function (e) {
+      e.preventDefault();
+      var text = (e.clipboardData || window.clipboardData).getData('text/plain');
+      document.execCommand('insertText', false, text);
+    });
+
     container.appendChild(wrap);
 
     // -- Active state tracking --
