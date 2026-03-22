@@ -472,11 +472,11 @@
           if (h.action === 'returned' || h.action === 'asked_to_return') {
             const noteHtml = h.note
               ? escapeHtml(h.note)
-              : '<span style="color:var(--text-muted);font-style:italic;">No comment</span>';
+              : '<span class="sh-return-note__empty">No comment provided</span>';
             return `<div class="sh-event">
               <span class="sh-actor">${actor}</span>
               <details class="sh-return-details${h.action === 'asked_to_return' ? ' sh-return-details--ask' : ''}">
-                <summary><span class="sh-action-tag" style="background:${ac.bg};color:${ac.color}">${escapeHtml(label)} \u25b8</span></summary>
+                <summary>${escapeHtml(label)}</summary>
                 <div class="sh-return-note">${noteHtml}</div>
               </details>
               <span class="sh-date">${date}</span>
