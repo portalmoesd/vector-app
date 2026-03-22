@@ -395,6 +395,26 @@
 
   // ─── History ─────────────────────────────────────────────────────────────────
 
+  const HISTORY_STAGES = [
+    { role: 'COLLABORATOR', label: 'Collaborator' },
+    { role: 'SUPER_COLLABORATOR', label: 'Super-Collaborator' },
+    { role: 'CURATOR', label: 'Curator' },
+    { role: 'SUPERVISOR', label: 'Supervisor' },
+    { role: 'DEPUTY', label: 'Deputy' },
+    { role: 'RECEIVING_SUPER_COLLABORATOR', label: 'Super-Collaborator (Review)' },
+    { role: 'RECEIVING_SUPERVISOR', label: 'Supervisor (Review)' },
+  ];
+
+  const ACTION_COLORS = {
+    saved:           { bg: '#f1f5f9', color: '#475569', label: 'Edited' },
+    submitted:       { bg: '#dbeafe', color: '#1d4ed8', label: 'Submitted' },
+    approved:        { bg: '#dcfce7', color: '#15803d', label: 'Approved' },
+    returned:        { bg: '#fee2e2', color: '#dc2626', label: 'Returned' },
+    asked_to_return: { bg: '#fef9c3', color: '#a16207', label: 'Asked to Return' },
+    pushed:          { bg: '#e0e7ff', color: '#4338ca', label: 'Pushed' },
+    pulled:          { bg: '#e0e7ff', color: '#4338ca', label: 'Pulled' },
+  };
+
   async function loadHistory() {
     try {
       const result = await Api.get(`/api/workflow/section-history?event_id=${eventId}&section_id=${sectionId}`);
@@ -404,14 +424,77 @@
         list.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">No history yet</p>';
         return;
       }
-      list.innerHTML = history.map(h => `
-        <div class="history-entry">
-          <span class="time">${formatDateTime(h.actedAt)}</span>
-          <span class="action">${escapeHtml(h.action)}</span>
-          <span>${escapeHtml(h.userName || '')} (${roleLabel(h.userRole || '')})</span>
-          ${h.note ? `<span style="color: var(--text-muted);">— ${escapeHtml(h.note)}</span>` : ''}
-        </div>
-      `).join('');
+
+      // Group by role
+      const byRole = {};
+      for (const h of history) {
+        const r = h.userRole || 'UNKNOWN';
+        if (!byRole[r]) byRole[r] = [];
+        byRole[r].push(h);
+      }
+
+      // Collapse consecutive saves by same user
+      function collapseEntries(entries) {
+        const collapsed = [];
+        for (const ev of entries) {
+          const last = collapsed[collapsed.length - 1];
+          if (last && last.action === 'saved' && ev.action === 'saved' && last.userName === ev.userName) {
+            last.actedAt = ev.actedAt;
+            last._count = (last._count || 1) + 1;
+          } else {
+            collapsed.push({ ...ev });
+          }
+        }
+        return collapsed;
+      }
+
+      // Build ordered stages — only show stages that have entries
+      const stageOrder = HISTORY_STAGES.map(s => s.role);
+      const orderedRoles = [];
+      for (const stage of HISTORY_STAGES) {
+        if (byRole[stage.role]) orderedRoles.push(stage);
+      }
+      for (const role of Object.keys(byRole)) {
+        if (!stageOrder.includes(role)) {
+          orderedRoles.push({ role, label: roleLabel(role) });
+        }
+      }
+
+      list.innerHTML = orderedRoles.map(stage => {
+        const entries = collapseEntries(byRole[stage.role]);
+        const eventsHtml = entries.map(h => {
+          const ac = ACTION_COLORS[h.action] || { bg: '#f1f5f9', color: '#475569', label: h.action };
+          const actor = escapeHtml(h.userName || 'Unknown');
+          const date = formatDateTime(h.actedAt);
+          const label = h.action === 'saved' && h._count > 1
+            ? `${ac.label} (\u00d7${h._count})` : ac.label;
+
+          if (h.action === 'returned' || h.action === 'asked_to_return') {
+            const noteHtml = h.note
+              ? escapeHtml(h.note)
+              : '<span style="color:var(--text-muted);font-style:italic;">No comment</span>';
+            return `<div class="sh-event">
+              <span class="sh-actor">${actor}</span>
+              <details class="sh-return-details${h.action === 'asked_to_return' ? ' sh-return-details--ask' : ''}">
+                <summary><span class="sh-action-tag" style="background:${ac.bg};color:${ac.color}">${escapeHtml(label)} \u25b8</span></summary>
+                <div class="sh-return-note">${noteHtml}</div>
+              </details>
+              <span class="sh-date">${date}</span>
+            </div>`;
+          }
+
+          return `<div class="sh-event">
+            <span class="sh-actor">${actor}</span>
+            <span class="sh-action-tag" style="background:${ac.bg};color:${ac.color}">${escapeHtml(label)}</span>
+            <span class="sh-date">${date}</span>
+          </div>`;
+        }).join('');
+
+        return `<div class="sh-stage">
+          <div class="sh-stage-label">${escapeHtml(stage.label.toUpperCase())}</div>
+          <div class="sh-events">${eventsHtml}</div>
+        </div>`;
+      }).join('');
     } catch (e) {
       console.error('Load history error:', e);
     }

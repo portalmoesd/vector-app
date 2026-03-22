@@ -68,13 +68,35 @@
     .status-pill.status-approved { color: var(--accent-green); }
 
     .history-panel { margin-top: 24px; }
-    .history-panel h4 { margin-bottom: 8px; }
-    .history-entry {
-      padding: 6px 0; border-bottom: 1px solid var(--border-color);
-      font-size: 13px; display: flex; gap: 8px;
+    .history-panel h4 { margin-bottom: 12px; }
+    .sh-stage { margin-bottom: 16px; }
+    .sh-stage-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+      color: #374151; margin-bottom: 4px; text-transform: uppercase;
     }
-    .history-entry .time { color: var(--text-muted); min-width: 130px; }
-    .history-entry .action { font-weight: 500; }
+    .sh-event {
+      display: flex; align-items: center; gap: 8px;
+      padding: 3px 0; font-size: 13px;
+    }
+    .sh-actor { font-weight: 600; color: #1f2937; }
+    .sh-action-tag {
+      display: inline-block; padding: 1px 8px; border-radius: 4px;
+      font-size: 12px; font-weight: 600; white-space: nowrap;
+    }
+    .sh-date { color: #9ca3af; font-size: 12px; margin-left: auto; white-space: nowrap; }
+    .sh-return-details { display: inline; }
+    .sh-return-details summary {
+      display: inline; cursor: pointer; list-style: none;
+    }
+    .sh-return-details summary::-webkit-details-marker { display: none; }
+    .sh-return-note {
+      margin: 4px 0 4px 16px; padding: 6px 10px;
+      background: #fef2f2; border-radius: 6px;
+      font-size: 12px; color: #7f1d1d;
+    }
+    .sh-return-details--ask .sh-return-note {
+      background: #fefce8; color: #713f12;
+    }
 
   </style>
 </head>
