@@ -142,9 +142,18 @@
             </div>
           </div>
           <div class="event-card-actions">
-            <button class="btn btn-outline" onclick="viewEvent(${e.id})">View</button>
-            ${e.isActive && CAN_CREATE.includes(user.role) ? `<button class="btn btn-outline" onclick="editEvent(${e.id})">Edit</button>` : ''}
-            ${e.isActive && CAN_END.includes(user.role) ? `<button class="btn btn-danger" onclick="endEvent(${e.id})">End</button>` : ''}
+            <button class="btn btn-outline" onclick="viewEvent(${e.id})">
+              <span class="icon" style="--icon-url: url(/assets/view-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:16px;height:16px;display:inline-block;background:currentColor;"></span>
+              View
+            </button>
+            ${e.isActive && CAN_CREATE.includes(user.role) ? `<button class="btn btn-outline" onclick="editEvent(${e.id})">
+              <span class="icon" style="--icon-url: url(/assets/edit-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:16px;height:16px;display:inline-block;background:currentColor;"></span>
+              Edit
+            </button>` : ''}
+            ${e.isActive && CAN_END.includes(user.role) ? `<button class="btn btn-danger" onclick="endEvent(${e.id})">
+              <span class="icon" style="--icon-url: url(/assets/end-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:16px;height:16px;display:inline-block;background:currentColor;"></span>
+              End
+            </button>` : ''}
           </div>
         </div>
       `;
