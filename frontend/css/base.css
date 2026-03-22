@@ -59,6 +59,10 @@ a:hover { text-decoration: underline; }
   min-height: 100vh;
 }
 
+/* When gp-shell-ready is active the new sidebar.css takes over */
+body.gp-shell-ready .sidebar { background: transparent; overflow: visible; }
+body.gp-shell-ready .main { min-height: auto; }
+
 /* ─── Topbar ─────────────────────────────────────────────────────────────── */
 
 .topbar {

@@ -28,6 +28,11 @@
 
   /* Spacing */
   --sidebar-width: 260px;
+  --gp-sidebar-collapsed: 88px;
+  --gp-sidebar-expanded: 296px;
+  --gp-sidebar-accent: #2b445b;
+  --gp-sidebar-accent-soft: rgba(43,68,91,.10);
+  --gp-sidebar-divider: rgba(17,24,39,.08);
   --topbar-height: 56px;
   --radius-sm: 8px;
   --radius-md: 14px;
