@@ -85,7 +85,14 @@
     async onDeleteComment(commentId, anchorId) {
       try {
         await Api.post('/api/workflow/comments/delete', { commentId });
-        if (anchorId) richEditor.removeCommentAnchor(anchorId);
+        if (anchorId) {
+          richEditor.removeCommentAnchor(anchorId);
+          // Persist the HTML without the anchor so the highlight doesn't return on reload
+          Api.post('/api/workflow/save', {
+            eventId, sectionId,
+            htmlContent: richEditor.getHtml(),
+          }).catch(e => console.error('Auto-save after anchor removal failed:', e));
+        }
         loadComments();
       } catch (e) { console.error('Delete comment failed:', e); }
     },
