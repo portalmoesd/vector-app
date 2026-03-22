@@ -41,6 +41,11 @@
 .dp-event-details {
   margin-bottom: 16px;
 }
+#eventDetails {
+  border-top: 1px solid var(--border-color);
+  margin-top: 16px;
+  padding-top: 16px;
+}
 .dp-event-details__body {
   font-size: 0.9rem;
   line-height: 1.6;
