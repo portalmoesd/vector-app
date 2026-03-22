@@ -57,6 +57,14 @@ function statusClass(status) {
   return '';
 }
 
+function languageLabel(code) {
+  const map = {
+    EN: 'English', FR: 'Français', AR: 'العربية', ES: 'Español',
+    RU: 'Русский', ZH: '中文', PT: 'Português', DE: 'Deutsch', KA: 'ქართული',
+  };
+  return map[code] || code;
+}
+
 function roleLabel(role) {
   const map = {
     ADMIN: 'Admin',

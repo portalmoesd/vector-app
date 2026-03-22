@@ -139,7 +139,7 @@
             <h4>${escapeHtml(e.title)} ${statusPill}</h4>
             <div class="event-card-meta">
               <span>${escapeHtml(e.countryName)}</span>
-              <span>Language: ${e.language}</span>
+              <span>Language: ${languageLabel(e.language)}</span>
               <span>DS: ${escapeHtml(e.documentSubmitterName)}</span>
               ${e.deadlineDate ? `<span>Deadline: ${formatDate(e.deadlineDate)}</span>` : ''}
               <span>Created: ${formatDate(e.createdAt)}</span>
@@ -204,7 +204,7 @@
         <div style="font-size:14px;line-height:1.8;">
           <p><strong>Title:</strong> ${escapeHtml(e.title)}</p>
           <p><strong>Country:</strong> ${escapeHtml(e.countryName)}</p>
-          <p><strong>Language:</strong> ${e.language}</p>
+          <p><strong>Language:</strong> ${languageLabel(e.language)}</p>
           <p><strong>Document Submitter:</strong> ${escapeHtml(e.documentSubmitterName)} (${roleLabel(e.documentSubmitterRole)})</p>
           ${e.deputyName ? `<p><strong>Deputy:</strong> ${escapeHtml(e.deputyName)}</p>` : ''}
           ${e.supervisorName ? `<p><strong>Responsible Supervisor:</strong> ${escapeHtml(e.supervisorName)}</p>` : ''}

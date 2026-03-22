@@ -76,7 +76,7 @@
           <h4>${escapeHtml(d.title)}</h4>
           <div class="doc-card-meta">
             <span>${escapeHtml(d.countryName)}</span>
-            <span>Language: ${d.language}</span>
+            <span>Language: ${languageLabel(d.language)}</span>
             <span>DS: ${escapeHtml(d.documentSubmitterName)}</span>
             ${d.endedAt ? `<span>Completed: ${formatDate(d.endedAt)}</span>` : ''}
           </div>
@@ -169,7 +169,7 @@
             <button class="preview-close" onclick="this.closest('.preview-overlay').remove()">&times;</button>
           </div>
           <div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">
-            ${escapeHtml(doc.countryName)} | Language: ${doc.language}
+            ${escapeHtml(doc.countryName)} | Language: ${languageLabel(doc.language)}
           </div>
           ${doc.sections.map(s => `
             <div class="section-block">
@@ -505,7 +505,7 @@
     // Metadata
     children.push(new Paragraph({
       children: [
-        new TextRun({ text: `${doc.countryName} | Language: ${doc.language}`, color: '666666', size: 20 }),
+        new TextRun({ text: `${doc.countryName} | Language: ${languageLabel(doc.language)}`, color: '666666', size: 20 }),
       ],
       spacing: { after: 400 },
     }));

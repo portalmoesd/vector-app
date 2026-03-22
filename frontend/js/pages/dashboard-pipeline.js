@@ -186,7 +186,7 @@
             ${ev.occasion ? `<div class="dp-event-details__body">${ev.occasion}</div>` : ''}
             <div class="dp-event-details__meta">
               <span class="dp-event-details__meta-item">Country <strong>${escapeHtml(ev.countryName)}</strong></span>
-              <span class="dp-event-details__meta-item">Language <span class="dp-lang-pill">${ev.language || 'EN'}</span></span>
+              <span class="dp-event-details__meta-item">Language <span class="dp-lang-pill">${languageLabel(ev.language || 'EN')}</span></span>
               ${ev.deadlineDate ? `<span class="dp-event-details__meta-item">Deadline <strong>${formatDate(ev.deadlineDate)}</strong></span>` : ''}
             </div>
         `;
