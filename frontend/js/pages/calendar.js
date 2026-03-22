@@ -418,6 +418,18 @@
             <option value="">— Select Supervisor —</option>
           </select>
         </div>
+        <div class="form-group" id="dsSupervisorGroup" style="display:none;">
+          <label class="form-label">Supervisor *</label>
+          <select class="form-select" id="newDSSupervisor">
+            <option value="">— Select Supervisor —</option>
+          </select>
+        </div>
+        <div class="form-group" id="dsSCGroup" style="display:none;">
+          <label class="form-label">Super-Collaborator *</label>
+          <select class="form-select" id="newDSSC">
+            <option value="">— Select Super-Collaborator —</option>
+          </select>
+        </div>
         <div class="form-group">
           <label class="form-label">Language</label>
           <select class="form-select" id="newLanguage">
@@ -478,6 +490,10 @@
       let documentSubmitterId;
       if (dsRole === 'DEPUTY') {
         documentSubmitterId = deputyId || user.id;
+      } else if (dsRole === 'SUPERVISOR') {
+        documentSubmitterId = document.getElementById('newDSSupervisor').value ? parseInt(document.getElementById('newDSSupervisor').value) : user.id;
+      } else if (dsRole === 'SUPER_COLLABORATOR') {
+        documentSubmitterId = document.getElementById('newDSSC').value ? parseInt(document.getElementById('newDSSC').value) : user.id;
       } else {
         documentSubmitterId = user.id;
       }
@@ -553,15 +569,38 @@
       loadSupervisors(deputyId);
     });
 
-    // Show/hide deputy + supervisor groups based on DS role
-    document.getElementById('newDSRole').addEventListener('change', () => {
+    // Show/hide groups based on DS role
+    document.getElementById('newDSRole').addEventListener('change', async () => {
       const dsRole = document.getElementById('newDSRole').value;
       document.getElementById('deputyGroup').style.display =
         dsRole === 'DEPUTY' ? '' : 'none';
       document.getElementById('supervisorGroup').style.display =
         dsRole === 'DEPUTY' ? '' : 'none';
+      document.getElementById('dsSupervisorGroup').style.display =
+        dsRole === 'SUPERVISOR' ? '' : 'none';
+      document.getElementById('dsSCGroup').style.display =
+        dsRole === 'SUPER_COLLABORATOR' ? '' : 'none';
+
       if (dsRole !== 'DEPUTY') {
         document.getElementById('newSupervisor').innerHTML = '<option value="">— Select Supervisor —</option>';
+      }
+      if (dsRole === 'SUPERVISOR') {
+        try {
+          const list = await Api.get('/api/admin/all-supervisors');
+          document.getElementById('newDSSupervisor').innerHTML = '<option value="">— Select Supervisor —</option>' +
+            list.map(s => `<option value="${s.id}">${escapeHtml(s.fullName)}${s.departmentName ? ' — ' + escapeHtml(s.departmentName) : ''}</option>`).join('');
+        } catch (e) {
+          document.getElementById('newDSSupervisor').innerHTML = '<option value="">— No supervisors found —</option>';
+        }
+      }
+      if (dsRole === 'SUPER_COLLABORATOR') {
+        try {
+          const list = await Api.get('/api/admin/all-super-collaborators');
+          document.getElementById('newDSSC').innerHTML = '<option value="">— Select Super-Collaborator —</option>' +
+            list.map(s => `<option value="${s.id}">${escapeHtml(s.fullName)}${s.departmentName ? ' — ' + escapeHtml(s.departmentName) : ''}</option>`).join('');
+        } catch (e) {
+          document.getElementById('newDSSC').innerHTML = '<option value="">— No super-collaborators found —</option>';
+        }
       }
     });
   });

@@ -197,4 +197,48 @@ router.get('/deputies', requireAuth, async (req, res) => {
   }
 });
 
+// ─── All supervisors list (for dropdowns) ────────────────────────────────────
+
+router.get('/all-supervisors', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT u.id, u.full_name, d.name_en AS department_name
+       FROM users u
+       LEFT JOIN departments d ON d.id = u.department_id
+       WHERE u.role = 'SUPERVISOR'
+       ORDER BY u.full_name`
+    );
+    res.json(rows.map(r => ({
+      id: r.id,
+      fullName: r.full_name,
+      departmentName: r.department_name,
+    })));
+  } catch (err) {
+    console.error('List all supervisors error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── All super-collaborators list (for dropdowns) ────────────────────────────
+
+router.get('/all-super-collaborators', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT u.id, u.full_name, d.name_en AS department_name
+       FROM users u
+       LEFT JOIN departments d ON d.id = u.department_id
+       WHERE u.role = 'SUPER_COLLABORATOR'
+       ORDER BY u.full_name`
+    );
+    res.json(rows.map(r => ({
+      id: r.id,
+      fullName: r.full_name,
+      departmentName: r.department_name,
+    })));
+  } catch (err) {
+    console.error('List all super-collaborators error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;
