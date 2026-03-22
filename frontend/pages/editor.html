@@ -38,6 +38,14 @@
     .editor-toolbar button.tb-outline--purple:hover { color: #6d28d9; }
     .editor-toolbar button:disabled { opacity: 0.5; cursor: not-allowed; }
 
+    @media (max-width: 980px) {
+      .editor-toolbar { gap: 6px; padding: 8px 10px; }
+      .tb-spacer { flex-basis: 100%; height: 0; }
+      .editor-toolbar button { font-size: 0.72rem; padding: 4px 10px; }
+      .card { overflow-x: auto; }
+      #richEditorContainer { min-width: 0; max-width: 100%; overflow-x: auto; }
+    }
+
     .section-meta {
       display: flex; gap: 16px; align-items: center;
       font-size: 13px; color: var(--text-muted);
@@ -66,10 +74,10 @@
 
       <div class="section-meta" id="sectionMeta"></div>
 
-      <div class="card" style="padding:0;">
+      <div class="card" style="padding:0; max-width:100%; overflow:hidden;">
         <div class="editor-toolbar" id="actionToolbar" style="padding:8px 16px;margin-bottom:0;"></div>
         <!-- GCP.RichEditor renders here -->
-        <div id="richEditorContainer"></div>
+        <div id="richEditorContainer" style="max-width:100%; overflow-x:auto;"></div>
       </div>
 
       <!-- Files section -->
