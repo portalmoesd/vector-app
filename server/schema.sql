@@ -6,7 +6,8 @@ BEGIN;
 
 DO $$ BEGIN CREATE TYPE user_role AS ENUM ('ADMIN','PROTOCOL','DEPUTY','SUPERVISOR','SUPER_COLLABORATOR','COLLABORATOR'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE ds_role AS ENUM ('DEPUTY','SUPERVISOR','SUPER_COLLABORATOR'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-DO $$ BEGIN CREATE TYPE event_language AS ENUM ('EN','FR','AR','ES','RU','ZH','PT','DE'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE event_language AS ENUM ('EN','FR','AR','ES','RU','ZH','PT','DE','KA'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN ALTER TYPE event_language ADD VALUE IF NOT EXISTS 'KA'; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE event_status AS ENUM ('DRAFT','IN_PROGRESS','COMPLETED','ARCHIVED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE workflow_step_status AS ENUM ('PENDING','IN_PROGRESS','APPROVED','RETURNED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE history_action AS ENUM ('saved','submitted','returned','approved','asked_to_return','pushed'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
