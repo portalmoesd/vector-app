@@ -133,6 +133,13 @@
   margin: 0 0 2px;
   color: var(--text-primary);
 }
+.dp-section-row__depts {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent-blue);
+  line-height: 1.5;
+  margin-bottom: 2px;
+}
 .dp-section-row__meta {
   font-size: 0.78rem;
   color: var(--text-muted);

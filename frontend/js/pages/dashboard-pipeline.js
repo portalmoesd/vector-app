@@ -280,7 +280,7 @@
     const lastUpdatedBy = section.lastUpdatedBy ? escapeHtml(section.lastUpdatedBy) : '';
 
     const deptInfo = (section.departmentNames && section.departmentNames.length > 0)
-      ? section.departmentNames.map(n => escapeHtml(n)).join(', ')
+      ? section.departmentNames.map(n => escapeHtml(n)).join('<br>')
       : '';
 
     // Build notification banners
@@ -297,7 +297,8 @@
         <div class="dp-section-row__header">
           <div class="dp-section-row__info">
             <h4 class="dp-section-row__title">${escapeHtml(section.sectionLabel)}</h4>
-            <div class="dp-section-row__meta">${deptInfo ? '<span style="color:var(--accent-blue);font-weight:600;">' + deptInfo + '</span> &middot; ' : ''}${lastUpdated}${lastUpdatedBy ? ' &middot; ' + lastUpdatedBy : ''}</div>
+            ${deptInfo ? '<div class="dp-section-row__depts">' + deptInfo + '</div>' : ''}
+            <div class="dp-section-row__meta">${lastUpdated}${lastUpdatedBy ? ' &middot; ' + lastUpdatedBy : ''}</div>
             ${noticeBanners}
           </div>
           <div class="dp-section-row__actions">
