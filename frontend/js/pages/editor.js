@@ -103,7 +103,7 @@
   // Build action toolbar
   buildToolbar(status, effectiveRole, isHolder, canEdit);
 
-  // Load comments and history
+  // Load comments (for editor margin balloons) and history
   loadComments();
   loadHistory();
 
@@ -382,39 +382,10 @@
         can_delete: c.userId === user.id || user.role === 'admin',
       }));
       richEditor.setComments(editorComments);
-
-      // Also render in the below-editor comments list
-      const list = document.getElementById('commentsList');
-      if (!comments || comments.length === 0) {
-        list.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">No comments yet</p>';
-        return;
-      }
-      list.innerHTML = comments.map(c => `
-        <div class="comment-card">
-          <div class="comment-meta">
-            <span class="gcp-avatar" style="background:${GCP.authorColor(c.userName || 'User')};width:20px;height:20px;font-size:8px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:700;">${GCP.authorInitials(c.userName || 'User')}</span>
-            ${escapeHtml(c.userName || 'User')} — ${formatDateTime(c.createdAt)}
-          </div>
-          <div>${escapeHtml(c.content)}</div>
-        </div>
-      `).join('');
     } catch (e) {
       console.error('Load comments error:', e);
     }
   }
-
-  document.getElementById('addCommentBtn').addEventListener('click', async () => {
-    const input = document.getElementById('commentInput');
-    const text = input.value.trim();
-    if (!text) return;
-    try {
-      await Api.post('/api/workflow/comments', { eventId, sectionId, content: text });
-      input.value = '';
-      loadComments();
-    } catch (e) {
-      alert('Failed to add comment: ' + e.message);
-    }
-  });
 
   // ─── History ─────────────────────────────────────────────────────────────────
 
