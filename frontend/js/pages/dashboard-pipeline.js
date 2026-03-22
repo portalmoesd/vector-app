@@ -263,6 +263,7 @@
       bindStagePopover();
       bindApproveAll(eventId, sectionsToApprove);
       bindSendToLibrary(eventId);
+      bindHistoryToggles();
 
     } catch (e) {
       const container = sectionsCardEl || legacyContainer;
@@ -306,7 +307,8 @@
           </div>
         </div>
         ${renderPipeline(section, grid, eventId)}
-        <button class="dp-history-toggle" data-section-id="${section.sectionId}">History &#9660;</button>
+        <button class="dp-history-toggle" data-section-id="${section.sectionId}" data-event-id="${eventId}">History &#9660;</button>
+        <div class="dp-history-panel" id="historyPanel_${section.sectionId}" style="display:none;"></div>
       </div>
     `;
   }
@@ -571,6 +573,146 @@
         alert(err.message);
         loadSections(eventId);
       }
+    });
+  }
+
+  // ── History Panel ──────────────────────────────────────────────────────────
+
+  const HISTORY_STAGES = [
+    { role: 'COLLABORATOR', label: 'Collaborator' },
+    { role: 'HEAD_COLLABORATOR', label: 'Head Collaborator' },
+    { role: 'SUPER_COLLABORATOR', label: 'Super-Collaborator' },
+    { role: 'CURATOR', label: 'Curator' },
+    { role: 'SUPERVISOR', label: 'Supervisor' },
+    { role: 'DEPUTY', label: 'Deputy' },
+    { role: 'RECEIVING_SUPER_COLLABORATOR', label: 'Super-Collaborator (Review)' },
+    { role: 'RECEIVING_SUPERVISOR', label: 'Supervisor (Review)' },
+  ];
+
+  const ACTION_COLORS = {
+    saved:           { bg: '#ede9fe', color: '#5b21b6', label: 'Edited' },
+    submitted:       { bg: '#dbeafe', color: '#1d4ed8', label: 'Submitted' },
+    approved:        { bg: '#dcfce7', color: '#15803d', label: 'Approved' },
+    returned:        { bg: '#fee2e2', color: '#b91c1c', label: 'Returned' },
+    asked_to_return: { bg: '#fef3c7', color: '#92400e', label: 'Asked to Return' },
+    pushed:          { bg: '#e0e7ff', color: '#4338ca', label: 'Pushed' },
+    pulled:          { bg: '#e0e7ff', color: '#4338ca', label: 'Pulled' },
+  };
+
+  function formatHistoryDate(dateStr) {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    return d.toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  }
+
+  function renderHistoryTimeline(history) {
+    if (!history || history.length === 0) {
+      return '<p style="color: var(--text-muted); font-size: 13px;">No history yet</p>';
+    }
+
+    // Group by role
+    const byRole = {};
+    for (const h of history) {
+      const r = h.userRole || 'UNKNOWN';
+      if (!byRole[r]) byRole[r] = [];
+      byRole[r].push(h);
+    }
+
+    // Collapse consecutive saves by same user
+    function collapseEntries(entries) {
+      const collapsed = [];
+      for (const ev of entries) {
+        const last = collapsed[collapsed.length - 1];
+        if (last && last.action === 'saved' && ev.action === 'saved' && last.userName === ev.userName) {
+          last.actedAt = ev.actedAt;
+          last._count = (last._count || 1) + 1;
+        } else {
+          collapsed.push({ ...ev });
+        }
+      }
+      return collapsed;
+    }
+
+    const stageOrder = HISTORY_STAGES.map(s => s.role);
+    const orderedRoles = [];
+    for (const stage of HISTORY_STAGES) {
+      if (byRole[stage.role]) orderedRoles.push(stage);
+    }
+    for (const role of Object.keys(byRole)) {
+      if (!stageOrder.includes(role)) {
+        orderedRoles.push({ role, label: roleLabel(role) });
+      }
+    }
+
+    return '<div class="sh-timeline">' + orderedRoles.map(stage => {
+      const entries = collapseEntries(byRole[stage.role]);
+      const eventsHtml = entries.map(h => {
+        const ac = ACTION_COLORS[h.action] || { bg: '#f1f5f9', color: '#475569', label: h.action };
+        const actor = escapeHtml(h.userName || 'Unknown');
+        const date = formatHistoryDate(h.actedAt);
+        const label = h.action === 'saved' && h._count > 1
+          ? `${ac.label} (\u00d7${h._count})` : ac.label;
+
+        if (h.action === 'returned' || h.action === 'asked_to_return') {
+          const noteHtml = h.note
+            ? escapeHtml(h.note)
+            : '<span class="sh-return-note__empty">No comment provided</span>';
+          return `<div class="sh-event">
+            <span class="sh-actor">${actor}</span>
+            <details class="sh-return-details${h.action === 'asked_to_return' ? ' sh-return-details--ask' : ''}">
+              <summary>${escapeHtml(label)}</summary>
+              <div class="sh-return-note">${noteHtml}</div>
+            </details>
+            <span class="sh-date">${date}</span>
+          </div>`;
+        }
+
+        return `<div class="sh-event">
+          <span class="sh-actor">${actor}</span>
+          <span class="sh-action-tag" style="background:${ac.bg};color:${ac.color}">${escapeHtml(label)}</span>
+          <span class="sh-date">${date}</span>
+        </div>`;
+      }).join('');
+
+      return `<div class="sh-stage">
+        <div class="sh-dot"></div>
+        <div class="sh-body">
+          <div class="sh-stage-label">${escapeHtml(stage.label.toUpperCase())}</div>
+          <div class="sh-events">${eventsHtml}</div>
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+  }
+
+  function bindHistoryToggles() {
+    document.querySelectorAll('.dp-history-toggle').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const sectionId = btn.dataset.sectionId;
+        const eventId = btn.dataset.eventId;
+        const panel = document.getElementById('historyPanel_' + sectionId);
+        if (!panel) return;
+
+        if (panel.style.display !== 'none') {
+          panel.style.display = 'none';
+          btn.innerHTML = 'History &#9660;';
+          return;
+        }
+
+        panel.style.display = 'block';
+        btn.innerHTML = 'History &#9650;';
+        panel.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">Loading…</p>';
+
+        try {
+          const result = await Api.get(`/api/workflow/section-history?event_id=${eventId}&section_id=${sectionId}`);
+          const history = result.history || result;
+          panel.innerHTML = renderHistoryTimeline(history);
+        } catch (err) {
+          panel.innerHTML = `<p style="color: var(--accent-red); font-size: 13px;">${escapeHtml(err.message)}</p>`;
+        }
+      });
     });
   }
 
