@@ -1,41 +1,68 @@
 # Event Creation Permission Redesign
 
-## Goal
-- **ADMIN & PROTOCOL**: Can create events for anyone (unrestricted)
-- **DEPUTY**: Can create events for themselves, their linked Supervisors, and SCs in the same departments as those Supervisors
-- **SUPERVISOR & SUPER_COLLABORATOR**: Can no longer create events (removed)
+## Goal — Who can create events for whom (as Document Submitter)
+
+| Creator Role | Can assign DS to |
+|---|---|
+| **ADMIN / PROTOCOL** | Anyone (unrestricted) |
+| **DEPUTY** | Self + linked Supervisors + SCs in those supervisors' departments |
+| **SUPERVISOR** | Self + their linked Deputy + SCs in same department |
+| **SUPER_COLLABORATOR** | Self + Supervisors in same department + Deputies linked to those supervisors |
+
+### Relationship map
+- **Deputy ↔ Supervisor**: `deputy_supervisor_links` table
+- **Supervisor ↔ SC**: same `department_id`
+- **SC → Deputy**: SC's dept → Supervisors in that dept → linked Deputies via `deputy_supervisor_links`
 
 ---
 
 ## Changes
 
-### 1. `server/helpers/roles.js` — Restrict event creator roles
-- Update `EVENT_CREATOR_ROLES` from `[ADMIN, PROTOCOL, DEPUTY, SUPERVISOR, SUPER_COLLABORATOR]` to `[ADMIN, PROTOCOL, DEPUTY]`
+### 1. `server/helpers/roles.js` — No change needed
+- `EVENT_CREATOR_ROLES` stays as `[ADMIN, PROTOCOL, DEPUTY, SUPERVISOR, SUPER_COLLABORATOR]`
 
-### 2. `frontend/js/pages/calendar.js` — Restrict CAN_CREATE & filter dropdowns
-- Update `CAN_CREATE` from 5 roles to `['ADMIN', 'PROTOCOL', 'DEPUTY']`
-- When a **DEPUTY** opens the create-event modal:
-  - **DS Role = DEPUTY**: Pre-select themselves in the Deputy dropdown (only option)
-  - **DS Role = SUPERVISOR**: Load only their linked supervisors via existing `/api/admin/supervisors?deputy_id={self}`
-  - **DS Role = SUPER_COLLABORATOR**: Load SCs via new endpoint `/api/admin/deputy-super-collaborators?deputy_id={self}`
-- When **ADMIN/PROTOCOL** opens the modal: keep current behavior (all users shown)
+### 2. `server/routes/admin.js` — New filtered endpoints
+Add endpoints that return only the users a given role is allowed to assign:
 
-### 3. `server/routes/admin.js` — New filtered SC endpoint
-- Add `GET /api/admin/deputy-super-collaborators?deputy_id=X`
-  - Query: select SCs whose `department_id` matches any department of supervisors linked to deputy X (via `deputy_supervisor_links` → `users.department_id`)
+- **`GET /api/admin/linked-deputies?user_id=X`**
+  - For SUPERVISOR: reverse-lookup `deputy_supervisor_links` where `supervisor_id = X`
+  - For SC: find supervisors in same dept → their linked deputies
 
-### 4. `server/routes/events.js` — Backend validation for DEPUTY
-- After the existing `canCreateEvent` check, add a DEPUTY-specific guard:
-  - **DS Role = DEPUTY**: `documentSubmitterId` must equal `req.user.id`
-  - **DS Role = SUPERVISOR**: supervisor must exist in `deputy_supervisor_links` for this deputy
-  - **DS Role = SUPER_COLLABORATOR**: SC's department must match a department of a linked supervisor
+- **`GET /api/admin/linked-supervisors?user_id=X`**
+  - For DEPUTY: `deputy_supervisor_links` where `deputy_id = X`
+  - For SC: supervisors sharing the same `department_id`
+
+- **`GET /api/admin/linked-super-collaborators?user_id=X`**
+  - For DEPUTY: SCs in departments of linked supervisors
+  - For SUPERVISOR: SCs sharing the same `department_id`
+
+### 3. `frontend/js/pages/calendar.js` — Filter dropdowns by role
+- `CAN_CREATE` stays as all 5 roles
+- **ADMIN/PROTOCOL**: keep current behavior (load all users for every dropdown)
+- **DEPUTY/SUPERVISOR/SUPER_COLLABORATOR**: use the new `linked-*` endpoints to populate dropdowns, scoped to only the users they're allowed to assign
+
+### 4. `server/routes/events.js` — Backend validation
+After `canCreateEvent` check, validate the DS assignment based on the creator's role:
+- **ADMIN/PROTOCOL**: no restriction
+- **DEPUTY**:
+  - DS=DEPUTY → `documentSubmitterId` must be self
+  - DS=SUPERVISOR → must be in `deputy_supervisor_links`
+  - DS=SC → SC's dept must match a linked supervisor's dept
+- **SUPERVISOR**:
+  - DS=SUPERVISOR → must be self
+  - DS=DEPUTY → must be linked via `deputy_supervisor_links`
+  - DS=SC → SC must share same `department_id`
+- **SUPER_COLLABORATOR**:
+  - DS=SC → must be self
+  - DS=SUPERVISOR → must share same `department_id`
+  - DS=DEPUTY → must be linked to a supervisor in same dept
 
 ---
 
 ## File Summary
 | File | Change |
 |------|--------|
-| `server/helpers/roles.js` | Remove SUPERVISOR & SC from EVENT_CREATOR_ROLES |
-| `frontend/js/pages/calendar.js` | Update CAN_CREATE; add role-based dropdown filtering |
-| `server/routes/admin.js` | Add `/api/admin/deputy-super-collaborators` endpoint |
-| `server/routes/events.js` | Add DEPUTY assignment validation in POST handler |
+| `server/helpers/roles.js` | No change |
+| `server/routes/admin.js` | Add 3 new `linked-*` endpoints |
+| `frontend/js/pages/calendar.js` | Use `linked-*` endpoints for non-admin roles |
+| `server/routes/events.js` | Add per-role backend validation for DS assignment |
