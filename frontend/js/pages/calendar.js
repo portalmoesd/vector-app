@@ -431,7 +431,11 @@
           <input class="form-input" type="date" id="newDeadline" lang="en-GB" />
         </div>
         <div class="form-group">
-          <label class="form-label"><input type="checkbox" id="newCurator" style="margin-right:6px;" /> Curator Required</label>
+          <label class="form-label">Curator Required</label>
+          <select class="form-select" id="newCurator">
+            <option value="no" selected>No</option>
+            <option value="yes">Yes</option>
+          </select>
         </div>
         <div class="form-group" style="grid-column:1/-1;">
           <label class="form-label">Task</label>
@@ -458,7 +462,7 @@
       const language = document.getElementById('newLanguage').value;
       const deadlineDate = document.getElementById('newDeadline').value || null;
       const occasion = newOccasionEditor.getHtml() || null;
-      const curatorRequired = document.getElementById('newCurator').checked;
+      const curatorRequired = document.getElementById('newCurator').value === 'yes';
 
       if (!title || !countryId || !dsRole) {
         alert('Title, Country, and DS Role are required');
@@ -524,7 +528,7 @@
         createSectionRow(sectionRowsContainer, sec.title, sec.departmentIds);
       }
 
-      document.getElementById('newCurator').checked = tpl.curatorRequired;
+      document.getElementById('newCurator').value = tpl.curatorRequired ? 'yes' : 'no';
     });
 
     // Load supervisors for selected deputy
