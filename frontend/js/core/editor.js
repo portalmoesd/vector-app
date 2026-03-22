@@ -910,15 +910,14 @@
         function drawConnector(anchorEl, balloonTop, balloonH, color) {
           if (!anchorEl) return;
           const aRect = anchorEl.getBoundingClientRect();
-          // Anchor: where the changed text ends (right edge, vertical center)
-          const ax = aRect.right - crRect.left + scrollLeft;
+          // Anchor Y: vertical center of the changed text
           const ay = aRect.top + aRect.height / 2 - crRect.top + scrollTop;
           // Balloon: left edge, vertically centered near top
           const bx = mOffLeft + 2;
           const by = mOffTop + balloonTop + Math.min(balloonH, 26) / 2;
-          // Path: balloon-left → body-right (horizontal) → anchor-Y (vertical) → anchor-right (into text)
+          // Path: balloon-left → body-right (horizontal) → anchor-Y (vertical) — stays in the gap
           const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-          poly.setAttribute('points', `${bx},${by} ${bodyRight},${by} ${bodyRight},${ay} ${ax},${ay}`);
+          poly.setAttribute('points', `${bx},${by} ${bodyRight},${by} ${bodyRight},${ay}`);
           poly.setAttribute('fill', 'none');
           poly.setAttribute('stroke', color);
           poly.setAttribute('stroke-width', '1');
