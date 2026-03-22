@@ -290,6 +290,20 @@
     .gcp-re-mobile-sheet .gcp-re-mobile-sheet-btns button { flex:1; padding:10px; border-radius:10px; font-size:14px; font-weight:700; border:none; cursor:pointer; }
     .gcp-re-mobile-sheet .gcp-re-mobile-sheet-btn-accept { background:rgba(21,128,61,.12); color:#15803d; }
     .gcp-re-mobile-sheet .gcp-re-mobile-sheet-btn-reject { background:rgba(185,28,28,.12); color:#b91c1c; }
+    .gcp-re-mobile-sheet .gcp-re-mobile-sheet-btn-delete { background:rgba(185,28,28,.12); color:#b91c1c; }
+    .gcp-re-mobile-sheet .gcp-re-mobile-sheet-btn-reply { background:rgba(29,78,216,.10); color:#1d4ed8; }
+    .gcp-re-mobile-sheet-cmt-thread { margin-top:8px; }
+    .gcp-re-mobile-sheet-cmt-reply { border-left:3px solid #e2e8f0; padding-left:12px; margin:10px 0; }
+    .gcp-re-mobile-sheet-cmt-reply .gcp-re-balloon-header { margin-bottom:4px; }
+    .gcp-re-mobile-sheet-cmt-body { font-size:14px; color:#334155; line-height:1.5; margin:4px 0 8px; white-space:pre-wrap; }
+    .gcp-re-mobile-sheet-reply-form { margin-top:12px; }
+    .gcp-re-mobile-sheet-reply-form textarea { width:100%; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; font-size:14px; resize:none; font-family:inherit; box-sizing:border-box; }
+    .gcp-re-mobile-sheet-reply-form textarea:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 2px rgba(59,130,246,.2); }
+    .gcp-re-mobile-sheet-reply-actions { display:flex; gap:8px; margin-top:8px; }
+    .gcp-re-mobile-sheet-reply-actions button { flex:1; padding:10px; border-radius:10px; font-size:14px; font-weight:700; border:none; cursor:pointer; }
+    .gcp-re-mobile-sheet-btn-send { background:rgba(29,78,216,.12); color:#1d4ed8; }
+    .gcp-re-mobile-sheet-btn-cancel { background:#f1f5f9; color:#64748b; }
+    .gcp-re-mobile-sheet-highlighted { background:rgba(255,210,0,.18); border-radius:4px; padding:6px 8px; margin:-6px -8px 8px; }
   `;
 
   let styleInjected = false;
@@ -709,6 +723,15 @@
     cmtBtn.appendChild(cmtBadge);
     toolbar.appendChild(cmtBtn);
 
+    const addCmtBtn = document.createElement('button');
+    addCmtBtn.type = 'button'; addCmtBtn.className = 'gcp-re-btn';
+    addCmtBtn.title = 'Add Comment (select text first)';
+    addCmtBtn.setAttribute('aria-label', 'Add comment on selected text');
+    addCmtBtn.innerHTML = '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true" style="flex-shrink:0"><path d="M14 1H2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h5.586l2.707 2.707a1 1 0 0 0 1.414 0L14 12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg><span style="font-size:11px;margin-left:2px;">+</span>';
+    addCmtBtn.addEventListener('mousedown', e => e.preventDefault());
+    if (readOnly) addCmtBtn.style.display = 'none';
+    toolbar.appendChild(addCmtBtn);
+
     // ── Fullscreen button ────────────────────────────────────────────────────
     const fsSep = document.createElement('span');
     fsSep.className = 'gcp-re-sep'; fsSep.setAttribute('aria-hidden', 'true');
@@ -840,6 +863,13 @@
           block = block.parentElement;
         }
       });
+    }
+
+    function cmtAvatar(name) {
+      const p = ['#1d4ed8','#b91c1c','#15803d','#7c3aed','#c2410c','#0f766e','#9d174d','#3730a3'];
+      const ini = (name || 'Unknown').split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0] && s[0].toUpperCase()).filter(Boolean).join('') || '?';
+      let h = 0; for (let i = 0; i < (name || '').length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+      return { ini, color: p[h % p.length] };
     }
 
     function noOverlap(idealTop, slots) {
@@ -983,12 +1013,6 @@
         }
 
         // Comment balloons
-        function cmtAvatar(name) {
-          const p = ['#1d4ed8','#b91c1c','#15803d','#7c3aed','#c2410c','#0f766e','#9d174d','#3730a3'];
-          const ini = (name || 'Unknown').split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0] && s[0].toUpperCase()).filter(Boolean).join('') || '?';
-          let h = 0; for (let i = 0; i < (name || '').length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-          return { ini, color: p[h % p.length] };
-        }
         function cmtEntryHtml(c) {
           const { ini, color } = cmtAvatar(c.author_name || 'Unknown');
           return `<div class="gcp-re-balloon-header">
@@ -1358,10 +1382,120 @@
       requestAnimationFrame(() => mobileSheet.classList.add('visible'));
     }
 
+    function openMobileCommentSheet(anchorId) {
+      const comment = storedComments.find(c => c.anchor_id === anchorId && !c.parent_id);
+      if (!comment) return;
+      const replies = storedComments.filter(c => c.parent_id === comment.id);
+      const { ini, color } = cmtAvatar(comment.author_name || 'Unknown');
+
+      // Highlighted anchor text
+      const anchorEl = body.querySelector(`[data-cmt-anchor-id="${anchorId}"]`);
+      const highlightHtml = anchorEl
+        ? `<div class="gcp-re-mobile-sheet-highlighted">"${escHtml(anchorEl.textContent)}"</div>`
+        : '';
+
+      // Root comment
+      let html = `<div class="gcp-re-mobile-sheet-handle"></div>
+        ${highlightHtml}
+        <div class="gcp-re-balloon-header">
+          <span class="gcp-re-balloon-avatar" style="background:${color}">${escHtml(ini)}</span>
+          <span class="gcp-re-balloon-author">${escHtml(comment.author_name || 'Unknown')}</span>
+          <span class="gcp-re-balloon-time">${escHtml(fmtTime(comment.created_at))}</span>
+        </div>
+        <div class="gcp-re-mobile-sheet-cmt-body">${escHtml(comment.comment_text || '')}</div>
+        <div class="gcp-re-mobile-sheet-btns">
+          ${comment.can_delete ? '<button class="gcp-re-mobile-sheet-btn-delete" type="button">Delete</button>' : ''}
+          <button class="gcp-re-mobile-sheet-btn-reply" type="button">Reply</button>
+        </div>`;
+
+      // Replies
+      if (replies.length) {
+        html += '<div class="gcp-re-mobile-sheet-cmt-thread">';
+        replies.forEach((r, ri) => {
+          const ra = cmtAvatar(r.author_name || 'Unknown');
+          html += `<div class="gcp-re-mobile-sheet-cmt-reply" data-reply-idx="${ri}">
+            <div class="gcp-re-balloon-header">
+              <span class="gcp-re-balloon-avatar" style="background:${ra.color}">${escHtml(ra.ini)}</span>
+              <span class="gcp-re-balloon-author">${escHtml(r.author_name || 'Unknown')}</span>
+              <span class="gcp-re-balloon-time">${escHtml(fmtTime(r.created_at))}</span>
+            </div>
+            <div class="gcp-re-mobile-sheet-cmt-body">${escHtml(r.comment_text || '')}</div>
+            ${r.can_delete ? `<button class="gcp-re-mobile-sheet-btn-delete gcp-re-reply-del-mobile" data-reply-idx="${ri}" type="button" style="font-size:12px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;">Delete</button>` : ''}
+          </div>`;
+        });
+        html += '</div>';
+      }
+
+      // Reply form
+      html += `<div class="gcp-re-mobile-sheet-reply-form" style="display:none">
+        <textarea rows="2" placeholder="Write a reply\u2026"></textarea>
+        <div class="gcp-re-mobile-sheet-reply-actions">
+          <button class="gcp-re-mobile-sheet-btn-send" type="button">Send</button>
+          <button class="gcp-re-mobile-sheet-btn-cancel" type="button">Cancel</button>
+        </div>
+      </div>`;
+
+      mobileSheet.innerHTML = html;
+
+      // Wire up events
+      const delBtn = mobileSheet.querySelector('.gcp-re-mobile-sheet-btns > .gcp-re-mobile-sheet-btn-delete');
+      if (delBtn) {
+        delBtn.addEventListener('click', () => {
+          if (onDeleteComment) onDeleteComment(comment.id, comment.anchor_id || null);
+          closeMobileSheet();
+        });
+      }
+      mobileSheet.querySelectorAll('.gcp-re-reply-del-mobile').forEach(btn => {
+        const ri = parseInt(btn.getAttribute('data-reply-idx'), 10);
+        btn.addEventListener('click', () => {
+          if (onDeleteComment) onDeleteComment(replies[ri].id, null);
+          closeMobileSheet();
+        });
+      });
+
+      const replyBtn = mobileSheet.querySelector('.gcp-re-mobile-sheet-btn-reply');
+      const replyForm = mobileSheet.querySelector('.gcp-re-mobile-sheet-reply-form');
+      const replyInput = replyForm.querySelector('textarea');
+      const sendBtn = mobileSheet.querySelector('.gcp-re-mobile-sheet-btn-send');
+      const cancelBtn = mobileSheet.querySelector('.gcp-re-mobile-sheet-btn-cancel');
+
+      replyBtn.addEventListener('click', () => {
+        replyForm.style.display = '';
+        replyInput.focus();
+      });
+      cancelBtn.addEventListener('click', () => {
+        replyForm.style.display = 'none';
+        replyInput.value = '';
+      });
+      sendBtn.addEventListener('click', () => {
+        const text = replyInput.value.trim();
+        if (!text) return;
+        sendBtn.disabled = true;
+        if (onReplyComment) onReplyComment(comment.id, text);
+        closeMobileSheet();
+      });
+      replyInput.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); sendBtn.click(); }
+        if (e.key === 'Escape') cancelBtn.click();
+      });
+
+      mobileSheetOverlay.classList.add('visible');
+      requestAnimationFrame(() => mobileSheet.classList.add('visible'));
+    }
+
     body.addEventListener('click', (e) => {
-      if (window.innerWidth > 820 || !tc.visible) return;
-      const tcEl = e.target.closest('[data-tc-id], [data-tc-fmt-id]');
-      if (tcEl) { e.preventDefault(); openMobileSheet(tcEl); }
+      if (window.innerWidth > 820) return;
+      // Tracked changes
+      if (tc.visible) {
+        const tcEl = e.target.closest('[data-tc-id], [data-tc-fmt-id]');
+        if (tcEl) { e.preventDefault(); openMobileSheet(tcEl); return; }
+      }
+      // Comment anchors
+      const cmtEl = e.target.closest('.gcp-cmt-anchor[data-cmt-anchor-id]');
+      if (cmtEl) {
+        e.preventDefault();
+        openMobileCommentSheet(cmtEl.getAttribute('data-cmt-anchor-id'));
+      }
     });
 
     function createCommentAnchor() {
@@ -1387,6 +1521,11 @@
       cmtPanelVisible = !cmtPanelVisible;
       cmtBtn.classList.toggle('active', cmtPanelVisible && storedComments.length > 0);
       updateTcBar();
+    });
+
+    addCmtBtn.addEventListener('click', () => {
+      const anchorId = createCommentAnchor();
+      if (onCommentsClick) onCommentsClick(anchorId);
     });
 
     // ── Right-click context menu ──────────────────────────────────────────────
