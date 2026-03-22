@@ -52,7 +52,7 @@
   const isHolder = sectionInfo.currentHolderRole === effectiveRole;
 
   sectionMeta.innerHTML = `
-    <span class="status-pill ${statusClass(status)}">${statusLabel(status)}</span>
+    <span class="status-pill ${statusClass(status)}">Status: ${statusLabel(status)}</span>
     ${content.lastEditedBy ? `<span>Last edited by: ${escapeHtml(content.lastEditedBy)}</span>` : ''}
   `;
 
