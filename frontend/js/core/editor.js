@@ -910,20 +910,23 @@
         function drawConnector(anchorEl, balloonTop, balloonH, color) {
           if (!anchorEl) return;
           const aRect = anchorEl.getBoundingClientRect();
-          // Anchor Y: vertical center of the changed text
-          const ay = aRect.top + aRect.height / 2 - crRect.top + scrollTop;
-          // Balloon: left edge, vertically centered near top
-          const bx = mOffLeft + 2;
-          const by = mOffTop + balloonTop + Math.min(balloonH, 26) / 2;
-          // Path: balloon-left → body-right (horizontal) → anchor-Y (vertical) — stays in the gap
-          const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-          poly.setAttribute('points', `${bx},${by} ${bodyRight},${by} ${bodyRight},${ay}`);
-          poly.setAttribute('fill', 'none');
-          poly.setAttribute('stroke', color);
-          poly.setAttribute('stroke-width', '1');
-          poly.setAttribute('stroke-dasharray', '3,3');
-          poly.setAttribute('opacity', '0.7');
-          svg.appendChild(poly);
+          // Body right edge at anchor's vertical center
+          const x1 = bodyRight;
+          const y1 = aRect.top + aRect.height / 2 - crRect.top + scrollTop;
+          // Balloon left edge, vertically centered near top
+          const x2 = mOffLeft + 2;
+          const y2 = mOffTop + balloonTop + Math.min(balloonH, 26) / 2;
+          // Single diagonal line across the gap — no text crossing
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', x1);
+          line.setAttribute('y1', y1);
+          line.setAttribute('x2', x2);
+          line.setAttribute('y2', y2);
+          line.setAttribute('stroke', color);
+          line.setAttribute('stroke-width', '1');
+          line.setAttribute('stroke-dasharray', '3,3');
+          line.setAttribute('opacity', '0.7');
+          svg.appendChild(line);
         }
 
         // TC change balloons
