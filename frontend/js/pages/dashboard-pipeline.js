@@ -73,7 +73,7 @@
         <div class="dp-upcoming-event__pills">
           <span class="dp-upcoming-event__pill">${escapeHtml(e.countryName)}</span>
           ${e.deadlineDate ? `<span class="dp-upcoming-event__pill">Deadline: ${formatDate(e.deadlineDate)}</span>` : ''}
-          <span class="dp-upcoming-event__pill dp-upcoming-event__pill--lang">${e.language || 'EN'}</span>
+          <span class="dp-upcoming-event__pill dp-upcoming-event__pill--lang">${languageLabel(e.language || 'EN')}</span>
         </div>
         ${e.occasion ? `<div class="dp-upcoming-event__desc">${e.occasion}</div>` : ''}
       </div>
