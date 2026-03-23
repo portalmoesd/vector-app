@@ -147,11 +147,22 @@ GCP.ActionDialog = (() => {
       // Remove any existing popover
       document.querySelectorAll('.action-popover').forEach(el => el.remove());
 
-      const wrapper = anchorBtn.closest('.dp-section-row__actions') || anchorBtn.parentElement;
-      wrapper.style.position = 'relative';
-
       const pop = document.createElement('div');
       pop.className = 'action-popover';
+
+      // Fixed positioning mode: anchor to an inline element via bounding rect
+      if (opts.fixed) {
+        const rect = anchorBtn.getBoundingClientRect();
+        pop.style.position = 'fixed';
+        pop.style.top = (rect.bottom + 6) + 'px';
+        pop.style.left = rect.left + 'px';
+        pop.style.right = 'auto';
+        document.body.appendChild(pop);
+      } else {
+        const wrapper = anchorBtn.closest('.dp-section-row__actions') || anchorBtn.parentElement;
+        wrapper.style.position = 'relative';
+        wrapper.appendChild(pop);
+      }
 
       const heading = document.createElement('div');
       heading.className = 'action-popover__title';
@@ -190,7 +201,6 @@ GCP.ActionDialog = (() => {
       pop.appendChild(heading);
       pop.appendChild(ta);
       pop.appendChild(footer);
-      wrapper.appendChild(pop);
       ta.focus();
 
       function cleanup(value) {

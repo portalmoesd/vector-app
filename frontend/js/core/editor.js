@@ -887,8 +887,8 @@
 
     const addCmtBtn = document.createElement('button');
     addCmtBtn.type = 'button'; addCmtBtn.className = 'gcp-re-btn gcp-re-btn--mobile-only';
-    addCmtBtn.title = 'Add Comment (select text first)';
-    addCmtBtn.setAttribute('aria-label', 'Add comment on selected text');
+    addCmtBtn.title = 'Add Comment';
+    addCmtBtn.setAttribute('aria-label', 'Add comment');
     addCmtBtn.innerHTML = '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true" style="flex-shrink:0"><path d="M14 1H2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h5.586l2.707 2.707a1 1 0 0 0 1.414 0L14 12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg><span style="font-size:11px;margin-left:2px;">+</span>';
     addCmtBtn.addEventListener('mousedown', e => e.preventDefault());
     if (readOnly) addCmtBtn.style.display = 'none';

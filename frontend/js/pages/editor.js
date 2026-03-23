@@ -70,7 +70,9 @@
     async onCommentsClick(anchorId) {
       // anchorId is set when user selects text and adds a comment via context menu
       if (anchorId) {
-        const text = await GCP.ActionDialog.prompt('Add comment', { placeholder: 'Enter your comment...', required: true, confirmLabel: 'Add', confirmColor: '#3b82f6' });
+        const anchorSpan = document.querySelector(`.gcp-cmt-anchor[data-cmt-anchor-id="${anchorId}"]`);
+        const popAnchor = anchorSpan || document.getElementById('addCmtBtn') || document.body;
+        const text = await GCP.ActionDialog.popoverPrompt(popAnchor, 'Add comment', { placeholder: 'Enter your comment...', required: true, confirmLabel: 'Add', confirmColor: '#3b82f6', fixed: true });
         if (text && text.trim()) {
           Api.post('/api/workflow/comments', {
             eventId, sectionId, content: text.trim(), anchorId,
