@@ -128,6 +128,87 @@ GCP.ActionDialog = (() => {
     });
   }
 
+  /**
+   * Show an inline popover anchored to a button (desktop).
+   * Falls back to the modal prompt on narrow viewports (≤600px).
+   *
+   * @param {HTMLElement} anchorBtn – the button to anchor to
+   * @param {string} titleText
+   * @param {object} opts – same as prompt() opts
+   * @returns {Promise<string|null>}
+   */
+  function popoverPrompt(anchorBtn, titleText, opts = {}) {
+    // Mobile fallback
+    if (window.innerWidth <= 600) {
+      return show(titleText, opts, 'prompt');
+    }
+
+    return new Promise((resolve) => {
+      // Remove any existing popover
+      document.querySelectorAll('.action-popover').forEach(el => el.remove());
+
+      const wrapper = anchorBtn.closest('.dp-section-row__actions') || anchorBtn.parentElement;
+      wrapper.style.position = 'relative';
+
+      const pop = document.createElement('div');
+      pop.className = 'action-popover';
+
+      const heading = document.createElement('div');
+      heading.className = 'action-popover__title';
+      heading.textContent = titleText;
+
+      const ta = document.createElement('textarea');
+      ta.className = 'action-popover__textarea';
+      ta.placeholder = opts.placeholder || '';
+
+      const footer = document.createElement('div');
+      footer.className = 'action-popover__footer';
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'btn btn-outline';
+      cancelBtn.textContent = 'Cancel';
+
+      const okBtn = document.createElement('button');
+      okBtn.className = 'btn';
+      okBtn.textContent = opts.confirmLabel || 'Confirm';
+      okBtn.style.background = opts.confirmColor || '#3b82f6';
+      okBtn.style.color = '#fff';
+      okBtn.style.border = 'none';
+
+      if (opts.required) {
+        okBtn.disabled = true;
+        okBtn.style.opacity = '0.5';
+        ta.addEventListener('input', () => {
+          const has = ta.value.trim().length > 0;
+          okBtn.disabled = !has;
+          okBtn.style.opacity = has ? '1' : '0.5';
+        });
+      }
+
+      footer.appendChild(cancelBtn);
+      footer.appendChild(okBtn);
+      pop.appendChild(heading);
+      pop.appendChild(ta);
+      pop.appendChild(footer);
+      wrapper.appendChild(pop);
+      ta.focus();
+
+      function cleanup(value) {
+        pop.remove();
+        document.removeEventListener('keydown', onKey);
+        resolve(value);
+      }
+
+      function onKey(e) {
+        if (e.key === 'Escape') cleanup(null);
+      }
+
+      document.addEventListener('keydown', onKey);
+      cancelBtn.addEventListener('click', () => cleanup(null));
+      okBtn.addEventListener('click', () => cleanup(ta.value));
+    });
+  }
+
   return {
     confirm(titleText, opts = {}) {
       return show(titleText, opts, 'confirm');
@@ -135,5 +216,6 @@ GCP.ActionDialog = (() => {
     prompt(titleText, opts = {}) {
       return show(titleText, opts, 'prompt');
     },
+    popoverPrompt,
   };
 })();

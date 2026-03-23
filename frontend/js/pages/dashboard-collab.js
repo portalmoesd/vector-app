@@ -209,7 +209,7 @@
             if (!await GCP.ActionDialog.confirm('Submit section', { confirmLabel: 'Submit', confirmColor: '#3b82f6' })) return;
             await Api.post('/api/workflow/submit', { eventId: evId, sectionId });
           } else if (action === 'ask-to-return') {
-            const note = await GCP.ActionDialog.prompt('Request return', { placeholder: 'Reason for return request...', confirmLabel: 'Send request', confirmColor: '#a16207' });
+            const note = await GCP.ActionDialog.popoverPrompt(btn, 'Request return', { placeholder: 'Reason for return request...', confirmLabel: 'Send request', confirmColor: '#a16207' });
             if (note === null) return;
             await Api.post('/api/workflow/ask-to-return', { eventId: evId, sectionId, note: note || undefined });
           } else if (action === 'push-section') {

@@ -263,6 +263,62 @@ tr:hover td {
   color: var(--text-muted);
 }
 
+/* ─── Inline Popover (desktop comment prompt) ────────────────────────────── */
+
+.action-popover {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 6px;
+  width: 300px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 16px;
+  z-index: 100;
+  animation: popoverFadeIn 0.15s ease;
+}
+@keyframes popoverFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.action-popover__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+}
+.action-popover__textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-family: var(--font-primary);
+  font-size: 0.85rem;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.action-popover__textarea:focus {
+  border-color: var(--accent-blue);
+}
+.action-popover__textarea::placeholder {
+  color: var(--text-muted);
+}
+.action-popover__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+.action-popover__footer .btn {
+  font-size: 0.82rem;
+  padding: 6px 14px;
+}
+
 /* ─── Admin Tabs ──────────────────────────────────────────────────────────── */
 
 .admin-tabs {
