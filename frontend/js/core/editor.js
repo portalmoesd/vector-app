@@ -48,6 +48,8 @@
     { cmd: 'bold',          icon: '<b>B</b>',          title: 'Bold (Ctrl+B)' },
     { cmd: 'italic',        icon: '<i>I</i>',          title: 'Italic (Ctrl+I)' },
     { cmd: 'underline',     icon: '<u>U</u>',          title: 'Underline (Ctrl+U)' },
+    { cmd: 'superscript',  icon: 'X<sup style="font-size:.7em">2</sup>', title: 'Superscript' },
+    { cmd: 'subscript',    icon: 'X<sub style="font-size:.7em">2</sub>', title: 'Subscript' },
     { sep: true },
     { cmd: 'h2',            icon: 'H2',                title: 'Heading 2' },
     { cmd: 'h3',            icon: 'H3',                title: 'Heading 3' },
@@ -305,6 +307,17 @@
     .gcp-re-mobile-sheet-btn-send { background:rgba(29,78,216,.12); color:#1d4ed8; }
     .gcp-re-mobile-sheet-btn-cancel { background:#f1f5f9; color:#64748b; }
     .gcp-re-mobile-sheet-highlighted { background:rgba(255,210,0,.18); border-radius:4px; padding:6px 8px; margin:-6px -8px 8px; }
+    .gcp-re-find-panel { position:absolute; top:0; right:16px; z-index:200; background:#fff; border:1px solid #e2e8f0; border-radius:0 0 10px 10px; box-shadow:0 4px 16px rgba(15,23,42,.12); padding:10px 12px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:12px; }
+    [data-theme="dark"] .gcp-re-find-panel { background:#1e212c; border-color:#3d4155; }
+    .gcp-re-find-panel input { height:28px; padding:0 8px; border:1px solid #d1d5db; border-radius:6px; font-size:12px; font-family:inherit; outline:none; min-width:160px; box-sizing:border-box; }
+    .gcp-re-find-panel input:focus { border-color:#3b82f6; box-shadow:0 0 0 2px rgba(59,130,246,.2); }
+    .gcp-re-find-panel button { height:28px; padding:0 10px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; font-size:11px; font-weight:700; cursor:pointer; color:#334155; }
+    .gcp-re-find-panel button:hover { background:#dbeafe; border-color:#93c5fd; color:#1d4ed8; }
+    .gcp-re-find-panel .gcp-re-find-close { border:none; background:transparent; font-size:16px; color:#94a3b8; cursor:pointer; padding:0 4px; }
+    .gcp-re-find-panel .gcp-re-find-close:hover { color:#ef4444; }
+    .gcp-re-find-panel .gcp-re-find-count { font-size:11px; color:#64748b; min-width:40px; }
+    .gcp-re-find-highlight { background:rgba(250,204,21,.45); border-radius:2px; }
+    .gcp-re-find-highlight-current { background:rgba(249,115,22,.50); border-radius:2px; }
   `;
 
   let styleInjected = false;
@@ -321,17 +334,13 @@
   function applyFontSizePt(pt) {
     const sel = window.getSelection();
     if (!sel || !sel.rangeCount || sel.isCollapsed) return;
-    document.querySelectorAll('font[size="7"]').forEach(el => el.setAttribute('data-pre','1'));
-    document.execCommand('fontSize', false, '7');
-    document.querySelectorAll('font[size="7"]:not([data-pre])').forEach(el => {
-      const span = document.createElement('span');
-      span.style.fontSize = pt + 'pt';
-      if (el.color) span.style.color = el.color;
-      if (el.face)  span.style.fontFamily = el.face;
-      while (el.firstChild) span.appendChild(el.firstChild);
-      el.parentNode.replaceChild(span, el);
-    });
-    document.querySelectorAll('font[size="7"][data-pre]').forEach(el => el.removeAttribute('data-pre'));
+    const range = sel.getRangeAt(0);
+    const span = document.createElement('span');
+    span.style.fontSize = pt + 'pt';
+    span.appendChild(range.extractContents());
+    range.insertNode(span);
+    range.selectNodeContents(span);
+    sel.removeAllRanges(); sel.addRange(range);
   }
 
   function handleHeading(tag) {
@@ -370,6 +379,72 @@
     const tc = { visible: false, authorName: authorName || 'Unknown', counter: 0 };
     function newTcId() { return `tc${Date.now()}${++tc.counter}`; }
 
+    // ── Undo / Redo ─────────────────────────────────────────────────────────
+    const undoStack = [];
+    const redoStack = [];
+    const MAX_UNDO = 50;
+    function getSelOffsets() {
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return null;
+      const range = sel.getRangeAt(0);
+      function offset(node, off) {
+        const tw = document.createTreeWalker(body, NodeFilter.SHOW_ALL);
+        let pos = 0;
+        while (tw.nextNode()) {
+          if (tw.currentNode === node) return pos + off;
+          if (tw.currentNode.nodeType === Node.TEXT_NODE) pos += tw.currentNode.length;
+          else pos += 0;
+        }
+        return pos;
+      }
+      return { start: offset(range.startContainer, range.startOffset), end: offset(range.endContainer, range.endOffset) };
+    }
+    function restoreSelOffsets(offsets) {
+      if (!offsets) return;
+      const tw = document.createTreeWalker(body, NodeFilter.SHOW_ALL);
+      let pos = 0;
+      let startNode = null, startOff = 0, endNode = null, endOff = 0;
+      while (tw.nextNode()) {
+        const node = tw.currentNode;
+        if (node.nodeType === Node.TEXT_NODE) {
+          if (!startNode && pos + node.length >= offsets.start) { startNode = node; startOff = offsets.start - pos; }
+          if (!endNode && pos + node.length >= offsets.end) { endNode = node; endOff = offsets.end - pos; }
+          pos += node.length;
+        }
+        if (startNode && endNode) break;
+      }
+      if (startNode) {
+        try {
+          const sel = window.getSelection();
+          const r = document.createRange();
+          r.setStart(startNode, Math.min(startOff, startNode.length));
+          r.setEnd(endNode || startNode, Math.min(endOff, (endNode || startNode).length));
+          sel.removeAllRanges(); sel.addRange(r);
+        } catch (_) {}
+      }
+    }
+    function pushUndo() {
+      undoStack.push({ html: body.innerHTML, sel: getSelOffsets() });
+      if (undoStack.length > MAX_UNDO) undoStack.shift();
+      redoStack.length = 0;
+    }
+    function performUndo() {
+      if (!undoStack.length) return;
+      redoStack.push({ html: body.innerHTML, sel: getSelOffsets() });
+      const state = undoStack.pop();
+      body.innerHTML = state.html;
+      restoreSelOffsets(state.sel);
+      updateTcBar();
+    }
+    function performRedo() {
+      if (!redoStack.length) return;
+      undoStack.push({ html: body.innerHTML, sel: getSelOffsets() });
+      const state = redoStack.pop();
+      body.innerHTML = state.html;
+      restoreSelOffsets(state.sel);
+      updateTcBar();
+    }
+
     const FMT_TOGGLE = new Set(['bold','italic','underline','strikeThrough','superscript','subscript']);
     const FMT_VALUE  = new Set(['fontName','fontSize','foreColor','backColor']);
     const FMT_BLOCK  = new Set([
@@ -390,6 +465,7 @@
     };
 
     function trackFmtChange(cmd, value) {
+      pushUndo();
       const sel = window.getSelection();
       const hasSelection = sel && sel.rangeCount > 0 && !sel.isCollapsed;
       if (!hasSelection || (!FMT_TOGGLE.has(cmd) && !FMT_VALUE.has(cmd))) {
@@ -415,9 +491,10 @@
         mark.setAttribute('data-tc-initials', getInitials(tc.authorName));
         mark.setAttribute('data-tc-time',     new Date().toISOString());
         mark.style.setProperty('--tc-color',  color);
-        range.surroundContents(mark);
+        mark.appendChild(range.extractContents());
+        range.insertNode(mark);
         sel.removeAllRanges();
-      } catch (_) { /* multi-block selection — skip wrapping */ }
+      } catch (_) { /* DOM edge case — skip wrapping */ }
       updateTcBar();
     }
 
@@ -452,6 +529,7 @@
     }
 
     function trackBlockFmtChange(cmd) {
+      pushUndo();
       const sel = window.getSelection();
       if (!sel || !sel.rangeCount) {
         if (cmd === 'h2' || cmd === 'h3') handleHeading(cmd);
@@ -534,7 +612,9 @@
       const sel = window.getSelection();
       sel.removeAllRanges(); sel.addRange(savedRange);
     }
-    body.addEventListener('focusout', saveSelection);
+    body.addEventListener('focusout', e => {
+      if (e.relatedTarget && (toolbar.contains(e.relatedTarget) || wrap.contains(e.relatedTarget))) saveSelection();
+    });
 
     // ── Font family ──────────────────────────────────────────────────────────
     const fontFamilySelect = document.createElement('select');
@@ -1422,8 +1502,13 @@
       }
     }
 
+    function preserveSpaces(s) {
+      return s.replace(/ {2}/g, ' \u00A0').replace(/^ /, '\u00A0').replace(/ $/, '\u00A0');
+    }
+
     function insertTracked(text) {
       if (!text) return;
+      const safe = preserveSpaces(text);
       const sel = window.getSelection();
       if (!sel.rangeCount) return;
       const range = sel.getRangeAt(0);
@@ -1434,9 +1519,9 @@
             parent.getAttribute('data-tc-author') === tc.authorName) {
           const before = startContainer.textContent.slice(0, startOffset);
           const after  = startContainer.textContent.slice(startOffset);
-          startContainer.textContent = before + text + after;
+          startContainer.textContent = before + safe + after;
           const r = document.createRange();
-          r.setStart(startContainer, before.length + text.length);
+          r.setStart(startContainer, before.length + safe.length);
           r.collapse(true); sel.removeAllRanges(); sel.addRange(r);
           return;
         }
@@ -1445,11 +1530,109 @@
       const ins = document.createElement('ins');
       ins.setAttribute('data-tc-id', id);
       applyAuthorAttrs(ins);
-      ins.textContent = text;
+      ins.textContent = safe;
       range.insertNode(ins);
       const r = document.createRange();
       const tn = ins.firstChild;
       r.setStart(tn, tn.length); r.collapse(true);
+      sel.removeAllRanges(); sel.addRange(r);
+    }
+
+    function insertTrackedParagraph() {
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      // Find containing block
+      let block = range.startContainer;
+      while (block && block !== body && !(block.nodeType === 1 && /^(P|H[1-6]|DIV|LI|BLOCKQUOTE)$/i.test(block.tagName))) {
+        block = block.parentNode;
+      }
+      if (!block || block === body) {
+        // No block container — wrap in <p>
+        const newP = document.createElement('p');
+        newP.innerHTML = '<br>';
+        range.insertNode(newP);
+        const r = document.createRange();
+        r.setStart(newP, 0); r.collapse(true);
+        sel.removeAllRanges(); sel.addRange(r);
+        return;
+      }
+      // Extract content after cursor into new block
+      const afterRange = document.createRange();
+      afterRange.setStart(range.startContainer, range.startOffset);
+      afterRange.setEnd(block, block.childNodes.length);
+      const afterFrag = afterRange.extractContents();
+      const newBlock = document.createElement(block.tagName.toLowerCase());
+      // Copy alignment/style
+      if (block.style.textAlign) newBlock.style.textAlign = block.style.textAlign;
+      if (afterFrag.textContent || afterFrag.childNodes.length > 0) {
+        newBlock.appendChild(afterFrag);
+      } else {
+        newBlock.innerHTML = '<br>';
+      }
+      if (!block.textContent && !block.querySelector('br')) block.innerHTML = '<br>';
+      block.parentNode.insertBefore(newBlock, block.nextSibling);
+      const r = document.createRange();
+      r.setStart(newBlock, 0); r.collapse(true);
+      sel.removeAllRanges(); sel.addRange(r);
+    }
+
+    function insertTrackedLineBreak() {
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      if (!range.collapsed) wrapRangeAsDeletion(range, true);
+      const br = document.createElement('br');
+      const selfIns = getSelfIns(range.startContainer);
+      if (selfIns) {
+        // Inside own insertion — just insert the br
+        range.insertNode(br);
+      } else {
+        const id = newTcId();
+        const ins = document.createElement('ins');
+        ins.setAttribute('data-tc-id', id);
+        applyAuthorAttrs(ins);
+        ins.appendChild(br);
+        range.insertNode(ins);
+      }
+      const r = document.createRange();
+      r.setStartAfter(br); r.collapse(true);
+      sel.removeAllRanges(); sel.addRange(r);
+    }
+
+    function sanitizeHtml(html) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      // Remove dangerous elements
+      tmp.querySelectorAll('script,style,link,meta,iframe,object,embed').forEach(el => el.remove());
+      // Remove event handler attributes and javascript: hrefs
+      const all = tmp.querySelectorAll('*');
+      for (const el of all) {
+        for (const attr of [...el.attributes]) {
+          if (attr.name.startsWith('on') || (attr.name === 'href' && attr.value.trim().toLowerCase().startsWith('javascript:'))) {
+            el.removeAttribute(attr.name);
+          }
+        }
+        // Strip class/id to avoid style collisions
+        el.removeAttribute('class');
+        el.removeAttribute('id');
+      }
+      return tmp;
+    }
+
+    function insertTrackedHtml(html) {
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      const clean = sanitizeHtml(html);
+      const id = newTcId();
+      const ins = document.createElement('ins');
+      ins.setAttribute('data-tc-id', id);
+      applyAuthorAttrs(ins);
+      while (clean.firstChild) ins.appendChild(clean.firstChild);
+      range.insertNode(ins);
+      const r = document.createRange();
+      r.setStartAfter(ins); r.collapse(true);
       sel.removeAllRanges(); sel.addRange(r);
     }
 
@@ -1746,6 +1929,54 @@
             { text: '🎨', title: 'Grid colour', action: () => makePalettePopup(pos, h => { getCells().forEach(c => { c.style.borderColor = h; }); }) },
           ]));
         });
+
+        // #11 — Table row/column add/delete
+        const sep3 = document.createElement('div'); sep3.className = 'gcp-re-ctx-sep'; menu.appendChild(sep3);
+        const cellIdx = [...tableRow.children].indexOf(tableCell);
+        const rowIdx = [...tableRow.parentElement.children].indexOf(tableRow);
+        const tbody = tableRow.parentElement;
+
+        function addCtxItem(label, action) {
+          const item = document.createElement('div');
+          item.className = 'gcp-re-ctx-item';
+          item.textContent = label;
+          item.addEventListener('click', () => { removeCtxMenu(); action(); });
+          menu.appendChild(item);
+        }
+
+        addCtxItem('Insert row above', () => {
+          const newRow = tableRow.cloneNode(true);
+          [...newRow.cells].forEach(c => { c.innerHTML = '&nbsp;'; c.style.backgroundColor = ''; });
+          tbody.insertBefore(newRow, tableRow);
+        });
+        addCtxItem('Insert row below', () => {
+          const newRow = tableRow.cloneNode(true);
+          [...newRow.cells].forEach(c => { c.innerHTML = '&nbsp;'; c.style.backgroundColor = ''; });
+          tableRow.after(newRow);
+        });
+        addCtxItem('Insert column left', () => {
+          [...tbody.rows].forEach(r => {
+            const td = document.createElement('td');
+            td.innerHTML = '&nbsp;';
+            r.insertBefore(td, r.cells[cellIdx] || null);
+          });
+        });
+        addCtxItem('Insert column right', () => {
+          [...tbody.rows].forEach(r => {
+            const td = document.createElement('td');
+            td.innerHTML = '&nbsp;';
+            const ref = r.cells[cellIdx + 1] || null;
+            r.insertBefore(td, ref);
+          });
+        });
+        if (tbody.rows.length > 1) {
+          addCtxItem('Delete row', () => { tableRow.remove(); });
+        }
+        if (tableRow.cells.length > 1) {
+          addCtxItem('Delete column', () => {
+            [...tbody.rows].forEach(r => { if (r.cells[cellIdx]) r.cells[cellIdx].remove(); });
+          });
+        }
       }
 
       const tcEl = e.target.closest('[data-tc-id]');
@@ -1771,6 +2002,181 @@
     document.addEventListener('click', removeCtxMenu, { capture: true });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') removeCtxMenu(); });
 
+    // ── Find & Replace panel (#13) ──────────────────────────────────────────
+    let findPanel = null;
+    let findMatches = [];
+    let findIdx = -1;
+
+    function clearFindHighlights() {
+      body.querySelectorAll('.gcp-re-find-highlight,.gcp-re-find-highlight-current').forEach(el => {
+        while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+        el.remove();
+      });
+      body.normalize();
+      findMatches = [];
+      findIdx = -1;
+    }
+
+    function highlightFindMatches(query) {
+      clearFindHighlights();
+      if (!query) return 0;
+      const lowerQ = query.toLowerCase();
+      const tw = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          // Skip nodes inside <del> (hidden tracked deletions)
+          if (node.parentElement && node.parentElement.closest('del[data-tc-id]')) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      });
+      const textNodes = [];
+      while (tw.nextNode()) textNodes.push(tw.currentNode);
+      for (const tn of textNodes) {
+        let idx = 0;
+        const text = tn.textContent;
+        const lower = text.toLowerCase();
+        while ((idx = lower.indexOf(lowerQ, idx)) !== -1) {
+          const range = document.createRange();
+          range.setStart(tn, idx);
+          range.setEnd(tn, idx + query.length);
+          const mark = document.createElement('span');
+          mark.className = 'gcp-re-find-highlight';
+          mark.appendChild(range.extractContents());
+          range.insertNode(mark);
+          findMatches.push(mark);
+          idx = 0;
+          break; // re-walk after DOM mutation; simplified — next call picks up remaining
+        }
+      }
+      // Re-walk to catch all matches after DOM modification
+      if (findMatches.length > 0) {
+        const more = true;
+        let safety = 500;
+        while (more && --safety > 0) {
+          const tw2 = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, {
+            acceptNode(node) {
+              if (node.parentElement && (node.parentElement.closest('.gcp-re-find-highlight') || node.parentElement.closest('del[data-tc-id]'))) return NodeFilter.FILTER_REJECT;
+              return NodeFilter.FILTER_ACCEPT;
+            }
+          });
+          let found = false;
+          while (tw2.nextNode()) {
+            const tn2 = tw2.currentNode;
+            const lower2 = tn2.textContent.toLowerCase();
+            const fi = lower2.indexOf(lowerQ);
+            if (fi !== -1) {
+              const range = document.createRange();
+              range.setStart(tn2, fi);
+              range.setEnd(tn2, fi + query.length);
+              const mark = document.createElement('span');
+              mark.className = 'gcp-re-find-highlight';
+              mark.appendChild(range.extractContents());
+              range.insertNode(mark);
+              findMatches.push(mark);
+              found = true;
+              break;
+            }
+          }
+          if (!found) break;
+        }
+      }
+      return findMatches.length;
+    }
+
+    function goToMatch(idx) {
+      findMatches.forEach((m, i) => {
+        m.className = i === idx ? 'gcp-re-find-highlight-current' : 'gcp-re-find-highlight';
+      });
+      if (findMatches[idx]) {
+        findMatches[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
+        findIdx = idx;
+      }
+    }
+
+    function openFindPanel(showReplace) {
+      if (findPanel) { findPanel.querySelector('input').focus(); return; }
+      findPanel = document.createElement('div');
+      findPanel.className = 'gcp-re-find-panel';
+      const findInput = document.createElement('input');
+      findInput.type = 'text'; findInput.placeholder = 'Find...';
+      const countLabel = document.createElement('span');
+      countLabel.className = 'gcp-re-find-count';
+      const prevBtn = document.createElement('button'); prevBtn.textContent = '▲'; prevBtn.title = 'Previous';
+      const nextBtn = document.createElement('button'); nextBtn.textContent = '▼'; nextBtn.title = 'Next';
+      const replaceInput = document.createElement('input');
+      replaceInput.type = 'text'; replaceInput.placeholder = 'Replace...';
+      if (!showReplace) replaceInput.style.display = 'none';
+      const replaceBtn = document.createElement('button'); replaceBtn.textContent = 'Replace';
+      if (!showReplace) replaceBtn.style.display = 'none';
+      const replaceAllBtn = document.createElement('button'); replaceAllBtn.textContent = 'Replace All';
+      if (!showReplace) replaceAllBtn.style.display = 'none';
+      const closeBtn = document.createElement('span');
+      closeBtn.className = 'gcp-re-find-close'; closeBtn.innerHTML = '&times;';
+
+      function doSearch() {
+        const n = highlightFindMatches(findInput.value);
+        countLabel.textContent = n > 0 ? `1/${n}` : '0';
+        if (n > 0) goToMatch(0);
+      }
+
+      findInput.addEventListener('input', doSearch);
+      nextBtn.addEventListener('click', () => {
+        if (!findMatches.length) return;
+        findIdx = (findIdx + 1) % findMatches.length;
+        goToMatch(findIdx);
+        countLabel.textContent = `${findIdx + 1}/${findMatches.length}`;
+      });
+      prevBtn.addEventListener('click', () => {
+        if (!findMatches.length) return;
+        findIdx = (findIdx - 1 + findMatches.length) % findMatches.length;
+        goToMatch(findIdx);
+        countLabel.textContent = `${findIdx + 1}/${findMatches.length}`;
+      });
+      replaceBtn.addEventListener('click', () => {
+        if (findIdx < 0 || !findMatches[findIdx]) return;
+        pushUndo();
+        const mark = findMatches[findIdx];
+        const replacement = replaceInput.value;
+        mark.textContent = replacement;
+        while (mark.firstChild) mark.parentNode.insertBefore(mark.firstChild, mark);
+        mark.remove();
+        findMatches.splice(findIdx, 1);
+        if (findIdx >= findMatches.length) findIdx = 0;
+        if (findMatches.length) goToMatch(findIdx);
+        countLabel.textContent = findMatches.length > 0 ? `${findIdx + 1}/${findMatches.length}` : '0';
+      });
+      replaceAllBtn.addEventListener('click', () => {
+        if (!findMatches.length) return;
+        pushUndo();
+        const replacement = replaceInput.value;
+        findMatches.forEach(mark => {
+          mark.textContent = replacement;
+          while (mark.firstChild) mark.parentNode.insertBefore(mark.firstChild, mark);
+          mark.remove();
+        });
+        findMatches = []; findIdx = -1;
+        countLabel.textContent = '0';
+        body.normalize();
+      });
+      closeBtn.addEventListener('click', closeFindPanel);
+
+      findPanel.appendChild(findInput);
+      findPanel.appendChild(countLabel);
+      findPanel.appendChild(prevBtn);
+      findPanel.appendChild(nextBtn);
+      findPanel.appendChild(replaceInput);
+      findPanel.appendChild(replaceBtn);
+      findPanel.appendChild(replaceAllBtn);
+      findPanel.appendChild(closeBtn);
+      wrap.style.position = 'relative';
+      wrap.appendChild(findPanel);
+      findInput.focus();
+    }
+
+    function closeFindPanel() {
+      clearFindHighlights();
+      if (findPanel) { findPanel.remove(); findPanel = null; }
+    }
+
     // ── beforeinput: always intercept text mutations ─────────────────────────
 
     const TC_INPUT_TYPES = new Set([
@@ -1780,14 +2186,20 @@
       'deleteHardLineBackward', 'deleteHardLineForward',
       'deleteSoftLineBackward', 'deleteSoftLineForward',
       'deleteByCut', 'insertFromPaste', 'insertFromDrop',
+      'insertParagraph', 'insertLineBreak',
     ]);
 
     body.addEventListener('beforeinput', e => {
       if (!TC_INPUT_TYPES.has(e.inputType) || !body.isContentEditable) return;
 
+      pushUndo();
+
       if (e.inputType.startsWith('delete') && e.getTargetRanges) {
         const sr = e.getTargetRanges();
-        if (sr.length > 0 && !staticToRange(sr[0]).toString()) return;
+        if (sr.length > 0) {
+          const dr = staticToRange(sr[0]);
+          if (dr.collapsed && !dr.toString() && !dr.cloneContents().childNodes.length) return;
+        }
       }
 
       e.preventDefault();
@@ -1804,12 +2216,23 @@
         insertTracked(e.data);
       } else if (type === 'insertFromPaste' || type === 'insertFromDrop') {
         if (!targetRange.collapsed) wrapRangeAsDeletion(targetRange, true);
-        const text = (e.dataTransfer || null)?.getData('text/plain') || '';
-        if (text) insertTracked(text);
+        const dt = e.dataTransfer || null;
+        const html = dt?.getData('text/html') || '';
+        if (html) {
+          insertTrackedHtml(html);
+        } else {
+          const text = dt?.getData('text/plain') || '';
+          if (text) insertTracked(text);
+        }
       } else if (type === 'deleteByCut') {
         if (!targetRange.collapsed) wrapRangeAsDeletion(targetRange, false);
       } else if (type.startsWith('delete')) {
         wrapRangeAsDeletion(targetRange, false);
+      } else if (type === 'insertParagraph') {
+        if (!targetRange.collapsed) wrapRangeAsDeletion(targetRange, true);
+        insertTrackedParagraph();
+      } else if (type === 'insertLineBreak') {
+        insertTrackedLineBreak();
       }
       updateTcBar();
     });
@@ -1817,13 +2240,66 @@
     // ── Active state update ──────────────────────────────────────────────────
 
     function updateActive() {
+      // Detect current block for heading/alignment
+      let currentBlock = null;
+      try {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount) {
+          let node = sel.getRangeAt(0).startContainer;
+          while (node && node !== body) {
+            if (node.nodeType === 1 && /^(P|H[1-6]|DIV|LI|BLOCKQUOTE)$/i.test(node.tagName)) { currentBlock = node; break; }
+            node = node.parentNode;
+          }
+        }
+      } catch (_) {}
+      const currentTag = currentBlock ? currentBlock.tagName.toLowerCase() : '';
+      const currentAlign = currentBlock ? (currentBlock.style.textAlign || window.getComputedStyle(currentBlock).textAlign || 'left') : 'left';
+      const ALIGN_MAP = { justifyLeft: 'left', justifyCenter: 'center', justifyRight: 'right', justifyFull: 'justify' };
+
       toolbar.querySelectorAll('.gcp-re-btn').forEach(btn => {
         const cmd = btn.dataset.cmd;
-        if (!cmd || cmd === 'h2' || cmd === 'h3' || cmd === 'removeFormat') {
-          btn.classList.remove('active'); return;
+        if (!cmd || cmd === 'removeFormat') { btn.classList.remove('active'); return; }
+        // #4 — Heading active state
+        if (cmd === 'h2' || cmd === 'h3') {
+          btn.classList.toggle('active', currentTag === cmd);
+          return;
+        }
+        // #7 — Alignment active state
+        if (ALIGN_MAP[cmd]) {
+          btn.classList.toggle('active', currentAlign === ALIGN_MAP[cmd] || (ALIGN_MAP[cmd] === 'left' && currentAlign === 'start'));
+          return;
         }
         try { btn.classList.toggle('active', document.queryCommandState(cmd)); } catch (_) {}
       });
+
+      // #6 — Font family/size feedback
+      try {
+        const rawFont = document.queryCommandValue('fontName').replace(/["']/g, '');
+        const match = FONT_FAMILIES.find(f => f.value && rawFont.toLowerCase().includes(f.value.toLowerCase()));
+        fontFamilySelect.value = match ? match.value : '';
+      } catch (_) { fontFamilySelect.value = ''; }
+
+      try {
+        if (currentBlock) {
+          const computed = window.getComputedStyle(currentBlock).fontSize; // e.g. "15px"
+          const px = parseFloat(computed);
+          if (px) {
+            const pt = Math.round(px * 72 / 96);
+            const match = FONT_SIZES.find(f => f.value && parseInt(f.value) === pt);
+            fontSizeSelect.value = match ? match.value : '';
+          }
+        }
+      } catch (_) { fontSizeSelect.value = ''; }
+
+      // #8 — Color bar feedback
+      try {
+        const fc = document.queryCommandValue('foreColor');
+        if (fc) colorBar.style.background = fc;
+      } catch (_) {}
+      try {
+        const bc = document.queryCommandValue('backColor');
+        if (bc && bc !== 'rgba(0, 0, 0, 0)' && bc !== 'transparent') bgColorBar.style.background = bc;
+      } catch (_) {}
     }
 
     body.addEventListener('keyup', updateActive);
@@ -1831,12 +2307,50 @@
     body.addEventListener('selectionchange', updateActive);
 
     body.addEventListener('keydown', e => {
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && !e.shiftKey) {
         if (e.key === 'b') { e.preventDefault(); trackFmtChange('bold');      updateActive(); }
         if (e.key === 'i') { e.preventDefault(); trackFmtChange('italic');    updateActive(); }
         if (e.key === 'u') { e.preventDefault(); trackFmtChange('underline'); updateActive(); }
+        if (e.key === 'z') { e.preventDefault(); performUndo(); }
+        if (e.key === 'y') { e.preventDefault(); performRedo(); }
+        // #9 — Ctrl+A selects editor body only
+        if (e.key === 'a') {
+          e.preventDefault();
+          const sel = window.getSelection();
+          const r = document.createRange();
+          r.selectNodeContents(body);
+          sel.removeAllRanges(); sel.addRange(r);
+        }
+      }
+      // Ctrl+Shift+Z = redo
+      if (mod && e.shiftKey && e.key === 'Z') { e.preventDefault(); performRedo(); }
+      // #5 — Tab key handling
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const sel = window.getSelection();
+        const node = sel && sel.rangeCount ? sel.getRangeAt(0).startContainer : null;
+        const li = node ? (node.nodeType === 1 ? node : node.parentElement)?.closest('li') : null;
+        const td = node ? (node.nodeType === 1 ? node : node.parentElement)?.closest('td,th') : null;
+        if (li) {
+          execCmd(e.shiftKey ? 'outdent' : 'indent');
+        } else if (td) {
+          const cells = [...td.closest('table').querySelectorAll('td,th')];
+          const idx = cells.indexOf(td);
+          const next = e.shiftKey ? cells[idx - 1] : cells[idx + 1];
+          if (next) {
+            const r = document.createRange();
+            r.selectNodeContents(next); sel.removeAllRanges(); sel.addRange(r);
+          }
+        } else {
+          insertTracked('    ');
+        }
       }
       if (e.key === 'Escape' && fsActive) { e.preventDefault(); toggleFullscreen(false); }
+      if (e.key === 'Escape' && findPanel) { e.preventDefault(); closeFindPanel(); }
+      // #13 — Find (Ctrl+F) and Find & Replace (Ctrl+H)
+      if (mod && !e.shiftKey && e.key === 'f') { e.preventDefault(); openFindPanel(false); }
+      if (mod && !e.shiftKey && e.key === 'h') { e.preventDefault(); openFindPanel(true); }
     });
 
     // ── Public API ───────────────────────────────────────────────────────────
