@@ -255,7 +255,8 @@
   }
 
   async function handleReturn() {
-    const comment = await GCP.ActionDialog.prompt('Return section', { placeholder: 'Add a comment...', required: true, confirmLabel: 'Return', confirmColor: '#6d28d9' });
+    const btn = document.getElementById('btnReturn');
+    const comment = await GCP.ActionDialog.popoverPrompt(btn, 'Return section', { placeholder: 'Add a comment...', required: true, confirmLabel: 'Return', confirmColor: '#6d28d9' });
     if (!comment) return;
     try {
       await Api.post('/api/workflow/return', { eventId, sectionId, comment });
@@ -267,7 +268,8 @@
   }
 
   async function handleAskReturn() {
-    const note = await GCP.ActionDialog.prompt('Request return', { placeholder: 'Reason for return request...', required: true, confirmLabel: 'Send request', confirmColor: '#a16207' });
+    const btn = document.getElementById('btnAskReturn');
+    const note = await GCP.ActionDialog.popoverPrompt(btn, 'Request return', { placeholder: 'Reason for return request...', required: true, confirmLabel: 'Send request', confirmColor: '#a16207' });
     if (!note) return;
     try {
       await Api.post('/api/workflow/ask-to-return', { eventId, sectionId, note });
