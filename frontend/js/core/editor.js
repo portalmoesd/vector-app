@@ -1465,6 +1465,152 @@
       return null;
     }
 
+    // ── Block-level helpers (Word-like backspace / delete) ────────────────────
+
+    const BLOCK_RE = /^(P|H[1-6]|DIV|LI|BLOCKQUOTE)$/i;
+
+    function getBlock(node) {
+      let el = node.nodeType === 1 ? node : node.parentElement;
+      while (el && el !== body) {
+        if (el.nodeType === 1 && BLOCK_RE.test(el.tagName)) return el;
+        el = el.parentElement;
+      }
+      return null;
+    }
+
+    function isAtBlockStart(range) {
+      const block = getBlock(range.startContainer);
+      if (!block) return false;
+      const r = document.createRange();
+      r.setStart(block, 0);
+      r.setEnd(range.startContainer, range.startOffset);
+      const frag = r.cloneContents();
+      // Ignore hidden <del> elements (display:none when TC not visible)
+      if (!tc.visible) frag.querySelectorAll('del[data-tc-id]').forEach(el => el.remove());
+      return frag.textContent.length === 0;
+    }
+
+    function isAtBlockEnd(range) {
+      const block = getBlock(range.startContainer);
+      if (!block) return false;
+      const r = document.createRange();
+      r.setStart(range.startContainer, range.startOffset);
+      r.setEnd(block, block.childNodes.length);
+      const frag = r.cloneContents();
+      if (!tc.visible) frag.querySelectorAll('del[data-tc-id]').forEach(el => el.remove());
+      const text = frag.textContent;
+      if (text.length > 0) return false;
+      const els = frag.querySelectorAll('*');
+      for (const el of els) {
+        if (el.tagName !== 'BR' && !(el.tagName === 'DEL' && el.hasAttribute('data-tc-id'))) return false;
+      }
+      return true;
+    }
+
+    function getPrevBlock(block) {
+      let el = block.previousElementSibling;
+      while (el && el.tagName === 'DEL' && el.hasAttribute('data-tc-id') && !tc.visible) {
+        el = el.previousElementSibling;
+      }
+      // Also walk up through <ins> wrapper if block is inside one
+      if (!el && block.parentElement !== body) {
+        const wrapper = block.parentElement;
+        el = wrapper.previousElementSibling;
+        while (el && el.tagName === 'DEL' && el.hasAttribute('data-tc-id') && !tc.visible) {
+          el = el.previousElementSibling;
+        }
+        if (el && BLOCK_RE.test(el.tagName)) return el;
+        // Check for block inside the previous <ins> wrapper
+        if (el && el.tagName === 'INS') {
+          const last = el.lastElementChild;
+          if (last && BLOCK_RE.test(last.tagName)) return last;
+        }
+      }
+      return el && BLOCK_RE.test(el.tagName) ? el : null;
+    }
+
+    function getNextBlock(block) {
+      let el = block.nextElementSibling;
+      while (el && el.tagName === 'DEL' && el.hasAttribute('data-tc-id') && !tc.visible) {
+        el = el.nextElementSibling;
+      }
+      if (!el && block.parentElement !== body) {
+        const wrapper = block.parentElement;
+        el = wrapper.nextElementSibling;
+        while (el && el.tagName === 'DEL' && el.hasAttribute('data-tc-id') && !tc.visible) {
+          el = el.nextElementSibling;
+        }
+        if (el && BLOCK_RE.test(el.tagName)) return el;
+        if (el && el.tagName === 'INS') {
+          const first = el.firstElementChild;
+          if (first && BLOCK_RE.test(first.tagName)) return first;
+        }
+      }
+      return el && BLOCK_RE.test(el.tagName) ? el : null;
+    }
+
+    function mergeBlockIntoPrevious(block) {
+      const prev = getPrevBlock(block);
+      if (!prev) return false;
+      const sel = window.getSelection();
+      const r = document.createRange();
+      // If prev is empty (<p><br></p>), remove it and keep current block
+      const lastBr = prev.lastElementChild;
+      if (lastBr && lastBr.tagName === 'BR' && !lastBr.previousSibling) {
+        prev.remove();
+        r.setStart(block, 0); r.collapse(true);
+        sel.removeAllRanges(); sel.addRange(r);
+        return true;
+      }
+      if (lastBr && lastBr.tagName === 'BR') lastBr.remove();
+      // Save cursor at end of prev
+      const cursorNode = prev.lastChild || prev;
+      const cursorOff = cursorNode.nodeType === Node.TEXT_NODE ? cursorNode.length : prev.childNodes.length;
+      // Move children from block → prev
+      while (block.firstChild) {
+        if (block.firstChild.tagName === 'BR' && !block.firstChild.nextSibling) break;
+        prev.appendChild(block.firstChild);
+      }
+      block.remove();
+      try {
+        r.setStart(cursorNode, cursorOff); r.collapse(true);
+        sel.removeAllRanges(); sel.addRange(r);
+      } catch (_) {}
+      return true;
+    }
+
+    function mergeNextBlockIntoCurrent(block) {
+      const next = getNextBlock(block);
+      if (!next) return false;
+      const sel = window.getSelection();
+      const r = document.createRange();
+      const lastBr = block.lastElementChild;
+      if (lastBr && lastBr.tagName === 'BR') lastBr.remove();
+      const cursorNode = block.lastChild || block;
+      const cursorOff = cursorNode.nodeType === Node.TEXT_NODE ? cursorNode.length : block.childNodes.length;
+      while (next.firstChild) {
+        if (next.firstChild.tagName === 'BR' && !next.firstChild.nextSibling) break;
+        block.appendChild(next.firstChild);
+      }
+      next.remove();
+      try {
+        r.setStart(cursorNode, cursorOff); r.collapse(true);
+        sel.removeAllRanges(); sel.addRange(r);
+      } catch (_) {}
+      return true;
+    }
+
+    function ensureBodyHasParagraph() {
+      const hasBlock = body.querySelector('p,h1,h2,h3,h4,h5,h6,div,li,blockquote');
+      if (!hasBlock) {
+        body.innerHTML = '<p><br></p>';
+        const r = document.createRange();
+        r.setStart(body.firstChild, 0); r.collapse(true);
+        const sel = window.getSelection();
+        sel.removeAllRanges(); sel.addRange(r);
+      }
+    }
+
     function staticToRange(sr) {
       const r = document.createRange();
       r.setStart(sr.startContainer, sr.startOffset);
@@ -2209,16 +2355,55 @@
     body.addEventListener('beforeinput', e => {
       if (!TC_INPUT_TYPES.has(e.inputType) || !body.isContentEditable) return;
 
-      pushUndo();
-      e.preventDefault();
+      const type = e.inputType;
+      const isDeleteOp = type.startsWith('delete');
 
-      if (e.inputType.startsWith('delete') && e.getTargetRanges) {
-        const sr = e.getTargetRanges();
-        if (sr.length > 0) {
-          const dr = staticToRange(sr[0]);
-          if (dr.collapsed && !dr.toString() && !dr.cloneContents().childNodes.length) return;
+      // ── Delete: detect block-boundary merges & no-ops before pushing undo ──
+      if (isDeleteOp) {
+        const sr = e.getTargetRanges ? e.getTargetRanges() : [];
+        const dr = sr.length > 0 ? staticToRange(sr[0]) : null;
+
+        if (dr && dr.collapsed) {
+          const sel = window.getSelection();
+          const range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+
+          if (type === 'deleteContentBackward' && range && isAtBlockStart(range)) {
+            // Backspace at start of block → merge with previous (Word behavior)
+            e.preventDefault();
+            const block = getBlock(range.startContainer);
+            if (block) {
+              pushUndo();
+              mergeBlockIntoPrevious(block);
+              ensureBodyHasParagraph();
+              updateTcBar();
+            }
+            return;
+          }
+
+          if (type === 'deleteContentForward' && range && isAtBlockEnd(range)) {
+            // Delete at end of block → merge next block in (Word behavior)
+            e.preventDefault();
+            const block = getBlock(range.startContainer);
+            if (block) {
+              pushUndo();
+              mergeNextBlockIntoCurrent(block);
+              ensureBodyHasParagraph();
+              updateTcBar();
+            }
+            return;
+          }
+
+          // Collapsed range with nothing to delete → silent no-op (no undo push)
+          if (!dr.toString() && !dr.cloneContents().childNodes.length) {
+            e.preventDefault();
+            return;
+          }
         }
       }
+
+      // ── Normal path: push undo, prevent default, dispatch ──
+      pushUndo();
+      e.preventDefault();
 
       const staticRanges = e.getTargetRanges ? e.getTargetRanges() : [];
       const targetRange = staticRanges[0]
@@ -2226,7 +2411,6 @@
         : (window.getSelection().rangeCount ? window.getSelection().getRangeAt(0).cloneRange() : null);
       if (!targetRange) return;
 
-      const type = e.inputType;
       if (type === 'insertText' || type === 'insertReplacementText') {
         if (!targetRange.collapsed) wrapRangeAsDeletion(targetRange, true);
         insertTracked(e.data);
@@ -2242,7 +2426,7 @@
         }
       } else if (type === 'deleteByCut') {
         if (!targetRange.collapsed) wrapRangeAsDeletion(targetRange, false);
-      } else if (type.startsWith('delete')) {
+      } else if (isDeleteOp) {
         wrapRangeAsDeletion(targetRange, false);
       } else if (type === 'insertParagraph') {
         if (!targetRange.collapsed) wrapRangeAsDeletion(targetRange, true);
@@ -2250,6 +2434,8 @@
       } else if (type === 'insertLineBreak') {
         insertTrackedLineBreak();
       }
+
+      if (isDeleteOp) ensureBodyHasParagraph();
       updateTcBar();
     });
 
