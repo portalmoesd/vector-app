@@ -603,3 +603,34 @@
   text-align: center;
   padding: 12px 0;
 }
+
+/* ─── Mobile Responsive ───────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .dp-sections-table-header { display: none; }
+
+  .dp-section-row { padding: 14px; }
+
+  .dp-section-row__header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .dp-section-row__actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .dp-pipeline {
+    overflow-x: auto;
+    min-width: 0;
+  }
+
+  .dp-pipeline__step {
+    min-width: 70px;
+  }
+
+  .dp-pipeline__name,
+  .dp-pipeline__dept {
+    max-width: 70px;
+  }
+}
