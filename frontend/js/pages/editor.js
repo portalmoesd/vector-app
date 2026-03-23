@@ -244,12 +244,9 @@
   }
 
   async function handleApprove() {
-    const comment = await GCP.ActionDialog.prompt('Approve section', { placeholder: 'Add a comment (optional)...', confirmLabel: 'Approve', confirmColor: '#16a34a' });
-    if (comment === null) return;
+    if (!await GCP.ActionDialog.confirm('Approve section', { confirmLabel: 'Approve', confirmColor: '#16a34a' })) return;
     try {
-      await Api.post('/api/workflow/approve', {
-        eventId, sectionId, comment: comment || undefined,
-      });
+      await Api.post('/api/workflow/approve', { eventId, sectionId });
       showNotification('Approved successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
