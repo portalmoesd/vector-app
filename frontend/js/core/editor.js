@@ -17,7 +17,7 @@
   // ── Constants ──────────────────────────────────────────────────────────────
 
   const FONT_FAMILIES = [
-    { label: 'Font',                value: '' },
+    { label: 'Calibri',             value: '' },
     { label: 'Arial',               value: 'Arial' },
     { label: 'Sylfaen',             value: 'Sylfaen' },
     { label: 'Calibri',             value: 'Calibri' },
@@ -155,7 +155,7 @@
     [data-theme="dark"] .gcp-re-tc-authors-row { color:#fbbf24; }
     .gcp-re-tc-pane { display:none; }
     .gcp-re-content-row { display:flex; overflow-y:auto; overflow-x:auto; min-height:400px; align-items:flex-start; position:relative; background:#e8eaed; padding:40px 32px 64px; gap:24px; justify-content:center; }
-    .gcp-re-body { flex:0 0 794px; width:794px; box-sizing:border-box; min-height:1123px; padding:96px; outline:none; font-size:15px; line-height:1.65; color:var(--text,#1f2a37); overflow-y:visible; background:#fff; box-shadow:0 4px 16px rgba(0,0,0,.18); }
+    .gcp-re-body { flex:0 0 794px; width:794px; box-sizing:border-box; min-height:1123px; padding:96px; outline:none; font-family:Calibri,sans-serif; font-size:15px; line-height:1.65; color:var(--text,#1f2a37); overflow-y:visible; background:#fff; box-shadow:0 4px 16px rgba(0,0,0,.18); }
     .gcp-re-body:empty::before { content:attr(data-placeholder); color:var(--muted,#6b7280); pointer-events:none; }
     .gcp-re-body h2 { font-size:1.3em; font-weight:800; margin:.8em 0 .3em; }
     .gcp-re-body h3 { font-size:1.1em; font-weight:700; margin:.7em 0 .25em; }
