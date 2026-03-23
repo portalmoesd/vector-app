@@ -1830,7 +1830,7 @@
 
     function createCommentAnchor() {
       const sel = window.getSelection();
-      if (!sel || sel.isCollapsed || !sel.rangeCount) return null;
+      if (!sel || !sel.rangeCount) return null;
       const range = sel.getRangeAt(0);
       if (!body.contains(range.commonAncestorContainer)) return null;
       const anchorId = 'cmt-' + Math.random().toString(36).slice(2, 10);
@@ -1838,9 +1838,15 @@
       span.className = 'gcp-cmt-anchor';
       span.setAttribute('data-cmt-anchor-id', anchorId);
       try {
-        const frag = range.extractContents();
-        span.appendChild(frag);
-        range.insertNode(span);
+        if (sel.isCollapsed) {
+          // No selection — insert a zero-width marker at cursor position
+          span.textContent = '\u200B';
+          range.insertNode(span);
+        } else {
+          const frag = range.extractContents();
+          span.appendChild(frag);
+          range.insertNode(span);
+        }
         sel.removeAllRanges();
         return anchorId;
       } catch(_) { return null; }
