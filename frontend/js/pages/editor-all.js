@@ -193,23 +193,55 @@
     loadCommentsForSection(s.sectionId);
   });
 
-  // ── Focus management ─────────────────────────────────────────────────────
+  // ── Focus management — sticky toolbar dock ──────────────────────────────
+
+  const toolbarDock = document.getElementById('toolbarDock');
 
   function setFocusedSection(sectionId) {
     if (focusedSectionId === sectionId) return;
-    // Remove focus from previous
+
+    // Return previous toolbar to its editor wrap
     if (focusedSectionId && sections[focusedSectionId]) {
-      sections[focusedSectionId].sectionEl.classList.remove('focused');
+      const prev = sections[focusedSectionId];
+      prev.sectionEl.classList.remove('focused');
+      if (prev.canEdit && prev.editor.toolbarEl && prev.editor.wrapEl) {
+        prev.editor.wrapEl.insertBefore(prev.editor.toolbarEl, prev.editor.wrapEl.firstChild);
+      }
     }
+
     focusedSectionId = sectionId;
-    if (sections[sectionId]) {
-      sections[sectionId].sectionEl.classList.add('focused');
+    const sec = sections[sectionId];
+    if (sec) {
+      sec.sectionEl.classList.add('focused');
+      // Move editable section's toolbar into the sticky dock
+      if (sec.canEdit && sec.editor.toolbarEl) {
+        toolbarDock.innerHTML = '';
+        toolbarDock.appendChild(sec.editor.toolbarEl);
+      } else {
+        toolbarDock.innerHTML = '';
+      }
     }
+
     // Update nav
     Object.entries(navLinks).forEach(([id, link]) => {
       link.classList.toggle('active', parseInt(id) === sectionId);
     });
   }
+
+  // Clear toolbar dock when clicking outside any editor
+  document.addEventListener('mousedown', e => {
+    if (!e.target.closest('.doc-section') && !e.target.closest('#toolbarDock')) {
+      if (focusedSectionId && sections[focusedSectionId]) {
+        const prev = sections[focusedSectionId];
+        prev.sectionEl.classList.remove('focused');
+        if (prev.canEdit && prev.editor.toolbarEl && prev.editor.wrapEl) {
+          prev.editor.wrapEl.insertBefore(prev.editor.toolbarEl, prev.editor.wrapEl.firstChild);
+        }
+      }
+      focusedSectionId = null;
+      toolbarDock.innerHTML = '';
+    }
+  });
 
   // ── IntersectionObserver for scroll-based nav sync ───────────────────────
 

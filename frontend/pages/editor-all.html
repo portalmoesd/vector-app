@@ -130,19 +130,22 @@
     .doc-section .gcp-re-margin {
       flex-shrink: 0;
     }
-    /* Hide per-section toolbars by default; show only on focus */
+    /* Hide ALL per-section toolbars — the active one gets moved to #toolbarDock */
     .doc-section .gcp-re-toolbar {
       display: none !important;
     }
-    .doc-section.focused .gcp-re-toolbar {
+    /* When a toolbar is inside the sticky dock, show it */
+    #toolbarDock .gcp-re-toolbar {
       display: flex !important;
-      position: sticky; top: 42px; z-index: 15;
+    }
+    #toolbarDock {
+      position: sticky; top: 42px; z-index: 18;
       background: var(--bg-card);
       border-bottom: 1px solid var(--border-color);
+      min-height: 0;
     }
-    /* Read-only sections: never show toolbar even on focus */
-    .doc-section--readonly.focused .gcp-re-toolbar {
-      display: none !important;
+    #toolbarDock:empty {
+      display: none;
     }
     /* Read-only sections subtle tint */
     .doc-section--readonly .gcp-re-body {
@@ -185,6 +188,7 @@
       </div>
 
       <div class="section-nav" id="sectionNav"></div>
+      <div id="toolbarDock"></div>
       <div class="doc-flow" id="docFlow"></div>
     </main>
   </div>

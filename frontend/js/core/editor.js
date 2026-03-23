@@ -2434,6 +2434,7 @@
 
     return {
       getHtml, getCleanHtml, setHtml, destroy, focus, el: body,
+      toolbarEl: toolbar, wrapEl: wrap,
       acceptAllChanges, rejectAllChanges, hasTrackedChanges,
       setCommentsActive, setCommentsBadge, setComments, removeCommentAnchor,
       toggleFullscreen,
