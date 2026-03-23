@@ -531,24 +531,24 @@
 
         try {
           if (action === 'submit') {
-            if (!confirm('Submit this section?')) return;
+            if (!await GCP.ActionDialog.confirm('Submit section', { confirmLabel: 'Submit', confirmColor: '#3b82f6' })) return;
             await Api.post('/api/workflow/submit', { eventId: evId, sectionId });
           } else if (action === 'approve') {
-            if (!confirm('Approve this section?')) return;
+            if (!await GCP.ActionDialog.confirm('Approve section', { confirmLabel: 'Approve', confirmColor: '#16a34a' })) return;
             await Api.post('/api/workflow/approve', { eventId: evId, sectionId });
           } else if (action === 'return') {
-            const comment = prompt('Return comment:');
+            const comment = await GCP.ActionDialog.prompt('Return section', { placeholder: 'Add a comment (optional)...', confirmLabel: 'Return', confirmColor: '#6d28d9' });
             if (comment === null) return;
             await Api.post('/api/workflow/return', { eventId: evId, sectionId, comment: comment || undefined });
           } else if (action === 'ask-to-return') {
-            const note = prompt('Reason for return request:');
+            const note = await GCP.ActionDialog.prompt('Request return', { placeholder: 'Reason for return request...', confirmLabel: 'Send request', confirmColor: '#a16207' });
             if (note === null) return;
             await Api.post('/api/workflow/ask-to-return', { eventId: evId, sectionId, note: note || undefined });
           } else if (action === 'push-section') {
-            if (!confirm('Push this section directly to the responsible department?')) return;
+            if (!await GCP.ActionDialog.confirm('Push section', { confirmLabel: 'Push section', confirmColor: '#6d28d9' })) return;
             await Api.post('/api/workflow/push-section', { eventId: evId, sectionId });
           } else if (action === 'pull-section') {
-            if (!confirm('Pull this section to yourself?')) return;
+            if (!await GCP.ActionDialog.confirm('Pull section', { confirmLabel: 'Pull section', confirmColor: '#7c3aed' })) return;
             await Api.post('/api/workflow/pull-section', { eventId: evId, sectionId });
           }
           loadSections(evId);
@@ -563,7 +563,7 @@
     const btn = document.getElementById('approveAllBtn');
     if (!btn) return;
     btn.addEventListener('click', async () => {
-      if (!confirm(`Approve all ${sectionsToApprove.length} sections?`)) return;
+      if (!await GCP.ActionDialog.confirm(`Approve all ${sectionsToApprove.length} sections`, { confirmLabel: 'Approve all', confirmColor: '#16a34a' })) return;
       try {
         for (const s of sectionsToApprove) {
           await Api.post('/api/workflow/approve', { eventId: parseInt(eventId), sectionId: s.sectionId });
@@ -720,7 +720,7 @@
     const btn = document.getElementById('sendToLibraryBtn');
     if (!btn) return;
     btn.addEventListener('click', async () => {
-      if (!confirm('Send this document to the library? This marks it as completed.')) return;
+      if (!await GCP.ActionDialog.confirm('Send to library', { confirmLabel: 'Send to library', confirmColor: '#3b82f6' })) return;
       try {
         await Api.post('/api/workflow/send-to-library', { eventId: parseInt(eventId) });
         alert('Document sent to library successfully.');

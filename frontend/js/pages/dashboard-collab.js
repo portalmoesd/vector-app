@@ -206,17 +206,17 @@
 
         try {
           if (action === 'submit') {
-            if (!confirm('Submit this section?')) return;
+            if (!await GCP.ActionDialog.confirm('Submit section', { confirmLabel: 'Submit', confirmColor: '#3b82f6' })) return;
             await Api.post('/api/workflow/submit', { eventId: evId, sectionId });
           } else if (action === 'ask-to-return') {
-            const note = prompt('Reason for return request:');
+            const note = await GCP.ActionDialog.prompt('Request return', { placeholder: 'Reason for return request...', confirmLabel: 'Send request', confirmColor: '#a16207' });
             if (note === null) return;
             await Api.post('/api/workflow/ask-to-return', { eventId: evId, sectionId, note: note || undefined });
           } else if (action === 'push-section') {
-            if (!confirm('Push this section directly to the responsible department?')) return;
+            if (!await GCP.ActionDialog.confirm('Push section', { confirmLabel: 'Push section', confirmColor: '#6d28d9' })) return;
             await Api.post('/api/workflow/push-section', { eventId: evId, sectionId });
           } else if (action === 'pull-section') {
-            if (!confirm('Pull this section to yourself?')) return;
+            if (!await GCP.ActionDialog.confirm('Pull section', { confirmLabel: 'Pull section', confirmColor: '#7c3aed' })) return;
             await Api.post('/api/workflow/pull-section', { eventId: evId, sectionId });
           }
           loadSections(evId);

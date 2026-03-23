@@ -67,10 +67,10 @@
     authorName: user.fullName || user.username,
     sectionTitle: sectionInfo.sectionLabel,
     readOnly: !canEdit,
-    onCommentsClick(anchorId) {
+    async onCommentsClick(anchorId) {
       // anchorId is set when user selects text and adds a comment via context menu
       if (anchorId) {
-        const text = prompt('Enter your comment:');
+        const text = await GCP.ActionDialog.prompt('Add comment', { placeholder: 'Enter your comment...', required: true, confirmLabel: 'Add', confirmColor: '#3b82f6' });
         if (text && text.trim()) {
           Api.post('/api/workflow/comments', {
             eventId, sectionId, content: text.trim(), anchorId,
@@ -229,7 +229,7 @@
   }
 
   async function handleSubmit() {
-    if (!confirm('Submit this section to the next reviewer?')) return;
+    if (!await GCP.ActionDialog.confirm('Submit section', { confirmLabel: 'Submit', confirmColor: '#3b82f6' })) return;
     try {
       await Api.post('/api/workflow/save', {
         eventId, sectionId,
@@ -244,7 +244,8 @@
   }
 
   async function handleApprove() {
-    const comment = prompt('Optional approval comment:');
+    const comment = await GCP.ActionDialog.prompt('Approve section', { placeholder: 'Add a comment (optional)...', confirmLabel: 'Approve', confirmColor: '#16a34a' });
+    if (comment === null) return;
     try {
       await Api.post('/api/workflow/approve', {
         eventId, sectionId, comment: comment || undefined,
@@ -257,7 +258,7 @@
   }
 
   async function handleReturn() {
-    const comment = prompt('Return comment (required):');
+    const comment = await GCP.ActionDialog.prompt('Return section', { placeholder: 'Add a comment...', required: true, confirmLabel: 'Return', confirmColor: '#6d28d9' });
     if (!comment) return;
     try {
       await Api.post('/api/workflow/return', { eventId, sectionId, comment });
@@ -269,7 +270,7 @@
   }
 
   async function handleAskReturn() {
-    const note = prompt('Reason for return request:');
+    const note = await GCP.ActionDialog.prompt('Request return', { placeholder: 'Reason for return request...', required: true, confirmLabel: 'Send request', confirmColor: '#a16207' });
     if (!note) return;
     try {
       await Api.post('/api/workflow/ask-to-return', { eventId, sectionId, note });
@@ -280,7 +281,7 @@
   }
 
   async function handlePushSection() {
-    if (!confirm('Push this section directly to the responsible department?')) return;
+    if (!await GCP.ActionDialog.confirm('Push section', { confirmLabel: 'Push section', confirmColor: '#6d28d9' })) return;
     try {
       await Api.post('/api/workflow/push-section', { eventId, sectionId });
       showNotification('Section pushed successfully');
@@ -291,7 +292,7 @@
   }
 
   async function handlePullSection() {
-    if (!confirm('Pull this section to yourself?')) return;
+    if (!await GCP.ActionDialog.confirm('Pull section', { confirmLabel: 'Pull section', confirmColor: '#7c3aed' })) return;
     try {
       await Api.post('/api/workflow/pull-section', { eventId, sectionId });
       showNotification('Section pulled successfully');
