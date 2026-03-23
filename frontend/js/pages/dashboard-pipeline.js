@@ -226,7 +226,8 @@
       });
 
       let headerActions = '';
-      if (isDS || isDeputy || user.role === 'SUPERVISOR' || user.role === 'SUPER_COLLABORATOR') {
+      const isDeptA = grid.homeDepartmentId && user.departmentId === grid.homeDepartmentId;
+      if (isDS || isDeptA) {
         headerActions += `<button class="btn btn-outline" onclick="window.location.href='/pages/editor-all.html?event_id=${eventId}'">Open all Sections</button>`;
       }
       if (sectionsToApprove.length > 1) {
