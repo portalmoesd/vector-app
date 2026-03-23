@@ -2210,6 +2210,7 @@
       if (!TC_INPUT_TYPES.has(e.inputType) || !body.isContentEditable) return;
 
       pushUndo();
+      e.preventDefault();
 
       if (e.inputType.startsWith('delete') && e.getTargetRanges) {
         const sr = e.getTargetRanges();
@@ -2218,8 +2219,6 @@
           if (dr.collapsed && !dr.toString() && !dr.cloneContents().childNodes.length) return;
         }
       }
-
-      e.preventDefault();
 
       const staticRanges = e.getTargetRanges ? e.getTargetRanges() : [];
       const targetRange = staticRanges[0]
