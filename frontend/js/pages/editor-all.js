@@ -117,16 +117,9 @@
     `;
     sectionEl.appendChild(divider);
 
-    // ── Meta row (last updated + open in editor link) ──
-    const meta = document.createElement('div');
-    meta.className = 'doc-section-meta';
-    const updatedAt = content.updatedAt ? new Date(content.updatedAt).toLocaleString('en-GB', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
-    const updatedBy = content.updatedByName || '';
-    meta.innerHTML = `
-      ${updatedAt ? `<span>Last updated: ${updatedAt}${updatedBy ? ' &nbsp;by ' + escapeHtml(updatedBy) : ''}</span>` : ''}
-      <a href="/pages/editor.html?event_id=${eventId}&section_id=${s.sectionId}">Open in Editor &rarr;</a>
-    `;
-    sectionEl.appendChild(meta);
+    // Store last-updated info for dropdown display
+    s._updatedAt = content.updatedAt;
+    s._updatedByName = content.updatedByName;
 
     // ── Editor container ──
     const editorContainer = document.createElement('div');
@@ -217,6 +210,7 @@
       if (sec.canEdit && sec.editor.toolbarEl) {
         toolbarDock.innerHTML = '';
         toolbarDock.appendChild(sec.editor.toolbarEl);
+        groupToolbarButtons(sec.editor.toolbarEl);
       } else {
         toolbarDock.innerHTML = '';
       }
@@ -226,7 +220,70 @@
     Object.entries(navLinks).forEach(([id, link]) => {
       link.classList.toggle('active', parseInt(id) === sectionId);
     });
+
+    updateStatusBar();
   }
+
+  // ── Toolbar grouping (Word ribbon style) ──────────────────────────────
+
+  function groupToolbarButtons(toolbarEl) {
+    // Skip if already grouped
+    if (toolbarEl.querySelector('.tb-group')) return;
+    const groupNames = ['Font', 'Format', 'Paragraph', 'Insert', 'Review'];
+    const groups = [];
+    let currentGroup = [];
+    for (const child of [...toolbarEl.children]) {
+      if (child.classList.contains('gcp-re-sep')) {
+        if (currentGroup.length) groups.push(currentGroup);
+        currentGroup = [];
+        child.remove();
+      } else {
+        currentGroup.push(child);
+      }
+    }
+    if (currentGroup.length) groups.push(currentGroup);
+    groups.forEach((btns, i) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'tb-group';
+      btns.forEach(b => wrapper.appendChild(b));
+      const label = document.createElement('div');
+      label.className = 'tb-group-label';
+      label.textContent = groupNames[i] || '';
+      wrapper.appendChild(label);
+      toolbarEl.appendChild(wrapper);
+    });
+  }
+
+  // ── Status bar ────────────────────────────────────────────────────────
+
+  function updateStatusBar() {
+    const idx = grid.sections.findIndex(s => s.sectionId === focusedSectionId);
+    const secEl = document.getElementById('statusSection');
+    const wordsEl = document.getElementById('statusWords');
+    if (idx >= 0) {
+      secEl.textContent = `Section ${idx + 1} of ${grid.sections.length}`;
+    } else {
+      secEl.textContent = `${grid.sections.length} sections`;
+    }
+    const sec = focusedSectionId ? sections[focusedSectionId] : null;
+    if (sec && sec.editor.el) {
+      const text = sec.editor.el.textContent || '';
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      wordsEl.textContent = `${words} words`;
+    }
+  }
+
+  // Update word count on typing
+  Object.values(sections).forEach(sec => {
+    if (sec.editor.el) {
+      sec.editor.el.addEventListener('input', () => {
+        if (sec.sectionInfo.sectionId === focusedSectionId) updateStatusBar();
+      });
+    }
+  });
+
+  // Initial status bar
+  updateStatusBar();
 
   // Clear toolbar dock when clicking outside any editor
   document.addEventListener('mousedown', e => {
@@ -294,6 +351,15 @@
       drop.appendChild(item);
     }
 
+    // Last updated info (non-clickable)
+    if (s._updatedAt) {
+      const ts = new Date(s._updatedAt).toLocaleString('en-GB', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      const info = document.createElement('div');
+      info.className = 'section-action-item section-action-item--muted';
+      info.textContent = `Updated: ${ts}${s._updatedByName ? ' by ' + s._updatedByName : ''}`;
+      drop.appendChild(info);
+    }
+
     // Open in Editor
     addItem('Open in Editor', '', () => {
       window.location.href = `/pages/editor.html?event_id=${eventId}&section_id=${s.sectionId}`;
@@ -348,6 +414,7 @@
         htmlContent: sec.editor.getHtml(),
       });
       showNotification('Saved successfully');
+      document.getElementById('statusSaved').textContent = 'Saved';
     } catch (e) {
       alert('Save failed: ' + e.message);
     }
@@ -454,6 +521,7 @@
         })
       ));
       showNotification('All sections saved');
+      document.getElementById('statusSaved').textContent = 'Saved';
     } catch (e) {
       alert('Save failed: ' + e.message);
     } finally {

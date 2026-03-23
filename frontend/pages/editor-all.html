@@ -12,74 +12,110 @@
   <link rel="stylesheet" href="/css/apple.css" />
   <link rel="stylesheet" href="/css/editor.css" />
   <style>
-    /* ── Sticky section navigation ──────────────────────────────────────────── */
-    .section-nav {
-      position: sticky; top: 0; background: var(--bg-card);
-      border-bottom: 1px solid var(--border-color);
-      padding: 8px 16px; z-index: 20;
-      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
-    }
-    .section-nav a {
-      padding: 4px 12px; border-radius: 4px; font-size: 13px;
-      text-decoration: none; color: var(--text-secondary);
-      border: 1px solid var(--border-color); white-space: nowrap;
-      transition: background .15s, color .15s;
-    }
-    .section-nav a:hover { background: var(--bg-hover); color: var(--text-primary); }
-    .section-nav a.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
-
-    /* ── Top bar with Save All ──────────────────────────────────────────────── */
+    /* ── Compact top bar ──────────────────────────────────────────────────── */
     .ea-topbar {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 0 0 12px 0;
+      padding: 5px 16px;
+      background: #f1f3f5; border-bottom: 1px solid #d9dce0;
     }
-    .ea-topbar-actions { display: flex; gap: 8px; align-items: center; }
+    .ea-topbar .page-title {
+      font-size: 13px; font-weight: 600; color: #374151;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .ea-topbar-actions { display: flex; gap: 6px; align-items: center; }
 
-    /* ── Section divider ────────────────────────────────────────────────────── */
+    /* ── Tab-style section navigation ─────────────────────────────────────── */
+    .section-nav {
+      position: sticky; top: 0; z-index: 20;
+      background: #f1f3f5; border-bottom: 1px solid #d9dce0;
+      padding: 0 16px; display: flex; gap: 0;
+      flex-wrap: wrap; align-items: stretch;
+    }
+    .section-nav a {
+      padding: 7px 14px; font-size: 12px;
+      text-decoration: none; color: #6b7280;
+      border: none; border-bottom: 2px solid transparent;
+      border-radius: 0; white-space: nowrap;
+      transition: color .15s, background .15s, border-color .15s;
+      background: transparent;
+    }
+    .section-nav a:hover { color: #374151; background: rgba(0,0,0,.04); }
+    .section-nav a.active {
+      color: #1e293b; font-weight: 600;
+      border-bottom-color: #3b82f6; background: transparent;
+    }
+
+    /* ── Toolbar dock (sticky, ribbon-like) ───────────────────────────────── */
+    #toolbarDock {
+      position: sticky; top: 35px; z-index: 18;
+      min-height: 0;
+    }
+    #toolbarDock:empty { display: none; }
+    #toolbarDock .gcp-re-toolbar {
+      display: flex !important;
+      padding: 4px 12px 0 !important;
+      gap: 0 !important;
+      background: #f8f9fa !important;
+      border-bottom: 1px solid #d9dce0 !important;
+      flex-wrap: nowrap !important;
+      overflow-x: auto;
+    }
+
+    /* Toolbar groups — ribbon style */
+    .tb-group {
+      display: flex; align-items: center; gap: 1px;
+      padding: 0 8px 14px; position: relative;
+      border-right: 1px solid #e2e8f0;
+      flex-shrink: 0;
+    }
+    .tb-group:last-child { border-right: none; }
+    .tb-group-label {
+      position: absolute; bottom: 1px; left: 0; right: 0;
+      text-align: center; font-size: 9px;
+      color: #94a3b8; text-transform: uppercase;
+      letter-spacing: 0.3px; pointer-events: none;
+      font-weight: 500;
+    }
+
+    /* ── Section divider — Word-like section break ────────────────────────── */
     .doc-section-divider {
-      display: flex; align-items: center; gap: 10px;
-      padding: 12px 72px; margin: 0;
-      border-top: 2px solid var(--border-color);
-      background: var(--bg-secondary, #f8fafc);
-      font-size: 13px; color: var(--text-secondary);
+      width: 794px; margin: 0 auto;
+      padding: 10px 0 4px;
+      border-top: 1px dashed #c4c7cc;
+      background: transparent;
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; color: #8b8f96;
       position: relative;
     }
-    .doc-section:first-child .doc-section-divider { border-top: none; }
+    .doc-section:first-child .doc-section-divider {
+      border-top: none; padding-top: 0;
+    }
     .doc-section-divider h3 {
-      margin: 0; font-size: 0.95rem; font-weight: 700;
-      color: var(--text-primary); white-space: nowrap;
+      margin: 0; font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      color: #8b8f96; white-space: nowrap;
     }
-    .doc-section-meta {
-      padding: 4px 72px 0;
-      font-size: 12px; color: var(--text-muted);
-      display: flex; gap: 12px; align-items: center;
-      background: var(--bg-secondary, #f8fafc);
-    }
-    .doc-section-meta a {
-      color: var(--accent-blue); text-decoration: none; font-weight: 500;
-    }
-    .doc-section-meta a:hover { text-decoration: underline; }
     .doc-section-divider .section-actions {
-      margin-left: auto; display: flex; gap: 6px; align-items: center;
+      margin-left: auto; display: flex; gap: 4px; align-items: center;
     }
     .doc-section-divider .readonly-badge {
-      font-size: 11px; padding: 2px 8px; border-radius: 4px;
-      background: rgba(0,0,0,.06); color: var(--text-muted);
-      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10px; padding: 1px 6px; border-radius: 3px;
+      background: rgba(0,0,0,.06); color: #a0a4ab;
+      display: inline-flex; align-items: center; gap: 3px;
     }
 
-    /* ── Action dropdown ────────────────────────────────────────────────────── */
+    /* ── Action dropdown ──────────────────────────────────────────────────── */
     .section-action-trigger {
-      background: none; border: 1px solid var(--border-color); border-radius: 6px;
-      padding: 4px 8px; cursor: pointer; font-size: 16px; color: var(--text-secondary);
+      background: none; border: 1px solid #d1d5db; border-radius: 4px;
+      padding: 2px 6px; cursor: pointer; font-size: 14px; color: #9ca3af;
       line-height: 1; display: inline-flex; align-items: center;
     }
-    .section-action-trigger:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .section-action-trigger:hover { background: rgba(0,0,0,.05); color: #6b7280; }
     .section-action-dropdown {
-      position: absolute; right: 16px; top: 100%; margin-top: 4px;
+      position: absolute; right: 0; top: 100%; margin-top: 4px;
       background: var(--bg-card); border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
-      padding: 6px 0; z-index: 30; min-width: 180px;
+      border-radius: 8px; box-shadow: var(--shadow-lg);
+      padding: 4px 0; z-index: 30; min-width: 200px;
       animation: popoverFadeIn 0.15s ease;
     }
     @keyframes popoverFadeIn {
@@ -88,108 +124,127 @@
     }
     .section-action-item {
       display: flex; align-items: center; gap: 8px;
-      padding: 8px 16px; cursor: pointer; font-size: 13px; font-weight: 500;
+      padding: 7px 14px; cursor: pointer; font-size: 13px; font-weight: 500;
       color: var(--text-primary); white-space: nowrap;
     }
     .section-action-item:hover { background: var(--bg-hover); }
-    .section-action-item svg { flex-shrink: 0; }
+    .section-action-item--muted { color: #9ca3af; cursor: default; font-weight: 400; font-size: 11px; }
+    .section-action-item--muted:hover { background: transparent; }
     .section-action-item--blue { color: var(--accent-blue); }
     .section-action-item--green { color: #16a34a; }
     .section-action-item--red { color: #dc2626; }
     .section-action-item--orange { color: var(--accent-orange); }
     .section-action-item--purple { color: #7c3aed; }
 
-    /* ── Continuous document — seamless editors ──────────────────────────────── */
+    /* ── Document canvas — gray surround, centered white page ─────────────── */
     .doc-flow {
-      background: #fff; border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg); overflow: hidden;
+      background: #e8eaed;
+      border: none; border-radius: 0;
+      overflow: visible;
+      padding: 24px 0 64px;
+      flex: 1;
     }
-    /* Strip per-editor chrome so sections flow as one document */
+
+    /* Strip per-editor chrome */
     .doc-section .gcp-re-wrap {
       border: none !important; border-radius: 0 !important;
       box-shadow: none !important; overflow: visible !important;
     }
     .doc-section .gcp-re-content-row {
       background: transparent !important;
-      padding: 0 !important;
-      min-height: 0 !important;
-      gap: 0 !important;
-      justify-content: stretch !important;
+      padding: 0 !important; min-height: 0 !important;
+      gap: 0 !important; justify-content: center !important;
     }
+
+    /* Editor body = white paper page */
     .doc-section .gcp-re-body {
-      flex: 1 1 auto !important;
-      width: 100% !important;
-      min-width: 0 !important;
-      min-height: 60px !important;
-      max-width: none !important;
-      box-shadow: none !important;
+      flex: 0 0 794px !important;
+      width: 794px !important;
+      max-width: 794px !important;
+      min-height: 200px !important;
+      padding: 72px 96px !important;
+      background: #fff !important;
+      box-shadow: 0 1px 8px rgba(0,0,0,.10) !important;
       border-radius: 0 !important;
-      padding: 32px 72px !important;
       font-size: 15px;
     }
-    .doc-section .gcp-re-margin {
-      flex-shrink: 0;
-    }
-    /* Hide ALL per-section toolbars — the active one gets moved to #toolbarDock */
-    .doc-section .gcp-re-toolbar {
-      display: none !important;
-    }
-    /* When a toolbar is inside the sticky dock, show it */
-    #toolbarDock .gcp-re-toolbar {
-      display: flex !important;
-    }
-    #toolbarDock {
-      position: sticky; top: 42px; z-index: 18;
-      background: var(--bg-card);
-      border-bottom: 1px solid var(--border-color);
-      min-height: 0;
-    }
-    #toolbarDock:empty {
-      display: none;
-    }
-    /* Read-only sections subtle tint */
-    .doc-section--readonly .gcp-re-body {
-      background: #fafbfc !important;
-    }
-    /* Hide fullscreen button in continuous mode */
+    .doc-section .gcp-re-margin { flex-shrink: 0; }
+
+    /* Hide all per-section toolbars — active one moves to dock */
+    .doc-section .gcp-re-toolbar { display: none !important; }
+    /* Hide fullscreen button */
     .doc-section .gcp-re-btn-fullscreen { display: none !important; }
 
-    /* Save All button styling — reuse pill button pattern */
-    .btn-save-all {
-      padding: 6px 16px; background: none; color: var(--accent-blue);
-      border: 1.5px solid currentColor; border-radius: 999px;
-      cursor: pointer; font-size: 0.8rem; font-weight: 700;
-      display: inline-flex; align-items: center; gap: 5px;
-      font-family: var(--font-primary); letter-spacing: 0.3px;
+    /* Read-only sections subtle tint */
+    .doc-section--readonly .gcp-re-body {
+      background: #f9fafb !important;
     }
-    .btn-save-all:hover { color: #2563eb; }
+
+    /* ── Save All button ──────────────────────────────────────────────────── */
+    .btn-save-all {
+      padding: 4px 12px; background: none; color: var(--accent-blue);
+      border: 1.5px solid currentColor; border-radius: 4px;
+      cursor: pointer; font-size: 11px; font-weight: 700;
+      display: inline-flex; align-items: center; gap: 4px;
+      font-family: var(--font-primary); letter-spacing: 0.2px;
+    }
+    .btn-save-all:hover { color: #2563eb; background: rgba(59,130,246,.06); }
     .btn-save-all:disabled { opacity: 0.5; cursor: not-allowed; }
 
+    /* ── Status bar (Word-like) ───────────────────────────────────────────── */
+    .status-bar {
+      position: sticky; bottom: 0; z-index: 20;
+      background: #f1f3f5; border-top: 1px solid #d9dce0;
+      padding: 3px 16px;
+      display: flex; gap: 12px; align-items: center;
+      font-size: 11px; color: #6b7280;
+    }
+    .status-sep {
+      width: 1px; height: 12px; background: #d1d5db; flex-shrink: 0;
+    }
+
+    /* ── Responsive ───────────────────────────────────────────────────────── */
     @media (max-width: 980px) {
-      .section-nav { gap: 6px; padding: 6px 10px; }
-      .section-nav a { font-size: 11px; padding: 3px 8px; }
-      .doc-section-divider { padding: 8px 16px; flex-wrap: wrap; }
-      .doc-section-meta { padding: 4px 16px 0; }
-      .doc-section .gcp-re-body { padding: 24px 16px !important; }
-      .ea-topbar { flex-wrap: wrap; gap: 8px; }
+      .doc-flow { padding: 0; background: #fff; }
+      .doc-section .gcp-re-body {
+        flex: 1 1 auto !important; width: 100% !important;
+        max-width: none !important; padding: 24px 16px !important;
+        box-shadow: none !important;
+      }
+      .doc-section-divider { width: 100%; padding: 8px 16px; }
+      .section-nav { padding: 0 10px; }
+      .section-nav a { font-size: 11px; padding: 5px 10px; }
+      .ea-topbar { flex-wrap: wrap; gap: 6px; padding: 4px 10px; }
+      .status-bar { font-size: 10px; padding: 2px 10px; }
+      #toolbarDock .gcp-re-toolbar { flex-wrap: wrap !important; }
+      .tb-group { flex-wrap: wrap; padding-bottom: 2px; }
+      .tb-group-label { display: none; }
     }
   </style>
 </head>
 <body>
   <div class="layout">
     <aside class="sidebar"></aside>
-    <main class="main">
+    <main class="main" style="padding-top:0; display:flex; flex-direction:column; min-height:100vh;">
       <div class="ea-topbar">
         <div class="page-title" id="pageTitle">All Sections</div>
         <div class="ea-topbar-actions">
           <button class="btn-save-all" id="btnSaveAll">Save All</button>
-          <button class="btn btn-outline" id="btnBack">Back to Dashboard</button>
+          <button class="btn btn-outline" id="btnBack" style="font-size:11px;padding:4px 12px;border-radius:4px;">Back to Dashboard</button>
         </div>
       </div>
 
       <div class="section-nav" id="sectionNav"></div>
       <div id="toolbarDock"></div>
       <div class="doc-flow" id="docFlow"></div>
+
+      <div class="status-bar" id="statusBar">
+        <span id="statusSection"></span>
+        <span class="status-sep"></span>
+        <span id="statusWords">0 words</span>
+        <span class="status-sep"></span>
+        <span id="statusSaved"></span>
+      </div>
     </main>
   </div>
 
