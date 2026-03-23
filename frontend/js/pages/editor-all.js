@@ -109,13 +109,24 @@
     divider.className = 'doc-section-divider';
     divider.innerHTML = `
       <h3>${i + 1}. ${escapeHtml(s.sectionLabel)}</h3>
-      <span class="${statusClass(status)}" style="font-size:12px;">${statusLabel(status)}</span>
-      ${!canEdit ? '<span class="readonly-badge"><svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a4 4 0 0 0-4 4v3H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-1V5a4 4 0 0 0-4-4zm-2 4a2 2 0 1 1 4 0v3H6V5z"/></svg> Read-only</span>' : ''}
-      <span class="section-actions">
+      <span class="section-actions" style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+        <span class="${statusClass(status)}" style="font-size:12px;">${statusLabel(status)}</span>
+        ${!canEdit ? '<span class="readonly-badge"><svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a4 4 0 0 0-4 4v3H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-1V5a4 4 0 0 0-4-4zm-2 4a2 2 0 1 1 4 0v3H6V5z"/></svg> Read-only</span>' : ''}
         <button class="section-action-trigger" data-section-id="${s.sectionId}" title="Section actions">&#8942;</button>
       </span>
     `;
     sectionEl.appendChild(divider);
+
+    // ── Meta row (last updated + open in editor link) ──
+    const meta = document.createElement('div');
+    meta.className = 'doc-section-meta';
+    const updatedAt = content.updatedAt ? new Date(content.updatedAt).toLocaleString('en-GB', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+    const updatedBy = content.updatedByName || '';
+    meta.innerHTML = `
+      ${updatedAt ? `<span>Last updated: ${updatedAt}${updatedBy ? ' &nbsp;by ' + escapeHtml(updatedBy) : ''}</span>` : ''}
+      <a href="/pages/editor.html?event_id=${eventId}&section_id=${s.sectionId}">Open in Editor &rarr;</a>
+    `;
+    sectionEl.appendChild(meta);
 
     // ── Editor container ──
     const editorContainer = document.createElement('div');
