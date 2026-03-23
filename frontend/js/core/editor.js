@@ -1119,7 +1119,9 @@
           });
 
           groups.forEach(group => {
-            const anchor = body.querySelector(`[data-tc-id="${CSS.escape(group.ids[0])}"]`);
+            const firstEntry = group.entries[0];
+            const anchorAttr = firstEntry.kind === 'fmt' ? 'data-tc-fmt-id' : 'data-tc-id';
+            const anchor = body.querySelector(`[${anchorAttr}="${CSS.escape(group.ids[0])}"]`);
             const ideal = anchor ? anchor.getBoundingClientRect().top - mRect.top : 0;
             const top = noOverlap(ideal, slots);
             const b = document.createElement('div');
@@ -1562,6 +1564,13 @@
       afterRange.setStart(range.startContainer, range.startOffset);
       afterRange.setEnd(block, block.childNodes.length);
       const afterFrag = afterRange.extractContents();
+      // Reassign tc-id on split tracked nodes so each half has a unique ID
+      afterFrag.querySelectorAll('[data-tc-id]').forEach(el => {
+        const oldId = el.getAttribute('data-tc-id');
+        if (block.querySelector(`[data-tc-id="${CSS.escape(oldId)}"]`)) {
+          el.setAttribute('data-tc-id', newTcId());
+        }
+      });
       const newBlock = document.createElement(block.tagName.toLowerCase());
       // Copy alignment/style
       if (block.style.textAlign) newBlock.style.textAlign = block.style.textAlign;
