@@ -267,7 +267,9 @@
     .gcp-re-body th,.gcp-re-body td { border:1px solid #d1d5db; padding:6px 10px; font-size:14px; min-width:48px; vertical-align:top; }
     .gcp-re-body th { background:#f1f5f9; font-weight:700; text-align:left; }
     .gcp-re-body td:focus,.gcp-re-body th:focus { outline:2px solid #93c5fd; outline-offset:-1px; }
+    .gcp-re-btn--mobile-only { display:none; }
     @media (max-width: 820px) {
+      .gcp-re-btn--mobile-only { display:inline-flex; }
       .gcp-re-content-row { padding:16px 4px 40px; }
       .gcp-re-body { flex:1 1 auto; width:100% !important; min-width:0; padding:32px 20px; min-height:400px; }
       .gcp-re-wrap.tc-visible .gcp-re-margin,
@@ -884,7 +886,7 @@
     toolbar.appendChild(cmtBtn);
 
     const addCmtBtn = document.createElement('button');
-    addCmtBtn.type = 'button'; addCmtBtn.className = 'gcp-re-btn';
+    addCmtBtn.type = 'button'; addCmtBtn.className = 'gcp-re-btn gcp-re-btn--mobile-only';
     addCmtBtn.title = 'Add Comment (select text first)';
     addCmtBtn.setAttribute('aria-label', 'Add comment on selected text');
     addCmtBtn.innerHTML = '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true" style="flex-shrink:0"><path d="M14 1H2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h5.586l2.707 2.707a1 1 0 0 0 1.414 0L14 12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg><span style="font-size:11px;margin-left:2px;">+</span>';
