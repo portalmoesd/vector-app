@@ -2538,6 +2538,18 @@
         // Non-collapsed target with no text content → let browser handle
         if (dr && !dr.toString()) return;
 
+        // Delete inside own insertion → let browser handle natively.
+        // getTargetRanges() can return a range spanning the full <ins>;
+        // wrapRangeAsDeletion would deleteContents() on that entire range,
+        // wiping out the whole insertion.  Letting the browser handle it
+        // correctly deletes one character at a time.
+        if (dr && (type === 'deleteContentBackward' || type === 'deleteContentForward')) {
+          const selfIns = getSelfIns(dr.startContainer);
+          if (selfIns && selfIns.contains(dr.endContainer)) {
+            return;
+          }
+        }
+
         // Non-collapsed with text → falls through to wrapRangeAsDeletion below
       }
 
