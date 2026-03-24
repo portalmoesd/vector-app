@@ -1563,8 +1563,12 @@
         return true;
       }
       if (lastBr && lastBr.tagName === 'BR') lastBr.remove();
-      // Save cursor at end of prev
-      const cursorNode = prev.lastChild || prev;
+      // Save cursor at end of prev — walk to deepest text node
+      let cursorNode = prev.lastChild;
+      while (cursorNode && cursorNode.nodeType !== Node.TEXT_NODE && cursorNode.lastChild) {
+        cursorNode = cursorNode.lastChild;
+      }
+      if (!cursorNode) cursorNode = prev;
       const cursorOff = cursorNode.nodeType === Node.TEXT_NODE ? cursorNode.length : prev.childNodes.length;
       // Move children from block → prev
       while (block.firstChild) {
@@ -1586,7 +1590,12 @@
       const r = document.createRange();
       const lastBr = block.lastElementChild;
       if (lastBr && lastBr.tagName === 'BR') lastBr.remove();
-      const cursorNode = block.lastChild || block;
+      // Walk to deepest text node for accurate cursor placement
+      let cursorNode = block.lastChild;
+      while (cursorNode && cursorNode.nodeType !== Node.TEXT_NODE && cursorNode.lastChild) {
+        cursorNode = cursorNode.lastChild;
+      }
+      if (!cursorNode) cursorNode = block;
       const cursorOff = cursorNode.nodeType === Node.TEXT_NODE ? cursorNode.length : block.childNodes.length;
       while (next.firstChild) {
         if (next.firstChild.tagName === 'BR' && !next.firstChild.nextSibling) break;
@@ -1686,6 +1695,7 @@
       const tn = ins.firstChild;
       r.setStart(tn, tn.length); r.collapse(true);
       sel.removeAllRanges(); sel.addRange(r);
+      mergeAdjacentIns();
     }
 
     function insertTrackedParagraph() {
@@ -1793,13 +1803,17 @@
         if (color) el.style.color = color;
 
         // Convert style-based bold/italic/underline to semantic tags
-        if (isBold && !el.closest('b,strong') && !/^(B|STRONG)$/i.test(el.tagName)) {
+        // Check both ancestors (closest) and direct children to avoid nesting duplicates
+        if (isBold && !el.closest('b,strong') && !/^(B|STRONG)$/i.test(el.tagName)
+            && !el.querySelector(':scope > b, :scope > strong')) {
           wrapChildrenIn(el, 'b');
         }
-        if (isItalic && !el.closest('i,em') && !/^(I|EM)$/i.test(el.tagName)) {
+        if (isItalic && !el.closest('i,em') && !/^(I|EM)$/i.test(el.tagName)
+            && !el.querySelector(':scope > i, :scope > em')) {
           wrapChildrenIn(el, 'i');
         }
-        if (isUnderline && !el.closest('u') && el.tagName !== 'U') {
+        if (isUnderline && !el.closest('u') && el.tagName !== 'U'
+            && !el.querySelector(':scope > u')) {
           wrapChildrenIn(el, 'u');
         }
       }
@@ -1819,6 +1833,16 @@
       if (!sel || !sel.rangeCount) return;
       const range = sel.getRangeAt(0);
       const clean = sanitizeHtml(html);
+
+      // If pasted content has block elements, fall back to plain text
+      // to avoid invalid HTML (block elements inside inline <ins>)
+      if (clean.querySelector('p,div,h1,h2,h3,h4,h5,h6,ul,ol,li,blockquote,table')) {
+        const text = clean.textContent || '';
+        if (text) insertTracked(text);
+        return;
+      }
+
+      // Inline content only — safe to wrap in single <ins>
       const id = newTcId();
       const ins = document.createElement('ins');
       ins.setAttribute('data-tc-id', id);
@@ -2395,11 +2419,12 @@
       const type = e.inputType;
       const isDeleteOp = type.startsWith('delete');
 
-      // ── Delete: detect block-boundary merges & no-ops before pushing undo ──
+      // ── Delete: detect block-boundary merges & let browser handle simple deletes ──
       if (isDeleteOp) {
         const sr = e.getTargetRanges ? e.getTargetRanges() : [];
         const dr = sr.length > 0 ? staticToRange(sr[0]) : null;
 
+        // Collapsed target = single-char delete (not a selection)
         if (dr && dr.collapsed) {
           const sel = window.getSelection();
           const range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
@@ -2430,12 +2455,15 @@
             return;
           }
 
-          // Collapsed range with nothing to delete → silent no-op (no undo push)
-          if (!dr.toString() && !dr.cloneContents().childNodes.length) {
-            e.preventDefault();
-            return;
-          }
+          // Normal collapsed delete (single char in middle of text) →
+          // let browser handle natively, no preventDefault
+          return;
         }
+
+        // Non-collapsed target with no text content → let browser handle
+        if (dr && !dr.toString()) return;
+
+        // Non-collapsed with text → falls through to wrapRangeAsDeletion below
       }
 
       // ── Normal path: push undo, prevent default, dispatch ──
