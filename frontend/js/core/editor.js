@@ -495,7 +495,11 @@
         mark.style.setProperty('--tc-color',  color);
         mark.appendChild(range.extractContents());
         range.insertNode(mark);
+        // Restore selection over the formatted content so user can apply more formats
+        const newRange = document.createRange();
+        newRange.selectNodeContents(mark);
         sel.removeAllRanges();
+        sel.addRange(newRange);
       } catch (_) { /* DOM edge case — skip wrapping */ }
       updateTcBar();
     }
