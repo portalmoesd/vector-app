@@ -349,6 +349,7 @@
     const filesPanel = document.getElementById('filesPanel');
     if (filesPanel.style.display === 'none') {
       filesPanel.style.display = '';
+      filesPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       loadFiles();
     } else {
       filesPanel.style.display = 'none';
