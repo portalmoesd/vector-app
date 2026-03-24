@@ -216,12 +216,13 @@
     try {
       const doc = await Api.get(`/api/library/${eventId}/document`);
       showSectionSelectModal(doc, 'Export PDF', (sections) => {
+        const datePart = doc.endedAt ? ' | ' + new Date(doc.endedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '.') : '';
         const html = `
-          <div style="font-family: Arial, sans-serif; padding: 20px;">
-            <h1 style="margin-bottom: 4px;">${escapeHtml(doc.title)}</h1>
-            <p style="color: #666; margin-bottom: 24px;">${escapeHtml(doc.countryName)} | ${doc.language}</p>
+          <div style="font-family: Arial, sans-serif; font-size: 11pt; padding: 20px;">
+            <p style="font-size: 13pt; font-weight: bold; margin-bottom: 4px;">${escapeHtml(doc.title)}</p>
+            <p style="color: #666; font-size: 9pt; margin-bottom: 24px;">${escapeHtml(doc.countryName)} | ${doc.language}${datePart}</p>
             ${sections.map(s => `
-              <h2 style="border-bottom: 1px solid #ccc; padding-bottom: 4px;">${escapeHtml(s.title)}</h2>
+              <p style="font-size: 12pt; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 4px;">${escapeHtml(s.title)}</p>
               <div>${stripTrackChanges(s.htmlContent || '')}</div>
             `).join('<hr style="margin: 20px 0;">')}
           </div>
