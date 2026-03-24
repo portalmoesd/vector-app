@@ -1,0 +1,376 @@
+/**
+ * GCP Word Export — converts editor HTML (with track-change markup) to .docx
+ * with native Word revision marks (accept/reject in Word).
+ *
+ * Depends on: docx (UMD bundle → window.docx)
+ * Exposes: window.GCP.exportDocx(title, sections) → Promise<void> (triggers download)
+ *
+ * Track-change mapping:
+ * <ins data-tc-id data-tc-author data-tc-time> → InsertedTextRun
+ * <del data-tc-id data-tc-author data-tc-time> → DeletedTextRun
+ * <span data-tc-fmt-id ...> → TextRun (visual only — Word
+ * format revisions are not fully supported by the docx lib, so we render the
+ * current formatted text as a normal run with the formatting applied)
+ */
+
+(function () {
+  'use strict';
+
+  if (!window.docx) {
+    console.warn('[docx-export] docx library not loaded');
+    return;
+  }
+
+  const {
+    Document, Packer, Paragraph, TextRun, HeadingLevel,
+    InsertedTextRun, DeletedTextRun,
+    AlignmentType, UnderlineType,
+    convertInchesToTwip,
+  } = window.docx;
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  /** Parse a CSS rgb()/hex colour to a 6-char hex string (no #). */
+  function toHex6(raw) {
+    if (!raw) return undefined;
+    raw = raw.trim();
+    if (raw.startsWith('#')) {
+      const h = raw.slice(1);
+      if (h.length === 3) return h.split('').map(c => c + c).join('');
+      if (h.length >= 6) return h.slice(0, 6);
+    }
+    const m = raw.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (m) {
+      return [m[1], m[2], m[3]].map(n => Number(n).toString(16).padStart(2, '0')).join('');
+    }
+    return undefined;
+  }
+
+  /** Convert pt string → half-points (Word internal unit). */
+  function ptToHalfPt(pt) { return Math.round(Number(pt) * 2); }
+
+  // ── Inline formatting extractor ────────────────────────────────────────────
+
+  /** Walk up the DOM from `node` gathering inline style. */
+  function getInlineFormat(node) {
+    const fmt = {};
+    let el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+    while (el && !el.classList?.contains('gcp-re-body') && el.tagName !== 'BODY') {
+      const tag = el.tagName;
+      if (tag === 'B' || tag === 'STRONG') fmt.bold = true;
+      if (tag === 'I' || tag === 'EM') fmt.italics = true;
+      if (tag === 'U') fmt.underline = { type: UnderlineType.SINGLE };
+      if (tag === 'S' || tag === 'STRIKE' || tag === 'DEL') fmt.strike = true;
+      if (tag === 'SUP') fmt.superScript = true;
+      if (tag === 'SUB') fmt.subScript = true;
+
+      const style = el.style;
+      if (style) {
+        if (style.fontWeight === 'bold' || Number(style.fontWeight) >= 700) fmt.bold = true;
+        if (style.fontStyle === 'italic') fmt.italics = true;
+        if (style.textDecoration && style.textDecoration.includes('underline'))
+          fmt.underline = { type: UnderlineType.SINGLE };
+        if (style.textDecoration && style.textDecoration.includes('line-through'))
+          fmt.strike = true;
+        if (style.fontFamily) fmt.font = { name: style.fontFamily.split(',')[0].replace(/['\"]/g, '').trim() };
+        if (style.fontSize) {
+          const ptMatch = style.fontSize.match(/(\d+\.?\d*)pt/);
+          if (ptMatch) fmt.size = ptToHalfPt(ptMatch[1]);
+          const pxMatch = style.fontSize.match(/(\d+\.?\d*)px/);
+          if (pxMatch) fmt.size = ptToHalfPt(Number(pxMatch[1]) * 0.75);
+        }
+        const clr = style.color;
+        if (clr) { const h = toHex6(clr); if (h) fmt.color = h; }
+      }
+      el = el.parentElement;
+    }
+    return fmt;
+  }
+
+  // ── Node walker ────────────────────────────────────────────────────────────
+
+  /** Recursively collect docx TextRun / InsertedTextRun / DeletedTextRun from a DOM subtree. */
+  function walkInline(node, runs) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent;
+      if (!text) return;
+      const fmt = getInlineFormat(node);
+
+      // Check if inside a tracked insertion
+      const insEl = closestTag(node, 'INS');
+      if (insEl && insEl.hasAttribute('data-tc-id')) {
+        runs.push(new InsertedTextRun({
+          text,
+          ...fmt,
+          id: revisionId(insEl),
+          author: insEl.getAttribute('data-tc-author') || 'Unknown',
+          date: insEl.getAttribute('data-tc-time') || new Date().toISOString(),
+        }));
+        return;
+      }
+
+      // Check if inside a tracked deletion
+      const delEl = closestTag(node, 'DEL');
+      if (delEl && delEl.hasAttribute('data-tc-id')) {
+        runs.push(new DeletedTextRun({
+          text,
+          ...fmt,
+          id: revisionId(delEl),
+          author: delEl.getAttribute('data-tc-author') || 'Unknown',
+          date: delEl.getAttribute('data-tc-time') || new Date().toISOString(),
+        }));
+        return;
+      }
+
+      // Normal text
+      runs.push(new TextRun({ text, ...fmt }));
+      return;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    const tag = node.tagName;
+
+    // Skip hidden del elements that have no tc-id (shouldn't happen, but safe)
+    if (tag === 'DEL' && !node.hasAttribute('data-tc-id')) return;
+
+    // For ins/del with tc-id, we still walk children (the text nodes inside)
+    // For all other elements, just recurse
+    for (const child of node.childNodes) {
+      walkInline(child, runs);
+    }
+  }
+
+  function closestTag(node, tagName) {
+    let el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+    while (el) {
+      if (el.tagName === tagName) return el;
+      if (el.classList?.contains('gcp-re-body') || el.tagName === 'BODY') return null;
+      el = el.parentElement;
+    }
+    return null;
+  }
+
+  // Keep a monotonic revision counter so each tc gets a unique numeric id.
+  let _revCounter = 0;
+  const _revMap = {};
+  function revisionId(el) {
+    const tcId = el.getAttribute('data-tc-id') || el.getAttribute('data-tc-fmt-id') || '';
+    if (_revMap[tcId] !== undefined) return _revMap[tcId];
+    _revMap[tcId] = _revCounter++;
+    return _revMap[tcId];
+  }
+
+  // ── Block-level parser ─────────────────────────────────────────────────────
+
+  /** Detect alignment from a block element. */
+  function getAlignment(el) {
+    const ta = el.style?.textAlign;
+    if (ta === 'center') return AlignmentType.CENTER;
+    if (ta === 'right') return AlignmentType.RIGHT;
+    if (ta === 'justify') return AlignmentType.BOTH;
+    return undefined;
+  }
+
+  /** Convert an element and its children into an array of docx Paragraph objects. */
+  function parseBlock(el, listLevel) {
+    const paragraphs = [];
+    const tag = el.tagName;
+
+    // Headings
+    if (tag === 'H1') {
+      const runs = []; walkInline(el, runs);
+      paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: runs, alignment: getAlignment(el) }));
+      return paragraphs;
+    }
+    if (tag === 'H2') {
+      const runs = []; walkInline(el, runs);
+      paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: runs, alignment: getAlignment(el) }));
+      return paragraphs;
+    }
+    if (tag === 'H3') {
+      const runs = []; walkInline(el, runs);
+      paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_3, children: runs, alignment: getAlignment(el) }));
+      return paragraphs;
+    }
+    if (tag === 'H4') {
+      const runs = []; walkInline(el, runs);
+      paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_4, children: runs, alignment: getAlignment(el) }));
+      return paragraphs;
+    }
+
+    // Lists
+    if (tag === 'UL' || tag === 'OL') {
+      const isOrdered = tag === 'OL';
+      for (const li of el.children) {
+        if (li.tagName !== 'LI') continue;
+        // Collect inline runs from LI (excluding nested lists)
+        const runs = [];
+        for (const child of li.childNodes) {
+          if (child.nodeType === Node.ELEMENT_NODE && (child.tagName === 'UL' || child.tagName === 'OL')) continue;
+          walkInline(child, runs);
+        }
+        if (runs.length) {
+          const bulletOpts = isOrdered
+            ? { numbering: { reference: 'default-numbering', level: listLevel || 0 } }
+            : { bullet: { level: listLevel || 0 } };
+          paragraphs.push(new Paragraph({ children: runs, ...bulletOpts, alignment: getAlignment(li) }));
+        }
+        // Recurse into nested lists
+        for (const child of li.children) {
+          if (child.tagName === 'UL' || child.tagName === 'OL') {
+            paragraphs.push(...parseBlock(child, (listLevel || 0) + 1));
+          }
+        }
+      }
+      return paragraphs;
+    }
+
+    // Table — flatten to paragraphs (Word tables require more complex setup)
+    if (tag === 'TABLE') {
+      for (const row of el.querySelectorAll('tr')) {
+        const runs = [];
+        const cells = row.querySelectorAll('td, th');
+        cells.forEach((cell, i) => {
+          if (i > 0) runs.push(new TextRun({ text: '\t' }));
+          walkInline(cell, runs);
+        });
+        if (runs.length) paragraphs.push(new Paragraph({ children: runs }));
+      }
+      return paragraphs;
+    }
+
+    // BR
+    if (tag === 'BR') {
+      paragraphs.push(new Paragraph({ children: [] }));
+      return paragraphs;
+    }
+
+    // Generic block: P, DIV, BLOCKQUOTE, etc.
+    if (tag === 'P' || tag === 'DIV' || tag === 'BLOCKQUOTE' || tag === 'SECTION' || tag === 'ARTICLE') {
+      // If it only contains inline content, make one paragraph
+      const hasBlockChildren = Array.from(el.children).some(c =>
+        /^(P|DIV|H[1-6]|UL|OL|TABLE|BLOCKQUOTE|SECTION|ARTICLE)$/.test(c.tagName)
+      );
+      if (!hasBlockChildren) {
+        const runs = []; walkInline(el, runs);
+        if (runs.length) paragraphs.push(new Paragraph({ children: runs, alignment: getAlignment(el) }));
+        return paragraphs;
+      }
+      // Mixed block + inline: walk children individually
+      for (const child of el.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE) {
+          const text = child.textContent.trim();
+          if (text) paragraphs.push(new Paragraph({ children: [new TextRun({ text })] }));
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          paragraphs.push(...parseBlock(child, listLevel));
+        }
+      }
+      return paragraphs;
+    }
+
+    // Fallback: treat as inline content in a paragraph
+    const runs = []; walkInline(el, runs);
+    if (runs.length) paragraphs.push(new Paragraph({ children: runs }));
+    return paragraphs;
+  }
+
+  // ── HTML string → docx Paragraphs ─────────────────────────────────────────
+
+  function htmlToParagraphs(html) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html || '';
+    const paras = [];
+    for (const child of wrapper.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        const text = child.textContent.trim();
+        if (text) paras.push(new Paragraph({ children: [new TextRun({ text })] }));
+      } else if (child.nodeType === Node.ELEMENT_NODE) {
+        paras.push(...parseBlock(child, 0));
+      }
+    }
+    return paras;
+  }
+
+  // ── Main export function ───────────────────────────────────────────────────
+
+  /**
+   * @param {string} title Document title
+   * @param {Array<{sectionLabel:string, htmlContent:string}>} sections
+   */
+  async function exportDocx(title, sections) {
+    // Reset revision counter for each export
+    _revCounter = 0;
+    for (const k in _revMap) delete _revMap[k];
+
+    const children = [];
+
+    // Title
+    children.push(new Paragraph({
+      heading: HeadingLevel.TITLE,
+      children: [new TextRun({ text: title || 'Document', bold: true })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 300 },
+    }));
+
+    // Sections
+    for (const sec of sections) {
+      // Section heading
+      children.push(new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        children: [new TextRun({ text: sec.sectionLabel || 'Section', bold: true })],
+        spacing: { before: 400, after: 200 },
+      }));
+
+      // Section content
+      const paras = htmlToParagraphs(sec.htmlContent);
+      children.push(...paras);
+    }
+
+    const doc = new Document({
+      numbering: {
+        config: [{
+          reference: 'default-numbering',
+          levels: Array.from({ length: 9 }, (_, i) => ({
+            level: i,
+            format: 'decimal',
+            text: `%${i + 1}.`,
+            alignment: AlignmentType.START,
+            style: { paragraph: { indent: { left: convertInchesToTwip(0.5 * (i + 1)), hanging: convertInchesToTwip(0.25) } } },
+          })),
+        }],
+      },
+      sections: [{
+        properties: {
+          page: {
+            margin: {
+              top: convertInchesToTwip(1),
+              right: convertInchesToTwip(1),
+              bottom: convertInchesToTwip(1),
+              left: convertInchesToTwip(1),
+            },
+          },
+        },
+        children,
+      }],
+    });
+
+    const blob = await Packer.toBlob(doc);
+
+    // Trigger download
+    const filename = (title || 'document')
+      .trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-\.]/g, '').slice(0, 80) + '.docx';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+  }
+
+  // Expose
+  window.GCP = window.GCP || {};
+  window.GCP.exportDocx = exportDocx;
+
+})();
