@@ -48,7 +48,7 @@ router.get('/:eventId/document', requireAuth, async (req, res) => {
     const eventId = req.params.eventId;
 
     const { rows: [event] } = await db.query(
-      `SELECT e.title, e.language, c.name_en AS country_name
+      `SELECT e.title, e.language, e.ended_at, c.name_en AS country_name
        FROM events e JOIN countries c ON c.id = e.country_id
        WHERE e.id = $1 AND (e.status = 'COMPLETED' OR e.status = 'ARCHIVED')`,
       [eventId]
@@ -69,6 +69,7 @@ router.get('/:eventId/document', requireAuth, async (req, res) => {
       title: event.title,
       language: event.language,
       countryName: event.country_name,
+      endedAt: event.ended_at,
       sections: sections.map(s => ({
         id: s.id,
         title: s.title,

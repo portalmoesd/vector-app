@@ -297,21 +297,43 @@
   /**
    * @param {string} title Document title
    * @param {Array<{sectionLabel:string, htmlContent:string}>} sections
+   * @param {object} [meta] Optional metadata: { countryName, endedAt }
    */
-  async function exportDocx(title, sections) {
+  async function exportDocx(title, sections, meta) {
     // Reset revision counter for each export
     _revCounter = 0;
     for (const k in _revMap) delete _revMap[k];
 
     const children = [];
 
-    // Title
+    // Title — same level as section headings (HEADING_1)
     children.push(new Paragraph({
-      heading: HeadingLevel.TITLE,
+      heading: HeadingLevel.HEADING_1,
       children: [new TextRun({ text: title || 'Document', bold: true })],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 300 },
+      spacing: { after: 80 },
     }));
+
+    // Country and approval date (two sizes smaller than body text)
+    const metaParts = [];
+    if (meta && meta.countryName) metaParts.push(meta.countryName);
+    if (meta && meta.endedAt) {
+      const d = new Date(meta.endedAt);
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      metaParts.push(dd + '.' + mm + '.' + yyyy);
+    }
+    if (metaParts.length) {
+      children.push(new Paragraph({
+        children: metaParts.map((text, i) => {
+          const runs = [];
+          if (i > 0) runs.push(new TextRun({ text: '\n', size: 18 }));
+          runs.push(new TextRun({ text, size: 18 }));
+          return runs;
+        }).flat(),
+        spacing: { after: 300 },
+      }));
+    }
 
     // Sections
     for (const sec of sections) {
