@@ -58,7 +58,10 @@ function downloadFileAuth(fileId, fileName) {
   fetch('/api/workflow/files/download?id=' + fileId, {
     headers: { 'Authorization': 'Bearer ' + Api.getToken() }
   })
-    .then(r => { if (!r.ok) throw new Error('Download failed'); return r.blob(); })
+    .then(r => {
+      if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Download failed'); });
+      return r.blob();
+    })
     .then(blob => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
