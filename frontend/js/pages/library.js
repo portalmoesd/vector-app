@@ -258,7 +258,7 @@
       showSectionSelectModal(doc, 'Export Word', async (sections) => {
         try {
           const mapped = sections.map(s => ({ sectionLabel: s.title, htmlContent: s.htmlContent }));
-          await GCP.exportDocx(doc.title, mapped);
+          await window.GCP.exportDocx(doc.title, mapped);
         } catch (err) {
           toast.error('Word export failed: ' + err.message);
         }
