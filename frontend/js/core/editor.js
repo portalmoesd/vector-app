@@ -479,6 +479,16 @@
         : (document.queryCommandValue(cmd) || '');
       if (cmd === 'fontSize') applyFontSizePt(value);
       else execCmd(cmd, value !== undefined ? value : null);
+      // Word behaviour: formatting on already-inserted (tracked) text is part
+      // of the insertion — no separate format-change marker.
+      const _closestIns = (node) => {
+        const el = node && (node.nodeType === 1 ? node : node.parentElement);
+        return el ? el.closest('ins[data-tc-id]') : null;
+      };
+      if (_closestIns(sel.anchorNode) && _closestIns(sel.focusNode)) {
+        updateTcBar();
+        return;
+      }
       // After execCommand the browser maintains the selection over the newly
       // formatted nodes.  Use THIS (post-execCommand) range — not a stale
       // pre-execCommand clone whose nodes were restructured by the command.
@@ -971,6 +981,7 @@
         entries.push({
           id,
           kind:    isFmt ? 'fmt' : el.tagName.toLowerCase(),
+          isPara:  el.hasAttribute('data-tc-para'),
           fmtCmd:  isFmt ? (el.getAttribute('data-tc-fmt-cmd') || '') : '',
           author:  el.getAttribute('data-tc-author')   || 'Unknown',
           initials:el.getAttribute('data-tc-initials') || '?',
@@ -1119,7 +1130,17 @@
             const t = entry.time ? new Date(entry.time).getTime() : 0;
             const block = entryBlock(entry);
             const last = groups[groups.length - 1];
-            if (last && last.author === entry.author && Math.abs(t - last.lastT) < 60000 && last.blockEl === block) {
+            // Group same-author entries within 60s.  For consecutive insertions,
+            // relax the same-block requirement so a single paste spanning multiple
+            // paragraphs collapses into one card (matching Word behaviour).
+            const sameAuthorTime = last && last.author === entry.author && Math.abs(t - last.lastT) < 60000;
+            const sameBlock = last && last.blockEl === block;
+            const allInsertions = last && last.entries.every(e => e.kind === 'ins') && entry.kind === 'ins';
+            // Don't group format changes with text changes — they are separate actions
+            const lastIsFmt = last && last.entries[0].kind === 'fmt';
+            const thisIsFmt = entry.kind === 'fmt';
+            const actionTypeMatch = lastIsFmt === thisIsFmt;
+            if (sameAuthorTime && actionTypeMatch && (sameBlock || allInsertions)) {
               last.ids.push(entry.id);
               last.entries.push(entry);
               last.lastT = t;
@@ -1148,13 +1169,14 @@
             const snippetLines = allTextEntries.slice(0, 2).map(e => {
               const sign = e.kind === 'ins' ? '+' : '−';
               const cls  = e.kind === 'ins' ? 'gcp-re-snippet-ins' : 'gcp-re-snippet-del';
-              const txt  = e.text.length > 38 ? e.text.slice(0, 38) + '…' : e.text;
+              const txt  = e.isPara ? '¶' : (e.text.length > 38 ? e.text.slice(0, 38) + '…' : e.text);
               return `<div class="gcp-re-snippet ${cls}">${sign} ${escHtml(txt)}</div>`;
             }).join('');
             const snippetLinesExpanded = allTextEntries.map(e => {
               const sign = e.kind === 'ins' ? '+' : '−';
               const cls  = e.kind === 'ins' ? 'gcp-re-snippet-ins' : 'gcp-re-snippet-del';
-              return `<div class="gcp-re-snippet gcp-re-snippet--wrap ${cls}">${sign} ${escHtml(e.text)}</div>`;
+              const txt = e.isPara ? '¶' : e.text;
+              return `<div class="gcp-re-snippet gcp-re-snippet--wrap ${cls}">${sign} ${escHtml(txt)}</div>`;
             }).join('');
             b.innerHTML = `
               <div class="gcp-re-balloon-header">
@@ -1358,6 +1380,8 @@
 
     function acceptChange(id) {
       body.querySelectorAll(`del[data-tc-id="${CSS.escape(id)}"]`).forEach(el => el.remove());
+      // Paragraph-mark insertions: just remove the marker (split is permanent)
+      body.querySelectorAll(`ins[data-tc-id="${CSS.escape(id)}"][data-tc-para]`).forEach(el => el.remove());
       body.querySelectorAll(`ins[data-tc-id="${CSS.escape(id)}"]`).forEach(el => {
         while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
         el.remove();
@@ -1370,6 +1394,21 @@
     }
 
     function rejectChange(id) {
+      // Handle paragraph-mark rejections: merge the next block back
+      body.querySelectorAll(`ins[data-tc-id="${CSS.escape(id)}"][data-tc-para]`).forEach(el => {
+        const block = el.parentElement;
+        el.remove();
+        if (block) {
+          const next = block.nextElementSibling;
+          if (next && /^(P|H[1-6]|DIV|LI|BLOCKQUOTE)$/i.test(next.tagName)) {
+            // Remove placeholder <br> if block ends with one and next has content
+            const lastBr = block.lastElementChild;
+            if (lastBr && lastBr.tagName === 'BR' && next.textContent.trim()) lastBr.remove();
+            while (next.firstChild) block.appendChild(next.firstChild);
+            next.remove();
+          }
+        }
+      });
       body.querySelectorAll(`ins[data-tc-id="${CSS.escape(id)}"]`).forEach(el => el.remove());
       body.querySelectorAll(`del[data-tc-id="${CSS.escape(id)}"]`).forEach(el => {
         while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
@@ -1381,6 +1420,7 @@
 
     function acceptAllChanges() {
       body.querySelectorAll('del[data-tc-id]').forEach(el => el.remove());
+      body.querySelectorAll('ins[data-tc-id][data-tc-para]').forEach(el => el.remove());
       body.querySelectorAll('ins[data-tc-id]').forEach(el => {
         while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
         el.remove();
@@ -1393,6 +1433,20 @@
     }
 
     function rejectAllChanges() {
+      // Reject paragraph marks first (merge blocks back) before removing other insertions
+      body.querySelectorAll('ins[data-tc-id][data-tc-para]').forEach(el => {
+        const block = el.parentElement;
+        el.remove();
+        if (block) {
+          const next = block.nextElementSibling;
+          if (next && /^(P|H[1-6]|DIV|LI|BLOCKQUOTE)$/i.test(next.tagName)) {
+            const lastBr = block.lastElementChild;
+            if (lastBr && lastBr.tagName === 'BR' && next.textContent.trim()) lastBr.remove();
+            while (next.firstChild) block.appendChild(next.firstChild);
+            next.remove();
+          }
+        }
+      });
       body.querySelectorAll('ins[data-tc-id]').forEach(el => el.remove());
       body.querySelectorAll('del[data-tc-id]').forEach(el => {
         while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
@@ -1409,6 +1463,7 @@
     function getCleanHtml() {
       const clone = body.cloneNode(true);
       clone.querySelectorAll('del[data-tc-id]').forEach(el => el.remove());
+      clone.querySelectorAll('ins[data-tc-id][data-tc-para]').forEach(el => el.remove());
       clone.querySelectorAll('ins[data-tc-id]').forEach(el => {
         while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
         el.remove();
@@ -1751,6 +1806,13 @@
         newBlock.innerHTML = '<br>';
       }
       if (!block.textContent.trim() && !block.querySelector('br')) block.innerHTML = '<br>';
+      // Track the paragraph break as an insertion (Word shows ¶ marks)
+      const paraIns = document.createElement('ins');
+      paraIns.setAttribute('data-tc-id', newTcId());
+      paraIns.setAttribute('data-tc-para', 'true');
+      applyAuthorAttrs(paraIns);
+      paraIns.textContent = '\n';
+      block.appendChild(paraIns);
       block.parentNode.insertBefore(newBlock, block.nextSibling);
       const r = document.createRange();
       r.setStart(newBlock, 0); r.collapse(true);
