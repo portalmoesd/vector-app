@@ -2538,15 +2538,48 @@
         // Non-collapsed target with no text content → let browser handle
         if (dr && !dr.toString()) return;
 
-        // Delete inside own insertion → let browser handle natively.
-        // getTargetRanges() can return a range spanning the full <ins>;
-        // wrapRangeAsDeletion would deleteContents() on that entire range,
-        // wiping out the whole insertion.  Letting the browser handle it
-        // correctly deletes one character at a time.
+        // Single-char delete inside an <ins> element.
+        // getTargetRanges() can return a range spanning the FULL <ins>;
+        // falling through would delete / wrap the entire insertion.
         if (dr && (type === 'deleteContentBackward' || type === 'deleteContentForward')) {
-          const selfIns = getSelfIns(dr.startContainer);
-          if (selfIns && selfIns.contains(dr.endContainer)) {
-            return;
+          const drNode = dr.startContainer.nodeType === Node.ELEMENT_NODE
+            ? dr.startContainer : dr.startContainer.parentElement;
+          const insEl = drNode ? drNode.closest('ins[data-tc-id]') : null;
+
+          if (insEl && insEl.contains(dr.endContainer)) {
+            // Own insertion → let browser delete natively (no tracking needed)
+            if (insEl.getAttribute('data-tc-author') === tc.authorName) {
+              return;
+            }
+
+            // Other user's insertion → track-delete exactly ONE character.
+            // Build a 1-char range from the caret instead of trusting
+            // getTargetRanges(), which may span the whole <ins>.
+            const sel = window.getSelection();
+            const caret = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+            if (caret && caret.collapsed && caret.startContainer.nodeType === Node.TEXT_NODE) {
+              const txt = caret.startContainer;
+              const off = caret.startOffset;
+              let oneChar = null;
+              if (type === 'deleteContentBackward' && off > 0) {
+                oneChar = document.createRange();
+                oneChar.setStart(txt, off - 1);
+                oneChar.setEnd(txt, off);
+              } else if (type === 'deleteContentForward' && off < txt.length) {
+                oneChar = document.createRange();
+                oneChar.setStart(txt, off);
+                oneChar.setEnd(txt, off + 1);
+              }
+              if (oneChar) {
+                pushUndo();
+                e.preventDefault();
+                wrapRangeAsDeletion(oneChar, false);
+                ensureBodyHasParagraph();
+                updateTcBar();
+                return;
+              }
+              // At element boundary — fall through to normal path
+            }
           }
         }
 
