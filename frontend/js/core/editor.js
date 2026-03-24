@@ -474,32 +474,36 @@
         execCmd(cmd, value !== undefined ? value : null);
         return;
       }
-      const range = sel.getRangeAt(0).cloneRange();
       const oldVal = FMT_TOGGLE.has(cmd)
         ? String(document.queryCommandState(cmd))
         : (document.queryCommandValue(cmd) || '');
       if (cmd === 'fontSize') applyFontSizePt(value);
       else execCmd(cmd, value !== undefined ? value : null);
+      // After execCommand the browser maintains the selection over the newly
+      // formatted nodes.  Use THIS (post-execCommand) range — not a stale
+      // pre-execCommand clone whose nodes were restructured by the command.
       try {
-        sel.removeAllRanges(); sel.addRange(range);
-        const id = newTcId();
-        const [color] = TC_PALETTE[authorColorIdx(tc.authorName)];
-        const mark = document.createElement('span');
-        mark.setAttribute('data-tc-fmt-id',  id);
-        mark.setAttribute('data-tc-fmt-cmd', cmd);
-        mark.setAttribute('data-tc-fmt-old', oldVal);
-        if (value !== undefined && value !== null) mark.setAttribute('data-tc-fmt-val', String(value));
-        mark.setAttribute('data-tc-author',   tc.authorName);
-        mark.setAttribute('data-tc-initials', getInitials(tc.authorName));
-        mark.setAttribute('data-tc-time',     new Date().toISOString());
-        mark.style.setProperty('--tc-color',  color);
-        mark.appendChild(range.extractContents());
-        range.insertNode(mark);
-        // Restore selection over the formatted content so user can apply more formats
-        const newRange = document.createRange();
-        newRange.selectNodeContents(mark);
-        sel.removeAllRanges();
-        sel.addRange(newRange);
+        if (sel.rangeCount && !sel.isCollapsed) {
+          const range = sel.getRangeAt(0);
+          const id = newTcId();
+          const [color] = TC_PALETTE[authorColorIdx(tc.authorName)];
+          const mark = document.createElement('span');
+          mark.setAttribute('data-tc-fmt-id',  id);
+          mark.setAttribute('data-tc-fmt-cmd', cmd);
+          mark.setAttribute('data-tc-fmt-old', oldVal);
+          if (value !== undefined && value !== null) mark.setAttribute('data-tc-fmt-val', String(value));
+          mark.setAttribute('data-tc-author',   tc.authorName);
+          mark.setAttribute('data-tc-initials', getInitials(tc.authorName));
+          mark.setAttribute('data-tc-time',     new Date().toISOString());
+          mark.style.setProperty('--tc-color',  color);
+          mark.appendChild(range.extractContents());
+          range.insertNode(mark);
+          // Restore selection over the formatted content
+          const nr = document.createRange();
+          nr.selectNodeContents(mark);
+          sel.removeAllRanges();
+          sel.addRange(nr);
+        }
       } catch (_) { /* DOM edge case — skip wrapping */ }
       updateTcBar();
     }
