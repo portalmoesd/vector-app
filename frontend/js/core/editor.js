@@ -2499,6 +2499,72 @@
         const sr = e.getTargetRanges ? e.getTargetRanges() : [];
         const dr = sr.length > 0 ? staticToRange(sr[0]) : null;
 
+        // ── Helper: detect if the caret sits inside an <ins> ──
+        const _caretInsEl = () => {
+          const sel = window.getSelection();
+          const c = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+          if (!c || !c.collapsed) return null;
+          const n = c.startContainer.nodeType === Node.ELEMENT_NODE
+            ? c.startContainer : c.startContainer.parentElement;
+          return n ? n.closest('ins[data-tc-id]') : null;
+        };
+
+        // ── Single-char backspace / delete inside an <ins> element ──
+        // getTargetRanges() can return a range at the *paragraph* level that
+        // spans the entire <ins> (collapsed or non-collapsed).  We must
+        // detect via the caret, not the target range, and handle manually.
+        if (type === 'deleteContentBackward' || type === 'deleteContentForward') {
+          const insEl = _caretInsEl();
+          if (insEl) {
+            const sel = window.getSelection();
+            const caret = sel.getRangeAt(0);
+
+            // Block-boundary checks still apply
+            if (type === 'deleteContentBackward' && isAtBlockStart(caret)) {
+              e.preventDefault();
+              const block = getBlock(caret.startContainer);
+              if (block) { pushUndo(); mergeBlockIntoPrevious(block); ensureBodyHasParagraph(); updateTcBar(); }
+              return;
+            }
+            if (type === 'deleteContentForward' && isAtBlockEnd(caret)) {
+              e.preventDefault();
+              const block = getBlock(caret.startContainer);
+              if (block) { pushUndo(); mergeNextBlockIntoCurrent(block); ensureBodyHasParagraph(); updateTcBar(); }
+              return;
+            }
+
+            // Own insertion → let browser delete natively (no tracking needed)
+            if (insEl.getAttribute('data-tc-author') === tc.authorName) {
+              return;
+            }
+
+            // Other user's insertion → track-delete exactly ONE character.
+            if (caret.startContainer.nodeType === Node.TEXT_NODE) {
+              const txt = caret.startContainer;
+              const off = caret.startOffset;
+              let oneChar = null;
+              if (type === 'deleteContentBackward' && off > 0) {
+                oneChar = document.createRange();
+                oneChar.setStart(txt, off - 1);
+                oneChar.setEnd(txt, off);
+              } else if (type === 'deleteContentForward' && off < txt.length) {
+                oneChar = document.createRange();
+                oneChar.setStart(txt, off);
+                oneChar.setEnd(txt, off + 1);
+              }
+              if (oneChar) {
+                pushUndo();
+                e.preventDefault();
+                wrapRangeAsDeletion(oneChar, false);
+                ensureBodyHasParagraph();
+                updateTcBar();
+                return;
+              }
+            }
+            // At element boundary inside <ins> — fall through to normal path
+          }
+        }
+
         // Collapsed target = single-char delete (not a selection)
         if (dr && dr.collapsed) {
           const sel = window.getSelection();
@@ -2537,51 +2603,6 @@
 
         // Non-collapsed target with no text content → let browser handle
         if (dr && !dr.toString()) return;
-
-        // Single-char delete inside an <ins> element.
-        // getTargetRanges() can return a range spanning the FULL <ins>;
-        // falling through would delete / wrap the entire insertion.
-        if (dr && (type === 'deleteContentBackward' || type === 'deleteContentForward')) {
-          const drNode = dr.startContainer.nodeType === Node.ELEMENT_NODE
-            ? dr.startContainer : dr.startContainer.parentElement;
-          const insEl = drNode ? drNode.closest('ins[data-tc-id]') : null;
-
-          if (insEl && insEl.contains(dr.endContainer)) {
-            // Own insertion → let browser delete natively (no tracking needed)
-            if (insEl.getAttribute('data-tc-author') === tc.authorName) {
-              return;
-            }
-
-            // Other user's insertion → track-delete exactly ONE character.
-            // Build a 1-char range from the caret instead of trusting
-            // getTargetRanges(), which may span the whole <ins>.
-            const sel = window.getSelection();
-            const caret = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
-            if (caret && caret.collapsed && caret.startContainer.nodeType === Node.TEXT_NODE) {
-              const txt = caret.startContainer;
-              const off = caret.startOffset;
-              let oneChar = null;
-              if (type === 'deleteContentBackward' && off > 0) {
-                oneChar = document.createRange();
-                oneChar.setStart(txt, off - 1);
-                oneChar.setEnd(txt, off);
-              } else if (type === 'deleteContentForward' && off < txt.length) {
-                oneChar = document.createRange();
-                oneChar.setStart(txt, off);
-                oneChar.setEnd(txt, off + 1);
-              }
-              if (oneChar) {
-                pushUndo();
-                e.preventDefault();
-                wrapRangeAsDeletion(oneChar, false);
-                ensureBodyHasParagraph();
-                updateTcBar();
-                return;
-              }
-              // At element boundary — fall through to normal path
-            }
-          }
-        }
 
         // Non-collapsed with text → falls through to wrapRangeAsDeletion below
       }
