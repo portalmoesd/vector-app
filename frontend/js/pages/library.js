@@ -169,7 +169,7 @@
             <button class="preview-close" onclick="this.closest('.preview-overlay').remove()">&times;</button>
           </div>
           <div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">
-            ${escapeHtml(doc.countryName)} | Language: ${languageLabel(doc.language)}
+            ${escapeHtml(doc.countryName)} | ${languageLabel(doc.language)}${doc.endedAt ? ' | ' + new Date(doc.endedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '.') : ''}
           </div>
           ${doc.sections.map(s => `
             <div class="section-block">

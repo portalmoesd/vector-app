@@ -306,10 +306,9 @@
 
     const children = [];
 
-    // Title — same level as section headings (HEADING_1)
+    // Title — 13pt (1pt larger than section headings)
     children.push(new Paragraph({
-      heading: HeadingLevel.HEADING_1,
-      children: [new TextRun({ text: title || 'Document', bold: true })],
+      children: [new TextRun({ text: title || 'Document', bold: true, size: ptToHalfPt(13) })],
       spacing: { after: 80 },
     }));
 
@@ -337,10 +336,9 @@
 
     // Sections
     for (const sec of sections) {
-      // Section heading
+      // Section heading — 12pt (1pt larger than 11pt body text)
       children.push(new Paragraph({
-        heading: HeadingLevel.HEADING_1,
-        children: [new TextRun({ text: sec.sectionLabel || 'Section', bold: true })],
+        children: [new TextRun({ text: sec.sectionLabel || 'Section', bold: true, size: ptToHalfPt(12) })],
         spacing: { before: 400, after: 200 },
       }));
 
