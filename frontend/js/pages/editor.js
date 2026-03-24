@@ -119,9 +119,8 @@
     const leftBtns = [];
     const rightBtns = [];
 
-    // Left side: Back to Dashboard + All Sections
+    // Left side: Back to Dashboard
     leftBtns.push(`<button id="btnBack" class="tb-outline">Back to Dashboard</button>`);
-    leftBtns.push(`<button id="btnViewAll" class="tb-outline" onclick="window.location.href='/pages/editor-all.html?event_id=${eventId}'">All Sections</button>`);
 
     // Right side: action buttons
 
