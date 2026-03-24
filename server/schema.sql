@@ -160,6 +160,7 @@ CREATE TABLE IF NOT EXISTS section_files (
   stored_name     VARCHAR(500) NOT NULL,
   mime_type       VARCHAR(200),
   size            BIGINT NOT NULL DEFAULT 0,
+  file_data       BYTEA,
   uploaded_by_id  INT REFERENCES users(id),
   uploaded_by_name VARCHAR(200),
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()

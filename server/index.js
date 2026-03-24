@@ -79,6 +79,14 @@ async function migrate() {
       END $$;
     `);
 
+    // Add file_data column to section_files for database-stored uploads
+    await db.query(`
+      DO $$ BEGIN
+        ALTER TABLE section_files ADD COLUMN IF NOT EXISTS file_data BYTEA;
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$;
+    `);
+
     // ── Fix department names to match official org chart (idempotent) ────────
     const deptNameFixes = [
       { old_en: 'Protocol Service', name: 'პროტოკოლის სამსახური', name_en: 'Protocol Department' },
