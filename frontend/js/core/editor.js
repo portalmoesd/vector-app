@@ -161,7 +161,7 @@
     .gcp-re-body h3 { font-size:1.1em; font-weight:700; margin:.7em 0 .25em; }
     .gcp-re-body ul,.gcp-re-body ol { margin:.4em 0; padding-left:1.6em; }
     .gcp-re-body li { margin:.2em 0; }
-    .gcp-re-body p { margin:.3em 0; }
+    .gcp-re-body p { margin:.6em 0; }
     .gcp-re-wrap.tc-visible .gcp-re-body .gcp-tc-changed { border-left:3px solid #b91c1c; padding-left:6px; margin-left:-9px; }
     .gcp-re-margin { width:0; flex-shrink:0; position:relative; overflow:visible; }
     .gcp-re-wrap.tc-visible .gcp-re-margin,.gcp-re-wrap.has-comments .gcp-re-margin { width:240px; }
@@ -1554,9 +1554,11 @@
       if (!prev) return false;
       const sel = window.getSelection();
       const r = document.createRange();
-      // If prev is empty (<p><br></p>), remove it and keep current block
-      const lastBr = prev.lastElementChild;
-      if (lastBr && lastBr.tagName === 'BR' && !lastBr.previousSibling) {
+      // If prev is empty (no visible text content), remove it and keep current block
+      const prevClone = prev.cloneNode(true);
+      if (!tc.visible) prevClone.querySelectorAll('del[data-tc-id]').forEach(el => el.remove());
+      const prevText = prevClone.textContent.trim();
+      if (!prevText && !prevClone.querySelector('img,table,hr')) {
         prev.remove();
         r.setStart(block, 0); r.collapse(true);
         sel.removeAllRanges(); sel.addRange(r);
@@ -1732,12 +1734,15 @@
       const newBlock = document.createElement(block.tagName.toLowerCase());
       // Copy alignment/style
       if (block.style.textAlign) newBlock.style.textAlign = block.style.textAlign;
-      if (afterFrag.textContent || afterFrag.childNodes.length > 0) {
+      // Check for meaningful content (not just empty text nodes or whitespace)
+      const hasContent = afterFrag.textContent.trim().length > 0 ||
+        afterFrag.querySelector('img,table,br,hr');
+      if (hasContent) {
         newBlock.appendChild(afterFrag);
       } else {
         newBlock.innerHTML = '<br>';
       }
-      if (!block.textContent && !block.querySelector('br')) block.innerHTML = '<br>';
+      if (!block.textContent.trim() && !block.querySelector('br')) block.innerHTML = '<br>';
       block.parentNode.insertBefore(newBlock, block.nextSibling);
       const r = document.createRange();
       r.setStart(newBlock, 0); r.collapse(true);
