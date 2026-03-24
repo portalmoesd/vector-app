@@ -725,7 +725,7 @@
       try {
         await Api.post('/api/workflow/send-to-library', { eventId: parseInt(eventId) });
         toast.success('Document sent to library successfully.');
-        loadSections(eventId);
+        setTimeout(() => window.location.reload(), 1200);
       } catch (err) {
         toast.error(err.message);
       }
