@@ -1757,12 +1757,18 @@
       sel.removeAllRanges(); sel.addRange(r);
     }
 
+    function wrapChildrenIn(el, tag) {
+      const w = document.createElement(tag);
+      while (el.firstChild) w.appendChild(el.firstChild);
+      el.appendChild(w);
+    }
+
     function sanitizeHtml(html) {
       const tmp = document.createElement('div');
       tmp.innerHTML = html;
       // Remove dangerous elements
       tmp.querySelectorAll('script,style,link,meta,iframe,object,embed').forEach(el => el.remove());
-      // Remove event handler attributes and javascript: hrefs
+      // Remove event handler attributes, dangerous hrefs, and unwanted formatting
       const all = tmp.querySelectorAll('*');
       for (const el of all) {
         for (const attr of [...el.attributes]) {
@@ -1770,11 +1776,41 @@
             el.removeAttribute(attr.name);
           }
         }
-        // Strip class/id/style to avoid style collisions from pasted content
         el.removeAttribute('class');
         el.removeAttribute('id');
+
+        // Extract allowed formatting from inline styles before stripping
+        const s = el.style;
+        const color = s.color || '';
+        const isBold = s.fontWeight === 'bold' || parseInt(s.fontWeight) >= 700;
+        const isItalic = s.fontStyle === 'italic';
+        const isUnderline = (s.textDecoration || s.textDecorationLine || '').includes('underline');
+
+        // Strip all inline styles
         el.removeAttribute('style');
+
+        // Re-apply only color
+        if (color) el.style.color = color;
+
+        // Convert style-based bold/italic/underline to semantic tags
+        if (isBold && !el.closest('b,strong') && !/^(B|STRONG)$/i.test(el.tagName)) {
+          wrapChildrenIn(el, 'b');
+        }
+        if (isItalic && !el.closest('i,em') && !/^(I|EM)$/i.test(el.tagName)) {
+          wrapChildrenIn(el, 'i');
+        }
+        if (isUnderline && !el.closest('u') && el.tagName !== 'U') {
+          wrapChildrenIn(el, 'u');
+        }
       }
+
+      // Unwrap <span> elements with no remaining attributes (empty shells)
+      tmp.querySelectorAll('span').forEach(span => {
+        if (!span.attributes.length) {
+          span.replaceWith(...span.childNodes);
+        }
+      });
+
       return tmp;
     }
 
