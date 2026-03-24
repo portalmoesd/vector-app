@@ -8,9 +8,47 @@ const router = express.Router();
 // GET /api/events — list events visible to current user
 router.get('/', requireAuth, async (req, res) => {
   try {
-    // Collaborators and Super-Collaborators only see events for their assigned countries
-    const needsCountryFilter =
-      req.user.role === ROLES.COLLABORATOR || req.user.role === ROLES.SUPER_COLLABORATOR;
+    const role = req.user.role;
+    const userId = req.user.id;
+
+    // Build role-specific WHERE clause so each role only sees relevant events
+    let whereClause = '';
+    let params = [];
+
+    if (role === ROLES.COLLABORATOR || role === ROLES.SUPER_COLLABORATOR) {
+      // Only see events for their assigned countries
+      whereClause = 'WHERE e.country_id IN (SELECT country_id FROM country_assignments WHERE user_id = $1)';
+      params = [userId];
+    } else if (role === ROLES.SUPERVISOR) {
+      // See events where they are supervisor, DS, creator, or sections belong to their department
+      whereClause = `WHERE (
+        e.supervisor_id = $1
+        OR e.document_submitter_id = $1
+        OR e.created_by_id = $1
+        OR EXISTS (
+          SELECT 1 FROM sections s
+          JOIN section_departments sd ON sd.section_id = s.id
+          WHERE s.event_id = e.id
+            AND sd.department_id = (SELECT department_id FROM users WHERE id = $1)
+        )
+      )`;
+      params = [userId];
+    } else if (role === ROLES.DEPUTY) {
+      // See events where they are deputy, DS, creator, or sections belong to their linked departments
+      whereClause = `WHERE (
+        e.deputy_id = $1
+        OR e.document_submitter_id = $1
+        OR e.created_by_id = $1
+        OR EXISTS (
+          SELECT 1 FROM sections s
+          JOIN section_departments sd ON sd.section_id = s.id
+          JOIN deputy_department_links ddl ON ddl.department_id = sd.department_id
+          WHERE s.event_id = e.id AND ddl.deputy_id = $1
+        )
+      )`;
+      params = [userId];
+    }
+    // ADMIN and PROTOCOL: no WHERE clause — see all events
 
     const { rows } = await db.query(
       `SELECT e.id, e.title, e.country_id, e.document_submitter_role,
@@ -24,11 +62,9 @@ router.get('/', requireAuth, async (req, res) => {
        JOIN countries c ON c.id = e.country_id
        JOIN users ds ON ds.id = e.document_submitter_id
        LEFT JOIN users sv ON sv.id = e.supervisor_id
-       ${needsCountryFilter
-         ? 'WHERE e.country_id IN (SELECT country_id FROM country_assignments WHERE user_id = $1)'
-         : ''}
+       ${whereClause}
        ORDER BY e.created_at DESC`,
-      needsCountryFilter ? [req.user.id] : []
+      params
     );
     res.json(rows.map(r => ({
       id: r.id,
