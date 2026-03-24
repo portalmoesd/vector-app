@@ -1770,9 +1770,10 @@
             el.removeAttribute(attr.name);
           }
         }
-        // Strip class/id to avoid style collisions
+        // Strip class/id/style to avoid style collisions from pasted content
         el.removeAttribute('class');
         el.removeAttribute('id');
+        el.removeAttribute('style');
       }
       return tmp;
     }
