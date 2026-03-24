@@ -169,7 +169,7 @@
             <button class="preview-close" onclick="this.closest('.preview-overlay').remove()">&times;</button>
           </div>
           <div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">
-            ${escapeHtml(doc.countryName)} | ${languageLabel(doc.language)}${doc.endedAt ? ' | ' + new Date(doc.endedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '.') : ''}
+            ${escapeHtml(doc.countryName)}${doc.endedAt ? ' | ' + new Date(doc.endedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '.') : ''}
           </div>
           ${doc.sections.map(s => `
             <div class="section-block">
@@ -220,7 +220,7 @@
         const html = `
           <div style="font-family: Arial, sans-serif; font-size: 11pt; padding: 20px;">
             <p style="font-size: 13pt; font-weight: bold; margin-bottom: 4px;">${escapeHtml(doc.title)}</p>
-            <p style="color: #666; font-size: 9pt; margin-bottom: 24px;">${escapeHtml(doc.countryName)} | ${doc.language}${datePart}</p>
+            <p style="color: #666; font-size: 9pt; margin-bottom: 24px;">${escapeHtml(doc.countryName)}${datePart}</p>
             ${sections.map(s => `
               <p style="font-size: 12pt; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 4px;">${escapeHtml(s.title)}</p>
               <div>${stripTrackChanges(s.htmlContent || '')}</div>
