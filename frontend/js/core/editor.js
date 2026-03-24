@@ -161,7 +161,7 @@
     .gcp-re-body h3 { font-size:1.1em; font-weight:700; margin:.7em 0 .25em; }
     .gcp-re-body ul,.gcp-re-body ol { margin:.4em 0; padding-left:1.6em; }
     .gcp-re-body li { margin:.2em 0; }
-    .gcp-re-body p { margin:.6em 0; }
+    .gcp-re-body p { margin:0; }
     .gcp-re-wrap.tc-visible .gcp-re-body .gcp-tc-changed { border-left:3px solid #b91c1c; padding-left:6px; margin-left:-9px; }
     .gcp-re-margin { width:0; flex-shrink:0; position:relative; overflow:visible; }
     .gcp-re-wrap.tc-visible .gcp-re-margin,.gcp-re-wrap.has-comments .gcp-re-margin { width:240px; }
