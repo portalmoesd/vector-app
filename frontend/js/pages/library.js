@@ -561,11 +561,11 @@
               <thead><tr><th>File</th><th>Section</th><th>Uploaded</th><th>By</th><th>Size</th></tr></thead>
               <tbody>${files.map(f => `
                 <tr>
-                  <td><a href="${API_BASE}/api/workflow/files/download?event_id=${eventId}&section_id=${f.sectionId}&filename=${encodeURIComponent(f.filename)}" target="_blank">${escapeHtml(f.filename)}</a></td>
-                  <td>${escapeHtml(f.sectionLabel || '—')}</td>
-                  <td>${formatDate(f.uploadedAt)}</td>
-                  <td>${escapeHtml(f.uploadedBy || '—')}</td>
-                  <td>${f.fileSize ? (f.fileSize / 1024).toFixed(1) + ' KB' : '—'}</td>
+                  <td><a href="${API_BASE}/api/workflow/files/download?id=${f.id}" target="_blank">${escapeHtml(f.original_name)}</a></td>
+                  <td>${escapeHtml(f.section_title || '—')}</td>
+                  <td>${formatDate(f.created_at)}</td>
+                  <td>${escapeHtml(f.uploaded_by_name || '—')}</td>
+                  <td>${f.size ? (f.size / 1024).toFixed(1) + ' KB' : '—'}</td>
                 </tr>
               `).join('')}</tbody>
             </table></div>

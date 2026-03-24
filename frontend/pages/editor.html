@@ -147,10 +147,19 @@
 
       <!-- Files section -->
       <div class="card" id="filesPanel" style="display:none;">
-        <h4>Files</h4>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <h4 style="margin:0;">Files</h4>
+          <span id="filesCount" style="font-size:12px;color:var(--text-muted);"></span>
+        </div>
         <div id="filesList" style="margin-bottom:12px;"></div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input type="file" id="fileUploadInput" multiple style="font-size:13px;" />
+        <div id="fileDropZone" style="border:2px dashed var(--border-color);border-radius:8px;padding:24px 16px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;">
+          <div style="font-size:13px;color:var(--text-muted);pointer-events:none;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:6px;display:block;margin-left:auto;margin-right:auto;opacity:.5;">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Drop files here or <span style="color:var(--accent-blue);text-decoration:underline;">browse</span>
+          </div>
+          <input type="file" id="fileUploadInput" multiple style="display:none;" />
         </div>
       </div>
 

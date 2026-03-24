@@ -82,27 +82,20 @@ router.get('/:eventId/document', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/library/:eventId/files — list files for an event
+// GET /api/library/:eventId/files — list all files for an event (across all sections)
 router.get('/:eventId/files', requireAuth, async (req, res) => {
   try {
-    const fs = require('fs');
-    const path = require('path');
-    const uploadDir = path.join(__dirname, '../../uploads', req.params.eventId);
-
-    if (!fs.existsSync(uploadDir)) {
-      return res.json([]);
-    }
-
-    const files = fs.readdirSync(uploadDir).map(name => {
-      const stats = fs.statSync(path.join(uploadDir, name));
-      return {
-        filename: name,
-        size: stats.size,
-        uploadedAt: stats.mtime,
-      };
-    });
-
-    res.json(files);
+    const result = await db.query(
+      `SELECT sf.id, sf.section_id, sf.original_name, sf.mime_type, sf.size,
+              sf.uploaded_by_name, sf.created_at,
+              s.title AS section_title
+       FROM section_files sf
+       LEFT JOIN sections s ON s.id = sf.section_id
+       WHERE sf.event_id = $1
+       ORDER BY sf.created_at DESC`,
+      [req.params.eventId]
+    );
+    res.json(result.rows);
   } catch (err) {
     console.error('Library files error:', err);
     res.status(500).json({ error: 'Internal server error' });

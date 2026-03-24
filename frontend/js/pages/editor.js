@@ -314,6 +314,37 @@
 
   // ─── Files ──────────────────────────────────────────────────────────────────
 
+  const FILE_ICONS = {
+    pdf:  { color: '#dc2626', label: 'PDF' },
+    doc:  { color: '#2563eb', label: 'DOC' },
+    docx: { color: '#2563eb', label: 'DOC' },
+    xls:  { color: '#16a34a', label: 'XLS' },
+    xlsx: { color: '#16a34a', label: 'XLS' },
+    ppt:  { color: '#ea580c', label: 'PPT' },
+    pptx: { color: '#ea580c', label: 'PPT' },
+    jpg:  { color: '#7c3aed', label: 'IMG' },
+    jpeg: { color: '#7c3aed', label: 'IMG' },
+    png:  { color: '#7c3aed', label: 'IMG' },
+    gif:  { color: '#7c3aed', label: 'IMG' },
+    svg:  { color: '#7c3aed', label: 'SVG' },
+    zip:  { color: '#64748b', label: 'ZIP' },
+    rar:  { color: '#64748b', label: 'RAR' },
+    txt:  { color: '#475569', label: 'TXT' },
+    csv:  { color: '#16a34a', label: 'CSV' },
+  };
+
+  function fileIcon(filename) {
+    const ext = (filename || '').split('.').pop().toLowerCase();
+    const info = FILE_ICONS[ext] || { color: '#94a3b8', label: ext.toUpperCase().slice(0, 3) || 'FILE' };
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:6px;background:${info.color}11;color:${info.color};font-size:10px;font-weight:800;letter-spacing:.03em;flex-shrink:0;border:1px solid ${info.color}22;">${info.label}</span>`;
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
   async function handleFiles() {
     const filesPanel = document.getElementById('filesPanel');
     if (filesPanel.style.display === 'none') {
@@ -326,31 +357,49 @@
 
   async function loadFiles() {
     const list = document.getElementById('filesList');
+    const countEl = document.getElementById('filesCount');
     try {
-      const files = await Api.get(`/api/library/${eventId}/files`);
+      const files = await Api.get(`/api/workflow/files/list?eventId=${eventId}&sectionId=${sectionId}`);
+      if (countEl) countEl.textContent = files && files.length ? `${files.length} file${files.length !== 1 ? 's' : ''}` : '';
       if (!files || files.length === 0) {
-        list.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">No files uploaded</p>';
+        list.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No files uploaded yet</p>';
         return;
       }
-      list.innerHTML = files.map(f => `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border-color);">
-          <span style="font-size:13px;">${escapeHtml(f.filename)}</span>
-          <a href="${API_BASE}/api/workflow/files/download?event_id=${eventId}&filename=${encodeURIComponent(f.filename)}"
-             class="btn btn-outline" style="padding:4px 10px;font-size:12px;" download>Download</a>
-        </div>
-      `).join('');
+      list.innerHTML = files.map(f => {
+        const name = escapeHtml(f.original_name);
+        const size = formatFileSize(f.size || 0);
+        const by = escapeHtml(f.uploaded_by_name || '');
+        const date = f.created_at ? new Date(f.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+        const canDelete = f.uploaded_by_id === user.id || user.role === 'ADMIN';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);">
+          ${fileIcon(f.original_name)}
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${name}</div>
+            <div style="font-size:11px;color:var(--text-muted);">${size}${by ? ' · ' + by : ''}${date ? ' · ' + date : ''}</div>
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0;">
+            <a href="${API_BASE}/api/workflow/files/download?id=${f.id}" style="padding:4px 10px;font-size:12px;border:1px solid var(--border-color);border-radius:6px;color:var(--text-muted);text-decoration:none;cursor:pointer;" download title="Download">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </a>
+            ${canDelete ? `<button onclick="deleteFile(${f.id})" style="padding:4px 8px;font-size:12px;border:1px solid #fecaca;border-radius:6px;background:none;color:#dc2626;cursor:pointer;" title="Delete">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </button>` : ''}
+          </div>
+        </div>`;
+      }).join('');
     } catch (e) {
       list.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">Could not load files</p>';
     }
   }
 
-  document.getElementById('fileUploadInput').addEventListener('change', async (e) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  // Upload files (shared by file input and drag-and-drop)
+  async function uploadFiles(fileList) {
+    if (!fileList || fileList.length === 0) return;
 
     const formData = new FormData();
     formData.append('eventId', eventId);
-    for (const file of files) {
+    formData.append('sectionId', sectionId);
+    for (const file of fileList) {
       formData.append('files', file);
     }
 
@@ -367,10 +416,48 @@
       }
       showNotification('Files uploaded');
       loadFiles();
-      e.target.value = '';
     } catch (err) {
       alert('Upload failed: ' + err.message);
     }
+  }
+
+  // Delete file
+  window.deleteFile = async function(id) {
+    if (!confirm('Delete this file?')) return;
+    try {
+      await Api.post('/api/workflow/files/delete', { id });
+      showNotification('File deleted');
+      loadFiles();
+    } catch (e) {
+      alert('Delete failed: ' + e.message);
+    }
+  };
+
+  // File input change handler
+  document.getElementById('fileUploadInput').addEventListener('change', async (e) => {
+    await uploadFiles(e.target.files);
+    e.target.value = '';
+  });
+
+  // Drop zone — click to browse
+  const dropZone = document.getElementById('fileDropZone');
+  dropZone.addEventListener('click', () => document.getElementById('fileUploadInput').click());
+
+  // Drop zone — drag and drop
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = 'var(--accent-blue)';
+    dropZone.style.background = 'rgba(59,130,246,.04)';
+  });
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.style.borderColor = 'var(--border-color)';
+    dropZone.style.background = '';
+  });
+  dropZone.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = 'var(--border-color)';
+    dropZone.style.background = '';
+    await uploadFiles(e.dataTransfer.files);
   });
 
   // ─── Comments ────────────────────────────────────────────────────────────────
