@@ -542,7 +542,7 @@ router.post('/send-to-library', requireAuth, async (req, res) => {
     }
 
     await db.query(
-      "UPDATE events SET status = 'COMPLETED', updated_at = now() WHERE id = $1",
+      "UPDATE events SET status = 'COMPLETED', is_active = false, ended_at = now(), updated_at = now() WHERE id = $1",
       [eventId]
     );
 
