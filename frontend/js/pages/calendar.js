@@ -96,9 +96,9 @@
     const dateTo = filterDateTo.value ? new Date(filterDateTo.value) : null;
 
     return events.filter(e => {
-      const isUpcoming = e.isActive;
-      if (currentTab === 'upcoming' && !isUpcoming) return false;
-      if (currentTab === 'past' && isUpcoming) return false;
+      if (currentTab === 'upcoming' && !e.isActive) return false;
+      if (currentTab === 'completed' && (e.isActive || e.status !== 'COMPLETED')) return false;
+      if (currentTab === 'archived' && (e.isActive || e.status === 'COMPLETED')) return false;
 
       if (kw) {
         const match = (e.title || '').toLowerCase().includes(kw) ||
@@ -131,7 +131,9 @@
     eventsList.innerHTML = page.map(e => {
       const statusPill = e.isActive
         ? `<span class="pill pill-green">${e.status || 'Active'}</span>`
-        : `<span class="pill pill-gray">${e.status || 'Ended'}</span>`;
+        : e.status === 'COMPLETED'
+          ? `<span class="pill pill-blue">Completed</span>`
+          : `<span class="pill pill-gray">${e.status || 'Archived'}</span>`;
 
       return `
         <div class="event-card">
