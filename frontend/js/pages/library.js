@@ -287,7 +287,7 @@
               <thead><tr><th>File</th><th>Section</th><th>Uploaded</th><th>By</th><th>Size</th></tr></thead>
               <tbody>${files.map(f => `
                 <tr>
-                  <td><a href="${API_BASE}/api/workflow/files/download?id=${f.id}" target="_blank">${escapeHtml(f.original_name)}</a></td>
+                  <td><a href="#" onclick="downloadFileAuth(${f.id}, '${escapeHtml(f.original_name).replace(/'/g, "\\'")}'); return false;">${escapeHtml(f.original_name)}</a></td>
                   <td>${escapeHtml(f.section_title || '—')}</td>
                   <td>${formatDate(f.created_at)}</td>
                   <td>${escapeHtml(f.uploaded_by_name || '—')}</td>

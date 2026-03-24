@@ -53,3 +53,21 @@ const Api = {
   patch(path, body) { return this.request('PATCH', path, body); },
   delete(path) { return this.request('DELETE', path); },
 };
+
+function downloadFileAuth(fileId, fileName) {
+  fetch('/api/workflow/files/download?id=' + fileId, {
+    headers: { 'Authorization': 'Bearer ' + Api.getToken() }
+  })
+    .then(r => { if (!r.ok) throw new Error('Download failed'); return r.blob(); })
+    .then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    })
+    .catch(err => alert(err.message));
+}
