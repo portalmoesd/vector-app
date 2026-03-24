@@ -16,7 +16,7 @@ router.get('/', requireAuth, async (req, res) => {
        JOIN countries c ON c.id = e.country_id
        JOIN users ds ON ds.id = e.document_submitter_id
        LEFT JOIN section_history sh ON sh.event_id = e.id
-       WHERE (e.status = 'COMPLETED' OR e.status = 'ARCHIVED')
+       WHERE e.status = 'COMPLETED'
          AND (
            sh.user_id = $1
            OR e.document_submitter_id = $1
