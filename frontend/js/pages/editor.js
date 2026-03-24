@@ -77,7 +77,7 @@
           Api.post('/api/workflow/comments', {
             eventId, sectionId, content: text.trim(), anchorId,
             htmlContent: richEditor.getHtml(),
-          }).then(() => loadComments()).catch(e => alert('Failed: ' + e.message));
+          }).then(() => loadComments()).catch(e => toast.error('Failed: ' + e.message));
         } else {
           // Cancel — remove the anchor
           richEditor.removeCommentAnchor(anchorId);
@@ -104,7 +104,7 @@
           eventId, sectionId, content: text, parentId,
         });
         loadComments();
-      } catch (e) { alert('Reply failed: ' + e.message); }
+      } catch (e) { toast.error('Reply failed: ' + e.message); }
     },
   });
 
@@ -225,7 +225,7 @@
       });
       showNotification('Saved successfully');
     } catch (e) {
-      alert('Save failed: ' + e.message);
+      toast.error('Save failed: ' + e.message);
     }
   }
 
@@ -240,7 +240,7 @@
       showNotification('Submitted successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      alert('Submit failed: ' + e.message);
+      toast.error('Submit failed: ' + e.message);
     }
   }
 
@@ -251,7 +251,7 @@
       showNotification('Approved successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      alert('Approve failed: ' + e.message);
+      toast.error('Approve failed: ' + e.message);
     }
   }
 
@@ -264,7 +264,7 @@
       showNotification('Returned successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      alert('Return failed: ' + e.message);
+      toast.error('Return failed: ' + e.message);
     }
   }
 
@@ -276,7 +276,7 @@
       await Api.post('/api/workflow/ask-to-return', { eventId, sectionId, note });
       showNotification('Return request sent');
     } catch (e) {
-      alert('Request failed: ' + e.message);
+      toast.error('Request failed: ' + e.message);
     }
   }
 
@@ -287,7 +287,7 @@
       showNotification('Section pushed successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      alert('Push failed: ' + e.message);
+      toast.error('Push failed: ' + e.message);
     }
   }
 
@@ -298,7 +298,7 @@
       showNotification('Section pulled successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      alert('Pull failed: ' + e.message);
+      toast.error('Pull failed: ' + e.message);
     }
   }
 
@@ -417,7 +417,7 @@
       showNotification('Files uploaded');
       loadFiles();
     } catch (err) {
-      alert('Upload failed: ' + err.message);
+      toast.error('Upload failed: ' + err.message);
     }
   }
 
@@ -429,7 +429,7 @@
       showNotification('File deleted');
       loadFiles();
     } catch (e) {
-      alert('Delete failed: ' + e.message);
+      toast.error('Delete failed: ' + e.message);
     }
   };
 

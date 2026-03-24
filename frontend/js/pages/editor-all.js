@@ -147,7 +147,7 @@
           Api.post('/api/workflow/comments', {
             eventId, sectionId: s.sectionId, content: text.trim(), anchorId,
             htmlContent: editor.getHtml(),
-          }).then(() => loadCommentsForSection(s.sectionId)).catch(e => alert('Failed: ' + e.message));
+          }).then(() => loadCommentsForSection(s.sectionId)).catch(e => toast.error('Failed: ' + e.message));
         } else {
           editor.removeCommentAnchor(anchorId);
         }
@@ -171,7 +171,7 @@
             eventId, sectionId: s.sectionId, content: text, parentId,
           });
           loadCommentsForSection(s.sectionId);
-        } catch (e) { alert('Reply failed: ' + e.message); }
+        } catch (e) { toast.error('Reply failed: ' + e.message); }
       },
     });
 
@@ -416,7 +416,7 @@
       showNotification('Saved successfully');
       document.getElementById('statusSaved').textContent = 'Saved';
     } catch (e) {
-      alert('Save failed: ' + e.message);
+      toast.error('Save failed: ' + e.message);
     }
   }
 
@@ -430,7 +430,7 @@
       showNotification('Submitted successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      alert('Submit failed: ' + e.message);
+      toast.error('Submit failed: ' + e.message);
     }
   }
 
@@ -441,7 +441,7 @@
       showNotification('Approved successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      alert('Approve failed: ' + e.message);
+      toast.error('Approve failed: ' + e.message);
     }
   }
 
@@ -459,7 +459,7 @@
       showNotification('Returned successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      alert('Return failed: ' + e.message);
+      toast.error('Return failed: ' + e.message);
     }
   }
 
@@ -477,7 +477,7 @@
       showNotification('Return request sent');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      alert('Request failed: ' + e.message);
+      toast.error('Request failed: ' + e.message);
     }
   }
 
@@ -488,7 +488,7 @@
       showNotification('Section pushed successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      alert('Push failed: ' + e.message);
+      toast.error('Push failed: ' + e.message);
     }
   }
 
@@ -499,7 +499,7 @@
       showNotification('Section pulled successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      alert('Pull failed: ' + e.message);
+      toast.error('Pull failed: ' + e.message);
     }
   }
 
@@ -523,7 +523,7 @@
       showNotification('All sections saved');
       document.getElementById('statusSaved').textContent = 'Saved';
     } catch (e) {
-      alert('Save failed: ' + e.message);
+      toast.error('Save failed: ' + e.message);
     } finally {
       btn.disabled = false; btn.textContent = 'Save All';
     }

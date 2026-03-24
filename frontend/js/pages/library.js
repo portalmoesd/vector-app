@@ -149,7 +149,7 @@
       const selectedIdxs = Array.from(overlay.querySelectorAll('.section-check:checked'))
         .map(cb => parseInt(cb.dataset.idx));
       const selectedSections = selectedIdxs.map(i => doc.sections[i]);
-      if (selectedSections.length === 0) { alert('Select at least one section.'); return; }
+      if (selectedSections.length === 0) { toast.warn('Select at least one section.'); return; }
       overlay.remove();
       onExport(selectedSections);
     });
@@ -194,7 +194,7 @@
         el.style.color = 'inherit';
       });
     } catch (e) {
-      alert('Failed to load document: ' + e.message);
+      toast.error('Failed to load document: ' + e.message);
     }
   };
 
@@ -247,7 +247,7 @@
         }
       });
     } catch (e) {
-      alert('Export failed: ' + e.message);
+      toast.error('Export failed: ' + e.message);
     }
   };
 
@@ -259,11 +259,11 @@
         try {
           await generateDocx(doc, sections);
         } catch (err) {
-          alert('Word export failed: ' + err.message);
+          toast.error('Word export failed: ' + err.message);
         }
       });
     } catch (e) {
-      alert('Export failed: ' + e.message);
+      toast.error('Export failed: ' + e.message);
     }
   };
 
@@ -579,7 +579,7 @@
 
       document.body.appendChild(overlay);
     } catch (e) {
-      alert('Failed to load files: ' + e.message);
+      toast.error('Failed to load files: ' + e.message);
     }
   };
 

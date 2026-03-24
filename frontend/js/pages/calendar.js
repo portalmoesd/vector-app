@@ -216,7 +216,7 @@
           <ol style="margin:0 0 0 20px;">${sectionsHtml || '<li>None</li>'}</ol>
         </div>
       `, null, null);
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast.error(e.message); }
   };
 
   // ── Edit Event ───────────────────────────────────────────────────────────
@@ -256,12 +256,12 @@
           hideModal();
           events = await Api.get('/api/events');
           render();
-        } catch (err) { alert(err.message); }
+        } catch (err) { toast.error(err.message); }
       });
       const editOccasionEditor = window.GCP.createSimpleEditor(document.getElementById('editOccasionWrap'), { placeholder: 'Enter task description...' });
       editOccasionEditor.setHtml(e.occasion || '');
       flatpickr('#editDeadline', { dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y', defaultDate: e.deadlineDate || null, locale: { firstDayOfWeek: 1 } });
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast.error(e.message); }
   };
 
   // ── End Event ────────────────────────────────────────────────────────────
@@ -272,7 +272,7 @@
       await Api.post(`/api/events/${id}/end`);
       events = await Api.get('/api/events');
       render();
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast.error(e.message); }
   };
 
   // ── Section row — collapsible dropdown for departments ─────────────────
@@ -484,13 +484,13 @@
       const curatorRequired = document.getElementById('newCurator').value === 'yes';
 
       if (!title || !countryId || !dsRole) {
-        alert('Title, Country, and DS Role are required');
+        toast.warn('Title, Country, and DS Role are required');
         return;
       }
 
       const sections = getSectionsFromRows();
       if (sections.length === 0) {
-        alert('Add at least one section');
+        toast.warn('Add at least one section');
         return;
       }
 
@@ -524,7 +524,7 @@
         hideModal();
         events = await Api.get('/api/events');
         render();
-      } catch (err) { alert(err.message); }
+      } catch (err) { toast.error(err.message); }
     });
 
     const newOccasionEditor = window.GCP.createSimpleEditor(document.getElementById('newOccasionWrap'), { placeholder: 'Enter task description...' });

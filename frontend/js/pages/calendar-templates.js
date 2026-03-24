@@ -321,7 +321,7 @@
       await Api.delete(`/api/templates/${id}`);
       templates = templates.filter(t => t.id !== id);
       renderTemplates();
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast.error(e.message); }
   };
 
   /* ── Modal Helpers ────────────────────────────────────────────────────── */
@@ -354,7 +354,7 @@
       </div>
     `, 'Create', async () => {
       const name = document.getElementById('tplName').value.trim();
-      if (!name) { alert('Template name is required'); return; }
+      if (!name) { toast.warn('Template name is required'); return; }
 
       const sections = [];
       document.querySelectorAll('#tplSectionRows .tpl-section-row').forEach((row, i) => {
@@ -364,14 +364,14 @@
         if (title) sections.push({ title, sortOrder: i, departmentIds: deptIds });
       });
 
-      if (sections.length === 0) { alert('Add at least one section'); return; }
+      if (sections.length === 0) { toast.warn('Add at least one section'); return; }
 
       try {
         await Api.post('/api/templates', { name, sections });
         hideTemplateModal();
         templates = await Api.get('/api/templates');
         renderTemplates();
-      } catch (err) { alert(err.message); }
+      } catch (err) { toast.error(err.message); }
     });
 
     const rowsContainer = document.getElementById('tplSectionRows');

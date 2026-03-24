@@ -554,7 +554,7 @@
           }
           loadSections(evId);
         } catch (err) {
-          alert(err.message);
+          toast.error(err.message);
         }
       });
     });
@@ -571,7 +571,7 @@
         }
         loadSections(eventId);
       } catch (err) {
-        alert(err.message);
+        toast.error(err.message);
         loadSections(eventId);
       }
     });
@@ -724,10 +724,10 @@
       if (!await GCP.ActionDialog.confirm('Send to library', { confirmLabel: 'Send to library', confirmColor: '#3b82f6' })) return;
       try {
         await Api.post('/api/workflow/send-to-library', { eventId: parseInt(eventId) });
-        alert('Document sent to library successfully.');
+        toast.success('Document sent to library successfully.');
         loadSections(eventId);
       } catch (err) {
-        alert(err.message);
+        toast.error(err.message);
       }
     });
   }

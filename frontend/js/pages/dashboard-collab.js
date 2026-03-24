@@ -221,7 +221,7 @@
           }
           loadSections(evId);
         } catch (err) {
-          alert(err.message);
+          toast.error(err.message);
         }
       });
     });

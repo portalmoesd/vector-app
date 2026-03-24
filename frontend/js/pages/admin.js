@@ -169,7 +169,7 @@
         await Api.post('/api/departments', { name, isExternal: document.getElementById('deptExternal').checked });
         hideModal();
         departments = await loadDepartments();
-      } catch (e) { alert(e.message); }
+      } catch (e) { toast.error(e.message); }
     });
   });
 
@@ -264,7 +264,7 @@
         await Api.post('/api/users', { fullName, username, email, password, role, departmentId, isExternal, countryIds });
         hideModal();
         loadUsers();
-      } catch (e) { alert(e.message); }
+      } catch (e) { toast.error(e.message); }
     });
 
     // Render country picker
@@ -312,7 +312,7 @@
         await Api.patch(`/api/users/${userId}`, body);
         hideModal();
         loadUsers();
-      } catch (e) { alert(e.message); }
+      } catch (e) { toast.error(e.message); }
     });
 
     // Set department select value
@@ -369,13 +369,13 @@
     try {
       await Api.delete(`/api/admin/deputy-supervisor-links/${id}`);
       loadLinks();
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast.error(e.message); }
   };
 
   document.getElementById('addLinkBtn').addEventListener('click', async () => {
     // Fetch users for dropdowns
     if (allUsers.length === 0) {
-      try { allUsers = await Api.get('/api/users'); } catch(e) { alert(e.message); return; }
+      try { allUsers = await Api.get('/api/users'); } catch(e) { toast.error(e.message); return; }
     }
     const deputies = allUsers.filter(u => u.role === 'DEPUTY');
     const supervisors = allUsers.filter(u => u.role === 'SUPERVISOR');
@@ -406,7 +406,7 @@
         await Api.post('/api/admin/deputy-supervisor-links', { deputyId, supervisorId });
         hideModal();
         loadLinks();
-      } catch (e) { alert(e.message); }
+      } catch (e) { toast.error(e.message); }
     });
   });
 
