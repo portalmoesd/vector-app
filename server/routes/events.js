@@ -11,18 +11,42 @@ router.get('/', requireAuth, async (req, res) => {
     const role = req.user.role;
     const userId = req.user.id;
     const isAdmin = role === ROLES.ADMIN || role === ROLES.PROTOCOL;
+    const isCollabRole = role === ROLES.COLLABORATOR || role === ROLES.SUPER_COLLABORATOR;
 
-    // ADMIN and PROTOCOL see all events; everyone else sees events they participate in
-    const whereClause = isAdmin
-      ? ''
-      : `WHERE (
+    let whereClause = '';
+    let params = [];
+
+    if (isAdmin) {
+      // ADMIN and PROTOCOL see all events
+    } else if (isCollabRole) {
+      // SC/Collaborator: must match BOTH country assignment AND section department
+      whereClause = `WHERE (
+        (
           e.country_id IN (SELECT country_id FROM country_assignments WHERE user_id = $1)
-          OR e.document_submitter_id = $1
-          OR e.deputy_id = $1
-          OR e.supervisor_id = $1
-          OR e.created_by_id = $1
-        )`;
-    const params = isAdmin ? [] : [userId];
+          AND EXISTS (
+            SELECT 1 FROM sections s
+            JOIN section_departments sd ON sd.section_id = s.id
+            WHERE s.event_id = e.id
+              AND sd.department_id = (SELECT department_id FROM users WHERE id = $1)
+          )
+        )
+        OR e.document_submitter_id = $1
+        OR e.deputy_id = $1
+        OR e.supervisor_id = $1
+        OR e.created_by_id = $1
+      )`;
+      params = [userId];
+    } else {
+      // Supervisor/Deputy: country assignment OR direct assignment
+      whereClause = `WHERE (
+        e.country_id IN (SELECT country_id FROM country_assignments WHERE user_id = $1)
+        OR e.document_submitter_id = $1
+        OR e.deputy_id = $1
+        OR e.supervisor_id = $1
+        OR e.created_by_id = $1
+      )`;
+      params = [userId];
+    }
 
     const { rows } = await db.query(
       `SELECT e.id, e.title, e.country_id, e.document_submitter_role,
