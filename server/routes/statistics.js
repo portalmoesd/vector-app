@@ -123,13 +123,54 @@ router.post('/export-report', async (req, res) => {
 });
 
 // ── GET /api/statistics/fdi ──────────────────────────────────────────────
-// Downloads and parses the FDI by countries XLSX from geostat.ge.
-// Returns annual FDI data per country code.
-// Cached for 24 hours (data updates quarterly).
+// Parses FDI by countries XLSX. Tries to download fresh from geostat.ge,
+// falls back to local bundled copy. Cached for 24 hours (updates quarterly).
 
 const FDI_URL = 'https://www.geostat.ge/media/77508/FDI_Geo_countries.xlsx';
+const FDI_LOCAL = require('path').join(__dirname, '../data/FDI_Geo_countries.xlsx');
 let fdiCache = { data: null, ts: 0 };
 const FDI_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+function parseFdiWorkbook(wb) {
+  const ws = wb.Sheets['FDI (annual)'];
+  if (!ws) throw new Error('Sheet "FDI (annual)" not found');
+
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+  const headerRow = rows[3];
+  if (!headerRow) throw new Error('Header row not found');
+
+  const years = [];
+  for (let c = 2; c < headerRow.length; c++) {
+    const raw = String(headerRow[c] || '').replace('*', '').trim();
+    const yr = parseInt(raw, 10);
+    if (yr >= 1996 && yr <= 2100) {
+      years.push({ col: c, year: yr });
+    }
+  }
+
+  const countries = {};
+  for (let r = 4; r < rows.length; r++) {
+    const row = rows[r];
+    if (!row) continue;
+    const code = parseInt(row[0], 10);
+    if (!code || isNaN(code)) continue;
+
+    const values = {};
+    for (const { col, year } of years) {
+      const val = row[col];
+      if (val === null || val === undefined || val === '-' || val === '') {
+        values[year] = 0;
+      } else {
+        const num = parseFloat(val);
+        values[year] = isNaN(num) ? 0 : num; // in Thsd. USD
+      }
+    }
+    countries[code] = values;
+  }
+
+  return { success: true, years: years.map(y => y.year), countries };
+}
 
 router.get('/fdi', async (req, res) => {
   try {
@@ -137,69 +178,33 @@ router.get('/fdi', async (req, res) => {
       return res.json(fdiCache.data);
     }
 
-    // Download the XLSX
-    const xlsxRes = await fetch(FDI_URL, {
-      headers: { 'User-Agent': 'VectorPortal/1.0' },
-      signal: AbortSignal.timeout(30_000),
-      redirect: 'follow',
-    });
-    if (!xlsxRes.ok) throw new Error(`FDI download failed: ${xlsxRes.status}`);
+    let wb;
+    try {
+      // Try downloading fresh copy
+      const xlsxRes = await fetch(FDI_URL, {
+        headers: { 'User-Agent': 'VectorPortal/1.0' },
+        signal: AbortSignal.timeout(15_000),
+        redirect: 'follow',
+      });
+      if (!xlsxRes.ok) throw new Error(`HTTP ${xlsxRes.status}`);
+      const buffer = Buffer.from(await xlsxRes.arrayBuffer());
+      wb = XLSX.read(buffer, { type: 'buffer' });
 
-    const buffer = Buffer.from(await xlsxRes.arrayBuffer());
-    const wb = XLSX.read(buffer, { type: 'buffer' });
-
-    // Parse the "FDI (annual)" sheet
-    const ws = wb.Sheets['FDI (annual)'];
-    if (!ws) throw new Error('Sheet "FDI (annual)" not found');
-
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-
-    // Row 0-2: title rows, Row 3: header (country code, name, years...)
-    const headerRow = rows[3];
-    if (!headerRow) throw new Error('Header row not found');
-
-    // Extract year columns (starting from col 2)
-    const years = [];
-    for (let c = 2; c < headerRow.length; c++) {
-      const raw = String(headerRow[c] || '').replace('*', '').trim();
-      const yr = parseInt(raw, 10);
-      if (yr >= 1996 && yr <= 2100) {
-        years.push({ col: c, year: yr });
-      }
+      // Save fresh copy locally for future fallback
+      require('fs').writeFileSync(FDI_LOCAL, buffer);
+      console.log('FDI data refreshed from geostat.ge');
+    } catch (dlErr) {
+      // Fall back to local file
+      console.log('FDI download failed, using local copy:', dlErr.message);
+      wb = XLSX.readFile(FDI_LOCAL);
     }
 
-    // Parse country rows (from row 4 onwards)
-    const countries = {};
-    for (let r = 4; r < rows.length; r++) {
-      const row = rows[r];
-      if (!row) continue;
-      const code = parseInt(row[0], 10);
-      if (!code || isNaN(code)) continue;
-
-      const values = {};
-      for (const { col, year } of years) {
-        const val = row[col];
-        if (val === null || val === undefined || val === '-' || val === '') {
-          values[year] = 0;
-        } else {
-          const num = parseFloat(val);
-          values[year] = isNaN(num) ? 0 : num; // in Thsd. USD
-        }
-      }
-      countries[code] = values;
-    }
-
-    const result = {
-      success: true,
-      years: years.map(y => y.year),
-      countries,
-    };
-
+    const result = parseFdiWorkbook(wb);
     fdiCache = { data: result, ts: Date.now() };
     res.json(result);
   } catch (err) {
     console.error('FDI data error:', err.message);
-    res.status(502).json({ error: 'Failed to fetch FDI data from Geostat' });
+    res.status(502).json({ error: 'Failed to load FDI data' });
   }
 });
 
