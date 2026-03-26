@@ -190,6 +190,24 @@
   font-size: 0.9rem;
 }
 
+/* ─── Charts Row ─────────────────────────────────────────────────────────── */
+
+.stat-charts-row {
+  display: flex;
+  gap: 16px;
+}
+
+.stat-chart-card {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 980px) {
+  .stat-charts-row {
+    flex-direction: column;
+  }
+}
+
 /* ─── Change colors ──────────────────────────────────────────────────────── */
 
 .stat-positive {

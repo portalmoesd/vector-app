@@ -29,12 +29,18 @@
   const exportTable = document.getElementById('exportTable');
   const importHeader = document.getElementById('importHeader');
   const importTable = document.getElementById('importTable');
+  const turnoverChartHeader = document.getElementById('turnoverChartHeader');
+  const turnoverChartCanvas = document.getElementById('turnoverChart');
+  const dynamicsChartHeader = document.getElementById('dynamicsChartHeader');
+  const dynamicsChartCanvas = document.getElementById('dynamicsChart');
 
   // ── State ────────────────────────────────────────────────────────────────
   let countries = [];
   let classData = null;
   let selectedCountry = null;
   let useProxy = false;
+  let turnoverChartInstance = null;
+  let dynamicsChartInstance = null;
 
   // ── Geostat API helpers (direct + proxy fallback) ────────────────────────
 
@@ -155,6 +161,10 @@
     exportHeader.innerHTML = '';
     importTable.innerHTML = '';
     importHeader.innerHTML = '';
+    if (turnoverChartInstance) { turnoverChartInstance.destroy(); turnoverChartInstance = null; }
+    if (dynamicsChartInstance) { dynamicsChartInstance.destroy(); dynamicsChartInstance = null; }
+    turnoverChartHeader.innerHTML = '';
+    dynamicsChartHeader.innerHTML = '';
 
     try {
       const { year: latestYear, month: latestMonth } = detectLatestPeriod(classData);
@@ -174,16 +184,13 @@
       const allMonths = [1,2,3,4,5,6,7,8,9,10,11,12];
       const countryId = selectedCountry.value;
 
-      // Fetch all data in parallel
-      const [
-        // Overview: Export & Import totals (no HS breakdown)
-        expFullCurr, expFullPrev, expMonthCurr, expMonthPrev,
-        impFullCurr, impFullPrev, impMonthCurr, impMonthPrev,
-        // Product tables: with HS breakdown
-        expHsCurrent, expHsPrev, reexHsCurrent,
-        impHsCurrent, impHsPrev,
-      ] = await Promise.all([
-        // Overview totals — full year current & previous, latest month current & previous
+      // Chart years: 5 previous full years
+      const chartYears = [];
+      for (let y = prevYear - 4; y <= prevYear; y++) chartYears.push(y);
+
+      // Build all fetch promises
+      const fetchPromises = [
+        // Overview totals
         fetchTradeTotal(10, [prevYear], allMonths, countryId),
         fetchTradeTotal(10, [prevPrevYear], allMonths, countryId),
         fetchTradeTotal(10, [latestYear], monthsYTD, countryId),
@@ -198,7 +205,45 @@
         fetchAllTradeData(13, [latestYear], monthsYTD, countryId),
         fetchAllTradeData(11, [latestYear], monthsYTD, countryId),
         fetchAllTradeData(11, [prevYear], monthsYTD, countryId),
-      ]);
+      ];
+
+      // Chart data: export & import for each of 5 years (full year)
+      for (const y of chartYears) {
+        fetchPromises.push(fetchTradeTotal(10, [y], allMonths, countryId)); // export
+        fetchPromises.push(fetchTradeTotal(11, [y], allMonths, countryId)); // import
+      }
+      // Chart data: export & import for each month of current year
+      for (const m of monthsYTD) {
+        fetchPromises.push(fetchTradeTotal(10, [latestYear], [m], countryId));
+        fetchPromises.push(fetchTradeTotal(11, [latestYear], [m], countryId));
+      }
+
+      const results = await Promise.all(fetchPromises);
+
+      // Unpack overview & product table results (first 13)
+      const [
+        expFullCurr, expFullPrev, expMonthCurr, expMonthPrev,
+        impFullCurr, impFullPrev, impMonthCurr, impMonthPrev,
+        expHsCurrent, expHsPrev, reexHsCurrent,
+        impHsCurrent, impHsPrev,
+      ] = results;
+
+      // Unpack chart year results (next chartYears.length * 2)
+      let idx = 13;
+      const chartYearExports = [];
+      const chartYearImports = [];
+      for (let i = 0; i < chartYears.length; i++) {
+        chartYearExports.push(results[idx++] / 1000); // Thsd → Mln
+        chartYearImports.push(results[idx++] / 1000);
+      }
+
+      // Unpack chart month results (next monthsYTD.length * 2)
+      const chartMonthExports = [];
+      const chartMonthImports = [];
+      for (let i = 0; i < monthsYTD.length; i++) {
+        chartMonthExports.push(results[idx++] / 1000);
+        chartMonthImports.push(results[idx++] / 1000);
+      }
 
       // ── 1. Trade overview table ──────────────────────────────────────
       const overview = buildOverviewData(
@@ -207,12 +252,19 @@
       );
       renderOverview(overview, prevYear, prevPrevYear, latestYear, latestMonth, periodLabel, monthNames);
 
-      // ── 2. Export products table ─────────────────────────────────────
+      // ── 2. Charts ──────────────────────────────────────────────────────
+      renderCharts(
+        chartYears, chartYearExports, chartYearImports,
+        monthsYTD, chartMonthExports, chartMonthImports,
+        latestYear, monthNames,
+      );
+
+      // ── 3. Export products table ─────────────────────────────────────
       const exportProducts = buildProductList(expHsCurrent, expHsPrev, reexHsCurrent);
       renderSectionHeader(exportHeader, 'export', periodLabel, latestYear);
       renderProductTable(exportTable, exportProducts, periodLabel, latestYear, true);
 
-      // ── 3. Import products table ─────────────────────────────────────
+      // ── 4. Import products table ─────────────────────────────────────
       const importProducts = buildProductList(impHsCurrent, impHsPrev, null);
       renderSectionHeader(importHeader, 'import', periodLabel, latestYear);
       renderProductTable(importTable, importProducts, periodLabel, latestYear, false);
@@ -410,6 +462,141 @@
 
   function formatMln2(val) {
     return val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  // ── Build product list ─────────────────────────────────────────────────
+
+  // ── Render charts ─────────────────────────────────────────────────────────
+
+  function renderCharts(
+    chartYears, yearExports, yearImports,
+    monthsYTD, monthExports, monthImports,
+    latestYear, monthNames,
+  ) {
+    const isKa = I18n.getLocale() === 'ka';
+
+    // Build labels: "2021", "2022", ... "2025", "Jan'26", "Feb'26"
+    const labels = chartYears.map(String);
+    const shortYear = String(latestYear).slice(2);
+    for (const m of monthsYTD) {
+      const mName = monthNames.find(mn => mn.value === m)?.label || `M${m}`;
+      const shortName = mName.slice(0, 3);
+      labels.push(`${shortName}'${shortYear}`);
+    }
+
+    // Turnover data = export + import
+    const turnoverData = [
+      ...yearExports.map((e, i) => e + yearImports[i]),
+      ...monthExports.map((e, i) => e + monthImports[i]),
+    ];
+
+    // Common chart options
+    const commonOptions = {
+      responsive: true,
+      maintainAspectRatio: true,
+      layout: { padding: { top: 24 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { enabled: true },
+        datalabels: {
+          anchor: 'end',
+          align: 'end',
+          font: { size: 11, weight: '600' },
+          formatter: (v) => chartLabel(v),
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          border: { display: false },
+          ticks: { font: { size: 11 } },
+        },
+        y: {
+          display: false,
+          grid: { display: false },
+          beginAtZero: true,
+        },
+      },
+    };
+
+    // ── Turnover chart ─────────────────────────────────────────────
+    turnoverChartHeader.innerHTML = `<h3 class="stat-report__title">${isKa ? 'სავაჭრო ბრუნვა' : 'Trade Turnover'}</h3>`;
+
+    turnoverChartInstance = new Chart(turnoverChartCanvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: turnoverData,
+          backgroundColor: turnoverData.map((_, i) => i < chartYears.length ? '#3b82f6' : '#93c5fd'),
+          borderRadius: 3,
+        }],
+      },
+      options: {
+        ...commonOptions,
+        plugins: {
+          ...commonOptions.plugins,
+          datalabels: {
+            ...commonOptions.plugins.datalabels,
+            color: '#374151',
+          },
+        },
+      },
+      plugins: [ChartDataLabels],
+    });
+
+    // ── Export–Import dynamics chart ────────────────────────────────
+    dynamicsChartHeader.innerHTML = `<h3 class="stat-report__title">${isKa ? 'ექსპორტ-იმპორტის დინამიკა' : 'Export–Import Dynamics'}</h3>`;
+
+    const expData = [...yearExports, ...monthExports];
+    const impData = [...yearImports, ...monthImports];
+
+    dynamicsChartInstance = new Chart(dynamicsChartCanvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: isKa ? 'ექსპორტი' : 'Export',
+            data: expData,
+            backgroundColor: expData.map((_, i) => i < chartYears.length ? '#16a34a' : '#86efac'),
+            borderRadius: 3,
+          },
+          {
+            label: isKa ? 'იმპორტი' : 'Import',
+            data: impData,
+            backgroundColor: impData.map((_, i) => i < chartYears.length ? '#dc2626' : '#fca5a5'),
+            borderRadius: 3,
+          },
+        ],
+      },
+      options: {
+        ...commonOptions,
+        plugins: {
+          ...commonOptions.plugins,
+          legend: {
+            display: true,
+            position: 'bottom',
+            labels: { boxWidth: 12, padding: 16, font: { size: 12 } },
+          },
+          datalabels: {
+            ...commonOptions.plugins.datalabels,
+            color: '#374151',
+            font: { size: 10, weight: '600' },
+          },
+        },
+      },
+      plugins: [ChartDataLabels],
+    });
+  }
+
+  // ── Chart data label formatter ───────────────────────────────────────────
+
+  function chartLabel(val) {
+    if (val >= 1000) return (val / 1000).toFixed(1) + 'B';
+    if (val >= 1) return Math.round(val) + 'M';
+    if (val >= 0.01) return val.toFixed(1) + 'M';
+    return '';
   }
 
   // ── Build product list ─────────────────────────────────────────────────
