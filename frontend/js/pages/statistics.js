@@ -475,19 +475,27 @@
   ) {
     const isKa = I18n.getLocale() === 'ka';
 
-    // Build labels: "2021", "2022", ... "2025", "Jan'26", "Feb'26"
+    // Build labels: "2021", "2022", ... "2025", "Jan-Feb'26"
     const labels = chartYears.map(String);
     const shortYear = String(latestYear).slice(2);
-    for (const m of monthsYTD) {
-      const mName = monthNames.find(mn => mn.value === m)?.label || `M${m}`;
-      const shortName = mName.slice(0, 3);
-      labels.push(`${shortName}'${shortYear}`);
+
+    // Sum months into a single YTD bar
+    const ytdExport = monthExports.reduce((s, v) => s + v, 0);
+    const ytdImport = monthImports.reduce((s, v) => s + v, 0);
+
+    if (monthsYTD.length === 1) {
+      const mName = monthNames.find(mn => mn.value === monthsYTD[0])?.label || `M${monthsYTD[0]}`;
+      labels.push(`${mName.slice(0, 3)}'${shortYear}`);
+    } else {
+      const first = monthNames.find(mn => mn.value === monthsYTD[0])?.label || '';
+      const last = monthNames.find(mn => mn.value === monthsYTD[monthsYTD.length - 1])?.label || '';
+      labels.push(`${first.slice(0, 3)}-${last.slice(0, 3)}'${shortYear}`);
     }
 
     // Turnover data = export + import
     const turnoverData = [
       ...yearExports.map((e, i) => e + yearImports[i]),
-      ...monthExports.map((e, i) => e + monthImports[i]),
+      ytdExport + ytdImport,
     ];
 
     // Common chart options
@@ -528,7 +536,7 @@
         labels,
         datasets: [{
           data: turnoverData,
-          backgroundColor: turnoverData.map((_, i) => i < chartYears.length ? '#3b82f6' : '#93c5fd'),
+          backgroundColor: turnoverData.map((_, i) => i < chartYears.length ? '#3b82f6' : '#60a5fa'),
           borderRadius: 3,
         }],
       },
@@ -548,8 +556,8 @@
     // ── Export–Import dynamics chart ────────────────────────────────
     dynamicsChartHeader.innerHTML = `<h3 class="stat-report__title">${isKa ? 'ექსპორტ-იმპორტის დინამიკა' : 'Export–Import Dynamics'}</h3>`;
 
-    const expData = [...yearExports, ...monthExports];
-    const impData = [...yearImports, ...monthImports];
+    const expData = [...yearExports, ytdExport];
+    const impData = [...yearImports, ytdImport];
 
     dynamicsChartInstance = new Chart(dynamicsChartCanvas, {
       type: 'bar',
@@ -559,13 +567,13 @@
           {
             label: isKa ? 'ექსპორტი' : 'Export',
             data: expData,
-            backgroundColor: expData.map((_, i) => i < chartYears.length ? '#16a34a' : '#86efac'),
+            backgroundColor: expData.map((_, i) => i < chartYears.length ? '#16a34a' : '#4ade80'),
             borderRadius: 3,
           },
           {
             label: isKa ? 'იმპორტი' : 'Import',
             data: impData,
-            backgroundColor: impData.map((_, i) => i < chartYears.length ? '#dc2626' : '#fca5a5'),
+            backgroundColor: impData.map((_, i) => i < chartYears.length ? '#dc2626' : '#f87171'),
             borderRadius: 3,
           },
         ],
@@ -576,8 +584,9 @@
           ...commonOptions.plugins,
           legend: {
             display: true,
-            position: 'bottom',
-            labels: { boxWidth: 12, padding: 16, font: { size: 12 } },
+            position: 'top',
+            align: 'end',
+            labels: { boxWidth: 12, padding: 10, font: { size: 12 } },
           },
           datalabels: {
             ...commonOptions.plugins.datalabels,
