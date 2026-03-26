@@ -279,6 +279,10 @@
       const hasExport = overview.latestPeriod.export > 0;
       const hasImport = overview.latestPeriod.import > 0;
 
+      // Determine if export/import is increasing or declining in YTD
+      const exportGrowing = overview.latestPeriod.export >= overview.latestPeriod.exportPrev;
+      const importGrowing = overview.latestPeriod.import >= overview.latestPeriod.importPrev;
+
       // ── 3. Export products tables (only if export > 0) ─────────────
       if (hasExport) {
         const exportProducts = buildProductList(expHsCurrent, expHsPrev, reexHsCurrent);
@@ -286,10 +290,19 @@
         renderProductTable(exportTable, exportProducts, periodLabel, latestYear, true);
 
         const { increase, drop } = buildChangeLists(expHsCurrent, expHsPrev);
-        renderSectionHeader(exportIncreaseHeader, 'exportIncrease', periodLabel, latestYear);
-        renderChangeTable(exportIncreaseTable, increase, periodLabel, latestYear);
-        renderSectionHeader(exportDropHeader, 'exportDrop', periodLabel, latestYear);
-        renderChangeTable(exportDropTable, drop, periodLabel, latestYear);
+        if (exportGrowing) {
+          // Export increasing → show increase first, then drop
+          renderSectionHeader(exportIncreaseHeader, 'exportIncrease', periodLabel, latestYear);
+          renderChangeTable(exportIncreaseTable, increase, periodLabel, latestYear);
+          renderSectionHeader(exportDropHeader, 'exportDrop', periodLabel, latestYear);
+          renderChangeTable(exportDropTable, drop, periodLabel, latestYear);
+        } else {
+          // Export declining → show drop first (in increase container), then increase (in drop container)
+          renderSectionHeader(exportIncreaseHeader, 'exportDrop', periodLabel, latestYear);
+          renderChangeTable(exportIncreaseTable, drop, periodLabel, latestYear);
+          renderSectionHeader(exportDropHeader, 'exportIncrease', periodLabel, latestYear);
+          renderChangeTable(exportDropTable, increase, periodLabel, latestYear);
+        }
       }
 
       // ── 4. Import products tables (only if import > 0) ─────────────
@@ -299,10 +312,17 @@
         renderProductTable(importTable, importProducts, periodLabel, latestYear, false);
 
         const { increase: impIncrease, drop: impDrop } = buildChangeLists(impHsCurrent, impHsPrev);
-        renderSectionHeader(importIncreaseHeader, 'importIncrease', periodLabel, latestYear);
-        renderChangeTable(importIncreaseTable, impIncrease, periodLabel, latestYear);
-        renderSectionHeader(importDropHeader, 'importDrop', periodLabel, latestYear);
-        renderChangeTable(importDropTable, impDrop, periodLabel, latestYear);
+        if (importGrowing) {
+          renderSectionHeader(importIncreaseHeader, 'importIncrease', periodLabel, latestYear);
+          renderChangeTable(importIncreaseTable, impIncrease, periodLabel, latestYear);
+          renderSectionHeader(importDropHeader, 'importDrop', periodLabel, latestYear);
+          renderChangeTable(importDropTable, impDrop, periodLabel, latestYear);
+        } else {
+          renderSectionHeader(importIncreaseHeader, 'importDrop', periodLabel, latestYear);
+          renderChangeTable(importIncreaseTable, impDrop, periodLabel, latestYear);
+          renderSectionHeader(importDropHeader, 'importIncrease', periodLabel, latestYear);
+          renderChangeTable(importDropTable, impIncrease, periodLabel, latestYear);
+        }
       }
 
     } catch (err) {
