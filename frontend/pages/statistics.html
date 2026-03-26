@@ -38,6 +38,14 @@
         </div>
       </div>
 
+      <!-- Tabs -->
+      <div class="stat-tabs">
+        <button class="stat-tab active" data-tab="trade">ვაჭრობა</button>
+        <button class="stat-tab" data-tab="tourism">ტურიზმი</button>
+        <button class="stat-tab" data-tab="investments">ინვესტიციები</button>
+        <button class="stat-tab" data-tab="appendix">დანართი</button>
+      </div>
+
       <!-- Report output -->
       <div id="reportArea" class="hidden">
         <div id="reportLoading" class="stat-report__loading hidden">
@@ -97,6 +105,26 @@
         <div class="card">
           <div id="importDropHeader" class="stat-report__header"></div>
           <div id="importDropTable" class="table-wrap"></div>
+        </div>
+      </div>
+
+      <!-- Investments tab content -->
+      <div id="investmentsArea" class="hidden">
+        <div id="investmentsLoading" class="stat-report__loading hidden">
+          <div class="stat-spinner"></div>
+          <span data-i18n="common.loading">Loading...</span>
+        </div>
+        <div class="card">
+          <div class="stat-investments-row">
+            <div class="stat-investments-table-wrap">
+              <div id="fdiHeader" class="stat-report__header"></div>
+              <div id="fdiTable" class="table-wrap"></div>
+            </div>
+            <div class="stat-investments-chart-wrap">
+              <div id="fdiChartHeader" class="stat-report__header"></div>
+              <canvas id="fdiChart"></canvas>
+            </div>
+          </div>
         </div>
       </div>
 
