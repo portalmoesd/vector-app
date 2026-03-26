@@ -243,14 +243,15 @@
     const json = await geostatPost('/get_data', filters);
     if (!json.success) return 0;
 
-    // Sum all usd1000_ values from the response data
-    let total = 0;
+    // Use the isGroupSummary row (it's already the total), skip individual rows
     if (Array.isArray(json.data)) {
       for (const row of json.data) {
-        total += extractValue(row);
+        if (row.isGroupSummary) return extractValue(row);
       }
+      // If no summary row, use first row only
+      if (json.data.length > 0) return extractValue(json.data[0]);
     }
-    return total; // in Thsd. USD
+    return 0;
   }
 
   // ── Fetch all trade data with HS breakdown (paginated) ─────────────────
