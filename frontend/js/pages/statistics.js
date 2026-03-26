@@ -216,7 +216,7 @@
   async function generateReport() {
     if (!selectedCountry || !classData) return;
 
-    reportArea.classList.remove('hidden');
+    showActiveTab();
     reportLoading.classList.remove('hidden');
 
     // Clear all sections and hide product cards
@@ -1033,7 +1033,7 @@
   async function generateInvestments() {
     if (!selectedCountry) return;
 
-    investmentsArea.classList.remove('hidden');
+    showActiveTab();
     investmentsLoading.classList.remove('hidden');
     fdiTable.innerHTML = '';
     fdiHeader.innerHTML = '';
