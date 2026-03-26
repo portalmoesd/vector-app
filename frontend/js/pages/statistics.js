@@ -102,6 +102,22 @@
     console.error('Failed to load classificatory data:', err);
   }
 
+  // ── Load HS4 short name mapping ──────────────────────────────────────────
+  const hs4NameMap = {};
+  try {
+    const csvRes = await fetch('/data/hs4-names-ka.csv');
+    const csvText = await csvRes.text();
+    for (const line of csvText.split('\n').slice(1)) {
+      const comma = line.indexOf(',');
+      if (comma < 0) continue;
+      const code = parseInt(line.slice(0, comma).trim(), 10);
+      const name = line.slice(comma + 1).trim().replace(/^"|"$/g, '');
+      if (code && name) hs4NameMap[code] = name;
+    }
+  } catch (err) {
+    console.error('Failed to load HS4 name mapping:', err);
+  }
+
   // ── Country search dropdown ──────────────────────────────────────────────
 
   function renderDropdown(filter) {
@@ -163,24 +179,29 @@
 
     reportArea.classList.remove('hidden');
     reportLoading.classList.remove('hidden');
-    overviewTable.innerHTML = '';
-    overviewHeader.innerHTML = '';
-    exportTable.innerHTML = '';
-    exportHeader.innerHTML = '';
-    exportIncreaseTable.innerHTML = '';
-    exportIncreaseHeader.innerHTML = '';
-    exportDropTable.innerHTML = '';
-    exportDropHeader.innerHTML = '';
-    importTable.innerHTML = '';
-    importHeader.innerHTML = '';
-    importIncreaseTable.innerHTML = '';
-    importIncreaseHeader.innerHTML = '';
-    importDropTable.innerHTML = '';
-    importDropHeader.innerHTML = '';
+
+    // Clear all sections and hide product cards
+    const allHeaders = [
+      overviewHeader, exportHeader, exportIncreaseHeader, exportDropHeader,
+      importHeader, importIncreaseHeader, importDropHeader,
+      turnoverChartHeader, dynamicsChartHeader,
+    ];
+    const allTables = [
+      overviewTable, exportTable, exportIncreaseTable, exportDropTable,
+      importTable, importIncreaseTable, importDropTable,
+    ];
+    for (const el of allHeaders) el.innerHTML = '';
+    for (const el of allTables) el.innerHTML = '';
+
+    // Hide all product/change cards (they get shown when they have data)
+    const hiddenCards = [
+      exportHeader, exportIncreaseHeader, exportDropHeader,
+      importHeader, importIncreaseHeader, importDropHeader,
+    ];
+    for (const el of hiddenCards) hideCard(el);
+
     if (turnoverChartInstance) { turnoverChartInstance.destroy(); turnoverChartInstance = null; }
     if (dynamicsChartInstance) { dynamicsChartInstance.destroy(); dynamicsChartInstance = null; }
-    turnoverChartHeader.innerHTML = '';
-    dynamicsChartHeader.innerHTML = '';
 
     try {
       const { year: latestYear, month: latestMonth } = detectLatestPeriod(classData);
@@ -288,20 +309,31 @@
         const exportProducts = buildProductList(expHsCurrent, expHsPrev, reexHsCurrent);
         renderSectionHeader(exportHeader, 'export', periodLabel, latestYear);
         renderProductTable(exportTable, exportProducts, periodLabel, latestYear, true);
+        showCard(exportHeader);
 
         const { increase, drop } = buildChangeLists(expHsCurrent, expHsPrev);
         if (exportGrowing) {
-          // Export increasing → show increase first, then drop
-          renderSectionHeader(exportIncreaseHeader, 'exportIncrease', periodLabel, latestYear);
-          renderChangeTable(exportIncreaseTable, increase, periodLabel, latestYear);
-          renderSectionHeader(exportDropHeader, 'exportDrop', periodLabel, latestYear);
-          renderChangeTable(exportDropTable, drop, periodLabel, latestYear);
+          if (increase.length > 0) {
+            renderSectionHeader(exportIncreaseHeader, 'exportIncrease', periodLabel, latestYear);
+            renderChangeTable(exportIncreaseTable, increase, periodLabel, latestYear);
+            showCard(exportIncreaseHeader);
+          }
+          if (drop.length > 0) {
+            renderSectionHeader(exportDropHeader, 'exportDrop', periodLabel, latestYear);
+            renderChangeTable(exportDropTable, drop, periodLabel, latestYear);
+            showCard(exportDropHeader);
+          }
         } else {
-          // Export declining → show drop first (in increase container), then increase (in drop container)
-          renderSectionHeader(exportIncreaseHeader, 'exportDrop', periodLabel, latestYear);
-          renderChangeTable(exportIncreaseTable, drop, periodLabel, latestYear);
-          renderSectionHeader(exportDropHeader, 'exportIncrease', periodLabel, latestYear);
-          renderChangeTable(exportDropTable, increase, periodLabel, latestYear);
+          if (drop.length > 0) {
+            renderSectionHeader(exportIncreaseHeader, 'exportDrop', periodLabel, latestYear);
+            renderChangeTable(exportIncreaseTable, drop, periodLabel, latestYear);
+            showCard(exportIncreaseHeader);
+          }
+          if (increase.length > 0) {
+            renderSectionHeader(exportDropHeader, 'exportIncrease', periodLabel, latestYear);
+            renderChangeTable(exportDropTable, increase, periodLabel, latestYear);
+            showCard(exportDropHeader);
+          }
         }
       }
 
@@ -310,18 +342,31 @@
         const importProducts = buildProductList(impHsCurrent, impHsPrev, null);
         renderSectionHeader(importHeader, 'import', periodLabel, latestYear);
         renderProductTable(importTable, importProducts, periodLabel, latestYear, false);
+        showCard(importHeader);
 
         const { increase: impIncrease, drop: impDrop } = buildChangeLists(impHsCurrent, impHsPrev);
         if (importGrowing) {
-          renderSectionHeader(importIncreaseHeader, 'importIncrease', periodLabel, latestYear);
-          renderChangeTable(importIncreaseTable, impIncrease, periodLabel, latestYear);
-          renderSectionHeader(importDropHeader, 'importDrop', periodLabel, latestYear);
-          renderChangeTable(importDropTable, impDrop, periodLabel, latestYear);
+          if (impIncrease.length > 0) {
+            renderSectionHeader(importIncreaseHeader, 'importIncrease', periodLabel, latestYear);
+            renderChangeTable(importIncreaseTable, impIncrease, periodLabel, latestYear);
+            showCard(importIncreaseHeader);
+          }
+          if (impDrop.length > 0) {
+            renderSectionHeader(importDropHeader, 'importDrop', periodLabel, latestYear);
+            renderChangeTable(importDropTable, impDrop, periodLabel, latestYear);
+            showCard(importDropHeader);
+          }
         } else {
-          renderSectionHeader(importIncreaseHeader, 'importDrop', periodLabel, latestYear);
-          renderChangeTable(importIncreaseTable, impDrop, periodLabel, latestYear);
-          renderSectionHeader(importDropHeader, 'importIncrease', periodLabel, latestYear);
-          renderChangeTable(importDropTable, impIncrease, periodLabel, latestYear);
+          if (impDrop.length > 0) {
+            renderSectionHeader(importIncreaseHeader, 'importDrop', periodLabel, latestYear);
+            renderChangeTable(importIncreaseTable, impDrop, periodLabel, latestYear);
+            showCard(importIncreaseHeader);
+          }
+          if (impIncrease.length > 0) {
+            renderSectionHeader(importDropHeader, 'importIncrease', periodLabel, latestYear);
+            renderChangeTable(importDropTable, impIncrease, periodLabel, latestYear);
+            showCard(importDropHeader);
+          }
         }
       }
 
@@ -686,7 +731,7 @@
       if (row.isGroupSummary || !row.hs4) continue;
       const val = extractValue(row);
       if (!currentMap[row.hs4]) {
-        currentMap[row.hs4] = { hs4: row.hs4, name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`), valueThdUsd: 0 };
+        currentMap[row.hs4] = { hs4: row.hs4, name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`, row.hs4), valueThdUsd: 0 };
       }
       currentMap[row.hs4].valueThdUsd += val;
     }
@@ -697,7 +742,7 @@
       if (row.isGroupSummary || !row.hs4) continue;
       const val = extractValue(row);
       if (!prevMap[row.hs4]) {
-        prevMap[row.hs4] = { valueThdUsd: 0, name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`) };
+        prevMap[row.hs4] = { valueThdUsd: 0, name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`, row.hs4) };
       }
       prevMap[row.hs4].valueThdUsd += val;
     }
@@ -790,7 +835,7 @@
         if (!currentMap[row.hs4]) {
           currentMap[row.hs4] = {
             hs4: row.hs4,
-            name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`),
+            name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`, row.hs4),
             valueThdUsd: 0,
           };
         }
@@ -857,7 +902,21 @@
 
   // ── Clean HS4 name ───────────────────────────────────────────────────────
 
-  function cleanHs4Name(name) {
+  // ── Show / hide parent card ───────────────────────────────────────────────
+
+  function showCard(el) {
+    const card = el.closest('.card');
+    if (card) card.style.display = '';
+  }
+
+  function hideCard(el) {
+    const card = el.closest('.card');
+    if (card) card.style.display = 'none';
+  }
+
+  function cleanHs4Name(name, hs4Code) {
+    // Use short name from mapping if available
+    if (hs4Code && hs4NameMap[hs4Code]) return hs4NameMap[hs4Code];
     return name.replace(/^\d{2,6}\s+/, '');
   }
 
