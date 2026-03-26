@@ -171,11 +171,13 @@
   // ── Tab switching ─────────────────────────────────────────────────────────
 
   function showActiveTab() {
+    // Hide all tab content areas
     reportArea.classList.add('hidden');
     investmentsArea.classList.add('hidden');
 
-    if (activeTab === 'trade' && overviewTable.innerHTML) reportArea.classList.remove('hidden');
-    if (activeTab === 'investments' && fdiTable.innerHTML) investmentsArea.classList.remove('hidden');
+    // Show the active one
+    if (activeTab === 'trade') reportArea.classList.remove('hidden');
+    else if (activeTab === 'investments') investmentsArea.classList.remove('hidden');
   }
 
   document.querySelectorAll('.stat-tab').forEach(tab => {
