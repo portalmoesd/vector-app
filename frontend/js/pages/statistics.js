@@ -170,18 +170,26 @@
 
   // ── Tab switching ─────────────────────────────────────────────────────────
 
+  function showActiveTab() {
+    reportArea.classList.add('hidden');
+    investmentsArea.classList.add('hidden');
+
+    if (activeTab === 'trade' && overviewTable.innerHTML) reportArea.classList.remove('hidden');
+    if (activeTab === 'investments' && fdiTable.innerHTML) investmentsArea.classList.remove('hidden');
+  }
+
   document.querySelectorAll('.stat-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.stat-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
       activeTab = tab.dataset.tab;
+      showActiveTab();
 
-      // Show/hide tab content areas
-      reportArea.classList.add('hidden');
-      investmentsArea.classList.add('hidden');
-
-      if (activeTab === 'trade' && overviewTable.innerHTML) reportArea.classList.remove('hidden');
-      if (activeTab === 'investments' && fdiTable.innerHTML) investmentsArea.classList.remove('hidden');
+      // Auto-generate if country is selected but tab content is empty
+      if (selectedCountry) {
+        if (activeTab === 'trade' && !overviewTable.innerHTML) generateReport();
+        else if (activeTab === 'investments' && !fdiTable.innerHTML) generateInvestments();
+      }
     });
   });
 
