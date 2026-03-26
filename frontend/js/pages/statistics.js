@@ -667,10 +667,7 @@
   // ── Chart data label formatter ───────────────────────────────────────────
 
   function chartLabel(val) {
-    if (val >= 1000) return (val / 1000).toFixed(1) + 'B';
-    if (val >= 1) return Math.round(val) + 'M';
-    if (val >= 0.01) return val.toFixed(1) + 'M';
-    return '';
+    return val.toFixed(2);
   }
 
   // ── Build product list ─────────────────────────────────────────────────
