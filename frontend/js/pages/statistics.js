@@ -33,6 +33,10 @@
   const exportDropTable = document.getElementById('exportDropTable');
   const importHeader = document.getElementById('importHeader');
   const importTable = document.getElementById('importTable');
+  const importIncreaseHeader = document.getElementById('importIncreaseHeader');
+  const importIncreaseTable = document.getElementById('importIncreaseTable');
+  const importDropHeader = document.getElementById('importDropHeader');
+  const importDropTable = document.getElementById('importDropTable');
   const turnoverChartHeader = document.getElementById('turnoverChartHeader');
   const turnoverChartCanvas = document.getElementById('turnoverChart');
   const dynamicsChartHeader = document.getElementById('dynamicsChartHeader');
@@ -169,6 +173,10 @@
     exportDropHeader.innerHTML = '';
     importTable.innerHTML = '';
     importHeader.innerHTML = '';
+    importIncreaseTable.innerHTML = '';
+    importIncreaseHeader.innerHTML = '';
+    importDropTable.innerHTML = '';
+    importDropHeader.innerHTML = '';
     if (turnoverChartInstance) { turnoverChartInstance.destroy(); turnoverChartInstance = null; }
     if (dynamicsChartInstance) { dynamicsChartInstance.destroy(); dynamicsChartInstance = null; }
     turnoverChartHeader.innerHTML = '';
@@ -283,6 +291,13 @@
       const importProducts = buildProductList(impHsCurrent, impHsPrev, null);
       renderSectionHeader(importHeader, 'import', periodLabel, latestYear);
       renderProductTable(importTable, importProducts, periodLabel, latestYear, false);
+
+      // ── 6. Import increase / drop tables ───────────────────────────
+      const { increase: impIncrease, drop: impDrop } = buildChangeLists(impHsCurrent, impHsPrev);
+      renderSectionHeader(importIncreaseHeader, 'importIncrease', periodLabel, latestYear);
+      renderChangeTable(importIncreaseTable, impIncrease, periodLabel, latestYear);
+      renderSectionHeader(importDropHeader, 'importDrop', periodLabel, latestYear);
+      renderChangeTable(importDropTable, impDrop, periodLabel, latestYear);
 
     } catch (err) {
       console.error('Report generation error:', err);
@@ -673,14 +688,14 @@
       .filter(p => p.diffMln > 0)
       .sort((a, b) => b.diffMln - a.diffMln)
       .filter(p => p.diffMln >= 0.01)
-      .slice(0, 15);
+      .slice(0, 10);
 
-    // Drop: negative diff, sorted by diff ascending (most negative first), max 15
+    // Drop: negative diff, sorted by diff ascending (most negative first), max 10
     const dropped = products
       .filter(p => p.diffMln < 0)
       .sort((a, b) => a.diffMln - b.diffMln)
       .filter(p => p.diffMln <= -0.01)
-      .slice(0, 15);
+      .slice(0, 10);
 
     return { increase: increased, drop: dropped };
   }
@@ -819,6 +834,8 @@
       import: isKa ? 'ძირითადი საიმპორტო პროდუქცია' : 'Main Import Products',
       exportIncrease: isKa ? 'ექსპორტში ყველაზე მეტად გაზრდილი პროდუქცია' : 'Most Increased Export Products',
       exportDrop: isKa ? 'ექსპორტში ყველაზე მეტად შემცირებული პროდუქცია' : 'Most Decreased Export Products',
+      importIncrease: isKa ? 'იმპორტში ყველაზე მეტად გაზრდილი პროდუქცია' : 'Most Increased Import Products',
+      importDrop: isKa ? 'იმპორტში ყველაზე მეტად შემცირებული პროდუქცია' : 'Most Decreased Import Products',
     };
     const t = `${selectedCountry.displayLabel} - ${labels[type]}, ${periodLabel} ${year}`;
     el.innerHTML = `<h3 class="stat-report__title">${escapeHtml(t)}</h3>`;
