@@ -269,6 +269,30 @@
   flex-shrink: 0;
 }
 
+/* ─── Investments Layout ─────────────────────────────────────────────────── */
+
+.stat-investments-row {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.stat-investments-table-wrap {
+  flex: 0 0 auto;
+  min-width: 320px;
+}
+
+.stat-investments-chart-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 980px) {
+  .stat-investments-row {
+    flex-direction: column;
+  }
+}
+
 /* ─── Change colors ──────────────────────────────────────────────────────── */
 
 .stat-positive {

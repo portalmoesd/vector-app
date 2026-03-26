@@ -41,6 +41,13 @@
   const turnoverChartCanvas = document.getElementById('turnoverChart');
   const dynamicsChartHeader = document.getElementById('dynamicsChartHeader');
   const dynamicsChartCanvas = document.getElementById('dynamicsChart');
+  // Investments tab
+  const investmentsArea = document.getElementById('investmentsArea');
+  const investmentsLoading = document.getElementById('investmentsLoading');
+  const fdiHeader = document.getElementById('fdiHeader');
+  const fdiTable = document.getElementById('fdiTable');
+  const fdiChartHeader = document.getElementById('fdiChartHeader');
+  const fdiChartCanvas = document.getElementById('fdiChart');
 
   // ── State ────────────────────────────────────────────────────────────────
   let countries = [];
@@ -49,6 +56,8 @@
   let useProxy = false;
   let turnoverChartInstance = null;
   let dynamicsChartInstance = null;
+  let fdiChartInstance = null;
+  let activeTab = 'trade';
 
   // ── Geostat API helpers (direct + proxy fallback) ────────────────────────
 
@@ -159,6 +168,23 @@
     }
   });
 
+  // ── Tab switching ─────────────────────────────────────────────────────────
+
+  document.querySelectorAll('.stat-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.stat-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeTab = tab.dataset.tab;
+
+      // Show/hide tab content areas
+      reportArea.classList.add('hidden');
+      investmentsArea.classList.add('hidden');
+
+      if (activeTab === 'trade' && overviewTable.innerHTML) reportArea.classList.remove('hidden');
+      if (activeTab === 'investments' && fdiTable.innerHTML) investmentsArea.classList.remove('hidden');
+    });
+  });
+
   // ── Determine latest available period ────────────────────────────────────
 
   function detectLatestPeriod(cd) {
@@ -172,7 +198,10 @@
 
   // ── Generate report ──────────────────────────────────────────────────────
 
-  generateBtn.addEventListener('click', generateReport);
+  generateBtn.addEventListener('click', () => {
+    if (activeTab === 'trade') generateReport();
+    else if (activeTab === 'investments') generateInvestments();
+  });
 
   async function generateReport() {
     if (!selectedCountry || !classData) return;
@@ -985,5 +1014,145 @@
     if (val >= 0.01) return val.toFixed(2);
     if (val > 0) return val.toFixed(3);
     return '0.00';
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // ── INVESTMENTS TAB ──────────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════
+
+  async function generateInvestments() {
+    if (!selectedCountry) return;
+
+    investmentsArea.classList.remove('hidden');
+    investmentsLoading.classList.remove('hidden');
+    fdiTable.innerHTML = '';
+    fdiHeader.innerHTML = '';
+    fdiChartHeader.innerHTML = '';
+    if (fdiChartInstance) { fdiChartInstance.destroy(); fdiChartInstance = null; }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/statistics/fdi`);
+      const json = await res.json();
+      if (!json.success) throw new Error('FDI data fetch failed');
+
+      const countryCode = selectedCountry.value;
+      const countryData = json.countries[countryCode];
+      const allYears = json.years; // e.g. [1996, 1997, ..., 2025]
+
+      if (!countryData) {
+        fdiTable.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
+        investmentsLoading.classList.add('hidden');
+        return;
+      }
+
+      // Find the latest year that has data
+      const latestYear = allYears[allYears.length - 1];
+
+      // Display last 5 years (or from latestYear-4 to latestYear)
+      const displayYears = [];
+      for (let y = latestYear - 4; y <= latestYear; y++) {
+        if (allYears.includes(y)) displayYears.push(y);
+      }
+
+      // Build table data: year, value (mln USD), change %
+      const tableData = displayYears.map(y => {
+        const val = (countryData[y] || 0) / 1000; // Thsd → Mln
+        const prev = (countryData[y - 1] || 0) / 1000;
+        return { year: y, valueMln: val, prevMln: prev };
+      });
+
+      const isKa = I18n.getLocale() === 'ka';
+      fdiHeader.innerHTML = `<h3 class="stat-report__title">${escapeHtml(selectedCountry.displayLabel)} - ${isKa ? 'პირდაპირი უცხოური ინვესტიციები' : 'Foreign Direct Investment'}</h3>`;
+
+      renderFdiTable(tableData, isKa);
+      renderFdiChart(tableData, isKa);
+
+    } catch (err) {
+      console.error('Investments error:', err);
+      fdiTable.innerHTML = `<div class="msg msg-error">${escapeHtml(err.message)}</div>`;
+    } finally {
+      investmentsLoading.classList.add('hidden');
+    }
+  }
+
+  function renderFdiTable(data, isKa) {
+    const hYear = isKa ? 'წელი' : 'Year';
+    const hValue = isKa ? 'მოცულობა, მლნ. $' : 'Volume, mln $';
+    const hChange = isKa ? 'ცვლილება, %' : 'Change, %';
+
+    let html = `<table class="stat-table">
+      <thead>
+        <tr>
+          <th>${hYear}</th>
+          <th class="stat-col-value">${hValue}</th>
+          <th class="stat-col-change">${hChange}</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    for (const r of data) {
+      const pct = r.prevMln > 0
+        ? ((r.valueMln - r.prevMln) / Math.abs(r.prevMln) * 100)
+        : (r.valueMln > 0 ? 100 : 0);
+      const changeClass = pct > 0 ? 'stat-positive' : (pct < 0 ? 'stat-negative' : '');
+      const sign = pct > 0 ? '+' : '';
+      html += `
+        <tr>
+          <td>${r.year}</td>
+          <td class="stat-col-value">${formatMln(Math.abs(r.valueMln))}</td>
+          <td class="stat-col-change ${changeClass}">${sign}${formatChangePct(pct)}</td>
+        </tr>`;
+    }
+
+    html += '</tbody></table>';
+    fdiTable.innerHTML = html;
+  }
+
+  function renderFdiChart(data, isKa) {
+    fdiChartHeader.innerHTML = `<h3 class="stat-report__title">${isKa ? 'პირდაპირი უცხოური ინვესტიციები, მლნ. $' : 'FDI, mln $'}</h3>`;
+
+    const labels = data.map(d => String(d.year));
+    const values = data.map(d => d.valueMln);
+
+    fdiChartInstance = new Chart(fdiChartCanvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: '#3b82f6',
+          borderRadius: 3,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        layout: { padding: { top: 24 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: true },
+          datalabels: {
+            anchor: 'end',
+            align: 'end',
+            font: { size: 11, weight: '600' },
+            color: '#374151',
+            formatter: (v) => v.toFixed(2),
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: { font: { size: 11 } },
+          },
+          y: {
+            display: false,
+            grid: { display: false },
+            beginAtZero: true,
+          },
+        },
+      },
+      plugins: [ChartDataLabels],
+    });
   }
 })();

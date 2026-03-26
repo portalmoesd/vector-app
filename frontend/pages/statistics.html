@@ -108,6 +108,26 @@
         </div>
       </div>
 
+      <!-- Investments tab content -->
+      <div id="investmentsArea" class="hidden">
+        <div id="investmentsLoading" class="stat-report__loading hidden">
+          <div class="stat-spinner"></div>
+          <span data-i18n="common.loading">Loading...</span>
+        </div>
+        <div class="card">
+          <div class="stat-investments-row">
+            <div class="stat-investments-table-wrap">
+              <div id="fdiHeader" class="stat-report__header"></div>
+              <div id="fdiTable" class="table-wrap"></div>
+            </div>
+            <div class="stat-investments-chart-wrap">
+              <div id="fdiChartHeader" class="stat-report__header"></div>
+              <canvas id="fdiChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </main>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
