@@ -337,7 +337,6 @@
     let html = `<table class="stat-table">
       <thead>
         <tr>
-          <th class="stat-col-rank">${headers.rank}</th>
           <th class="stat-col-product">${headers.product}</th>
           <th class="stat-col-value">${headers.value}</th>
           <th class="stat-col-change">${headers.change}</th>
@@ -351,7 +350,6 @@
       const changeSign = p.change > 0 ? '+' : '';
       html += `
         <tr>
-          <td class="stat-col-rank">${p.rank}</td>
           <td class="stat-col-product">${escapeHtml(p.name)}</td>
           <td class="stat-col-value">${formatMln(p.valueMln)}</td>
           <td class="stat-col-change ${changeClass}">${changeSign}${p.change.toFixed(1)}%</td>
