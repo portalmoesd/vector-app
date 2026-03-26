@@ -1,13 +1,20 @@
 /**
  * Statistics Page
  * Generates "Main Export Products" report for a selected country
- * using data from ex-trade-api.geostat.ge (proxied via /api/statistics).
+ * using data from ex-trade-api.geostat.ge.
+ *
+ * Calls the Geostat API directly from the browser.
+ * Falls back to our backend proxy (/api/statistics/) if direct calls fail.
  */
 (async function () {
   await App.init();
 
   const user = Api.getUser();
   if (!user) return;
+
+  // ── Constants ──────────────────────────────────────────────────────────
+  const GEOSTAT_API = 'https://ex-trade-api.geostat.ge/api/trade';
+  const PROXY_API = `${API_BASE}/api/statistics`;
 
   // ── DOM refs ─────────────────────────────────────────────────────────────
   const searchInput = document.getElementById('countrySearch');
@@ -21,15 +28,53 @@
 
   // ── State ────────────────────────────────────────────────────────────────
   let countries = [];
+  let classData = null;
   let selectedCountry = null;
+  let useProxy = false; // will flip to true if direct calls fail
+
+  // ── Geostat API helpers (direct + proxy fallback) ────────────────────────
+
+  async function geostatGet(path) {
+    if (!useProxy) {
+      try {
+        const res = await fetch(`${GEOSTAT_API}${path}`);
+        if (res.ok) return res.json();
+      } catch (_) { /* fall through to proxy */ }
+      useProxy = true;
+    }
+    const res = await fetch(`${PROXY_API}${path}`);
+    if (!res.ok) throw new Error(`API error ${res.status}`);
+    return res.json();
+  }
+
+  async function geostatPost(path, body) {
+    if (!useProxy) {
+      try {
+        const res = await fetch(`${GEOSTAT_API}${path}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) return res.json();
+      } catch (_) { /* fall through to proxy */ }
+      useProxy = true;
+    }
+    const res = await fetch(`${PROXY_API}${path.replace('/get_data', '/trade-data')}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`API error ${res.status}`);
+    return res.json();
+  }
 
   // ── Load classificatory data ─────────────────────────────────────────────
   const lang = I18n.getLocale() || 'en';
 
   try {
-    const result = await fetch(`${API_BASE}/api/statistics/classificatory?lang=${lang}`);
-    const json = await result.json();
+    const json = await geostatGet(`/classificatory?lang=${lang}`);
     if (json.success && json.data) {
+      classData = json.data;
       countries = json.data.countries || [];
     }
   } catch (err) {
@@ -78,18 +123,13 @@
   });
 
   // ── Determine latest available period ────────────────────────────────────
-  // The API classificatory data contains years and months.
-  // We detect the latest year+month combo from the data response metadata.
 
-  function detectLatestPeriod(classData) {
-    const years = (classData.year || []).map(y => y.value).sort((a, b) => b - a);
-    const months = (classData.month || []).map(m => m.value).sort((a, b) => b - a);
-    // Latest year is first, latest month is first
-    // We need to figure out the actual latest available month.
-    // The classData also has 'selected' with year and month.
-    if (classData.selected) {
-      return { year: classData.selected.year, month: classData.selected.month };
+  function detectLatestPeriod(cd) {
+    if (cd.selected) {
+      return { year: cd.selected.year, month: cd.selected.month };
     }
+    const years = (cd.year || []).map(y => y.value).sort((a, b) => b - a);
+    const months = (cd.month || []).map(m => m.value).sort((a, b) => b - a);
     return { year: years[0], month: months[0] };
   }
 
@@ -98,25 +138,21 @@
   generateBtn.addEventListener('click', generateReport);
 
   async function generateReport() {
-    if (!selectedCountry) return;
+    if (!selectedCountry || !classData) return;
 
     reportArea.classList.remove('hidden');
     reportLoading.classList.remove('hidden');
     reportTable.innerHTML = '';
+    reportHeader.innerHTML = '';
 
     try {
-      // Re-fetch classificatory to get latest period info
-      const classRes = await fetch(`${API_BASE}/api/statistics/classificatory?lang=${lang}`);
-      const classJson = await classRes.json();
-      if (!classJson.success) throw new Error('Failed to load metadata');
-
-      const { year: latestYear, month: latestMonth } = detectLatestPeriod(classJson.data);
+      const { year: latestYear, month: latestMonth } = detectLatestPeriod(classData);
 
       // Build month list: 1..latestMonth (YTD)
       const monthsYTD = [];
       for (let m = 1; m <= latestMonth; m++) monthsYTD.push(m);
 
-      const monthNames = (classJson.data.month || []);
+      const monthNames = classData.month || [];
       const firstMonthName = monthNames.find(m => m.value === 1)?.label || 'Jan';
       const lastMonthName = monthNames.find(m => m.value === latestMonth)?.label || `Month ${latestMonth}`;
       const periodLabel = monthsYTD.length === 1
@@ -125,21 +161,15 @@
 
       const countryId = selectedCountry.value;
 
-      // Fetch export data (tradeFlow=10) for current year and previous year
-      // Also fetch re-export data (tradeFlow=13) for same periods
+      // Fetch export (10), previous year export (10), and re-export (13) in parallel
       const [exportCurrent, exportPrev, reexportCurrent] = await Promise.all([
         fetchAllTradeData(10, [latestYear], monthsYTD, countryId),
         fetchAllTradeData(10, [latestYear - 1], monthsYTD, countryId),
         fetchAllTradeData(13, [latestYear], monthsYTD, countryId),
       ]);
 
-      // Build product map from export data
-      const products = buildProductTable(
-        exportCurrent, exportPrev, reexportCurrent,
-        latestYear, periodLabel
-      );
+      const products = buildProductTable(exportCurrent, exportPrev, reexportCurrent);
 
-      // Render
       renderReportHeader(periodLabel, latestYear);
       renderTable(products, periodLabel, latestYear);
 
@@ -151,95 +181,99 @@
     }
   }
 
-  // ── Fetch all trade data (all pages) ─────────────────────────────────────
+  // ── Fetch all trade data (paginate through all pages) ────────────────────
 
   async function fetchAllTradeData(tradeFlow, years, months, countryId) {
-    const filters = {
-      tradeFlow,
-      measurementUnits: [1], // Thsd. USD
-      years,
-      months,
-      countries: [countryId],
-      hs4: ['all'],
-      locale: lang,
-      sum: true, // sum across selected months for YTD
-    };
+    const allData = [];
+    let page = 1;
+    let total = Infinity;
+    const pageSize = 200;
 
-    const res = await fetch(`${API_BASE}/api/statistics/export-report`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(filters),
-    });
-    const json = await res.json();
-    if (!json.success) throw new Error('Trade data fetch failed');
-    return json.data || [];
+    while (allData.length < total && page < 100) {
+      const filters = {
+        tradeFlow,
+        measurementUnits: [1], // Thsd. USD
+        years,
+        months,
+        countries: [countryId],
+        hs4: ['all'],
+        locale: lang,
+        sum: true,
+        page,
+        pageSize,
+      };
+
+      const json = await geostatPost('/get_data', filters);
+      if (!json.success) throw new Error('Trade data fetch failed');
+
+      total = json.total || 0;
+      if (Array.isArray(json.data)) {
+        allData.push(...json.data);
+      }
+      if (!json.data || json.data.length === 0) break;
+      page++;
+    }
+
+    return allData;
   }
 
   // ── Build product table data ─────────────────────────────────────────────
 
-  function buildProductTable(exportCurrent, exportPrev, reexportCurrent, year, periodLabel) {
-    // Parse export current year: HS4 → value in Thsd. USD
+  function buildProductTable(exportCurrent, exportPrev, reexportCurrent) {
+    // Current year export: HS4 → value in Thsd. USD
     const currentMap = {};
     for (const row of exportCurrent) {
-      if (row.isGroupSummary) continue;
-      if (!row.hs4) continue;
-      const key = row.hs4;
-      // Find the value field — it's named like usd1000_{year}_{month} or could be a sum field
+      if (row.isGroupSummary || !row.hs4) continue;
       const val = extractValue(row);
       if (val > 0) {
-        currentMap[key] = {
-          hs4: row.hs4,
-          name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`),
-          valueThdUsd: (currentMap[key]?.valueThdUsd || 0) + val,
-        };
+        if (!currentMap[row.hs4]) {
+          currentMap[row.hs4] = {
+            hs4: row.hs4,
+            name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`),
+            valueThdUsd: 0,
+          };
+        }
+        currentMap[row.hs4].valueThdUsd += val;
       }
     }
 
-    // Parse export previous year
+    // Previous year export
     const prevMap = {};
     for (const row of exportPrev) {
-      if (row.isGroupSummary) continue;
-      if (!row.hs4) continue;
+      if (row.isGroupSummary || !row.hs4) continue;
       const val = extractValue(row);
-      if (val > 0) {
-        prevMap[row.hs4] = (prevMap[row.hs4] || 0) + val;
-      }
+      if (val > 0) prevMap[row.hs4] = (prevMap[row.hs4] || 0) + val;
     }
 
-    // Parse re-export current year
+    // Re-export current year
     const reexportMap = {};
     for (const row of reexportCurrent) {
-      if (row.isGroupSummary) continue;
-      if (!row.hs4) continue;
+      if (row.isGroupSummary || !row.hs4) continue;
       const val = extractValue(row);
-      if (val > 0) {
-        reexportMap[row.hs4] = (reexportMap[row.hs4] || 0) + val;
-      }
+      if (val > 0) reexportMap[row.hs4] = (reexportMap[row.hs4] || 0) + val;
     }
 
-    // Build sorted product list (by value descending)
-    let products = Object.values(currentMap).sort((a, b) => b.valueThdUsd - a.valueThdUsd);
+    // Sort by value descending, convert to millions
+    let products = Object.values(currentMap)
+      .sort((a, b) => b.valueThdUsd - a.valueThdUsd)
+      .map(p => ({
+        ...p,
+        valueMln: p.valueThdUsd / 1000,
+        prevValueMln: (prevMap[p.hs4] || 0) / 1000,
+        reexportMln: (reexportMap[p.hs4] || 0) / 1000,
+      }));
 
-    // Convert to millions
-    products = products.map(p => ({
-      ...p,
-      valueMln: p.valueThdUsd / 1000,
-      prevValueMln: (prevMap[p.hs4] || 0) / 1000,
-      reexportMln: (reexportMap[p.hs4] || 0) / 1000,
-    }));
-
-    // Filter: display max 15, exclude those < 0.01 mln USD (unless fewer than 5)
+    // Filter: max 15, exclude < 0.01 mln (unless fewer than 5 total)
     const significant = products.filter(p => p.valueMln >= 0.01);
     let result;
     if (significant.length >= 5) {
       result = significant.slice(0, 15);
     } else {
-      // Show at least the top 5 even if below 0.01
       result = products.slice(0, Math.max(5, significant.length));
     }
 
     // Calculate change % and re-export share %
-    result = result.map((p, i) => ({
+    return result.map((p, i) => ({
       rank: i + 1,
       name: p.name,
       valueMln: p.valueMln,
@@ -250,12 +284,9 @@
         ? (p.reexportMln / p.valueMln * 100)
         : 0,
     }));
-
-    return result;
   }
 
   // ── Extract numeric value from a data row ────────────────────────────────
-  // The API returns values in fields like "usd1000_2026_1", "usd1000_2025_2" etc.
 
   function extractValue(row) {
     for (const key of Object.keys(row)) {
@@ -267,10 +298,9 @@
     return 0;
   }
 
-  // ── Clean HS4 name (remove code prefix like "8703 ") ─────────────────────
+  // ── Clean HS4 name (remove leading code like "8703 ") ────────────────────
 
   function cleanHs4Name(name) {
-    // The name comes as "8703 Light vehicles..." — remove the leading code
     return name.replace(/^\d{2,6}\s+/, '');
   }
 
@@ -300,7 +330,6 @@
       reexport: isKa ? 'რეექსპორტის წილი, %' : 'Re-export share, %',
     };
 
-    // Calculate total for all displayed products
     const totalValue = products.reduce((s, p) => s + p.valueMln, 0);
 
     let html = `<table class="stat-table">
@@ -328,7 +357,6 @@
         </tr>`;
     }
 
-    // Total row
     html += `
         <tr class="stat-total-row">
           <td></td>
