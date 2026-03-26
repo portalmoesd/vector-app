@@ -1187,114 +1187,100 @@
     exportPdfBtn.textContent = '...';
 
     try {
-      // Determine which tab is active and get its content area
       const sourceArea = activeTab === 'investments' ? investmentsArea : reportArea;
       if (!sourceArea || sourceArea.classList.contains('hidden')) return;
 
-      // Clone the content for PDF — we'll restyle it without affecting the screen
+      // Build PDF container — sized to fit A4 portrait with margins
       const container = document.createElement('div');
-      container.style.cssText = 'font-family: FiraGO, Noto Sans Georgian, Arial, sans-serif; color: #1a1a1a; font-size: 13px; width: 780px;';
+      container.style.cssText = 'font-family: FiraGO, Noto Sans Georgian, Arial, sans-serif; color: #1a1a1a; font-size: 11px;';
 
-      // Get all visible cards from the active area
+      let isFirst = true;
+
+      // Helper: add a section with page break (except first)
+      function addSection(html, opts = {}) {
+        const div = document.createElement('div');
+        if (!isFirst) div.style.pageBreakBefore = 'always';
+        div.innerHTML = html;
+        container.appendChild(div);
+        isFirst = false;
+        return div;
+      }
+
+      // Helper: convert canvas to img HTML
+      function canvasToImgHtml(canvas, maxWidth) {
+        if (!canvas) return '';
+        const src = canvas.toDataURL('image/png', 1.0);
+        return `<img src="${src}" style="width:${maxWidth || '100%'}; height:auto; display:block;">`;
+      }
+
+      // Collect visible cards
       const cards = sourceArea.querySelectorAll('.card');
+      const processedCharts = new Set();
+
       for (const card of cards) {
         if (card.style.display === 'none' || card.classList.contains('hidden')) continue;
 
-        const section = document.createElement('div');
-        section.style.cssText = 'page-break-inside: avoid; margin-bottom: 20px;';
-
-        // Check for charts row (side-by-side charts)
+        // Charts row — two charts side by side on one page
         if (card.closest('.stat-charts-row')) {
-          // Handle charts row parent — we process it once when we hit the first chart card
           const chartsRow = card.closest('.stat-charts-row');
-          if (container.querySelector('[data-charts-done]')) continue;
+          if (processedCharts.has(chartsRow)) continue;
+          processedCharts.add(chartsRow);
 
-          const chartsSection = document.createElement('div');
-          chartsSection.setAttribute('data-charts-done', '1');
-          chartsSection.style.cssText = 'page-break-inside: avoid; margin-bottom: 20px; display: flex; gap: 20px;';
-
-          const chartCards = chartsRow.querySelectorAll('.stat-chart-card');
-          for (const cc of chartCards) {
-            const chartDiv = document.createElement('div');
-            chartDiv.style.cssText = 'flex: 1; min-width: 0;';
-
-            // Copy header
+          let chartsHtml = '<div style="display:flex; gap:16px;">';
+          chartsRow.querySelectorAll('.stat-chart-card').forEach(cc => {
             const header = cc.querySelector('.stat-report__header');
-            if (header) chartDiv.appendChild(header.cloneNode(true));
-
-            // Convert canvas to img
             const canvas = cc.querySelector('canvas');
-            if (canvas) {
-              const img = document.createElement('img');
-              img.src = canvas.toDataURL('image/png', 1.0);
-              img.style.cssText = 'width: 100%; height: auto;';
-              chartDiv.appendChild(img);
-            }
-            chartsSection.appendChild(chartDiv);
-          }
-          container.appendChild(chartsSection);
+            chartsHtml += `<div style="flex:1; min-width:0;">`;
+            if (header) chartsHtml += header.innerHTML;
+            chartsHtml += canvasToImgHtml(canvas, '100%');
+            chartsHtml += '</div>';
+          });
+          chartsHtml += '</div>';
+          addSection(chartsHtml);
           continue;
         }
 
-        // Check for investments row (table + chart side-by-side)
+        // Investments row — table + chart side by side
         const investRow = card.querySelector('.stat-investments-row');
         if (investRow) {
-          const rowClone = document.createElement('div');
-          rowClone.style.cssText = 'display: flex; gap: 24px; page-break-inside: avoid;';
-
-          // Table side
+          let html = '<div style="display:flex; gap:20px;">';
           const tableWrap = investRow.querySelector('.stat-investments-table-wrap');
-          if (tableWrap) {
-            const tableDiv = document.createElement('div');
-            tableDiv.style.cssText = 'flex: 1;';
-            tableDiv.innerHTML = tableWrap.innerHTML;
-            rowClone.appendChild(tableDiv);
-          }
-
-          // Chart side — convert canvas to img
+          if (tableWrap) html += `<div style="flex:1;">${tableWrap.innerHTML}</div>`;
           const chartWrap = investRow.querySelector('.stat-investments-chart-wrap');
           if (chartWrap) {
-            const chartDiv = document.createElement('div');
-            chartDiv.style.cssText = 'flex: 1;';
             const header = chartWrap.querySelector('.stat-report__header');
-            if (header) chartDiv.appendChild(header.cloneNode(true));
             const canvas = chartWrap.querySelector('canvas');
-            if (canvas) {
-              const img = document.createElement('img');
-              img.src = canvas.toDataURL('image/png', 1.0);
-              img.style.cssText = 'width: 100%; height: auto;';
-              chartDiv.appendChild(img);
-            }
-            rowClone.appendChild(chartDiv);
+            html += `<div style="flex:1;">${header ? header.innerHTML : ''}${canvasToImgHtml(canvas, '100%')}</div>`;
           }
-          section.appendChild(rowClone);
-          container.appendChild(section);
+          html += '</div>';
+          addSection(html);
           continue;
         }
 
-        // Regular card (tables) — deep clone
-        section.innerHTML = card.innerHTML;
-        container.appendChild(section);
+        // Regular card — table with header. Each gets its own page.
+        addSection(card.innerHTML);
       }
 
-      // Style tables inside the clone for PDF
+      // Style all elements in the PDF container
+      container.querySelectorAll('h3').forEach(h => {
+        h.style.cssText = 'font-size: 13px; font-weight: 700; margin: 0 0 8px 0; color: #1a1a1a;';
+      });
       container.querySelectorAll('table').forEach(t => {
-        t.style.cssText = 'width: 100%; border-collapse: collapse; font-size: 12px;';
+        t.style.cssText = 'width: 100%; border-collapse: collapse; font-size: 10px; table-layout: auto;';
       });
       container.querySelectorAll('th').forEach(th => {
-        th.style.cssText = 'padding: 6px 10px; text-align: left; font-weight: 600; font-size: 11px; border-bottom: 2px solid #ddd; color: #555;';
+        th.style.cssText = 'padding: 4px 6px; text-align: left; font-weight: 600; font-size: 9px; border-bottom: 2px solid #ccc; color: #555; white-space: nowrap;';
       });
       container.querySelectorAll('td').forEach(td => {
-        td.style.cssText = 'padding: 5px 10px; border-bottom: 1px solid #eee; font-size: 12px;';
+        td.style.cssText = 'padding: 3px 6px; border-bottom: 1px solid #eee; font-size: 10px;';
       });
-      // Right-align value/change/reexport/diff columns
       container.querySelectorAll('.stat-col-value, .stat-col-change, .stat-col-reexport, .stat-col-diff').forEach(el => {
         el.style.textAlign = 'right';
+        el.style.whiteSpace = 'nowrap';
       });
       container.querySelectorAll('.stat-col-overview').forEach(el => {
         el.style.textAlign = 'center';
       });
-      // Color positive/negative
       container.querySelectorAll('.stat-positive').forEach(el => { el.style.color = '#16a34a'; });
       container.querySelectorAll('.stat-negative').forEach(el => { el.style.color = '#dc2626'; });
 
@@ -1302,12 +1288,11 @@
       const filename = `${countryName}_${activeTab}_report.pdf`;
 
       await html2pdf().from(container).set({
-        margin: [10, 12, 10, 12],
+        margin: [10, 10, 10, 10],
         filename,
         html2canvas: { scale: 2, useCORS: true, logging: false },
         jsPDF: { format: 'a4', orientation: 'portrait' },
         image: { type: 'jpeg', quality: 0.95 },
-        pagebreak: { mode: ['avoid-all', 'css'] },
       }).save();
 
     } catch (err) {
