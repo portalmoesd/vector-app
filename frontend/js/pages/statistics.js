@@ -275,29 +275,55 @@
         latestYear, monthNames,
       );
 
-      // ── 3. Export products table ─────────────────────────────────────
-      const exportProducts = buildProductList(expHsCurrent, expHsPrev, reexHsCurrent);
-      renderSectionHeader(exportHeader, 'export', periodLabel, latestYear);
-      renderProductTable(exportTable, exportProducts, periodLabel, latestYear, true);
+      // Check if there was any export/import in the latest period
+      const hasExport = overview.latestPeriod.export > 0;
+      const hasImport = overview.latestPeriod.import > 0;
 
-      // ── 4. Export increase / drop tables ───────────────────────────
-      const { increase, drop } = buildChangeLists(expHsCurrent, expHsPrev);
-      renderSectionHeader(exportIncreaseHeader, 'exportIncrease', periodLabel, latestYear);
-      renderChangeTable(exportIncreaseTable, increase, periodLabel, latestYear);
-      renderSectionHeader(exportDropHeader, 'exportDrop', periodLabel, latestYear);
-      renderChangeTable(exportDropTable, drop, periodLabel, latestYear);
+      // Determine if export/import is increasing or declining in YTD
+      const exportGrowing = overview.latestPeriod.export >= overview.latestPeriod.exportPrev;
+      const importGrowing = overview.latestPeriod.import >= overview.latestPeriod.importPrev;
 
-      // ── 5. Import products table ─────────────────────────────────────
-      const importProducts = buildProductList(impHsCurrent, impHsPrev, null);
-      renderSectionHeader(importHeader, 'import', periodLabel, latestYear);
-      renderProductTable(importTable, importProducts, periodLabel, latestYear, false);
+      // ── 3. Export products tables (only if export > 0) ─────────────
+      if (hasExport) {
+        const exportProducts = buildProductList(expHsCurrent, expHsPrev, reexHsCurrent);
+        renderSectionHeader(exportHeader, 'export', periodLabel, latestYear);
+        renderProductTable(exportTable, exportProducts, periodLabel, latestYear, true);
 
-      // ── 6. Import increase / drop tables ───────────────────────────
-      const { increase: impIncrease, drop: impDrop } = buildChangeLists(impHsCurrent, impHsPrev);
-      renderSectionHeader(importIncreaseHeader, 'importIncrease', periodLabel, latestYear);
-      renderChangeTable(importIncreaseTable, impIncrease, periodLabel, latestYear);
-      renderSectionHeader(importDropHeader, 'importDrop', periodLabel, latestYear);
-      renderChangeTable(importDropTable, impDrop, periodLabel, latestYear);
+        const { increase, drop } = buildChangeLists(expHsCurrent, expHsPrev);
+        if (exportGrowing) {
+          // Export increasing → show increase first, then drop
+          renderSectionHeader(exportIncreaseHeader, 'exportIncrease', periodLabel, latestYear);
+          renderChangeTable(exportIncreaseTable, increase, periodLabel, latestYear);
+          renderSectionHeader(exportDropHeader, 'exportDrop', periodLabel, latestYear);
+          renderChangeTable(exportDropTable, drop, periodLabel, latestYear);
+        } else {
+          // Export declining → show drop first (in increase container), then increase (in drop container)
+          renderSectionHeader(exportIncreaseHeader, 'exportDrop', periodLabel, latestYear);
+          renderChangeTable(exportIncreaseTable, drop, periodLabel, latestYear);
+          renderSectionHeader(exportDropHeader, 'exportIncrease', periodLabel, latestYear);
+          renderChangeTable(exportDropTable, increase, periodLabel, latestYear);
+        }
+      }
+
+      // ── 4. Import products tables (only if import > 0) ─────────────
+      if (hasImport) {
+        const importProducts = buildProductList(impHsCurrent, impHsPrev, null);
+        renderSectionHeader(importHeader, 'import', periodLabel, latestYear);
+        renderProductTable(importTable, importProducts, periodLabel, latestYear, false);
+
+        const { increase: impIncrease, drop: impDrop } = buildChangeLists(impHsCurrent, impHsPrev);
+        if (importGrowing) {
+          renderSectionHeader(importIncreaseHeader, 'importIncrease', periodLabel, latestYear);
+          renderChangeTable(importIncreaseTable, impIncrease, periodLabel, latestYear);
+          renderSectionHeader(importDropHeader, 'importDrop', periodLabel, latestYear);
+          renderChangeTable(importDropTable, impDrop, periodLabel, latestYear);
+        } else {
+          renderSectionHeader(importIncreaseHeader, 'importDrop', periodLabel, latestYear);
+          renderChangeTable(importIncreaseTable, impDrop, periodLabel, latestYear);
+          renderSectionHeader(importDropHeader, 'importIncrease', periodLabel, latestYear);
+          renderChangeTable(importDropTable, impIncrease, periodLabel, latestYear);
+        }
+      }
 
     } catch (err) {
       console.error('Report generation error:', err);
@@ -430,8 +456,17 @@
     const decreaseWord = isKa ? 'კლება' : 'decrease';
     const negativeWord = isKa ? 'ნეგატიური' : 'negative';
     const positiveWord = isKa ? 'პოზიტიური' : 'positive';
+    const zeroMessages = {
+      turnover: isKa ? 'ვაჭრობა არ განხორციელდა' : 'No trade conducted',
+      export: isKa ? 'ექსპორტი არ განხორციელდა' : 'No exports conducted',
+      import: isKa ? 'იმპორტი არ განხორციელდა' : 'No imports conducted',
+    };
 
-    function formatCell(value, prevValue, isBalance) {
+    function formatCell(value, prevValue, isBalance, key, periodData) {
+      // If turnover is 0, balance shows "-"
+      if (isBalance && periodData.turnover === 0) return '-';
+      // Zero value messages
+      if (value === 0 && !isBalance && zeroMessages[key]) return zeroMessages[key];
       if (isBalance) {
         const sign = value < 0 ? negativeWord : positiveWord;
         return `${sign} ${formatMln2(value)} ${mln}`;
@@ -461,8 +496,8 @@
       html += `
         <tr>
           <td class="stat-overview-label">${escapeHtml(r.label)}</td>
-          <td class="stat-col-overview">${formatCell(fullVal, fullPrev, isBalance)}</td>
-          <td class="stat-col-overview">${formatCell(monthVal, monthPrev, isBalance)}</td>
+          <td class="stat-col-overview">${formatCell(fullVal, fullPrev, isBalance, r.key, data.fullYear)}</td>
+          <td class="stat-col-overview">${formatCell(monthVal, monthPrev, isBalance, r.key, data.latestPeriod)}</td>
         </tr>`;
     }
 
