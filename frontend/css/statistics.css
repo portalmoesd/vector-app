@@ -180,7 +180,7 @@
 }
 
 .stat-col-overview {
-  text-align: left;
+  text-align: center;
   min-width: 280px;
   font-size: 0.875rem;
 }
@@ -188,6 +188,24 @@
 .stat-overview-table thead th.stat-col-overview {
   text-align: center;
   font-size: 0.9rem;
+}
+
+/* ─── Charts Row ─────────────────────────────────────────────────────────── */
+
+.stat-charts-row {
+  display: flex;
+  gap: 16px;
+}
+
+.stat-chart-card {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 980px) {
+  .stat-charts-row {
+    flex-direction: column;
+  }
 }
 
 /* ─── Change colors ──────────────────────────────────────────────────────── */
