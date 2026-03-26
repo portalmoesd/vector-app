@@ -619,7 +619,16 @@
     });
 
     // ── Export–Import dynamics chart ────────────────────────────────
-    dynamicsChartHeader.innerHTML = `<h3 class="stat-report__title">${isKa ? 'ექსპორტ-იმპორტის დინამიკა' : 'Export–Import Dynamics'}</h3>`;
+    const expLabel = isKa ? 'ექსპორტი' : 'Export';
+    const impLabel = isKa ? 'იმპორტი' : 'Import';
+    dynamicsChartHeader.innerHTML = `
+      <div class="stat-chart-title-row">
+        <h3 class="stat-report__title">${isKa ? 'ექსპორტ-იმპორტის დინამიკა' : 'Export–Import Dynamics'}</h3>
+        <div class="stat-chart-legend">
+          <div class="stat-chart-legend__item"><span class="stat-chart-legend__color" style="background:#16a34a"></span>${escapeHtml(expLabel)}</div>
+          <div class="stat-chart-legend__item"><span class="stat-chart-legend__color" style="background:#dc2626"></span>${escapeHtml(impLabel)}</div>
+        </div>
+      </div>`;
 
     const expData = [...yearExports, ytdExport];
     const impData = [...yearImports, ytdImport];
@@ -647,12 +656,7 @@
         ...commonOptions,
         plugins: {
           ...commonOptions.plugins,
-          legend: {
-            display: true,
-            position: 'top',
-            align: 'end',
-            labels: { boxWidth: 12, padding: 10, font: { size: 12 } },
-          },
+          legend: { display: false },
           datalabels: {
             ...commonOptions.plugins.datalabels,
             color: '#374151',
