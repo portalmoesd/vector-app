@@ -161,7 +161,8 @@
 
 .stat-col-value,
 .stat-col-change,
-.stat-col-reexport {
+.stat-col-reexport,
+.stat-col-diff {
   text-align: right;
   white-space: nowrap;
   width: 130px;
