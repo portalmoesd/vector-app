@@ -40,13 +40,21 @@
 
       <!-- Report output -->
       <div id="reportArea" class="hidden">
+        <div id="reportLoading" class="stat-report__loading hidden">
+          <div class="stat-spinner"></div>
+          <span data-i18n="common.loading">Loading...</span>
+        </div>
+
+        <!-- Export table -->
         <div class="card">
-          <div id="reportHeader" class="stat-report__header"></div>
-          <div id="reportLoading" class="stat-report__loading hidden">
-            <div class="stat-spinner"></div>
-            <span data-i18n="common.loading">Loading...</span>
-          </div>
-          <div id="reportTable" class="table-wrap"></div>
+          <div id="exportHeader" class="stat-report__header"></div>
+          <div id="exportTable" class="table-wrap"></div>
+        </div>
+
+        <!-- Import table -->
+        <div class="card">
+          <div id="importHeader" class="stat-report__header"></div>
+          <div id="importTable" class="table-wrap"></div>
         </div>
       </div>
 
