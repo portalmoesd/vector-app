@@ -640,12 +640,15 @@
       currentMap[row.hs4].valueThdUsd += val;
     }
 
-    // Build prev map: hs4 → valueThdUsd
+    // Build prev map: hs4 → { valueThdUsd, name }
     const prevMap = {};
     for (const row of prevData) {
       if (row.isGroupSummary || !row.hs4) continue;
       const val = extractValue(row);
-      prevMap[row.hs4] = (prevMap[row.hs4] || 0) + val;
+      if (!prevMap[row.hs4]) {
+        prevMap[row.hs4] = { valueThdUsd: 0, name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`) };
+      }
+      prevMap[row.hs4].valueThdUsd += val;
     }
 
     // Merge all HS4 codes from both periods
@@ -653,12 +656,12 @@
     const products = [];
     for (const hs4 of allHs4) {
       const curr = currentMap[hs4]?.valueThdUsd || 0;
-      const prev = prevMap[hs4] || 0;
+      const prev = prevMap[hs4]?.valueThdUsd || 0;
       const diffThd = curr - prev;
       const diffMln = diffThd / 1000;
       const currMln = curr / 1000;
       const prevMln = prev / 1000;
-      const name = currentMap[hs4]?.name || cleanHs4Name(`HS ${hs4}`);
+      const name = currentMap[hs4]?.name || prevMap[hs4]?.name || `HS ${hs4}`;
       const changePct = prevMln > 0
         ? ((currMln - prevMln) / prevMln * 100)
         : (currMln > 0 ? 100 : 0);
