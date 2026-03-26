@@ -1,0 +1,183 @@
+/* ─── Statistics Page ─────────────────────────────────────────────────────── */
+
+.stat-controls__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.stat-controls__country {
+  flex: 1;
+  min-width: 250px;
+  max-width: 400px;
+  margin-bottom: 0;
+}
+
+.stat-controls__btn-wrap {
+  margin-bottom: 0;
+}
+
+/* ─── Country Search Dropdown ────────────────────────────────────────────── */
+
+.stat-search-wrap {
+  position: relative;
+}
+
+.stat-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+}
+
+.stat-dropdown.hidden {
+  display: none;
+}
+
+.stat-dropdown__item {
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.stat-dropdown__item:hover {
+  background: var(--bg-hover);
+}
+
+.stat-dropdown__item.selected {
+  background: rgba(59,130,246,0.08);
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+
+.stat-dropdown__empty {
+  padding: 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+/* ─── Report Area ────────────────────────────────────────────────────────── */
+
+.stat-report__header {
+  margin-bottom: 16px;
+}
+
+.stat-report__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.stat-report__loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.stat-report__loading.hidden {
+  display: none;
+}
+
+/* ─── Spinner ────────────────────────────────────────────────────────────── */
+
+.stat-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid var(--border-color);
+  border-top-color: var(--accent-blue);
+  border-radius: 50%;
+  animation: statSpin 0.7s linear infinite;
+}
+
+@keyframes statSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Table ──────────────────────────────────────────────────────────────── */
+
+.stat-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.stat-table thead {
+  background: var(--bg-secondary, #f8f9fa);
+}
+
+.stat-table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.stat-table td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.stat-table tbody tr:hover td {
+  background: var(--bg-hover);
+}
+
+.stat-col-rank {
+  width: 40px;
+  text-align: center;
+}
+
+.stat-col-product {
+  min-width: 200px;
+}
+
+.stat-col-value,
+.stat-col-change,
+.stat-col-reexport {
+  text-align: right;
+  white-space: nowrap;
+  width: 130px;
+}
+
+.stat-col-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Change colors ──────────────────────────────────────────────────────── */
+
+.stat-positive {
+  color: var(--accent-green);
+}
+
+.stat-negative {
+  color: var(--accent-red);
+}
+
+/* ─── Total row ──────────────────────────────────────────────────────────── */
+
+.stat-total-row td {
+  border-top: 2px solid var(--text-secondary);
+  border-bottom: none;
+  padding-top: 12px;
+  font-size: 0.9rem;
+}
