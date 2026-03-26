@@ -1,6 +1,6 @@
 /**
  * Statistics Page
- * Generates "Main Export Products" and "Main Import Products" reports
+ * Generates trade overview, export products, and import products reports
  * for a selected country using data from ex-trade-api.geostat.ge.
  *
  * Calls the Geostat API directly from the browser.
@@ -23,6 +23,8 @@
   const generateBtn = document.getElementById('generateBtn');
   const reportArea = document.getElementById('reportArea');
   const reportLoading = document.getElementById('reportLoading');
+  const overviewHeader = document.getElementById('overviewHeader');
+  const overviewTable = document.getElementById('overviewTable');
   const exportHeader = document.getElementById('exportHeader');
   const exportTable = document.getElementById('exportTable');
   const importHeader = document.getElementById('importHeader');
@@ -147,6 +149,8 @@
 
     reportArea.classList.remove('hidden');
     reportLoading.classList.remove('hidden');
+    overviewTable.innerHTML = '';
+    overviewHeader.innerHTML = '';
     exportTable.innerHTML = '';
     exportHeader.innerHTML = '';
     importTable.innerHTML = '';
@@ -165,40 +169,91 @@
         ? lastMonthName
         : `${firstMonthName}-${lastMonthName}`;
 
+      const prevYear = latestYear - 1;
+      const prevPrevYear = latestYear - 2;
+      const allMonths = [1,2,3,4,5,6,7,8,9,10,11,12];
       const countryId = selectedCountry.value;
 
-      // Fetch all data in parallel:
-      // Export current + prev + re-export, Import current + prev
+      // Fetch all data in parallel
       const [
-        expCurrent, expPrev, reexportCurrent,
-        impCurrent, impPrev,
+        // Overview: Export & Import totals (no HS breakdown)
+        expFullCurr, expFullPrev, expMonthCurr, expMonthPrev,
+        impFullCurr, impFullPrev, impMonthCurr, impMonthPrev,
+        // Product tables: with HS breakdown
+        expHsCurrent, expHsPrev, reexHsCurrent,
+        impHsCurrent, impHsPrev,
       ] = await Promise.all([
+        // Overview totals — full year current & previous, latest month current & previous
+        fetchTradeTotal(10, [prevYear], allMonths, countryId),
+        fetchTradeTotal(10, [prevPrevYear], allMonths, countryId),
+        fetchTradeTotal(10, [latestYear], monthsYTD, countryId),
+        fetchTradeTotal(10, [prevYear], monthsYTD, countryId),
+        fetchTradeTotal(11, [prevYear], allMonths, countryId),
+        fetchTradeTotal(11, [prevPrevYear], allMonths, countryId),
+        fetchTradeTotal(11, [latestYear], monthsYTD, countryId),
+        fetchTradeTotal(11, [prevYear], monthsYTD, countryId),
+        // Product tables
         fetchAllTradeData(10, [latestYear], monthsYTD, countryId),
-        fetchAllTradeData(10, [latestYear - 1], monthsYTD, countryId),
+        fetchAllTradeData(10, [prevYear], monthsYTD, countryId),
         fetchAllTradeData(13, [latestYear], monthsYTD, countryId),
         fetchAllTradeData(11, [latestYear], monthsYTD, countryId),
-        fetchAllTradeData(11, [latestYear - 1], monthsYTD, countryId),
+        fetchAllTradeData(11, [prevYear], monthsYTD, countryId),
       ]);
 
-      // Build export products (with re-export)
-      const exportProducts = buildProductList(expCurrent, expPrev, reexportCurrent);
-      renderSectionHeader(exportHeader, 'export', periodLabel, latestYear);
-      renderTable(exportTable, exportProducts, periodLabel, latestYear, true);
+      // ── 1. Trade overview table ──────────────────────────────────────
+      const overview = buildOverviewData(
+        { expFull: expFullCurr, expFullPrev: expFullPrev, impFull: impFullCurr, impFullPrev: impFullPrev },
+        { expMonth: expMonthCurr, expMonthPrev: expMonthPrev, impMonth: impMonthCurr, impMonthPrev: impMonthPrev },
+      );
+      renderOverview(overview, prevYear, prevPrevYear, latestYear, latestMonth, periodLabel, monthNames);
 
-      // Build import products (no re-export)
-      const importProducts = buildProductList(impCurrent, impPrev, null);
+      // ── 2. Export products table ─────────────────────────────────────
+      const exportProducts = buildProductList(expHsCurrent, expHsPrev, reexHsCurrent);
+      renderSectionHeader(exportHeader, 'export', periodLabel, latestYear);
+      renderProductTable(exportTable, exportProducts, periodLabel, latestYear, true);
+
+      // ── 3. Import products table ─────────────────────────────────────
+      const importProducts = buildProductList(impHsCurrent, impHsPrev, null);
       renderSectionHeader(importHeader, 'import', periodLabel, latestYear);
-      renderTable(importTable, importProducts, periodLabel, latestYear, false);
+      renderProductTable(importTable, importProducts, periodLabel, latestYear, false);
 
     } catch (err) {
       console.error('Report generation error:', err);
-      exportTable.innerHTML = `<div class="msg msg-error">Failed to generate report: ${escapeHtml(err.message)}</div>`;
+      overviewTable.innerHTML = `<div class="msg msg-error">Failed to generate report: ${escapeHtml(err.message)}</div>`;
     } finally {
       reportLoading.classList.add('hidden');
     }
   }
 
-  // ── Fetch all trade data (paginate through all pages) ────────────────────
+  // ── Fetch trade total (single value, no HS breakdown) ──────────────────
+
+  async function fetchTradeTotal(tradeFlow, years, months, countryId) {
+    const filters = {
+      tradeFlow,
+      measurementUnits: [1],
+      years,
+      months,
+      countries: [countryId],
+      locale: lang,
+      sum: true,
+      page: 1,
+      pageSize: 10,
+    };
+
+    const json = await geostatPost('/get_data', filters);
+    if (!json.success) return 0;
+
+    // Sum all usd1000_ values from the response data
+    let total = 0;
+    if (Array.isArray(json.data)) {
+      for (const row of json.data) {
+        total += extractValue(row);
+      }
+    }
+    return total; // in Thsd. USD
+  }
+
+  // ── Fetch all trade data with HS breakdown (paginated) ─────────────────
 
   async function fetchAllTradeData(tradeFlow, years, months, countryId) {
     const allData = [];
@@ -234,8 +289,129 @@
     return allData;
   }
 
+  // ── Build overview data ────────────────────────────────────────────────
+
+  function buildOverviewData(full, month) {
+    const expFullMln = full.expFull / 1000;
+    const expFullPrevMln = full.expFullPrev / 1000;
+    const impFullMln = full.impFull / 1000;
+    const impFullPrevMln = full.impFullPrev / 1000;
+
+    const expMonthMln = month.expMonth / 1000;
+    const expMonthPrevMln = month.expMonthPrev / 1000;
+    const impMonthMln = month.impMonth / 1000;
+    const impMonthPrevMln = month.impMonthPrev / 1000;
+
+    return {
+      fullYear: {
+        turnover: expFullMln + impFullMln,
+        turnoverPrev: expFullPrevMln + impFullPrevMln,
+        export: expFullMln,
+        exportPrev: expFullPrevMln,
+        import: impFullMln,
+        importPrev: impFullPrevMln,
+        balance: expFullMln - impFullMln,
+      },
+      latestPeriod: {
+        turnover: expMonthMln + impMonthMln,
+        turnoverPrev: expMonthPrevMln + impMonthPrevMln,
+        export: expMonthMln,
+        exportPrev: expMonthPrevMln,
+        import: impMonthMln,
+        importPrev: impMonthPrevMln,
+        balance: expMonthMln - impMonthMln,
+      },
+    };
+  }
+
+  // ── Render trade overview ──────────────────────────────────────────────
+
+  function renderOverview(data, prevYear, prevPrevYear, latestYear, latestMonth, periodLabel, monthNames) {
+    const isKa = I18n.getLocale() === 'ka';
+
+    const monthLabel = monthNames.find(m => m.value === latestMonth)?.label || `${latestMonth}`;
+    const colFull = `${prevYear}`;
+    const colMonth = `${latestYear} .${String(latestMonth).padStart(2, '0')}`;
+
+    overviewHeader.innerHTML = `<h3 class="stat-report__title">${escapeHtml(selectedCountry.displayLabel)} - ${isKa ? 'სავაჭრო მიმოხილვა' : 'Trade Overview'}</h3>`;
+
+    const rows = [
+      { key: 'turnover', label: isKa ? 'ბრუნვა' : 'Trade Turnover' },
+      { key: 'export', label: isKa ? 'ექსპორტი' : 'Export' },
+      { key: 'import', label: isKa ? 'იმპორტი' : 'Import' },
+      { key: 'balance', label: isKa ? 'ბალანსი' : 'Balance' },
+    ];
+
+    const mln = isKa ? 'მლნ. აშშ დოლარი' : 'mln USD';
+    const increaseWord = isKa ? 'ზრდა' : 'increase';
+    const decreaseWord = isKa ? 'კლება' : 'decrease';
+    const negativeWord = isKa ? 'ნეგატიური' : 'negative';
+    const positiveWord = isKa ? 'პოზიტიური' : 'positive';
+
+    function formatCell(value, prevValue, isBalance) {
+      if (isBalance) {
+        const sign = value < 0 ? negativeWord : positiveWord;
+        return `${sign} ${formatMln2(value)} ${mln}`;
+      }
+      const pct = calcChange(value, prevValue);
+      const dir = pct >= 0 ? increaseWord : decreaseWord;
+      return `${formatMln2(Math.abs(value))} ${mln}, ${dir} ${formatChangePct(pct)}`;
+    }
+
+    let html = `<table class="stat-table stat-overview-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th class="stat-col-overview">${colFull}</th>
+          <th class="stat-col-overview">${colMonth}</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    for (const r of rows) {
+      const isBalance = r.key === 'balance';
+      const fullVal = data.fullYear[r.key];
+      const fullPrev = data.fullYear[r.key + 'Prev'];
+      const monthVal = data.latestPeriod[r.key];
+      const monthPrev = data.latestPeriod[r.key + 'Prev'];
+
+      html += `
+        <tr>
+          <td class="stat-overview-label">${escapeHtml(r.label)}</td>
+          <td class="stat-col-overview">${formatCell(fullVal, fullPrev, isBalance)}</td>
+          <td class="stat-col-overview">${formatCell(monthVal, monthPrev, isBalance)}</td>
+        </tr>`;
+    }
+
+    html += '</tbody></table>';
+    overviewTable.innerHTML = html;
+  }
+
+  // ── Change % calculation ───────────────────────────────────────────────
+
+  function calcChange(current, previous) {
+    if (!previous || previous === 0) return current > 0 ? 100 : 0;
+    return ((current - previous) / Math.abs(previous)) * 100;
+  }
+
+  // ── Format change % — full integers, decimals only between -1 and +1 ──
+
+  function formatChangePct(pct) {
+    const rounded = Math.round(pct);
+    // If it rounds to 0 but isn't actually 0, use one decimal
+    if (rounded === 0 && pct !== 0) {
+      return pct.toFixed(1) + '%';
+    }
+    return rounded + '%';
+  }
+
+  // ── Format millions (for overview: 2 decimal places with comma thousands)
+
+  function formatMln2(val) {
+    return val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
   // ── Build product list ─────────────────────────────────────────────────
-  // reexportData can be null (for imports)
 
   function buildProductList(currentData, prevData, reexportData) {
     const currentMap = {};
@@ -311,7 +487,7 @@
     return 0;
   }
 
-  // ── Clean HS4 name (remove leading code like "8703 ") ────────────────────
+  // ── Clean HS4 name ───────────────────────────────────────────────────────
 
   function cleanHs4Name(name) {
     return name.replace(/^\d{2,6}\s+/, '');
@@ -328,9 +504,9 @@
     el.innerHTML = `<h3 class="stat-report__title">${escapeHtml(t)}</h3>`;
   }
 
-  // ── Render a table ───────────────────────────────────────────────────────
+  // ── Render product table ─────────────────────────────────────────────────
 
-  function renderTable(el, products, periodLabel, year, showReexport) {
+  function renderProductTable(el, products, periodLabel, year, showReexport) {
     if (products.length === 0) {
       el.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
       return;
@@ -369,7 +545,7 @@
     el.innerHTML = html;
   }
 
-  // ── Format millions ──────────────────────────────────────────────────────
+  // ── Format millions (for product tables) ─────────────────────────────────
 
   function formatMln(val) {
     if (val >= 100) return val.toFixed(1);
