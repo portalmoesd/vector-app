@@ -171,6 +171,25 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ─── Trade Overview Table ────────────────────────────────────────────────── */
+
+.stat-overview-table .stat-overview-label {
+  font-weight: 600;
+  white-space: nowrap;
+  width: 140px;
+}
+
+.stat-col-overview {
+  text-align: left;
+  min-width: 280px;
+  font-size: 0.875rem;
+}
+
+.stat-overview-table thead th.stat-col-overview {
+  text-align: center;
+  font-size: 0.9rem;
+}
+
 /* ─── Change colors ──────────────────────────────────────────────────────── */
 
 .stat-positive {
