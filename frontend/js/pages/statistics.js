@@ -1,7 +1,7 @@
 /**
  * Statistics Page
- * Generates "Main Export Products" report for a selected country
- * using data from ex-trade-api.geostat.ge.
+ * Generates "Main Export Products" and "Main Import Products" reports
+ * for a selected country using data from ex-trade-api.geostat.ge.
  *
  * Calls the Geostat API directly from the browser.
  * Falls back to our backend proxy (/api/statistics/) if direct calls fail.
@@ -22,15 +22,17 @@
   const countryValue = document.getElementById('countryValue');
   const generateBtn = document.getElementById('generateBtn');
   const reportArea = document.getElementById('reportArea');
-  const reportHeader = document.getElementById('reportHeader');
   const reportLoading = document.getElementById('reportLoading');
-  const reportTable = document.getElementById('reportTable');
+  const exportHeader = document.getElementById('exportHeader');
+  const exportTable = document.getElementById('exportTable');
+  const importHeader = document.getElementById('importHeader');
+  const importTable = document.getElementById('importTable');
 
   // ── State ────────────────────────────────────────────────────────────────
   let countries = [];
   let classData = null;
   let selectedCountry = null;
-  let useProxy = false; // will flip to true if direct calls fail
+  let useProxy = false;
 
   // ── Geostat API helpers (direct + proxy fallback) ────────────────────────
 
@@ -77,7 +79,6 @@
       classData = json.data;
       countries = (json.data.countries || []).map(c => ({
         ...c,
-        // Strip leading numeric code from label (e.g. "792 თურქეთი" → "თურქეთი")
         displayLabel: c.label.replace(/^\d+\s+/, ''),
       }));
     }
@@ -146,13 +147,14 @@
 
     reportArea.classList.remove('hidden');
     reportLoading.classList.remove('hidden');
-    reportTable.innerHTML = '';
-    reportHeader.innerHTML = '';
+    exportTable.innerHTML = '';
+    exportHeader.innerHTML = '';
+    importTable.innerHTML = '';
+    importHeader.innerHTML = '';
 
     try {
       const { year: latestYear, month: latestMonth } = detectLatestPeriod(classData);
 
-      // Build month list: 1..latestMonth (YTD)
       const monthsYTD = [];
       for (let m = 1; m <= latestMonth; m++) monthsYTD.push(m);
 
@@ -165,21 +167,32 @@
 
       const countryId = selectedCountry.value;
 
-      // Fetch export (10), previous year export (10), and re-export (13) in parallel
-      const [exportCurrent, exportPrev, reexportCurrent] = await Promise.all([
+      // Fetch all data in parallel:
+      // Export current + prev + re-export, Import current + prev
+      const [
+        expCurrent, expPrev, reexportCurrent,
+        impCurrent, impPrev,
+      ] = await Promise.all([
         fetchAllTradeData(10, [latestYear], monthsYTD, countryId),
         fetchAllTradeData(10, [latestYear - 1], monthsYTD, countryId),
         fetchAllTradeData(13, [latestYear], monthsYTD, countryId),
+        fetchAllTradeData(11, [latestYear], monthsYTD, countryId),
+        fetchAllTradeData(11, [latestYear - 1], monthsYTD, countryId),
       ]);
 
-      const products = buildProductTable(exportCurrent, exportPrev, reexportCurrent);
+      // Build export products (with re-export)
+      const exportProducts = buildProductList(expCurrent, expPrev, reexportCurrent);
+      renderSectionHeader(exportHeader, 'export', periodLabel, latestYear);
+      renderTable(exportTable, exportProducts, periodLabel, latestYear, true);
 
-      renderReportHeader(periodLabel, latestYear);
-      renderTable(products, periodLabel, latestYear);
+      // Build import products (no re-export)
+      const importProducts = buildProductList(impCurrent, impPrev, null);
+      renderSectionHeader(importHeader, 'import', periodLabel, latestYear);
+      renderTable(importTable, importProducts, periodLabel, latestYear, false);
 
     } catch (err) {
       console.error('Report generation error:', err);
-      reportTable.innerHTML = `<div class="msg msg-error">Failed to generate report: ${escapeHtml(err.message)}</div>`;
+      exportTable.innerHTML = `<div class="msg msg-error">Failed to generate report: ${escapeHtml(err.message)}</div>`;
     } finally {
       reportLoading.classList.add('hidden');
     }
@@ -196,7 +209,7 @@
     while (allData.length < total && page < 100) {
       const filters = {
         tradeFlow,
-        measurementUnits: [1], // Thsd. USD
+        measurementUnits: [1],
         years,
         months,
         countries: [countryId],
@@ -221,12 +234,12 @@
     return allData;
   }
 
-  // ── Build product table data ─────────────────────────────────────────────
+  // ── Build product list ─────────────────────────────────────────────────
+  // reexportData can be null (for imports)
 
-  function buildProductTable(exportCurrent, exportPrev, reexportCurrent) {
-    // Current year export: HS4 → value in Thsd. USD
+  function buildProductList(currentData, prevData, reexportData) {
     const currentMap = {};
-    for (const row of exportCurrent) {
+    for (const row of currentData) {
       if (row.isGroupSummary || !row.hs4) continue;
       const val = extractValue(row);
       if (val > 0) {
@@ -241,23 +254,22 @@
       }
     }
 
-    // Previous year export
     const prevMap = {};
-    for (const row of exportPrev) {
+    for (const row of prevData) {
       if (row.isGroupSummary || !row.hs4) continue;
       const val = extractValue(row);
       if (val > 0) prevMap[row.hs4] = (prevMap[row.hs4] || 0) + val;
     }
 
-    // Re-export current year
     const reexportMap = {};
-    for (const row of reexportCurrent) {
-      if (row.isGroupSummary || !row.hs4) continue;
-      const val = extractValue(row);
-      if (val > 0) reexportMap[row.hs4] = (reexportMap[row.hs4] || 0) + val;
+    if (reexportData) {
+      for (const row of reexportData) {
+        if (row.isGroupSummary || !row.hs4) continue;
+        const val = extractValue(row);
+        if (val > 0) reexportMap[row.hs4] = (reexportMap[row.hs4] || 0) + val;
+      }
     }
 
-    // Sort by value descending, convert to millions
     let products = Object.values(currentMap)
       .sort((a, b) => b.valueThdUsd - a.valueThdUsd)
       .map(p => ({
@@ -267,7 +279,6 @@
         reexportMln: (reexportMap[p.hs4] || 0) / 1000,
       }));
 
-    // Filter: max 15, exclude < 0.01 mln (unless fewer than 5 total)
     const significant = products.filter(p => p.valueMln >= 0.01);
     let result;
     if (significant.length >= 5) {
@@ -276,9 +287,7 @@
       result = products.slice(0, Math.max(5, significant.length));
     }
 
-    // Calculate change % and re-export share %
-    return result.map((p, i) => ({
-      rank: i + 1,
+    return result.map(p => ({
       name: p.name,
       valueMln: p.valueMln,
       change: p.prevValueMln > 0
@@ -308,39 +317,38 @@
     return name.replace(/^\d{2,6}\s+/, '');
   }
 
-  // ── Render report header ─────────────────────────────────────────────────
+  // ── Render section header ────────────────────────────────────────────────
 
-  function renderReportHeader(periodLabel, year) {
-    const t = I18n.getLocale() === 'ka'
-      ? `${selectedCountry.displayLabel} - ძირითადი საექსპორტო პროდუქცია, ${periodLabel} ${year}`
-      : `${selectedCountry.displayLabel} - Main Export Products, ${periodLabel} ${year}`;
-    reportHeader.innerHTML = `<h3 class="stat-report__title">${escapeHtml(t)}</h3>`;
+  function renderSectionHeader(el, type, periodLabel, year) {
+    const isKa = I18n.getLocale() === 'ka';
+    const label = type === 'export'
+      ? (isKa ? 'ძირითადი საექსპორტო პროდუქცია' : 'Main Export Products')
+      : (isKa ? 'ძირითადი საიმპორტო პროდუქცია' : 'Main Import Products');
+    const t = `${selectedCountry.displayLabel} - ${label}, ${periodLabel} ${year}`;
+    el.innerHTML = `<h3 class="stat-report__title">${escapeHtml(t)}</h3>`;
   }
 
-  // ── Render the table ─────────────────────────────────────────────────────
+  // ── Render a table ───────────────────────────────────────────────────────
 
-  function renderTable(products, periodLabel, year) {
+  function renderTable(el, products, periodLabel, year, showReexport) {
     if (products.length === 0) {
-      reportTable.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
+      el.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
       return;
     }
 
     const isKa = I18n.getLocale() === 'ka';
-    const headers = {
-      rank: '#',
-      product: isKa ? 'პროდუქცია (HS 4-ნიშნა)' : 'Product (HS 4-digit)',
-      value: isKa ? `${periodLabel} ${year}, მლნ. $` : `${periodLabel} ${year}, mln $`,
-      change: isKa ? 'ცვლილება, %' : 'Change, %',
-      reexport: isKa ? 'რეექსპორტის წილი, %' : 'Re-export share, %',
-    };
+    const hProduct = isKa ? 'პროდუქცია (HS 4-ნიშნა)' : 'Product (HS 4-digit)';
+    const hValue = isKa ? `${periodLabel} ${year}, მლნ. $` : `${periodLabel} ${year}, mln $`;
+    const hChange = isKa ? 'ცვლილება, %' : 'Change, %';
+    const hReexport = isKa ? 'რეექსპორტის წილი, %' : 'Re-export share, %';
 
     let html = `<table class="stat-table">
       <thead>
         <tr>
-          <th class="stat-col-product">${headers.product}</th>
-          <th class="stat-col-value">${headers.value}</th>
-          <th class="stat-col-change">${headers.change}</th>
-          <th class="stat-col-reexport">${headers.reexport}</th>
+          <th class="stat-col-product">${hProduct}</th>
+          <th class="stat-col-value">${hValue}</th>
+          <th class="stat-col-change">${hChange}</th>
+          ${showReexport ? `<th class="stat-col-reexport">${hReexport}</th>` : ''}
         </tr>
       </thead>
       <tbody>`;
@@ -353,12 +361,12 @@
           <td class="stat-col-product">${escapeHtml(p.name)}</td>
           <td class="stat-col-value">${formatMln(p.valueMln)}</td>
           <td class="stat-col-change ${changeClass}">${changeSign}${p.change.toFixed(1)}%</td>
-          <td class="stat-col-reexport">${p.reexportShare.toFixed(1)}%</td>
+          ${showReexport ? `<td class="stat-col-reexport">${p.reexportShare.toFixed(1)}%</td>` : ''}
         </tr>`;
     }
 
     html += '</tbody></table>';
-    reportTable.innerHTML = html;
+    el.innerHTML = html;
   }
 
   // ── Format millions ──────────────────────────────────────────────────────
