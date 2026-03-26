@@ -334,8 +334,6 @@
       reexport: isKa ? 'რეექსპორტის წილი, %' : 'Re-export share, %',
     };
 
-    const totalValue = products.reduce((s, p) => s + p.valueMln, 0);
-
     let html = `<table class="stat-table">
       <thead>
         <tr>
@@ -360,15 +358,6 @@
           <td class="stat-col-reexport">${p.reexportShare.toFixed(1)}%</td>
         </tr>`;
     }
-
-    html += `
-        <tr class="stat-total-row">
-          <td></td>
-          <td class="stat-col-product"><strong>${isKa ? 'სულ (ნაჩვენები პროდუქცია)' : 'Total (displayed products)'}</strong></td>
-          <td class="stat-col-value"><strong>${formatMln(totalValue)}</strong></td>
-          <td></td>
-          <td></td>
-        </tr>`;
 
     html += '</tbody></table>';
     reportTable.innerHTML = html;

@@ -173,11 +173,3 @@
   color: var(--accent-red);
 }
 
-/* ─── Total row ──────────────────────────────────────────────────────────── */
-
-.stat-total-row td {
-  border-top: 2px solid var(--text-secondary);
-  border-bottom: none;
-  padding-top: 12px;
-  font-size: 0.9rem;
-}
