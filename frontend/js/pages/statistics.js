@@ -1086,6 +1086,7 @@
   }
 
   function renderFdiTable(data, isKa) {
+    data = [...data].reverse();
     const hYear = isKa ? 'წელი' : 'Year';
     const hValue = isKa ? 'მოცულობა, მლნ. $' : 'Volume, mln $';
     const hChange = isKa ? 'ცვლილება, %' : 'Change, %';
