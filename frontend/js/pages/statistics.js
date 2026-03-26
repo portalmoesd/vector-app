@@ -102,6 +102,22 @@
     console.error('Failed to load classificatory data:', err);
   }
 
+  // ── Load HS4 short name mapping ──────────────────────────────────────────
+  const hs4NameMap = {};
+  try {
+    const csvRes = await fetch('/data/hs4-names-ka.csv');
+    const csvText = await csvRes.text();
+    for (const line of csvText.split('\n').slice(1)) {
+      const comma = line.indexOf(',');
+      if (comma < 0) continue;
+      const code = parseInt(line.slice(0, comma).trim(), 10);
+      const name = line.slice(comma + 1).trim().replace(/^"|"$/g, '');
+      if (code && name) hs4NameMap[code] = name;
+    }
+  } catch (err) {
+    console.error('Failed to load HS4 name mapping:', err);
+  }
+
   // ── Country search dropdown ──────────────────────────────────────────────
 
   function renderDropdown(filter) {
@@ -715,7 +731,7 @@
       if (row.isGroupSummary || !row.hs4) continue;
       const val = extractValue(row);
       if (!currentMap[row.hs4]) {
-        currentMap[row.hs4] = { hs4: row.hs4, name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`), valueThdUsd: 0 };
+        currentMap[row.hs4] = { hs4: row.hs4, name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`, row.hs4), valueThdUsd: 0 };
       }
       currentMap[row.hs4].valueThdUsd += val;
     }
@@ -726,7 +742,7 @@
       if (row.isGroupSummary || !row.hs4) continue;
       const val = extractValue(row);
       if (!prevMap[row.hs4]) {
-        prevMap[row.hs4] = { valueThdUsd: 0, name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`) };
+        prevMap[row.hs4] = { valueThdUsd: 0, name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`, row.hs4) };
       }
       prevMap[row.hs4].valueThdUsd += val;
     }
@@ -819,7 +835,7 @@
         if (!currentMap[row.hs4]) {
           currentMap[row.hs4] = {
             hs4: row.hs4,
-            name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`),
+            name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`, row.hs4),
             valueThdUsd: 0,
           };
         }
@@ -898,7 +914,9 @@
     if (card) card.style.display = 'none';
   }
 
-  function cleanHs4Name(name) {
+  function cleanHs4Name(name, hs4Code) {
+    // Use short name from mapping if available
+    if (hs4Code && hs4NameMap[hs4Code]) return hs4NameMap[hs4Code];
     return name.replace(/^\d{2,6}\s+/, '');
   }
 
