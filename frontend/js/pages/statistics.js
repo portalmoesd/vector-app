@@ -75,7 +75,11 @@
     const json = await geostatGet(`/classificatory?lang=${lang}`);
     if (json.success && json.data) {
       classData = json.data;
-      countries = json.data.countries || [];
+      countries = (json.data.countries || []).map(c => ({
+        ...c,
+        // Strip leading numeric code from label (e.g. "792 თურქეთი" → "თურქეთი")
+        displayLabel: c.label.replace(/^\d+\s+/, ''),
+      }));
     }
   } catch (err) {
     console.error('Failed to load classificatory data:', err);
@@ -86,7 +90,7 @@
   function renderDropdown(filter) {
     const q = (filter || '').toLowerCase();
     const filtered = q
-      ? countries.filter(c => c.label.toLowerCase().includes(q))
+      ? countries.filter(c => c.displayLabel.toLowerCase().includes(q) || c.label.toLowerCase().includes(q))
       : countries;
     const shown = filtered.slice(0, 50);
 
@@ -94,7 +98,7 @@
       dropdown.innerHTML = '<div class="stat-dropdown__empty">No results</div>';
     } else {
       dropdown.innerHTML = shown.map(c =>
-        `<div class="stat-dropdown__item${selectedCountry && selectedCountry.value === c.value ? ' selected' : ''}" data-value="${c.value}">${escapeHtml(c.label)}</div>`
+        `<div class="stat-dropdown__item${selectedCountry && selectedCountry.value === c.value ? ' selected' : ''}" data-value="${c.value}">${escapeHtml(c.displayLabel)}</div>`
       ).join('');
     }
     dropdown.classList.remove('hidden');
@@ -109,7 +113,7 @@
     const val = Number(item.dataset.value);
     selectedCountry = countries.find(c => c.value === val) || null;
     if (selectedCountry) {
-      searchInput.value = selectedCountry.label;
+      searchInput.value = selectedCountry.displayLabel;
       countryValue.value = selectedCountry.value;
       generateBtn.disabled = false;
     }
@@ -308,8 +312,8 @@
 
   function renderReportHeader(periodLabel, year) {
     const t = I18n.getLocale() === 'ka'
-      ? `${selectedCountry.label} - ძირითადი საექსპორტო პროდუქცია, ${periodLabel} ${year}`
-      : `${selectedCountry.label} - Main Export Products, ${periodLabel} ${year}`;
+      ? `${selectedCountry.displayLabel} - ძირითადი საექსპორტო პროდუქცია, ${periodLabel} ${year}`
+      : `${selectedCountry.displayLabel} - Main Export Products, ${periodLabel} ${year}`;
     reportHeader.innerHTML = `<h3 class="stat-report__title">${escapeHtml(t)}</h3>`;
   }
 
@@ -330,12 +334,9 @@
       reexport: isKa ? 'რეექსპორტის წილი, %' : 'Re-export share, %',
     };
 
-    const totalValue = products.reduce((s, p) => s + p.valueMln, 0);
-
     let html = `<table class="stat-table">
       <thead>
         <tr>
-          <th class="stat-col-rank">${headers.rank}</th>
           <th class="stat-col-product">${headers.product}</th>
           <th class="stat-col-value">${headers.value}</th>
           <th class="stat-col-change">${headers.change}</th>
@@ -349,22 +350,12 @@
       const changeSign = p.change > 0 ? '+' : '';
       html += `
         <tr>
-          <td class="stat-col-rank">${p.rank}</td>
           <td class="stat-col-product">${escapeHtml(p.name)}</td>
           <td class="stat-col-value">${formatMln(p.valueMln)}</td>
           <td class="stat-col-change ${changeClass}">${changeSign}${p.change.toFixed(1)}%</td>
           <td class="stat-col-reexport">${p.reexportShare.toFixed(1)}%</td>
         </tr>`;
     }
-
-    html += `
-        <tr class="stat-total-row">
-          <td></td>
-          <td class="stat-col-product"><strong>${isKa ? 'სულ (ნაჩვენები პროდუქცია)' : 'Total (displayed products)'}</strong></td>
-          <td class="stat-col-value"><strong>${formatMln(totalValue)}</strong></td>
-          <td></td>
-          <td></td>
-        </tr>`;
 
     html += '</tbody></table>';
     reportTable.innerHTML = html;
