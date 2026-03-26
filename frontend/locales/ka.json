@@ -45,6 +45,18 @@
     "SUPER_COLLABORATOR": "სუპერ-კოლაბორატორი",
     "COLLABORATOR": "კოლაბორატორი"
   },
+  "statistics": {
+    "country": "ქვეყანა",
+    "searchCountry": "ქვეყნის ძებნა...",
+    "generate": "გენერაცია",
+    "mainExportProducts": "ძირითადი საექსპორტო პროდუქცია",
+    "product": "პროდუქცია (HS 4-ნიშნა)",
+    "value": "ღირებულება, მლნ. $",
+    "change": "ცვლილება, %",
+    "reexportShare": "რეექსპორტის წილი, %",
+    "total": "სულ (ნაჩვენები პროდუქცია)",
+    "noData": "მონაცემები ვერ მოიძებნა"
+  },
   "common": {
     "save": "შენახვა",
     "cancel": "გაუქმება",

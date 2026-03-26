@@ -45,6 +45,18 @@
     "SUPER_COLLABORATOR": "Super-Collaborator",
     "COLLABORATOR": "Collaborator"
   },
+  "statistics": {
+    "country": "Country",
+    "searchCountry": "Search country...",
+    "generate": "Generate",
+    "mainExportProducts": "Main Export Products",
+    "product": "Product (HS 4-digit)",
+    "value": "Value, mln $",
+    "change": "Change, %",
+    "reexportShare": "Re-export share, %",
+    "total": "Total (displayed products)",
+    "noData": "No data found"
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",
