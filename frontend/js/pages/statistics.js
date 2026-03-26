@@ -27,6 +27,10 @@
   const overviewTable = document.getElementById('overviewTable');
   const exportHeader = document.getElementById('exportHeader');
   const exportTable = document.getElementById('exportTable');
+  const exportIncreaseHeader = document.getElementById('exportIncreaseHeader');
+  const exportIncreaseTable = document.getElementById('exportIncreaseTable');
+  const exportDropHeader = document.getElementById('exportDropHeader');
+  const exportDropTable = document.getElementById('exportDropTable');
   const importHeader = document.getElementById('importHeader');
   const importTable = document.getElementById('importTable');
   const turnoverChartHeader = document.getElementById('turnoverChartHeader');
@@ -159,6 +163,10 @@
     overviewHeader.innerHTML = '';
     exportTable.innerHTML = '';
     exportHeader.innerHTML = '';
+    exportIncreaseTable.innerHTML = '';
+    exportIncreaseHeader.innerHTML = '';
+    exportDropTable.innerHTML = '';
+    exportDropHeader.innerHTML = '';
     importTable.innerHTML = '';
     importHeader.innerHTML = '';
     if (turnoverChartInstance) { turnoverChartInstance.destroy(); turnoverChartInstance = null; }
@@ -264,7 +272,14 @@
       renderSectionHeader(exportHeader, 'export', periodLabel, latestYear);
       renderProductTable(exportTable, exportProducts, periodLabel, latestYear, true);
 
-      // ── 4. Import products table ─────────────────────────────────────
+      // ── 4. Export increase / drop tables ───────────────────────────
+      const { increase, drop } = buildChangeLists(expHsCurrent, expHsPrev);
+      renderSectionHeader(exportIncreaseHeader, 'exportIncrease', periodLabel, latestYear);
+      renderChangeTable(exportIncreaseTable, increase, periodLabel, latestYear);
+      renderSectionHeader(exportDropHeader, 'exportDrop', periodLabel, latestYear);
+      renderChangeTable(exportDropTable, drop, periodLabel, latestYear);
+
+      // ── 5. Import products table ─────────────────────────────────────
       const importProducts = buildProductList(impHsCurrent, impHsPrev, null);
       renderSectionHeader(importHeader, 'import', periodLabel, latestYear);
       renderProductTable(importTable, importProducts, periodLabel, latestYear, false);
@@ -610,6 +625,108 @@
 
   // ── Build product list ─────────────────────────────────────────────────
 
+  // ── Build export increase / drop lists ──────────────────────────────────
+  // Sorted by absolute USD difference (not percentage)
+
+  function buildChangeLists(currentData, prevData) {
+    // Build current map: hs4 → { name, valueThdUsd }
+    const currentMap = {};
+    for (const row of currentData) {
+      if (row.isGroupSummary || !row.hs4) continue;
+      const val = extractValue(row);
+      if (!currentMap[row.hs4]) {
+        currentMap[row.hs4] = { hs4: row.hs4, name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`), valueThdUsd: 0 };
+      }
+      currentMap[row.hs4].valueThdUsd += val;
+    }
+
+    // Build prev map: hs4 → valueThdUsd
+    const prevMap = {};
+    for (const row of prevData) {
+      if (row.isGroupSummary || !row.hs4) continue;
+      const val = extractValue(row);
+      prevMap[row.hs4] = (prevMap[row.hs4] || 0) + val;
+    }
+
+    // Merge all HS4 codes from both periods
+    const allHs4 = new Set([...Object.keys(currentMap), ...Object.keys(prevMap)]);
+    const products = [];
+    for (const hs4 of allHs4) {
+      const curr = currentMap[hs4]?.valueThdUsd || 0;
+      const prev = prevMap[hs4] || 0;
+      const diffThd = curr - prev;
+      const diffMln = diffThd / 1000;
+      const currMln = curr / 1000;
+      const prevMln = prev / 1000;
+      const name = currentMap[hs4]?.name || cleanHs4Name(`HS ${hs4}`);
+      const changePct = prevMln > 0
+        ? ((currMln - prevMln) / prevMln * 100)
+        : (currMln > 0 ? 100 : 0);
+      products.push({ name, valueMln: currMln, changePct, diffMln });
+    }
+
+    // Increase: positive diff, sorted by diff descending, max 15, min 0.01 mln diff
+    const increased = products
+      .filter(p => p.diffMln > 0)
+      .sort((a, b) => b.diffMln - a.diffMln)
+      .filter(p => p.diffMln >= 0.01)
+      .slice(0, 15);
+
+    // Drop: negative diff, sorted by diff ascending (most negative first), max 15
+    const dropped = products
+      .filter(p => p.diffMln < 0)
+      .sort((a, b) => a.diffMln - b.diffMln)
+      .filter(p => p.diffMln <= -0.01)
+      .slice(0, 15);
+
+    return { increase: increased, drop: dropped };
+  }
+
+  // ── Render change table (increase / drop) ────────────────────────────────
+
+  function renderChangeTable(el, products, periodLabel, year) {
+    if (products.length === 0) {
+      el.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
+      return;
+    }
+
+    const isKa = I18n.getLocale() === 'ka';
+    const hProduct = isKa ? 'პროდუქცია (HS 4-ნიშნა)' : 'Product (HS 4-digit)';
+    const hValue = isKa ? `${periodLabel} ${year}, მლნ. $` : `${periodLabel} ${year}, mln $`;
+    const hChange = isKa ? 'ცვლილება, %' : 'Change, %';
+    const hDiff = isKa ? 'სხვაობა, მლნ. $' : 'Difference, mln $';
+
+    let html = `<table class="stat-table">
+      <thead>
+        <tr>
+          <th class="stat-col-product">${hProduct}</th>
+          <th class="stat-col-value">${hValue}</th>
+          <th class="stat-col-change">${hChange}</th>
+          <th class="stat-col-diff">${hDiff}</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    for (const p of products) {
+      const changeClass = p.changePct > 0 ? 'stat-positive' : (p.changePct < 0 ? 'stat-negative' : '');
+      const changeSign = p.changePct > 0 ? '+' : '';
+      const diffSign = p.diffMln > 0 ? '+' : '';
+      const diffClass = p.diffMln > 0 ? 'stat-positive' : 'stat-negative';
+      html += `
+        <tr>
+          <td class="stat-col-product">${escapeHtml(p.name)}</td>
+          <td class="stat-col-value">${formatMln(p.valueMln)}</td>
+          <td class="stat-col-change ${changeClass}">${changeSign}${p.changePct.toFixed(1)}%</td>
+          <td class="stat-col-diff ${diffClass}">${diffSign}${formatMln(Math.abs(p.diffMln))}</td>
+        </tr>`;
+    }
+
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }
+
+  // ── Build product list ─────────────────────────────────────────────────
+
   function buildProductList(currentData, prevData, reexportData) {
     const currentMap = {};
     for (const row of currentData) {
@@ -694,10 +811,13 @@
 
   function renderSectionHeader(el, type, periodLabel, year) {
     const isKa = I18n.getLocale() === 'ka';
-    const label = type === 'export'
-      ? (isKa ? 'ძირითადი საექსპორტო პროდუქცია' : 'Main Export Products')
-      : (isKa ? 'ძირითადი საიმპორტო პროდუქცია' : 'Main Import Products');
-    const t = `${selectedCountry.displayLabel} - ${label}, ${periodLabel} ${year}`;
+    const labels = {
+      export: isKa ? 'ძირითადი საექსპორტო პროდუქცია' : 'Main Export Products',
+      import: isKa ? 'ძირითადი საიმპორტო პროდუქცია' : 'Main Import Products',
+      exportIncrease: isKa ? 'ექსპორტში ყველაზე მეტად გაზრდილი პროდუქცია' : 'Most Increased Export Products',
+      exportDrop: isKa ? 'ექსპორტში ყველაზე მეტად შემცირებული პროდუქცია' : 'Most Decreased Export Products',
+    };
+    const t = `${selectedCountry.displayLabel} - ${labels[type]}, ${periodLabel} ${year}`;
     el.innerHTML = `<h3 class="stat-report__title">${escapeHtml(t)}</h3>`;
   }
 
