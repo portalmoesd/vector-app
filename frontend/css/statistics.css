@@ -1,5 +1,11 @@
 /* ─── Statistics Page ─────────────────────────────────────────────────────── */
 
+.stat-controls {
+  position: relative;
+  z-index: 10;
+  overflow: visible;
+}
+
 .stat-controls__row {
   display: flex;
   align-items: flex-end;
