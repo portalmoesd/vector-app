@@ -21,6 +21,7 @@
   const dropdown = document.getElementById('countryDropdown');
   const countryValue = document.getElementById('countryValue');
   const generateBtn = document.getElementById('generateBtn');
+  const exportPdfBtn = document.getElementById('exportPdfBtn');
   const reportArea = document.getElementById('reportArea');
   const reportLoading = document.getElementById('reportLoading');
   const overviewHeader = document.getElementById('overviewHeader');
@@ -414,6 +415,7 @@
       overviewTable.innerHTML = `<div class="msg msg-error">Failed to generate report: ${escapeHtml(err.message)}</div>`;
     } finally {
       reportLoading.classList.add('hidden');
+      exportPdfBtn.disabled = false;
     }
   }
 
@@ -1082,6 +1084,7 @@
       fdiTable.innerHTML = `<div class="msg msg-error">${escapeHtml(err.message)}</div>`;
     } finally {
       investmentsLoading.classList.add('hidden');
+      exportPdfBtn.disabled = false;
     }
   }
 
@@ -1165,5 +1168,153 @@
       },
       plugins: [ChartDataLabels],
     });
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // ── PDF EXPORT ─────────────────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════
+
+  exportPdfBtn.addEventListener('click', exportPdf);
+
+  async function exportPdf() {
+    if (!selectedCountry) return;
+    if (typeof html2pdf === 'undefined') {
+      alert('PDF library not loaded. Please refresh the page.');
+      return;
+    }
+
+    exportPdfBtn.disabled = true;
+    exportPdfBtn.textContent = '...';
+
+    try {
+      // Determine which tab is active and get its content area
+      const sourceArea = activeTab === 'investments' ? investmentsArea : reportArea;
+      if (!sourceArea || sourceArea.classList.contains('hidden')) return;
+
+      // Clone the content for PDF — we'll restyle it without affecting the screen
+      const container = document.createElement('div');
+      container.style.cssText = 'font-family: FiraGO, Noto Sans Georgian, Arial, sans-serif; color: #1a1a1a; font-size: 13px; width: 1050px;';
+
+      // Get all visible cards from the active area
+      const cards = sourceArea.querySelectorAll('.card');
+      for (const card of cards) {
+        if (card.style.display === 'none' || card.classList.contains('hidden')) continue;
+
+        const section = document.createElement('div');
+        section.style.cssText = 'page-break-inside: avoid; margin-bottom: 20px;';
+
+        // Check for charts row (side-by-side charts)
+        if (card.closest('.stat-charts-row')) {
+          // Handle charts row parent — we process it once when we hit the first chart card
+          const chartsRow = card.closest('.stat-charts-row');
+          if (container.querySelector('[data-charts-done]')) continue;
+
+          const chartsSection = document.createElement('div');
+          chartsSection.setAttribute('data-charts-done', '1');
+          chartsSection.style.cssText = 'page-break-inside: avoid; margin-bottom: 20px; display: flex; gap: 20px;';
+
+          const chartCards = chartsRow.querySelectorAll('.stat-chart-card');
+          for (const cc of chartCards) {
+            const chartDiv = document.createElement('div');
+            chartDiv.style.cssText = 'flex: 1; min-width: 0;';
+
+            // Copy header
+            const header = cc.querySelector('.stat-report__header');
+            if (header) chartDiv.appendChild(header.cloneNode(true));
+
+            // Convert canvas to img
+            const canvas = cc.querySelector('canvas');
+            if (canvas) {
+              const img = document.createElement('img');
+              img.src = canvas.toDataURL('image/png', 1.0);
+              img.style.cssText = 'width: 100%; height: auto;';
+              chartDiv.appendChild(img);
+            }
+            chartsSection.appendChild(chartDiv);
+          }
+          container.appendChild(chartsSection);
+          continue;
+        }
+
+        // Check for investments row (table + chart side-by-side)
+        const investRow = card.querySelector('.stat-investments-row');
+        if (investRow) {
+          const rowClone = document.createElement('div');
+          rowClone.style.cssText = 'display: flex; gap: 24px; page-break-inside: avoid;';
+
+          // Table side
+          const tableWrap = investRow.querySelector('.stat-investments-table-wrap');
+          if (tableWrap) {
+            const tableDiv = document.createElement('div');
+            tableDiv.style.cssText = 'flex: 1;';
+            tableDiv.innerHTML = tableWrap.innerHTML;
+            rowClone.appendChild(tableDiv);
+          }
+
+          // Chart side — convert canvas to img
+          const chartWrap = investRow.querySelector('.stat-investments-chart-wrap');
+          if (chartWrap) {
+            const chartDiv = document.createElement('div');
+            chartDiv.style.cssText = 'flex: 1;';
+            const header = chartWrap.querySelector('.stat-report__header');
+            if (header) chartDiv.appendChild(header.cloneNode(true));
+            const canvas = chartWrap.querySelector('canvas');
+            if (canvas) {
+              const img = document.createElement('img');
+              img.src = canvas.toDataURL('image/png', 1.0);
+              img.style.cssText = 'width: 100%; height: auto;';
+              chartDiv.appendChild(img);
+            }
+            rowClone.appendChild(chartDiv);
+          }
+          section.appendChild(rowClone);
+          container.appendChild(section);
+          continue;
+        }
+
+        // Regular card (tables) — deep clone
+        section.innerHTML = card.innerHTML;
+        container.appendChild(section);
+      }
+
+      // Style tables inside the clone for PDF
+      container.querySelectorAll('table').forEach(t => {
+        t.style.cssText = 'width: 100%; border-collapse: collapse; font-size: 12px;';
+      });
+      container.querySelectorAll('th').forEach(th => {
+        th.style.cssText = 'padding: 6px 10px; text-align: left; font-weight: 600; font-size: 11px; border-bottom: 2px solid #ddd; color: #555;';
+      });
+      container.querySelectorAll('td').forEach(td => {
+        td.style.cssText = 'padding: 5px 10px; border-bottom: 1px solid #eee; font-size: 12px;';
+      });
+      // Right-align value/change/reexport/diff columns
+      container.querySelectorAll('.stat-col-value, .stat-col-change, .stat-col-reexport, .stat-col-diff').forEach(el => {
+        el.style.textAlign = 'right';
+      });
+      container.querySelectorAll('.stat-col-overview').forEach(el => {
+        el.style.textAlign = 'center';
+      });
+      // Color positive/negative
+      container.querySelectorAll('.stat-positive').forEach(el => { el.style.color = '#16a34a'; });
+      container.querySelectorAll('.stat-negative').forEach(el => { el.style.color = '#dc2626'; });
+
+      const countryName = selectedCountry.displayLabel.replace(/[^a-zA-Z0-9\u10A0-\u10FF]/g, '_');
+      const filename = `${countryName}_${activeTab}_report.pdf`;
+
+      await html2pdf().from(container).set({
+        margin: [10, 12, 10, 12],
+        filename,
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { format: 'a4', orientation: 'landscape' },
+        image: { type: 'jpeg', quality: 0.95 },
+        pagebreak: { mode: ['avoid-all', 'css'] },
+      }).save();
+
+    } catch (err) {
+      console.error('PDF export error:', err);
+    } finally {
+      exportPdfBtn.disabled = false;
+      exportPdfBtn.textContent = 'PDF';
+    }
   }
 })();
