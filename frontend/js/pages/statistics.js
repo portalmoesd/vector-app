@@ -1193,7 +1193,7 @@
 
       // Clone the content for PDF — we'll restyle it without affecting the screen
       const container = document.createElement('div');
-      container.style.cssText = 'font-family: FiraGO, Noto Sans Georgian, Arial, sans-serif; color: #1a1a1a; font-size: 13px; width: 1050px;';
+      container.style.cssText = 'font-family: FiraGO, Noto Sans Georgian, Arial, sans-serif; color: #1a1a1a; font-size: 13px; width: 780px;';
 
       // Get all visible cards from the active area
       const cards = sourceArea.querySelectorAll('.card');
@@ -1305,7 +1305,7 @@
         margin: [10, 12, 10, 12],
         filename,
         html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { format: 'a4', orientation: 'landscape' },
+        jsPDF: { format: 'a4', orientation: 'portrait' },
         image: { type: 'jpeg', quality: 0.95 },
         pagebreak: { mode: ['avoid-all', 'css'] },
       }).save();
