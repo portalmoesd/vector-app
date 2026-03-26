@@ -278,12 +278,12 @@
 }
 
 .stat-investments-table-wrap {
-  flex: 0 0 auto;
-  min-width: 320px;
+  flex: 1 1 50%;
+  min-width: 0;
 }
 
 .stat-investments-chart-wrap {
-  flex: 1;
+  flex: 1 1 50%;
   min-width: 0;
 }
 
