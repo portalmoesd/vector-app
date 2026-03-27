@@ -174,7 +174,7 @@
     .gcp-re-balloon--tc-group { border-left:3px solid #64748b; background:#f8fafc; }
     .gcp-re-balloon-change-count { font-size:10px; color:#64748b; margin-top:1px; }
     .gcp-re-snippet { font-size:10px; font-family:monospace; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .gcp-re-snippet--wrap { white-space:pre-wrap; overflow:visible; text-overflow:unset; }
+    .gcp-re-snippet--wrap { white-space:pre-wrap; overflow:visible; text-overflow:unset; overflow-wrap:break-word; word-break:break-word; }
     .gcp-re-snippet-ins { color:#15803d; }
     .gcp-re-snippet-del { color:#b91c1c; text-decoration:line-through; }
     .gcp-re-balloon-expand { margin-top:4px; background:none; border:none; padding:0; font-size:10px; font-weight:700; color:#0a84ff; cursor:pointer; line-height:1.4; }
