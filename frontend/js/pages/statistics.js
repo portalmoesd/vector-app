@@ -837,9 +837,9 @@
 
     const isKa = I18n.getLocale() === 'ka';
     const hProduct = isKa ? 'პროდუქცია (HS 4-ნიშნა)' : 'Product (HS 4-digit)';
-    const hValue = isKa ? `${periodLabel} ${year}, მლნ. $` : `${periodLabel} ${year}, mln $`;
-    const hChange = isKa ? 'ცვლილება, %' : 'Change, %';
-    const hDiff = isKa ? 'სხვაობა, მლნ. $' : 'Difference, mln $';
+    const hValue = isKa ? `${periodLabel} ${year}<br>მლნ. $` : `${periodLabel} ${year}<br>mln $`;
+    const hChange = isKa ? 'ცვლილება<br>%' : 'Change<br>%';
+    const hDiff = isKa ? 'სხვაობა<br>მლნ. $' : 'Difference<br>mln $';
 
     let html = `<table class="stat-table">
       <thead>
@@ -992,9 +992,9 @@
 
     const isKa = I18n.getLocale() === 'ka';
     const hProduct = isKa ? 'პროდუქცია (HS 4-ნიშნა)' : 'Product (HS 4-digit)';
-    const hValue = isKa ? `${periodLabel} ${year}, მლნ. $` : `${periodLabel} ${year}, mln $`;
-    const hChange = isKa ? 'ცვლილება, %' : 'Change, %';
-    const hReexport = isKa ? 'რეექსპორტის წილი, %' : 'Re-export share, %';
+    const hValue = isKa ? `${periodLabel} ${year}<br>მლნ. $` : `${periodLabel} ${year}<br>mln $`;
+    const hChange = isKa ? 'ცვლილება<br>%' : 'Change<br>%';
+    const hReexport = isKa ? 'რეექსპორტის წილი<br>%' : 'Re-export share<br>%';
 
     const INITIAL_COUNT = 10;
     const hasMore = products.length > INITIAL_COUNT;
