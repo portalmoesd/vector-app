@@ -258,8 +258,8 @@
       const firstMonthName = monthNames.find(m => m.value === 1)?.label || 'Jan';
       const lastMonthName = monthNames.find(m => m.value === latestMonth)?.label || `Month ${latestMonth}`;
       const periodLabel = monthsYTD.length === 1
-        ? lastMonthName
-        : `${firstMonthName}-${lastMonthName}`;
+        ? firstMonthName.slice(0, 3)
+        : `${firstMonthName.slice(0, 3)}-${lastMonthName.slice(0, 3)}`;
 
       const prevYear = latestYear - 1;
       const prevPrevYear = latestYear - 2;
