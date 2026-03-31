@@ -258,8 +258,8 @@
       const firstMonthName = monthNames.find(m => m.value === 1)?.label || 'Jan';
       const lastMonthName = monthNames.find(m => m.value === latestMonth)?.label || `Month ${latestMonth}`;
       const periodLabel = monthsYTD.length === 1
-        ? lastMonthName
-        : `${firstMonthName}-${lastMonthName}`;
+        ? firstMonthName.slice(0, 3)
+        : `${firstMonthName.slice(0, 3)}-${lastMonthName.slice(0, 3)}`;
 
       const prevYear = latestYear - 1;
       const prevPrevYear = latestYear - 2;
@@ -1015,7 +1015,7 @@
           <td class="stat-col-product">${escapeHtml(p.name)}</td>
           <td class="stat-col-value">${formatMln(p.valueMln)}</td>
           <td class="stat-col-change ${changeClass}">${changeSign}${formatChangePct(p.change)}</td>
-          ${showReexport ? `<td class="stat-col-reexport">${formatChangePct(p.reexportShare)}</td>` : ''}
+          ${showReexport ? `<td class="stat-col-reexport">${p.reexportShare === 0 ? '-' : formatChangePct(p.reexportShare)}</td>` : ''}
         </tr>`;
     }
 
