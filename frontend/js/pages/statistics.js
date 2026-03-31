@@ -996,6 +996,9 @@
     const hChange = isKa ? 'ცვლილება, %' : 'Change, %';
     const hReexport = isKa ? 'რეექსპორტის წილი, %' : 'Re-export share, %';
 
+    const INITIAL_COUNT = 10;
+    const hasMore = products.length > INITIAL_COUNT;
+
     let html = `<table class="stat-table">
       <thead>
         <tr>
@@ -1007,20 +1010,39 @@
       </thead>
       <tbody>`;
 
-    for (const p of products) {
+    products.forEach((p, i) => {
       const changeClass = p.change > 0 ? 'stat-positive' : (p.change < 0 ? 'stat-negative' : '');
       const changeSign = p.change > 0 ? '+' : '';
+      const hiddenStyle = (hasMore && i >= INITIAL_COUNT) ? ' style="display:none" data-expandable' : '';
       html += `
-        <tr>
+        <tr${hiddenStyle}>
           <td class="stat-col-product">${escapeHtml(p.name)}</td>
           <td class="stat-col-value">${formatMln(p.valueMln)}</td>
           <td class="stat-col-change ${changeClass}">${changeSign}${formatChangePct(p.change)}</td>
           ${showReexport ? `<td class="stat-col-reexport">${p.reexportShare === 0 ? '-' : formatChangePct(p.reexportShare)}</td>` : ''}
         </tr>`;
-    }
+    });
 
     html += '</tbody></table>';
+
+    if (hasMore) {
+      const showMoreText = isKa ? 'მეტის ჩვენება' : 'Show more';
+      const showLessText = isKa ? 'ნაკლების ჩვენება' : 'Show less';
+      html += `<button class="stat-expand-btn" data-more="${showMoreText}" data-less="${showLessText}">${showMoreText}</button>`;
+    }
+
     el.innerHTML = html;
+
+    // Wire up expand/collapse
+    const btn = el.querySelector('.stat-expand-btn');
+    if (btn) {
+      btn.addEventListener('click', () => {
+        const rows = el.querySelectorAll('tr[data-expandable]');
+        const expanded = rows[0]?.style.display !== 'none';
+        rows.forEach(r => r.style.display = expanded ? 'none' : '');
+        btn.textContent = expanded ? btn.dataset.more : btn.dataset.less;
+      });
+    }
   }
 
   // ── Format millions (for product tables) ─────────────────────────────────
