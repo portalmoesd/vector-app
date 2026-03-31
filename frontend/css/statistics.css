@@ -207,6 +207,27 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ─── Expand Button ──────────────────────────────────────────────────────── */
+
+.stat-expand-btn {
+  display: block;
+  margin: 8px 0 0;
+  padding: 4px 12px;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-family: var(--font-primary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.stat-expand-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 /* ─── Trade Overview Table ────────────────────────────────────────────────── */
 
 .stat-overview-table .stat-overview-label {
