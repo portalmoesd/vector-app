@@ -202,6 +202,13 @@
   width: 90px;
 }
 
+.stat-table th.stat-col-value,
+.stat-table th.stat-col-change,
+.stat-table th.stat-col-reexport,
+.stat-table th.stat-col-diff {
+  text-align: right;
+}
+
 .stat-col-value {
   font-variant-numeric: tabular-nums;
 }
