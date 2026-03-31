@@ -209,12 +209,6 @@
       tab.classList.add('active');
       activeTab = tab.dataset.tab;
       showActiveTab();
-
-      if (selectedCountry) {
-        if (activeTab === 'trade' && !overviewTable.innerHTML) generateReport();
-        else if (activeTab === 'tourism' && !tourismTableEl.innerHTML) generateTourism();
-        else if (activeTab === 'investments' && !fdiTable.innerHTML) generateInvestments();
-      }
     });
   });
 
@@ -231,10 +225,13 @@
 
   // ── Generate report ──────────────────────────────────────────────────────
 
-  generateBtn.addEventListener('click', () => {
-    if (activeTab === 'trade') generateReport();
-    else if (activeTab === 'tourism') generateTourism();
-    else if (activeTab === 'investments') generateInvestments();
+  generateBtn.addEventListener('click', async () => {
+    if (!selectedCountry) return;
+    // Generate trade first (user sees it immediately)
+    await generateReport();
+    // Fire tourism and investments in background (no await)
+    generateTourism();
+    generateInvestments();
   });
 
   async function generateReport() {
@@ -1109,7 +1106,6 @@
   async function generateTourism() {
     if (!selectedCountry) return;
 
-    showActiveTab();
     tourismLoading.classList.remove('hidden');
     tourismTableEl.innerHTML = '';
     tourismHeader.innerHTML = '';
@@ -1252,7 +1248,6 @@
   async function generateInvestments() {
     if (!selectedCountry) return;
 
-    showActiveTab();
     investmentsLoading.classList.remove('hidden');
     fdiTable.innerHTML = '';
     fdiHeader.innerHTML = '';
