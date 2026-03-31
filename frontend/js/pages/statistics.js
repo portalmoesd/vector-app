@@ -1015,7 +1015,7 @@
           <td class="stat-col-product">${escapeHtml(p.name)}</td>
           <td class="stat-col-value">${formatMln(p.valueMln)}</td>
           <td class="stat-col-change ${changeClass}">${changeSign}${formatChangePct(p.change)}</td>
-          ${showReexport ? `<td class="stat-col-reexport">${formatChangePct(p.reexportShare)}</td>` : ''}
+          ${showReexport ? `<td class="stat-col-reexport">${p.reexportShare === 0 ? '-' : formatChangePct(p.reexportShare)}</td>` : ''}
         </tr>`;
     }
 
