@@ -49,6 +49,13 @@
   const fdiTable = document.getElementById('fdiTable');
   const fdiChartHeader = document.getElementById('fdiChartHeader');
   const fdiChartCanvas = document.getElementById('fdiChart');
+  // Tourism tab
+  const tourismArea = document.getElementById('tourismArea');
+  const tourismLoading = document.getElementById('tourismLoading');
+  const tourismHeader = document.getElementById('tourismHeader');
+  const tourismTableEl = document.getElementById('tourismTable');
+  const tourismChartHeader = document.getElementById('tourismChartHeader');
+  const tourismChartCanvas = document.getElementById('tourismChart');
 
   // ── State ────────────────────────────────────────────────────────────────
   let countries = [];
@@ -58,6 +65,8 @@
   let turnoverChartInstance = null;
   let dynamicsChartInstance = null;
   let fdiChartInstance = null;
+  let tourismChartInstance = null;
+  let countryNameMap = {}; // variant → canonical GNTA name
   let activeTab = 'trade';
 
   // ── Geostat API helpers (direct + proxy fallback) ────────────────────────
@@ -128,6 +137,19 @@
     console.error('Failed to load HS4 name mapping:', err);
   }
 
+  // ── Load country name mapping (for tourism tab) ────────────────────────
+  try {
+    const csvRes = await fetch('/data/country-name-mapping.csv');
+    const csvText = await csvRes.text();
+    for (const line of csvText.split('\n').slice(1)) {
+      // CSV format: "variant","canonical"
+      const match = line.match(/"([^"]*)","([^"]*)"/);
+      if (match) countryNameMap[match[1].trim()] = match[2].trim();
+    }
+  } catch (err) {
+    console.error('Failed to load country name mapping:', err);
+  }
+
   // ── Country search dropdown ──────────────────────────────────────────────
 
   function renderDropdown(filter) {
@@ -172,12 +194,12 @@
   // ── Tab switching ─────────────────────────────────────────────────────────
 
   function showActiveTab() {
-    // Hide all tab content areas
     reportArea.classList.add('hidden');
     investmentsArea.classList.add('hidden');
+    tourismArea.classList.add('hidden');
 
-    // Show the active one
     if (activeTab === 'trade') reportArea.classList.remove('hidden');
+    else if (activeTab === 'tourism') tourismArea.classList.remove('hidden');
     else if (activeTab === 'investments') investmentsArea.classList.remove('hidden');
   }
 
@@ -188,9 +210,9 @@
       activeTab = tab.dataset.tab;
       showActiveTab();
 
-      // Auto-generate if country is selected but tab content is empty
       if (selectedCountry) {
         if (activeTab === 'trade' && !overviewTable.innerHTML) generateReport();
+        else if (activeTab === 'tourism' && !tourismTableEl.innerHTML) generateTourism();
         else if (activeTab === 'investments' && !fdiTable.innerHTML) generateInvestments();
       }
     });
@@ -211,6 +233,7 @@
 
   generateBtn.addEventListener('click', () => {
     if (activeTab === 'trade') generateReport();
+    else if (activeTab === 'tourism') generateTourism();
     else if (activeTab === 'investments') generateInvestments();
   });
 
@@ -1055,6 +1078,171 @@
     else if (val > 0) str = val.toFixed(3);
     else str = '0.00';
     return str.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // ── TOURISM TAB ────────────────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════
+
+  // Resolve a country displayLabel to GNTA country name
+  function resolveGntaName(displayLabel, gntaCountries) {
+    // Direct match
+    if (gntaCountries[displayLabel]) return displayLabel;
+    // Try via mapping
+    const canonical = countryNameMap[displayLabel];
+    if (canonical && gntaCountries[canonical]) return canonical;
+    // Try reverse: the mapping canonical might differ from GNTA name
+    // Check all mapping entries where variant matches displayLabel
+    for (const [variant, canon] of Object.entries(countryNameMap)) {
+      if (variant === displayLabel) {
+        // Try finding a GNTA country that starts with the canonical name or vice versa
+        for (const gntaName of Object.keys(gntaCountries)) {
+          if (gntaName === canon || gntaName.includes(canon) || canon.includes(gntaName)) {
+            return gntaName;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  async function generateTourism() {
+    if (!selectedCountry) return;
+
+    showActiveTab();
+    tourismLoading.classList.remove('hidden');
+    tourismTableEl.innerHTML = '';
+    tourismHeader.innerHTML = '';
+    tourismChartHeader.innerHTML = '';
+    if (tourismChartInstance) { tourismChartInstance.destroy(); tourismChartInstance = null; }
+    const existingChart = Chart.getChart(tourismChartCanvas);
+    if (existingChart) existingChart.destroy();
+
+    try {
+      const res = await fetch(`${API_BASE}/api/statistics/tourism`);
+      const json = await res.json();
+      if (!json.success) throw new Error('Tourism data fetch failed');
+
+      const gntaName = resolveGntaName(selectedCountry.displayLabel, json.countries);
+      const countryData = gntaName ? json.countries[gntaName] : null;
+
+      if (!countryData) {
+        tourismTableEl.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
+        tourismLoading.classList.add('hidden');
+        return;
+      }
+
+      const allYears = json.years;
+      const latestYear = allYears[allYears.length - 1];
+
+      // Display last 5 years
+      const displayYears = [];
+      for (let y = latestYear - 4; y <= latestYear; y++) {
+        if (allYears.includes(y)) displayYears.push(y);
+      }
+
+      // Build table data
+      const tableData = displayYears.map(y => {
+        const val = countryData[y] || 0;
+        const prev = countryData[y - 1] || 0;
+        return { year: y, visitors: val, prevVisitors: prev };
+      });
+
+      const isKa = I18n.getLocale() === 'ka';
+      tourismHeader.innerHTML = `<h3 class="stat-report__title">${escapeHtml(selectedCountry.displayLabel)} - ${isKa ? 'საერთაშორისო ვიზიტორები' : 'International Visitors'}</h3>`;
+
+      renderTourismTable(tableData, isKa);
+      renderTourismChart(tableData, isKa);
+
+    } catch (err) {
+      console.error('Tourism error:', err);
+      tourismTableEl.innerHTML = `<div class="msg msg-error">${escapeHtml(err.message)}</div>`;
+    } finally {
+      tourismLoading.classList.add('hidden');
+      exportPdfBtn.disabled = false;
+    }
+  }
+
+  function renderTourismTable(data, isKa) {
+    data = [...data].reverse();
+    const hYear = isKa ? 'წელი' : 'Year';
+    const hValue = isKa ? 'ვიზიტორები' : 'Visitors';
+    const hChange = isKa ? 'ცვლილება, %' : 'Change, %';
+
+    let html = `<table class="stat-table">
+      <thead>
+        <tr>
+          <th>${hYear}</th>
+          <th class="stat-col-value">${hValue}</th>
+          <th class="stat-col-change">${hChange}</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    for (const r of data) {
+      const pct = r.prevVisitors > 0
+        ? ((r.visitors - r.prevVisitors) / r.prevVisitors * 100)
+        : (r.visitors > 0 ? 100 : 0);
+      const changeClass = pct > 0 ? 'stat-positive' : (pct < 0 ? 'stat-negative' : '');
+      const sign = pct > 0 ? '+' : '';
+      html += `
+        <tr>
+          <td>${r.year}</td>
+          <td class="stat-col-value">${r.visitors.toLocaleString()}</td>
+          <td class="stat-col-change ${changeClass}">${sign}${formatChangePct(pct)}</td>
+        </tr>`;
+    }
+
+    html += '</tbody></table>';
+    tourismTableEl.innerHTML = html;
+  }
+
+  function renderTourismChart(data, isKa) {
+    tourismChartHeader.innerHTML = `<h3 class="stat-report__title">${isKa ? 'საერთაშორისო ვიზიტორები' : 'International Visitors'}</h3>`;
+
+    const labels = data.map(d => String(d.year));
+    const values = data.map(d => d.visitors);
+
+    tourismChartInstance = new Chart(tourismChartCanvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: '#3b82f6',
+          borderRadius: 3,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        layout: { padding: { top: 24 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: true },
+          datalabels: {
+            anchor: 'end',
+            align: 'end',
+            font: { size: 11, weight: '600' },
+            color: '#374151',
+            formatter: (v) => v.toLocaleString(),
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: { font: { size: 11 } },
+          },
+          y: {
+            display: false,
+            grid: { display: false },
+            beginAtZero: true,
+          },
+        },
+      },
+      plugins: [ChartDataLabels],
+    });
   }
 
   // ════════════════════════════════════════════════════════════════════════

@@ -208,4 +208,105 @@ router.get('/fdi', async (req, res) => {
   }
 });
 
+// ── GET /api/statistics/tourism ─────────────────────────────────────────
+// Parses GNTA international visitor data XLSX.
+// Dynamically discovers year columns from the summary sheet.
+// Cached 24h, falls back to local copy.
+
+const TOURISM_URL = 'https://api.gnta.ge/api/v1/web/media/download/10068';
+const TOURISM_LOCAL = require('path').join(__dirname, '../data/gnta-visitors-historical.xlsx');
+let tourismCache = { data: null, ts: 0 };
+const TOURISM_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+function parseTourismWorkbook(wb) {
+  // Find the summary sheet — name contains a year range like "2011-2025"
+  let ws = null;
+  for (const name of wb.SheetNames) {
+    if (/\d{4}.*-.*\d{4}/.test(name)) {
+      ws = wb.Sheets[name];
+      break;
+    }
+  }
+  if (!ws) throw new Error('Summary sheet not found');
+
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+  // Row 0 is the header: country name column + year columns
+  const headerRow = rows[0];
+  if (!headerRow) throw new Error('Header row not found');
+
+  // Discover year columns dynamically
+  const years = [];
+  for (let c = 1; c < headerRow.length; c++) {
+    const raw = String(headerRow[c] || '').replace('*', '').trim();
+    const yr = parseInt(raw, 10);
+    if (yr >= 2000 && yr <= 2100) {
+      years.push({ col: c, year: yr });
+    }
+  }
+
+  // Parse country rows (skip row 0 header, rows 1-4 are totals/summaries)
+  const countries = {};
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    if (!row) continue;
+    const name = String(row[0] || '').trim();
+    if (!name) continue;
+    // Skip summary/separator rows
+    if (name.startsWith('მათ შორის') || name.startsWith('საერთაშორისო') ||
+        name.startsWith('სხვა ვიზიტ') || name.startsWith('წყარო')) continue;
+    // Skip region headers (they have no year data or contain sub-totals)
+    // We include them — the frontend will match by country name
+
+    const values = {};
+    let hasAnyValue = false;
+    for (const { col, year } of years) {
+      const val = row[col];
+      if (val === null || val === undefined || val === '-' || val === '') {
+        values[year] = 0;
+      } else {
+        const num = parseFloat(String(val).replace(/,/g, ''));
+        values[year] = isNaN(num) ? 0 : Math.round(num);
+        if (values[year] > 0) hasAnyValue = true;
+      }
+    }
+    if (hasAnyValue) {
+      countries[name] = values;
+    }
+  }
+
+  return { success: true, years: years.map(y => y.year), countries };
+}
+
+router.get('/tourism', async (req, res) => {
+  try {
+    if (tourismCache.data && Date.now() - tourismCache.ts < TOURISM_CACHE_TTL) {
+      return res.json(tourismCache.data);
+    }
+
+    let wb;
+    try {
+      const xlsxRes = await fetch(TOURISM_URL, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!xlsxRes.ok) throw new Error(`HTTP ${xlsxRes.status}`);
+      const buffer = Buffer.from(await xlsxRes.arrayBuffer());
+      wb = XLSX.read(buffer, { type: 'buffer' });
+      require('fs').writeFileSync(TOURISM_LOCAL, buffer);
+      console.log('Tourism data refreshed from GNTA');
+    } catch (dlErr) {
+      console.log('Tourism download failed, using local copy:', dlErr.message);
+      wb = XLSX.readFile(TOURISM_LOCAL);
+    }
+
+    const result = parseTourismWorkbook(wb);
+    tourismCache = { data: result, ts: Date.now() };
+    res.json(result);
+  } catch (err) {
+    console.error('Tourism data error:', err.message);
+    res.status(502).json({ error: 'Failed to load tourism data' });
+  }
+});
+
 module.exports = router;
