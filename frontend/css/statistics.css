@@ -190,8 +190,8 @@
 }
 
 .stat-col-product {
-  min-width: 140px;
-  max-width: 280px;
+  min-width: 100px;
+  max-width: 196px;
 }
 
 .stat-col-value,
