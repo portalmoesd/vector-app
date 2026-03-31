@@ -155,7 +155,7 @@
 .stat-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
 }
 
 .stat-table thead {
@@ -163,19 +163,19 @@
 }
 
 .stat-table th {
-  padding: 10px 14px;
+  padding: 8px 8px;
   text-align: left;
   font-weight: 600;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
   color: var(--text-secondary);
   border-bottom: 2px solid var(--border-color);
   white-space: nowrap;
 }
 
 .stat-table td {
-  padding: 9px 14px;
+  padding: 7px 8px;
   border-bottom: 1px solid var(--border-color);
   color: var(--text-primary);
 }
@@ -190,8 +190,8 @@
 }
 
 .stat-col-product {
-  min-width: 100px;
-  max-width: 196px;
+  min-width: 80px;
+  max-width: 160px;
 }
 
 .stat-col-value,
@@ -200,7 +200,7 @@
 .stat-col-diff {
   text-align: right;
   white-space: nowrap;
-  width: 130px;
+  width: 90px;
 }
 
 .stat-col-value {
