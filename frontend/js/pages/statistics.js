@@ -242,6 +242,11 @@
 
     if (turnoverChartInstance) { turnoverChartInstance.destroy(); turnoverChartInstance = null; }
     if (dynamicsChartInstance) { dynamicsChartInstance.destroy(); dynamicsChartInstance = null; }
+    // Also clear any orphaned chart instances on the canvases
+    const existingTurnover = Chart.getChart(turnoverChartCanvas);
+    if (existingTurnover) existingTurnover.destroy();
+    const existingDynamics = Chart.getChart(dynamicsChartCanvas);
+    if (existingDynamics) existingDynamics.destroy();
 
     try {
       const { year: latestYear, month: latestMonth } = detectLatestPeriod(classData);
@@ -1041,6 +1046,8 @@
     fdiHeader.innerHTML = '';
     fdiChartHeader.innerHTML = '';
     if (fdiChartInstance) { fdiChartInstance.destroy(); fdiChartInstance = null; }
+    const existingFdi = Chart.getChart(fdiChartCanvas);
+    if (existingFdi) existingFdi.destroy();
 
     try {
       const res = await fetch(`${API_BASE}/api/statistics/fdi`);
