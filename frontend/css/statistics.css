@@ -171,7 +171,6 @@
   letter-spacing: 0.3px;
   color: var(--text-secondary);
   border-bottom: 2px solid var(--border-color);
-  white-space: nowrap;
 }
 
 .stat-table td {
