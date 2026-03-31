@@ -112,7 +112,7 @@
 /* ─── Report Area ────────────────────────────────────────────────────────── */
 
 .stat-report__header {
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .stat-report__title {
@@ -153,7 +153,7 @@
 /* ─── Table ──────────────────────────────────────────────────────────────── */
 
 .stat-table {
-  width: 70%;
+  width: 100%;
   border-collapse: collapse;
   font-size: 0.8rem;
 }
@@ -163,7 +163,7 @@
 }
 
 .stat-table th {
-  padding: 8px 8px;
+  padding: 4px 8px;
   text-align: left;
   font-weight: 600;
   font-size: 0.72rem;
@@ -175,7 +175,7 @@
 }
 
 .stat-table td {
-  padding: 7px 8px;
+  padding: 3px 8px;
   border-bottom: 1px solid var(--border-color);
   color: var(--text-primary);
 }
@@ -208,10 +208,6 @@
 }
 
 /* ─── Trade Overview Table ────────────────────────────────────────────────── */
-
-.stat-overview-table {
-  width: 100%;
-}
 
 .stat-overview-table .stat-overview-label {
   font-weight: 600;
