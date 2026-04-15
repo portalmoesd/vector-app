@@ -209,17 +209,30 @@ router.get('/fdi', async (req, res) => {
 });
 
 // ── GET /api/statistics/tourism ─────────────────────────────────────────
-// Parses GNTA international visitor data XLSX.
-// Dynamically discovers year columns from the summary sheet.
-// Cached 24h, falls back to local copy.
+// Parses GNTA international visitor data XLSX from two sources:
+// - Historical file (ID 10068): annual data 2011-2025 (stable ID)
+// - Latest quarterly file: auto-discovered by scanning recent media IDs
+// Merged result contains both annual + current period (e.g. 2026 Q1).
 
-const TOURISM_URL = 'https://api.gnta.ge/api/v1/web/media/download/10068';
-const TOURISM_LOCAL = require('path').join(__dirname, '../data/gnta-visitors-historical.xlsx');
+const path = require('path');
+const fs = require('fs');
+
+const TOURISM_HISTORICAL_URL = 'https://api.gnta.ge/api/v1/web/media/download/10068';
+const TOURISM_HISTORICAL_LOCAL = path.join(__dirname, '../data/gnta-visitors-historical.xlsx');
+const TOURISM_QUARTERLY_LOCAL = path.join(__dirname, '../data/gnta-visitors-quarterly.xlsx');
+const TOURISM_QUARTERLY_ID_FILE = path.join(__dirname, '../data/gnta-quarterly-id.txt');
+const TOURISM_MEDIA_BASE = 'https://api.gnta.ge/api/v1/web/media/download';
+
+// Starting baseline for scanning when no cached ID exists
+const TOURISM_QUARTERLY_BASE_ID = 10290;
+const TOURISM_QUARTERLY_SCAN_RANGE = 200;
+
 let tourismCache = { data: null, ts: 0 };
 const TOURISM_CACHE_TTL = 24 * 60 * 60 * 1000;
 
-function parseTourismWorkbook(wb) {
-  // Find the summary sheet — name contains a year range like "2011-2025"
+// Parse the historical file — country names in col A, years 2011-YYYY in cols B+
+function parseHistoricalWorkbook(wb) {
+  // Find the summary sheet (name matches year-range pattern)
   let ws = null;
   for (const name of wb.SheetNames) {
     if (/\d{4}.*-.*\d{4}/.test(name)) {
@@ -227,36 +240,27 @@ function parseTourismWorkbook(wb) {
       break;
     }
   }
-  if (!ws) throw new Error('Summary sheet not found');
+  if (!ws) throw new Error('Historical summary sheet not found');
 
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-
-  // Row 0 is the header: country name column + year columns
   const headerRow = rows[0];
-  if (!headerRow) throw new Error('Header row not found');
+  if (!headerRow) throw new Error('Historical header row not found');
 
-  // Discover year columns dynamically
   const years = [];
   for (let c = 1; c < headerRow.length; c++) {
     const raw = String(headerRow[c] || '').replace('*', '').trim();
     const yr = parseInt(raw, 10);
-    if (yr >= 2000 && yr <= 2100) {
-      years.push({ col: c, year: yr });
-    }
+    if (yr >= 2000 && yr <= 2100) years.push({ col: c, year: yr });
   }
 
-  // Parse country rows (skip row 0 header, rows 1-4 are totals/summaries)
   const countries = {};
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
     if (!row) continue;
     const name = String(row[0] || '').trim();
     if (!name) continue;
-    // Skip summary/separator rows
     if (name.startsWith('მათ შორის') || name.startsWith('საერთაშორისო') ||
         name.startsWith('სხვა ვიზიტ') || name.startsWith('წყარო')) continue;
-    // Skip region headers (they have no year data or contain sub-totals)
-    // We include them — the frontend will match by country name
 
     const values = {};
     let hasAnyValue = false;
@@ -270,12 +274,106 @@ function parseTourismWorkbook(wb) {
         if (values[year] > 0) hasAnyValue = true;
       }
     }
-    if (hasAnyValue) {
-      countries[name] = values;
-    }
+    if (hasAnyValue) countries[name] = values;
   }
 
-  return { success: true, years: years.map(y => y.year), countries };
+  return { years: years.map(y => y.year), countries };
+}
+
+// Check if a workbook matches the quarterly file fingerprint.
+// Returns { compareLabel, currentLabel, countries } or null if not a match.
+function parseQuarterlyWorkbook(wb) {
+  // Quarterly files: first sheet with country in col B, period headers in cols C/D
+  for (const sheetName of wb.SheetNames) {
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+    if (rows.length < 10) continue;
+    const header = rows[0] || [];
+
+    // Fingerprint check: col B = "ქვეყანა", col C & D = year or quarter labels
+    const colB = String(header[1] || '').trim();
+    const colC = String(header[2] || '').trim();
+    const colD = String(header[3] || '').trim();
+    if (colB !== 'ქვეყანა') continue;
+
+    const isPeriodLabel = s => /^\d{4}(\s+[IVX]+\s+კვ)?$/.test(s);
+    if (!isPeriodLabel(colC) || !isPeriodLabel(colD)) continue;
+
+    // Matched! Extract data.
+    const countries = {};
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (!row) continue;
+      const name = String(row[1] || '').trim();
+      if (!name) continue;
+      if (name.startsWith('მათ შორის') || name.startsWith('საერთაშორისო') ||
+          name.startsWith('სხვა ვიზიტ') || name.startsWith('წყარო')) continue;
+
+      const parseVal = (v) => {
+        if (v === null || v === undefined || v === '-' || v === '') return 0;
+        const n = parseFloat(String(v).replace(/,/g, ''));
+        return isNaN(n) ? 0 : Math.round(n);
+      };
+      const compare = parseVal(row[2]);
+      const current = parseVal(row[3]);
+      if (compare > 0 || current > 0) {
+        countries[name] = { compare, current };
+      }
+    }
+
+    return { compareLabel: colC, currentLabel: colD, countries };
+  }
+  return null;
+}
+
+// Scan media IDs to find the latest quarterly XLSX.
+// Returns { id, wb, parsed } for the highest-ID matching file, or null.
+async function findLatestQuarterlyFile(lastKnownId) {
+  const startId = lastKnownId || TOURISM_QUARTERLY_BASE_ID;
+  const endId = startId + TOURISM_QUARTERLY_SCAN_RANGE;
+  let bestMatch = null;
+
+  // Scan high-to-low so we can short-circuit once we find the newest
+  for (let id = endId; id >= startId; id--) {
+    try {
+      // HEAD to check content-type first (cheap)
+      const headRes = await fetch(`${TOURISM_MEDIA_BASE}/${id}`, {
+        method: 'HEAD',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (!headRes.ok) continue;
+      const ct = headRes.headers.get('content-type') || '';
+      if (!ct.includes('spreadsheet')) continue;
+
+      // Download and try to parse
+      const getRes = await fetch(`${TOURISM_MEDIA_BASE}/${id}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!getRes.ok) continue;
+      const buffer = Buffer.from(await getRes.arrayBuffer());
+      const wb = XLSX.read(buffer, { type: 'buffer' });
+      const parsed = parseQuarterlyWorkbook(wb);
+      if (parsed && Object.keys(parsed.countries).length > 50) {
+        bestMatch = { id, buffer, parsed };
+        break; // highest-ID match found
+      }
+    } catch (_) { /* skip */ }
+  }
+  return bestMatch;
+}
+
+function readCachedQuarterlyId() {
+  try {
+    const txt = fs.readFileSync(TOURISM_QUARTERLY_ID_FILE, 'utf8').trim();
+    const id = parseInt(txt, 10);
+    return isNaN(id) ? null : id;
+  } catch (_) { return null; }
+}
+
+function writeCachedQuarterlyId(id) {
+  try { fs.writeFileSync(TOURISM_QUARTERLY_ID_FILE, String(id)); } catch (_) {}
 }
 
 router.get('/tourism', async (req, res) => {
@@ -284,23 +382,86 @@ router.get('/tourism', async (req, res) => {
       return res.json(tourismCache.data);
     }
 
-    let wb;
+    // ── 1. Fetch historical file (stable ID) ──
+    let histWb;
     try {
-      const xlsxRes = await fetch(TOURISM_URL, {
+      const r = await fetch(TOURISM_HISTORICAL_URL, {
         headers: { 'User-Agent': 'Mozilla/5.0' },
         signal: AbortSignal.timeout(15_000),
       });
-      if (!xlsxRes.ok) throw new Error(`HTTP ${xlsxRes.status}`);
-      const buffer = Buffer.from(await xlsxRes.arrayBuffer());
-      wb = XLSX.read(buffer, { type: 'buffer' });
-      require('fs').writeFileSync(TOURISM_LOCAL, buffer);
-      console.log('Tourism data refreshed from GNTA');
-    } catch (dlErr) {
-      console.log('Tourism download failed, using local copy:', dlErr.message);
-      wb = XLSX.readFile(TOURISM_LOCAL);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const buf = Buffer.from(await r.arrayBuffer());
+      histWb = XLSX.read(buf, { type: 'buffer' });
+      fs.writeFileSync(TOURISM_HISTORICAL_LOCAL, buf);
+    } catch (err) {
+      console.log('Historical tourism download failed, using local:', err.message);
+      histWb = XLSX.readFile(TOURISM_HISTORICAL_LOCAL);
+    }
+    const historical = parseHistoricalWorkbook(histWb);
+
+    // ── 2. Discover + fetch latest quarterly file ──
+    let quarterly = null;
+    let quarterlyId = readCachedQuarterlyId();
+
+    try {
+      // Scan from last-known ID upwards for anything newer
+      const scanStart = quarterlyId || TOURISM_QUARTERLY_BASE_ID;
+      const match = await findLatestQuarterlyFile(scanStart);
+      if (match) {
+        quarterly = match.parsed;
+        quarterlyId = match.id;
+        fs.writeFileSync(TOURISM_QUARTERLY_LOCAL, match.buffer);
+        writeCachedQuarterlyId(match.id);
+        console.log(`Tourism quarterly file discovered: ID ${match.id} (${match.parsed.currentLabel})`);
+      } else if (quarterlyId) {
+        // No new file found, but we had one cached. Use the local copy.
+        const localWb = XLSX.readFile(TOURISM_QUARTERLY_LOCAL);
+        quarterly = parseQuarterlyWorkbook(localWb);
+      }
+    } catch (err) {
+      console.log('Quarterly discovery failed, trying local:', err.message);
+      try {
+        const localWb = XLSX.readFile(TOURISM_QUARTERLY_LOCAL);
+        quarterly = parseQuarterlyWorkbook(localWb);
+      } catch (_) { /* no local either */ }
     }
 
-    const result = parseTourismWorkbook(wb);
+    // ── 3. Merge ──
+    // Build unified countries map: { name: { annual: {year:N}, current: N|null, compare: N|null } }
+    const countries = {};
+    for (const [name, years] of Object.entries(historical.countries)) {
+      countries[name] = { annual: years, current: null, compare: null };
+    }
+    let currentPeriod = null;
+    if (quarterly) {
+      currentPeriod = {
+        label: quarterly.currentLabel,
+        compareLabel: quarterly.compareLabel,
+      };
+      // Only include currentPeriod if the label indicates a quarterly period
+      // (i.e. contains "კვ"). Plain year labels mean this file just duplicates annual data.
+      if (!/კვ/.test(quarterly.currentLabel)) {
+        currentPeriod = null;
+      }
+
+      if (currentPeriod) {
+        for (const [name, vals] of Object.entries(quarterly.countries)) {
+          if (!countries[name]) {
+            countries[name] = { annual: {}, current: null, compare: null };
+          }
+          countries[name].current = vals.current;
+          countries[name].compare = vals.compare;
+        }
+      }
+    }
+
+    const result = {
+      success: true,
+      years: historical.years,
+      currentPeriod,
+      countries,
+    };
+
     tourismCache = { data: result, ts: Date.now() };
     res.json(result);
   } catch (err) {
