@@ -1128,27 +1128,58 @@
         return;
       }
 
-      const allYears = json.years;
+      // New data shape: countryData = { annual: {year: N}, current: N|null, compare: N|null }
+      const annual = countryData.annual || {};
+      const allYears = json.years || [];
       const latestYear = allYears[allYears.length - 1];
 
-      // Display last 5 years
-      const displayYears = [];
+      // Build annual rows: last 5 years
+      const annualRows = [];
       for (let y = latestYear - 4; y <= latestYear; y++) {
-        if (allYears.includes(y)) displayYears.push(y);
+        if (allYears.includes(y)) {
+          const val = annual[y] || 0;
+          const prev = annual[y - 1] || 0;
+          const pct = prev > 0
+            ? ((val - prev) / prev * 100)
+            : (val > 0 ? 100 : 0);
+          annualRows.push({
+            label: String(y),
+            year: y,
+            visitors: val,
+            changePct: pct,
+            isCurrent: false,
+          });
+        }
       }
 
-      // Build table data
-      const tableData = displayYears.map(y => {
-        const val = countryData[y] || 0;
-        const prev = countryData[y - 1] || 0;
-        return { year: y, visitors: val, prevVisitors: prev };
-      });
+      // Prepend quarterly rows if currentPeriod exists
+      const quarterlyRows = [];
+      if (json.currentPeriod && countryData.current !== null) {
+        const cur = countryData.current || 0;
+        const cmp = countryData.compare || 0;
+        const pct = cmp > 0 ? ((cur - cmp) / cmp * 100) : (cur > 0 ? 100 : 0);
+        quarterlyRows.push({
+          label: json.currentPeriod.label,
+          visitors: cur,
+          changePct: pct,
+          isCurrent: true,
+        });
+        quarterlyRows.push({
+          label: json.currentPeriod.compareLabel,
+          visitors: cmp,
+          changePct: null, // no previous comparison available
+          isCurrent: false,
+        });
+      }
 
       const isKa = I18n.getLocale() === 'ka';
       tourismHeader.innerHTML = `<h3 class="stat-report__title">${escapeHtml(selectedCountry.displayLabel)} - ${isKa ? 'საერთაშორისო ვიზიტორები' : 'International Visitors'}</h3>`;
 
-      renderTourismTable(tableData, isKa);
-      renderTourismChart(tableData, isKa);
+      renderTourismTable(quarterlyRows, annualRows, isKa);
+      renderTourismChart(annualRows, json.currentPeriod && countryData.current !== null ? {
+        label: json.currentPeriod.label,
+        visitors: countryData.current || 0,
+      } : null, isKa);
 
     } catch (err) {
       console.error('Tourism error:', err);
@@ -1159,33 +1190,38 @@
     }
   }
 
-  function renderTourismTable(data, isKa) {
-    data = [...data].reverse();
-    const hYear = isKa ? 'წელი' : 'Year';
+  function renderTourismTable(quarterlyRows, annualRows, isKa) {
+    // Table order: newest first. quarterly rows on top, then annual reversed (latest year first).
+    const rows = [...quarterlyRows, ...[...annualRows].reverse()];
+
+    const hPeriod = isKa ? 'პერიოდი' : 'Period';
     const hValue = isKa ? 'ვიზიტორები' : 'Visitors';
     const hChange = isKa ? 'ცვლილება, %' : 'Change, %';
 
     let html = `<table class="stat-table">
       <thead>
         <tr>
-          <th>${hYear}</th>
+          <th>${hPeriod}</th>
           <th class="stat-col-value">${hValue}</th>
           <th class="stat-col-change">${hChange}</th>
         </tr>
       </thead>
       <tbody>`;
 
-    for (const r of data) {
-      const pct = r.prevVisitors > 0
-        ? ((r.visitors - r.prevVisitors) / r.prevVisitors * 100)
-        : (r.visitors > 0 ? 100 : 0);
-      const changeClass = pct > 0 ? 'stat-positive' : (pct < 0 ? 'stat-negative' : '');
-      const sign = pct > 0 ? '+' : '';
+    for (const r of rows) {
+      let changeCell = '';
+      if (r.changePct === null || r.changePct === undefined) {
+        changeCell = '<td class="stat-col-change">—</td>';
+      } else {
+        const changeClass = r.changePct > 0 ? 'stat-positive' : (r.changePct < 0 ? 'stat-negative' : '');
+        const sign = r.changePct > 0 ? '+' : '';
+        changeCell = `<td class="stat-col-change ${changeClass}">${sign}${formatChangePct(r.changePct)}</td>`;
+      }
       html += `
         <tr>
-          <td>${r.year}</td>
+          <td>${escapeHtml(r.label)}</td>
           <td class="stat-col-value">${r.visitors.toLocaleString()}</td>
-          <td class="stat-col-change ${changeClass}">${sign}${formatChangePct(pct)}</td>
+          ${changeCell}
         </tr>`;
     }
 
@@ -1193,11 +1229,19 @@
     tourismTableEl.innerHTML = html;
   }
 
-  function renderTourismChart(data, isKa) {
+  function renderTourismChart(annualRows, currentPeriod, isKa) {
     tourismChartHeader.innerHTML = `<h3 class="stat-report__title">${isKa ? 'საერთაშორისო ვიზიტორები' : 'International Visitors'}</h3>`;
 
-    const labels = data.map(d => String(d.year));
-    const values = data.map(d => d.visitors);
+    // Chart order: annual years ascending, then current period as last bar.
+    const labels = annualRows.map(r => r.label);
+    const values = annualRows.map(r => r.visitors);
+    const colors = annualRows.map(() => '#3b82f6');
+
+    if (currentPeriod) {
+      labels.push(currentPeriod.label);
+      values.push(currentPeriod.visitors);
+      colors.push('#60a5fa'); // lighter blue for partial period
+    }
 
     tourismChartInstance = new Chart(tourismChartCanvas, {
       type: 'bar',
@@ -1205,7 +1249,7 @@
         labels,
         datasets: [{
           data: values,
-          backgroundColor: '#3b82f6',
+          backgroundColor: colors,
           borderRadius: 3,
         }],
       },
