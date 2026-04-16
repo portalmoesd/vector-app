@@ -593,7 +593,7 @@
         color: '#1f2937',
       },
       styles: {
-        chartCaption: { fontSize: 9.5, bold: true, alignment: 'center', color: '#1f2937', margin: [0, 0, 0, 4] },
+        chartCaption: { fontSize: 9.5, bold: true, alignment: 'left', color: '#1f2937', margin: [0, 0, 0, 4] },
       },
       header: function (currentPage) {
         return {
