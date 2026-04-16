@@ -164,68 +164,53 @@ function extractRowCountryId(row) {
 }
 
 async function fetchFlowRanking(tradeFlow, year, months, allCountryIds) {
-  // First attempt: single request with all country IDs and sum:true.
-  // Fall back to per-country fetches (batched) if the response doesn't
-  // yield per-country data.
-  const filters = {
+  // Fetch one aggregate per country via individual Geostat requests. The
+  // bulk approach (passing all country IDs + sum:true in one call) collapses
+  // to a single Georgia-wide total in practice, so we go direct to the
+  // per-country loop which mirrors the proven frontend fetchTradeTotal
+  // pattern.
+  const perCountry = {}; // countryId -> valueThd USD
+  const batchSize = 10;
+  const baseFilters = {
     tradeFlow,
     measurementUnits: [1],
     years: [year],
     months,
-    countries: allCountryIds,
     locale: 'en',
     sum: true,
     page: 1,
-    pageSize: 1000,
+    pageSize: 10,
   };
 
-  let perCountry = {}; // countryId -> valueThd
+  let okCount = 0;
+  let failCount = 0;
 
-  try {
-    const json = await geostatFetch('/get_data', {
-      method: 'POST',
-      body: JSON.stringify(filters),
-    });
-    if (json && Array.isArray(json.data)) {
-      for (const row of json.data) {
-        const cid = extractRowCountryId(row);
-        if (cid == null) continue;
-        perCountry[cid] = (perCountry[cid] || 0) + extractRowValue(row);
-      }
-    }
-  } catch (err) {
-    console.warn('country-ranking bulk fetch failed, will fall back:', err.message);
-    perCountry = {};
-  }
-
-  // Fallback: per-country parallel fetches in batches of 20.
-  if (Object.keys(perCountry).length < Math.min(20, Math.floor(allCountryIds.length / 2))) {
-    perCountry = {};
-    const batchSize = 20;
-    for (let i = 0; i < allCountryIds.length; i += batchSize) {
-      const batch = allCountryIds.slice(i, i + batchSize);
-      const results = await Promise.all(batch.map(async (cid) => {
-        try {
-          const j = await geostatFetch('/get_data', {
-            method: 'POST',
-            body: JSON.stringify({ ...filters, countries: [cid] }),
-          });
-          if (!j || !Array.isArray(j.data)) return { cid, value: 0 };
-          let value = 0;
-          for (const row of j.data) {
-            if (row.isGroupSummary) { value = extractRowValue(row); break; }
-          }
-          if (value === 0 && j.data.length > 0) value = extractRowValue(j.data[0]);
-          return { cid, value };
-        } catch (_) {
-          return { cid, value: 0 };
+  for (let i = 0; i < allCountryIds.length; i += batchSize) {
+    const batch = allCountryIds.slice(i, i + batchSize);
+    const results = await Promise.all(batch.map(async (cid) => {
+      try {
+        const j = await geostatFetch('/get_data', {
+          method: 'POST',
+          body: JSON.stringify({ ...baseFilters, countries: [cid] }),
+        });
+        if (!j || !Array.isArray(j.data)) return { cid, value: 0, ok: false };
+        let value = 0;
+        for (const row of j.data) {
+          if (row.isGroupSummary) { value = extractRowValue(row); break; }
         }
-      }));
-      for (const { cid, value } of results) {
-        if (value > 0) perCountry[cid] = value;
+        if (value === 0 && j.data.length > 0) value = extractRowValue(j.data[0]);
+        return { cid, value, ok: true };
+      } catch (err) {
+        return { cid, value: 0, ok: false, error: err.message };
       }
+    }));
+    for (const r of results) {
+      if (r.ok) okCount++; else failCount++;
+      if (r.value > 0) perCountry[r.cid] = r.value;
     }
   }
+
+  console.log(`country-ranking [${tradeFlow} ${year}/${months.join(',')}]: ${okCount} ok, ${failCount} fail, ${Object.keys(perCountry).length} with trade`);
 
   // Compute ranks + shares. Values are in thousands USD → convert to mln.
   const entries = Object.entries(perCountry)
@@ -275,20 +260,23 @@ router.post('/country-ranking', async (req, res) => {
     let cached = rankingCacheGet(cacheKey);
 
     if (!cached) {
+      const t0 = Date.now();
       const allCountryIds = await getAllCountryIds();
       if (!allCountryIds.length) throw new Error('No countries in classificatory');
+      console.log(`country-ranking: computing for ${year}/${sortedMonths.join(',')} across ${allCountryIds.length} countries`);
 
-      const [turnover, exp, imp] = await Promise.all([
-        fetchFlowRanking('turnover', year, sortedMonths, allCountryIds),
-        fetchFlowRanking('export',   year, sortedMonths, allCountryIds),
-        fetchFlowRanking('import',   year, sortedMonths, allCountryIds),
-      ]);
+      // Run flows sequentially (not Promise.all) to halve the peak
+      // concurrency against Geostat.
+      const turnover = await fetchFlowRanking('turnover', year, sortedMonths, allCountryIds);
+      const exp      = await fetchFlowRanking('export',   year, sortedMonths, allCountryIds);
+      const imp      = await fetchFlowRanking('import',   year, sortedMonths, allCountryIds);
 
       cached = {
         totals: { turnover: turnover.total, export: exp.total, import: imp.total },
         flows: { turnover: turnover.perCountry, export: exp.perCountry, import: imp.perCountry },
       };
       rankingCacheSet(cacheKey, cached);
+      console.log(`country-ranking: completed in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
     }
 
     const country = {
