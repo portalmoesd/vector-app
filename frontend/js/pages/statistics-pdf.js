@@ -165,26 +165,15 @@
   }
 
   // ── Section title row ──────────────────────────────────────────────────
+  // sectionTitle / subTitle use named styles so the pageBreakBefore callback
+  // (see buildDocDefinition) can identify them and push them to the next
+  // page when their following content would otherwise be orphaned.
   function sectionTitle(text) {
-    return {
-      text: text,
-      fontSize: 13,
-      bold: true,
-      color: '#0f172a',
-      margin: [0, 10, 0, 6],
-      headlineLevel: 1,
-    };
+    return { text: text, style: 'sectionTitle', headlineLevel: 1 };
   }
 
   function subTitle(text) {
-    return {
-      text: text,
-      fontSize: 10.5,
-      bold: true,
-      color: '#1f2937',
-      margin: [0, 8, 0, 4],
-      headlineLevel: 2,
-    };
+    return { text: text, style: 'subTitle', headlineLevel: 2 };
   }
 
   // Shared pdfmake table layout
@@ -593,7 +582,23 @@
         color: '#1f2937',
       },
       styles: {
+        sectionTitle: { fontSize: 13, bold: true, color: '#0f172a', margin: [0, 10, 0, 6] },
+        subTitle: { fontSize: 10.5, bold: true, color: '#1f2937', margin: [0, 8, 0, 4] },
         chartCaption: { fontSize: 9.5, bold: true, alignment: 'left', color: '#1f2937', margin: [0, 0, 0, 4] },
+      },
+      // Prevent orphaned titles. If a sectionTitle / subTitle would render
+      // with no non-title content after it on the same page (because the
+      // following table/chart got pushed to the next page), force the title
+      // forward too. Chart captions are inside `unbreakable: true` stacks so
+      // they already stay with their charts and don't need this hook.
+      pageBreakBefore: function (currentNode, followingNodesOnPage) {
+        const TITLE_STYLES = { sectionTitle: true, subTitle: true };
+        const styleOf = (node) => {
+          const s = node && node.style;
+          return Array.isArray(s) ? s[0] : s;
+        };
+        if (!TITLE_STYLES[styleOf(currentNode)]) return false;
+        return !followingNodesOnPage.some((n) => !TITLE_STYLES[styleOf(n)]);
       },
       header: function (currentPage) {
         return {
