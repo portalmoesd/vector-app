@@ -811,7 +811,7 @@
   // ── Chart data label formatter ───────────────────────────────────────────
 
   function chartLabel(val) {
-    return val.toFixed(2);
+    return val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   }
 
   // ── Build product list ─────────────────────────────────────────────────
@@ -1452,7 +1452,7 @@
             align: 'end',
             font: { size: 11, weight: '600' },
             color: '#374151',
-            formatter: (v) => v.toFixed(2),
+            formatter: (v) => chartLabel(v),
           },
         },
         scales: {
