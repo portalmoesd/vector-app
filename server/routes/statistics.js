@@ -163,54 +163,69 @@ function extractRowCountryId(row) {
   return row.country ?? row.country_id ?? row.countryId ?? row.country_code ?? null;
 }
 
-async function fetchFlowRanking(tradeFlow, year, months, allCountryIds) {
-  // Fetch one aggregate per country via individual Geostat requests. The
-  // bulk approach (passing all country IDs + sum:true in one call) collapses
-  // to a single Georgia-wide total in practice, so we go direct to the
-  // per-country loop which mirrors the proven frontend fetchTradeTotal
-  // pattern.
-  const perCountry = {}; // String(countryId) -> valueThd USD
-  const batchSize = 10;
-  const baseFilters = {
+async function fetchFlowRanking(tradeFlow, year, months) {
+  // Strategy: ONE Geostat call per flow using countries=['all'] + sum=true.
+  // This should return one row per country (same pattern as hs4=['all']
+  // returning one row per HS4 product). Each row should contain a country
+  // identifier and a usd1000_* value field.
+  //
+  // If the single-call approach yields fewer than 10 countries (i.e.
+  // Geostat collapsed them into a grand total), we log the issue and
+  // return empty — the PDF will render the summary without rank/share.
+
+  const filters = {
     tradeFlow,
     measurementUnits: [1],
     years: [year],
     months,
+    countries: ['all'],
     locale: 'en',
     sum: true,
     page: 1,
-    pageSize: 10,
+    pageSize: 500,
   };
 
-  let okCount = 0;
-  let failCount = 0;
-  let firstFailReason = null;
+  let rawResponse = null;
+  let perCountry = {}; // String(countryId) -> valueThd
+  let failReason = null;
 
-  for (let i = 0; i < allCountryIds.length; i += batchSize) {
-    const batch = allCountryIds.slice(i, i + batchSize);
-    const results = await Promise.all(batch.map(async (cid) => {
-      try {
-        const j = await geostatFetch('/get_data', {
-          method: 'POST',
-          body: JSON.stringify({ ...baseFilters, countries: [cid] }),
-        });
-        if (!j || !Array.isArray(j.data)) return { cid, value: 0, ok: false, reason: 'no-data' };
-        // Prefer the isGroupSummary row (per-country aggregate); if absent,
-        // sum usd1000_* across every row.
-        let value = 0;
-        const summary = j.data.find((r) => r.isGroupSummary);
-        if (summary) value = extractRowValue(summary);
-        else value = j.data.reduce((s, r) => s + extractRowValue(r), 0);
-        return { cid, value, ok: true };
-      } catch (err) {
-        return { cid, value: 0, ok: false, reason: err.message };
+  try {
+    const json = await geostatFetch('/get_data', {
+      method: 'POST',
+      body: JSON.stringify(filters),
+    });
+    rawResponse = { success: json.success, total: json.total, rowCount: Array.isArray(json.data) ? json.data.length : 0 };
+
+    if (json && Array.isArray(json.data)) {
+      // Try every plausible field name for the country identifier.
+      const CID_FIELDS = ['country', 'country_id', 'countryId', 'country_code', 'countries'];
+
+      for (const row of json.data) {
+        if (row.isGroupSummary) continue; // skip grand-total row
+        let cid = null;
+        for (const f of CID_FIELDS) {
+          if (row[f] != null && row[f] !== '') { cid = row[f]; break; }
+        }
+        if (cid == null) {
+          // Log the first unidentifiable row's keys so we can find the real field name
+          if (!rawResponse.sampleRowKeys) rawResponse.sampleRowKeys = Object.keys(row);
+          continue;
+        }
+        const val = extractRowValue(row);
+        const key = String(cid);
+        perCountry[key] = (perCountry[key] || 0) + val;
       }
-    }));
-    for (const r of results) {
-      if (r.ok) okCount++;
-      else { failCount++; if (!firstFailReason) firstFailReason = r.reason; }
-      if (r.value > 0) perCountry[String(r.cid)] = r.value;
     }
+  } catch (err) {
+    failReason = err.message;
+  }
+
+  const countryCount = Object.keys(perCountry).length;
+
+  // If countries:['all'] didn't yield per-country data, log the problem.
+  if (countryCount < 10) {
+    console.warn(`country-ranking [${tradeFlow}]: countries=['all'] yielded only ${countryCount} entries. Raw:`, JSON.stringify(rawResponse));
+    if (failReason) console.warn(`  Fetch error: ${failReason}`);
   }
 
   // Compute ranks + shares. Values are in thousands USD → convert to mln.
@@ -230,13 +245,14 @@ async function fetchFlowRanking(tradeFlow, year, months, allCountryIds) {
   });
 
   const stats = {
-    ok: okCount,
-    fail: failCount,
-    withTrade: Object.keys(perCountry).length,
+    ok: countryCount,
+    fail: failReason ? 1 : 0,
+    withTrade: countryCount,
     totalMln: total,
-    firstFailReason,
+    firstFailReason: failReason,
+    rawResponse,
   };
-  console.log(`country-ranking [${tradeFlow} ${year}/${months.join(',')}]: ${okCount} ok, ${failCount} fail, ${stats.withTrade} with trade, total $${total.toFixed(1)}M`);
+  console.log(`country-ranking [${tradeFlow} ${year}/${months.join(',')}]: ${countryCount} countries, total $${total.toFixed(1)}M`);
   return { total, perCountry: map, stats };
 }
 
@@ -286,23 +302,18 @@ router.post('/country-ranking', async (req, res) => {
 
     if (!cached) {
       const t0 = Date.now();
-      const allCountryIds = await getAllCountryIds();
-      debug.classificatoryCountries = allCountryIds.length;
-      if (!allCountryIds.length) throw new Error('No countries in classificatory');
-      console.log(`country-ranking: computing for ${year}/${sortedMonths.join(',')} across ${allCountryIds.length} countries`);
+      console.log(`country-ranking: computing for ${year}/${sortedMonths.join(',')}`);
 
-      // Run flows in parallel (peak ≈ 3 × 10 = 30 concurrent Geostat calls)
-      // with a hard 45-second wall-clock cap so a hung Geostat cannot stall
-      // the whole endpoint.
-      const compute = Promise.all([
-        fetchFlowRanking('turnover', year, sortedMonths, allCountryIds),
-        fetchFlowRanking('export',   year, sortedMonths, allCountryIds),
-        fetchFlowRanking('import',   year, sortedMonths, allCountryIds),
+      // 3 Geostat calls (one per flow) using countries=['all']+sum=true
+      const [turnover, exp, imp] = await Promise.race([
+        Promise.all([
+          fetchFlowRanking('turnover', year, sortedMonths),
+          fetchFlowRanking('export',   year, sortedMonths),
+          fetchFlowRanking('import',   year, sortedMonths),
+        ]),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('compute-timeout-45s')), 45_000)),
       ]);
-      const timeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('compute-timeout-45s')), 45_000));
-
-      const [turnover, exp, imp] = await Promise.race([compute, timeout]);
 
       cached = {
         totals: { turnover: turnover.total, export: exp.total, import: imp.total },
