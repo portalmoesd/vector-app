@@ -586,19 +586,22 @@
         subTitle: { fontSize: 10.5, bold: true, color: '#1f2937', margin: [0, 8, 0, 4] },
         chartCaption: { fontSize: 9.5, bold: true, alignment: 'left', color: '#1f2937', margin: [0, 0, 0, 4] },
       },
-      // Prevent orphaned titles. If a sectionTitle / subTitle would render
-      // with no non-title content after it on the same page (because the
-      // following table/chart got pushed to the next page), force the title
-      // forward too. Chart captions are inside `unbreakable: true` stacks so
-      // they already stay with their charts and don't need this hook.
+      // Prevent orphaned titles. pdfmake fires this callback for any node
+      // that has id / headlineLevel / pageBreak / pageOrientation set. Our
+      // sectionTitle and subTitle helpers both set headlineLevel, so the
+      // callback fires for them. If a title node would render with no
+      // non-title content after it on the same page, force a page break
+      // before the title so it travels forward to its content.
+      //
+      // Identifier: we key off `headlineLevel` (reliably preserved by
+      // pdfmake through layout) rather than `style` (which gets resolved
+      // to computed properties before the callback runs).
       pageBreakBefore: function (currentNode, followingNodesOnPage) {
-        const TITLE_STYLES = { sectionTitle: true, subTitle: true };
-        const styleOf = (node) => {
-          const s = node && node.style;
-          return Array.isArray(s) ? s[0] : s;
-        };
-        if (!TITLE_STYLES[styleOf(currentNode)]) return false;
-        return !followingNodesOnPage.some((n) => !TITLE_STYLES[styleOf(n)]);
+        const isTitle = (n) => typeof n.headlineLevel === 'number';
+        if (!isTitle(currentNode)) return false;
+        // True if any following node on this page is non-title content.
+        const hasContent = followingNodesOnPage.some((n) => !isTitle(n));
+        return !hasContent;
       },
       header: function (currentPage) {
         return {
