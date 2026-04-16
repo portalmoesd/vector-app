@@ -1539,11 +1539,11 @@
 
     try {
       // Force all known charts to resize and snapshot to PNG.
-      // Tourism and FDI now span full page width in the PDF, so render
-      // their source canvases at larger dimensions for a crisper image.
+      // Every chart in the PDF spans full page width at identical height, so
+      // render all source canvases at the same 1200×360 aspect.
       const charts = {
-        turnover: snapshotChart(turnoverChartInstance),
-        dynamics: snapshotChart(dynamicsChartInstance),
+        turnover: snapshotChart(turnoverChartInstance, 1200, 360),
+        dynamics: snapshotChart(dynamicsChartInstance, 1200, 360),
         tourism: snapshotChart(tourismChartInstance, 1200, 360),
         fdi: snapshotChart(fdiChartInstance, 1200, 360),
       };
