@@ -129,6 +129,62 @@
     },
   };
 
+  // ── Georgian month declension ──────────────────────────────────────────
+  // Keyed by month number (1..12). `stem` is the first-month-in-range form
+  // (e.g. "იანვარ" in "იანვარ-თებერვლის"), `gen` is the genitive form used
+  // in "…მონაცემებით" sentences, `loc` is the locative used in "…ში" form.
+  const KA_MONTHS = {
+    1:  { stem: 'იანვარ',     gen: 'იანვრის',     loc: 'იანვარში'    },
+    2:  { stem: 'თებერვალ',   gen: 'თებერვლის',   loc: 'თებერვალში'  },
+    3:  { stem: 'მარტ',       gen: 'მარტის',      loc: 'მარტში'      },
+    4:  { stem: 'აპრილ',      gen: 'აპრილის',     loc: 'აპრილში'     },
+    5:  { stem: 'მაის',       gen: 'მაისის',      loc: 'მაისში'      },
+    6:  { stem: 'ივნის',      gen: 'ივნისის',     loc: 'ივნისში'     },
+    7:  { stem: 'ივლის',      gen: 'ივლისის',     loc: 'ივლისში'     },
+    8:  { stem: 'აგვისტო',    gen: 'აგვისტოს',    loc: 'აგვისტოში'   },
+    9:  { stem: 'სექტემბერ',  gen: 'სექტემბრის',  loc: 'სექტემბერში' },
+    10: { stem: 'ოქტომბერ',   gen: 'ოქტომბრის',   loc: 'ოქტომბერში'  },
+    11: { stem: 'ნოემბერ',    gen: 'ნოემბრის',    loc: 'ნოემბერში'   },
+    12: { stem: 'დეკემბერ',   gen: 'დეკემბრის',   loc: 'დეკემბერში'  },
+  };
+
+  function gePeriodGen(year, latestMonth) {
+    if (latestMonth === 12) return `${year} წლის`;
+    if (latestMonth === 1)  return `${year} წლის ${KA_MONTHS[1].gen}`;
+    return `${year} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].gen}`;
+  }
+
+  function gePeriodLoc(year, latestMonth) {
+    if (latestMonth === 12) return `${year} წელს`;
+    if (latestMonth === 1)  return `${year} წლის ${KA_MONTHS[1].loc}`;
+    return `${year} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].loc}`;
+  }
+
+  function enPeriod(year, latestMonth, monthNames) {
+    if (latestMonth === 12) return String(year);
+    const firstLbl = (monthNames.find(m => m.value === 1)?.label || 'Jan').slice(0, 3);
+    if (latestMonth === 1) return `${firstLbl} ${year}`;
+    const lastLbl = (monthNames.find(m => m.value === latestMonth)?.label || '').slice(0, 3);
+    return `${firstLbl}-${lastLbl} ${year}`;
+  }
+
+  function gePlace(rank) {
+    if (rank === 1) return 'პირველ';
+    return `მე-${rank}`;
+  }
+
+  function enOrdinal(rank) {
+    const n = Math.abs(rank);
+    const mod100 = n % 100;
+    if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+    switch (n % 10) {
+      case 1: return `${n}st`;
+      case 2: return `${n}nd`;
+      case 3: return `${n}rd`;
+      default: return `${n}th`;
+    }
+  }
+
   // ── Formatting helpers ─────────────────────────────────────────────────
   function formatMln(val) {
     let str;
@@ -370,14 +426,131 @@
     };
   }
 
+  // ── Trade summary paragraphs ───────────────────────────────────────────
+  // Three narrative paragraphs (turnover / export / import) rendered at the
+  // top of the Trade section. Ranking / share sentences are added when
+  // trade.ranking is present; otherwise those sentences are silently
+  // skipped so a backend failure never blocks the PDF.
+  function buildTradeSummary(trade, t, country, lang) {
+    const isKa = lang === 'ka';
+    const periodGen = isKa ? gePeriodGen(trade.latestYear, trade.latestMonth) : null;
+    const periodLoc = isKa ? gePeriodLoc(trade.latestYear, trade.latestMonth) : null;
+    const periodEn  = !isKa ? enPeriod(trade.latestYear, trade.latestMonth, trade.monthNames || []) : null;
+    const rank = trade.ranking && trade.ranking.country ? trade.ranking.country : null;
+
+    function pctInt(x) { return Math.round(Math.abs(x)); }
+    function pctOne(x) { return (Math.round(x * 10) / 10).toFixed(1); }
+
+    function changeVerb(current, prev) {
+      const c = calcChange(current, prev);
+      const abs = pctInt(c);
+      if (isKa) {
+        // Georgian: the verb itself conveys the direction.
+        const verb = c >= 0 ? 'გაიზარდა' : 'შემცირდა';
+        return { text: `${verb} ${abs}%-ით`, positive: c >= 0 };
+      }
+      const verb = c >= 0 ? 'increased' : 'decreased';
+      return { text: `${verb} by ${abs}%`, positive: c >= 0 };
+    }
+
+    function productEntry(p) {
+      const changeSign = p.change > 0 ? '+' : '';
+      const unit = isKa ? 'მლნ. $' : 'mln $';
+      return `${p.name} (${formatMln(p.valueMln)} ${unit}, ${changeSign}${formatPct(p.change)})`;
+    }
+    function productList(products) {
+      if (!products || !products.length) return '';
+      return products.slice(0, 10).map(productEntry).join(', ') + '.';
+    }
+
+    const paraStyle = { fontSize: 10, lineHeight: 1.3, alignment: 'justify', margin: [0, 0, 0, 6] };
+    const paragraphs = [];
+
+    const curTurn  = trade.overview.latestPeriod.turnover;
+    const prevTurn = trade.overview.latestPeriod.turnoverPrev;
+    const curExp   = trade.overview.latestPeriod.export;
+    const prevExp  = trade.overview.latestPeriod.exportPrev;
+    const curImp   = trade.overview.latestPeriod.import;
+    const prevImp  = trade.overview.latestPeriod.importPrev;
+
+    const turnVerb = changeVerb(curTurn, prevTurn);
+    const expVerb  = changeVerb(curExp,  prevExp);
+    const impVerb  = changeVerb(curImp,  prevImp);
+
+    // ── Paragraph 1: Turnover ────────────────────────────────────────────
+    let p1 = '';
+    if (isKa) {
+      p1 = `${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიური პერიოდის მაჩვენებელთან შედარებით, ${turnVerb.text} და ${formatMln(curTurn)} მლნ. აშშ დოლარი შეადგინა.`;
+      if (rank && rank.turnover) {
+        p1 += ` ${country} აღნიშნულ პერიოდში სავაჭრო ბრუნვის მოცულობის მიხედვით არის ${gePlace(rank.turnover.rank)} ადგილზე, წილი ${pctOne(rank.turnover.sharePct)}%.`;
+      }
+    } else {
+      p1 = `For ${periodEn}, trade turnover ${turnVerb.text} compared to the same period last year, amounting to ${formatMln(curTurn)} mln USD.`;
+      if (rank && rank.turnover) {
+        p1 += ` ${country} ranks ${enOrdinal(rank.turnover.rank)} by trade turnover with a ${pctOne(rank.turnover.sharePct)}% share.`;
+      }
+    }
+    paragraphs.push({ text: p1, ...paraStyle });
+
+    // ── Paragraph 2: Export ──────────────────────────────────────────────
+    let p2 = '';
+    if (!trade.hasExport) {
+      p2 = isKa
+        ? `ექსპორტი ${periodLoc} არ განხორციელდა.`
+        : `No exports were conducted in ${periodEn}.`;
+    } else if (isKa) {
+      p2 = `ექსპორტი ${periodLoc} ${expVerb.text} და ${formatMln(curExp)} მლნ. აშშ დოლარი შეადგინა.`;
+      if (rank && rank.export) {
+        p2 += ` საქართველოსთვის ექსპორტის მოცულობის მიხედვით ${country} არის ${gePlace(rank.export.rank)} ადგილზე, წილი ${pctOne(rank.export.sharePct)}%.`;
+      }
+      const pl = productList(trade.exportProducts);
+      if (pl) p2 += ` ძირითადი საექსპორტო პროდუქცია: ${pl}`;
+    } else {
+      p2 = `Exports in ${periodEn} ${expVerb.text}, amounting to ${formatMln(curExp)} mln USD.`;
+      if (rank && rank.export) {
+        p2 += ` ${country} ranks ${enOrdinal(rank.export.rank)} by export volume with a ${pctOne(rank.export.sharePct)}% share.`;
+      }
+      const pl = productList(trade.exportProducts);
+      if (pl) p2 += ` Main export products: ${pl}`;
+    }
+    paragraphs.push({ text: p2, ...paraStyle });
+
+    // ── Paragraph 3: Import ──────────────────────────────────────────────
+    let p3 = '';
+    if (!trade.hasImport) {
+      p3 = isKa
+        ? `იმპორტი ${periodLoc} არ განხორციელდა.`
+        : `No imports were conducted in ${periodEn}.`;
+    } else if (isKa) {
+      p3 = `იმპორტი ${periodLoc} ${impVerb.text} და ${formatMln(curImp)} მლნ. აშშ დოლარი შეადგინა.`;
+      if (rank && rank.import) {
+        p3 += ` საქართველოსთვის იმპორტის მოცულობის მიხედვით ${country} არის ${gePlace(rank.import.rank)} ადგილზე, წილი ${pctOne(rank.import.sharePct)}%.`;
+      }
+      const pl = productList(trade.importProducts);
+      if (pl) p3 += ` ძირითადი საიმპორტო პროდუქცია: ${pl}`;
+    } else {
+      p3 = `Imports in ${periodEn} ${impVerb.text}, amounting to ${formatMln(curImp)} mln USD.`;
+      if (rank && rank.import) {
+        p3 += ` ${country} ranks ${enOrdinal(rank.import.rank)} by import volume with a ${pctOne(rank.import.sharePct)}% share.`;
+      }
+      const pl = productList(trade.importProducts);
+      if (pl) p3 += ` Main import products: ${pl}`;
+    }
+    paragraphs.push({ text: p3, ...paraStyle });
+
+    return paragraphs;
+  }
+
   // ── Trade section ──────────────────────────────────────────────────────
-  function buildTradeSection(trade, charts, t, country) {
+  function buildTradeSection(trade, charts, t, country, lang) {
     if (!trade) return [];
 
     const blocks = [];
     const title = `${country} — ${t.tradeOverview}, ${trade.periodLabel} ${trade.latestYear}`;
+    const summary = buildTradeSummary(trade, t, country, lang);
     blocks.push(withTitle(
       sectionTitle(title),
+      ...summary,
       buildOverviewTable(
         trade.overview,
         { prevYear: trade.prevYear, latestYear: trade.latestYear, periodLabel: trade.periodLabel },
@@ -601,7 +774,7 @@
     const charts = opts.charts || {};
 
     const content = [];
-    content.push(...buildTradeSection(state.trade, charts, t, country));
+    content.push(...buildTradeSection(state.trade, charts, t, country, lang));
     content.push(...buildTourismSection(state.tourism, charts, t, country));
     content.push(...buildInvestmentsSection(state.investments, charts, t, country));
 
