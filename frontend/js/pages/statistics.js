@@ -1539,13 +1539,13 @@
 
     try {
       // Force all known charts to resize and snapshot to PNG.
-      // Every chart in the PDF spans full page width at identical height, so
-      // render all source canvases at the same 1200×360 aspect.
+      // Every chart in the PDF spans full page width at identical height.
+      // Source aspect 1200×216 → embedded at 500pt wide → 90pt tall.
       const charts = {
-        turnover: snapshotChart(turnoverChartInstance, 1200, 360),
-        dynamics: snapshotChart(dynamicsChartInstance, 1200, 360),
-        tourism: snapshotChart(tourismChartInstance, 1200, 360),
-        fdi: snapshotChart(fdiChartInstance, 1200, 360),
+        turnover: snapshotChart(turnoverChartInstance, 1200, 216),
+        dynamics: snapshotChart(dynamicsChartInstance, 1200, 216),
+        tourism: snapshotChart(tourismChartInstance, 1200, 216),
+        fdi: snapshotChart(fdiChartInstance, 1200, 216),
       };
 
       await StatisticsPdf.build(pdfState, {
