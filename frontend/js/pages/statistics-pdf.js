@@ -176,6 +176,18 @@
     return { text: text, style: 'subTitle', headlineLevel: 2 };
   }
 
+  // Wrap a title + its immediately-following content in an `unbreakable`
+  // stack so the title never gets orphaned at the bottom of a page. pdfmake
+  // keeps the whole stack on one page when it fits; if the content is
+  // larger than a page, it still starts fresh on a new page (title + first
+  // rows together), then lets the rest flow naturally.
+  function withTitle(title, ...content) {
+    return {
+      unbreakable: true,
+      stack: [title, ...content],
+    };
+  }
+
   // Shared pdfmake table layout
   const tableLayout = {
     hLineWidth: (i) => (i === 0 ? 0 : i === 1 ? 1 : 0.5),
@@ -360,11 +372,13 @@
 
     const blocks = [];
     const title = `${country} — ${t.tradeOverview}, ${trade.periodLabel} ${trade.latestYear}`;
-    blocks.push(sectionTitle(title));
-    blocks.push(buildOverviewTable(
-      trade.overview,
-      { prevYear: trade.prevYear, latestYear: trade.latestYear, periodLabel: trade.periodLabel },
-      t, trade.latestMonth, trade.monthNames,
+    blocks.push(withTitle(
+      sectionTitle(title),
+      buildOverviewTable(
+        trade.overview,
+        { prevYear: trade.prevYear, latestYear: trade.latestYear, periodLabel: trade.periodLabel },
+        t, trade.latestMonth, trade.monthNames,
+      ),
     ));
 
     // Charts — turnover + dynamics, stacked full-width so every chart in the
@@ -402,8 +416,10 @@
 
     // Export products + changes
     if (trade.hasExport) {
-      blocks.push(subTitle(`${t.mainExport}, ${trade.periodLabel} ${trade.latestYear}`));
-      blocks.push(buildProductsTable(trade.exportProducts, t, trade.periodLabel, trade.latestYear, true));
+      blocks.push(withTitle(
+        subTitle(`${t.mainExport}, ${trade.periodLabel} ${trade.latestYear}`),
+        buildProductsTable(trade.exportProducts, t, trade.periodLabel, trade.latestYear, true),
+      ));
 
       const incLabel = trade.exportGrowing ? t.exportIncrease : t.exportDrop;
       const dropLabel = trade.exportGrowing ? t.exportDrop : t.exportIncrease;
@@ -411,19 +427,25 @@
       const dropProds = trade.exportGrowing ? trade.exportChange.drop : trade.exportChange.increase;
 
       if (incProds && incProds.length) {
-        blocks.push(subTitle(`${incLabel}, ${trade.periodLabel} ${trade.latestYear}`));
-        blocks.push(buildChangeTable(incProds, t, trade.periodLabel, trade.latestYear));
+        blocks.push(withTitle(
+          subTitle(`${incLabel}, ${trade.periodLabel} ${trade.latestYear}`),
+          buildChangeTable(incProds, t, trade.periodLabel, trade.latestYear),
+        ));
       }
       if (dropProds && dropProds.length) {
-        blocks.push(subTitle(`${dropLabel}, ${trade.periodLabel} ${trade.latestYear}`));
-        blocks.push(buildChangeTable(dropProds, t, trade.periodLabel, trade.latestYear));
+        blocks.push(withTitle(
+          subTitle(`${dropLabel}, ${trade.periodLabel} ${trade.latestYear}`),
+          buildChangeTable(dropProds, t, trade.periodLabel, trade.latestYear),
+        ));
       }
     }
 
     // Import products + changes
     if (trade.hasImport) {
-      blocks.push(subTitle(`${t.mainImport}, ${trade.periodLabel} ${trade.latestYear}`));
-      blocks.push(buildProductsTable(trade.importProducts, t, trade.periodLabel, trade.latestYear, false));
+      blocks.push(withTitle(
+        subTitle(`${t.mainImport}, ${trade.periodLabel} ${trade.latestYear}`),
+        buildProductsTable(trade.importProducts, t, trade.periodLabel, trade.latestYear, false),
+      ));
 
       const incLabel = trade.importGrowing ? t.importIncrease : t.importDrop;
       const dropLabel = trade.importGrowing ? t.importDrop : t.importIncrease;
@@ -431,12 +453,16 @@
       const dropProds = trade.importGrowing ? trade.importChange.drop : trade.importChange.increase;
 
       if (incProds && incProds.length) {
-        blocks.push(subTitle(`${incLabel}, ${trade.periodLabel} ${trade.latestYear}`));
-        blocks.push(buildChangeTable(incProds, t, trade.periodLabel, trade.latestYear));
+        blocks.push(withTitle(
+          subTitle(`${incLabel}, ${trade.periodLabel} ${trade.latestYear}`),
+          buildChangeTable(incProds, t, trade.periodLabel, trade.latestYear),
+        ));
       }
       if (dropProds && dropProds.length) {
-        blocks.push(subTitle(`${dropLabel}, ${trade.periodLabel} ${trade.latestYear}`));
-        blocks.push(buildChangeTable(dropProds, t, trade.periodLabel, trade.latestYear));
+        blocks.push(withTitle(
+          subTitle(`${dropLabel}, ${trade.periodLabel} ${trade.latestYear}`),
+          buildChangeTable(dropProds, t, trade.periodLabel, trade.latestYear),
+        ));
       }
     }
 
@@ -447,10 +473,13 @@
   function buildTourismSection(tourism, charts, t, country) {
     if (!tourism) return [];
     const blocks = [];
-    blocks.push(sectionTitle(`${country} — ${t.internationalVisitors}`));
+    const title = sectionTitle(`${country} — ${t.internationalVisitors}`);
 
     if (!tourism.hasData) {
-      blocks.push({ text: t.noData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] });
+      blocks.push(withTitle(
+        title,
+        { text: t.noData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] },
+      ));
       return blocks;
     }
 
@@ -488,13 +517,14 @@
       blocks.push({
         unbreakable: true,
         stack: [
+          title,
           tableBlock,
           { text: t.internationalVisitors, style: 'chartCaption', margin: [0, 6, 0, 2] },
           { image: charts.tourism, width: 500, alignment: 'center', margin: [0, 0, 0, 8] },
         ],
       });
     } else {
-      blocks.push(tableBlock);
+      blocks.push(withTitle(title, tableBlock));
     }
 
     return blocks;
@@ -504,10 +534,13 @@
   function buildInvestmentsSection(inv, charts, t, country) {
     if (!inv) return [];
     const blocks = [];
-    blocks.push(sectionTitle(`${country} — ${t.fdi}`));
+    const title = sectionTitle(`${country} — ${t.fdi}`);
 
     if (!inv.hasData) {
-      blocks.push({ text: t.noData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] });
+      blocks.push(withTitle(
+        title,
+        { text: t.noData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] },
+      ));
       return blocks;
     }
 
@@ -542,13 +575,14 @@
       blocks.push({
         unbreakable: true,
         stack: [
+          title,
           tableBlock,
           { text: t.fdiShort, style: 'chartCaption', margin: [0, 6, 0, 2] },
           { image: charts.fdi, width: 500, alignment: 'center', margin: [0, 0, 0, 8] },
         ],
       });
     } else {
-      blocks.push(tableBlock);
+      blocks.push(withTitle(title, tableBlock));
     }
 
     return blocks;
@@ -586,23 +620,11 @@
         subTitle: { fontSize: 10.5, bold: true, color: '#1f2937', margin: [0, 8, 0, 4] },
         chartCaption: { fontSize: 9.5, bold: true, alignment: 'left', color: '#1f2937', margin: [0, 0, 0, 4] },
       },
-      // Prevent orphaned titles. pdfmake fires this callback for any node
-      // that has id / headlineLevel / pageBreak / pageOrientation set. Our
-      // sectionTitle and subTitle helpers both set headlineLevel, so the
-      // callback fires for them. If a title node would render with no
-      // non-title content after it on the same page, force a page break
-      // before the title so it travels forward to its content.
-      //
-      // Identifier: we key off `headlineLevel` (reliably preserved by
-      // pdfmake through layout) rather than `style` (which gets resolved
-      // to computed properties before the callback runs).
-      pageBreakBefore: function (currentNode, followingNodesOnPage) {
-        const isTitle = (n) => typeof n.headlineLevel === 'number';
-        if (!isTitle(currentNode)) return false;
-        // True if any following node on this page is non-title content.
-        const hasContent = followingNodesOnPage.some((n) => !isTitle(n));
-        return !hasContent;
-      },
+      // Orphan prevention for titles is handled structurally via
+      // `withTitle(...)` wrappers in the section builders — each title
+      // sits inside an `unbreakable: true` stack alongside its first
+      // content block, so pdfmake moves them as one unit if the current
+      // page can't fit them.
       header: function (currentPage) {
         return {
           columns: [
