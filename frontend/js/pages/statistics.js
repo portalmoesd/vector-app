@@ -69,6 +69,17 @@
   let countryNameMap = {}; // variant → canonical GNTA name
   let activeTab = 'trade';
 
+  // ── PDF state ────────────────────────────────────────────────────────────
+  // Captured alongside each tab's render so the PDF builder doesn't scrape
+  // the DOM. Each sub-object is set to null before the tab re-renders, and
+  // populated on successful completion.
+  const pdfState = {
+    country: null,
+    trade: null,      // { overview, prevYear, prevPrevYear, latestYear, latestMonth, periodLabel, monthNames, hasExport, hasImport, exportGrowing, importGrowing, exportProducts, importProducts, exportChange, importChange }
+    tourism: null,    // { hasData, quarterlyRows, annualRows }
+    investments: null, // { hasData, tableData }
+  };
+
   // ── Geostat API helpers (direct + proxy fallback) ────────────────────────
 
   async function geostatGet(path) {
@@ -227,6 +238,11 @@
 
   generateBtn.addEventListener('click', async () => {
     if (!selectedCountry) return;
+    // Reset PDF state for new country/run
+    pdfState.country = selectedCountry;
+    pdfState.trade = null;
+    pdfState.tourism = null;
+    pdfState.investments = null;
     // Generate trade first (user sees it immediately)
     await generateReport();
     // Fire tourism and investments in background (no await)
@@ -434,6 +450,19 @@
           }
         }
       }
+
+      // ── Capture PDF state ────────────────────────────────────────────
+      pdfState.country = selectedCountry;
+      pdfState.trade = {
+        overview,
+        prevYear, prevPrevYear, latestYear, latestMonth,
+        periodLabel, monthNames,
+        hasExport, hasImport, exportGrowing, importGrowing,
+        exportProducts: hasExport ? buildProductList(expHsCurrent, expHsPrev, reexHsCurrent) : null,
+        importProducts: hasImport ? buildProductList(impHsCurrent, impHsPrev, null) : null,
+        exportChange: hasExport ? buildChangeLists(expHsCurrent, expHsPrev) : null,
+        importChange: hasImport ? buildChangeLists(impHsCurrent, impHsPrev) : null,
+      };
 
     } catch (err) {
       console.error('Report generation error:', err);
@@ -1124,6 +1153,7 @@
 
       if (!countryData) {
         tourismTableEl.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
+        pdfState.tourism = { hasData: false };
         tourismLoading.classList.add('hidden');
         return;
       }
@@ -1181,9 +1211,16 @@
         visitors: countryData.current || 0,
       } : null, isKa);
 
+      pdfState.tourism = {
+        hasData: true,
+        quarterlyRows,
+        annualRows,
+      };
+
     } catch (err) {
       console.error('Tourism error:', err);
       tourismTableEl.innerHTML = `<div class="msg msg-error">${escapeHtml(err.message)}</div>`;
+      pdfState.tourism = { hasData: false };
     } finally {
       tourismLoading.classList.add('hidden');
       exportPdfBtn.disabled = false;
@@ -1311,6 +1348,7 @@
 
       if (!countryData) {
         fdiTable.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
+        pdfState.investments = { hasData: false };
         investmentsLoading.classList.add('hidden');
         return;
       }
@@ -1337,9 +1375,15 @@
       renderFdiTable(tableData, isKa);
       renderFdiChart(tableData, isKa);
 
+      pdfState.investments = {
+        hasData: true,
+        tableData,
+      };
+
     } catch (err) {
       console.error('Investments error:', err);
       fdiTable.innerHTML = `<div class="msg msg-error">${escapeHtml(err.message)}</div>`;
+      pdfState.investments = { hasData: false };
     } finally {
       investmentsLoading.classList.add('hidden');
       exportPdfBtn.disabled = false;
@@ -1432,132 +1476,91 @@
   // ── PDF EXPORT ─────────────────────────────────────────────────────────
   // ════════════════════════════════════════════════════════════════════════
 
-  exportPdfBtn.addEventListener('click', exportPdf);
+  const exportPdfMenu = document.getElementById('exportPdfMenu');
 
-  async function exportPdf() {
-    if (!selectedCountry) return;
-    if (typeof html2pdf === 'undefined') {
+  // Toggle the language menu when PDF button is clicked
+  exportPdfBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (exportPdfBtn.disabled) return;
+    exportPdfMenu.classList.toggle('hidden');
+  });
+
+  // Close menu when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.stat-pdf-menu-wrap')) {
+      exportPdfMenu.classList.add('hidden');
+    }
+  });
+
+  // Language item click → trigger export
+  exportPdfMenu.addEventListener('click', (e) => {
+    const item = e.target.closest('.stat-pdf-menu__item');
+    if (!item) return;
+    const pdfLang = item.dataset.lang;
+    exportPdfMenu.classList.add('hidden');
+    exportPdf(pdfLang);
+  });
+
+  // Capture a Chart.js canvas as a PNG data URL, using a larger render size
+  // so the embedded image stays sharp when scaled down by pdfmake.
+  function snapshotChart(chartInstance, width = 900, height = 420) {
+    if (!chartInstance || !chartInstance.canvas) return null;
+    // Force a resize so the canvas reflects current container dims
+    try {
+      chartInstance.resize(width, height);
+    } catch (_) { /* ignore — resize may fail if container is 0-size */ }
+    try {
+      return chartInstance.toBase64Image('image/png', 1.0);
+    } catch (err) {
+      console.warn('Chart snapshot failed:', err);
+      return null;
+    }
+  }
+
+  async function exportPdf(pdfLang) {
+    if (typeof pdfMake === 'undefined' || typeof StatisticsPdf === 'undefined') {
       alert('PDF library not loaded. Please refresh the page.');
       return;
     }
+    if (!pdfState.trade || !pdfState.country) {
+      alert(I18n.getLocale() === 'ka' ? 'ჯერ დააგენერირეთ მონაცემები' : 'Please generate data first.');
+      return;
+    }
 
+    const origBtnText = exportPdfBtn.textContent;
     exportPdfBtn.disabled = true;
     exportPdfBtn.textContent = '...';
 
+    // Temporarily make all three tabs laid-out off-screen so Chart.js
+    // resizes them to real dimensions before we snapshot.
+    document.body.classList.add('stat-exporting');
+    // Wait two animation frames so layout/resize settle.
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
     try {
-      const sourceArea = activeTab === 'investments' ? investmentsArea : reportArea;
-      if (!sourceArea || sourceArea.classList.contains('hidden')) return;
+      // Force all known charts to resize and snapshot to PNG
+      const charts = {
+        turnover: snapshotChart(turnoverChartInstance),
+        dynamics: snapshotChart(dynamicsChartInstance),
+        tourism: snapshotChart(tourismChartInstance),
+        fdi: snapshotChart(fdiChartInstance, 700, 400),
+      };
 
-      // Build PDF container — sized to fit A4 portrait with margins
-      const container = document.createElement('div');
-      container.style.cssText = 'font-family: FiraGO, Noto Sans Georgian, Arial, sans-serif; color: #1a1a1a; font-size: 11px;';
-
-      let isFirst = true;
-
-      // Helper: add a section with page break (except first)
-      function addSection(html, opts = {}) {
-        const div = document.createElement('div');
-        if (!isFirst) div.style.pageBreakBefore = 'always';
-        div.innerHTML = html;
-        container.appendChild(div);
-        isFirst = false;
-        return div;
-      }
-
-      // Helper: convert canvas to img HTML
-      function canvasToImgHtml(canvas, maxWidth) {
-        if (!canvas) return '';
-        const src = canvas.toDataURL('image/png', 1.0);
-        return `<img src="${src}" style="width:${maxWidth || '100%'}; height:auto; display:block;">`;
-      }
-
-      // Collect visible cards
-      const cards = sourceArea.querySelectorAll('.card');
-      const processedCharts = new Set();
-
-      for (const card of cards) {
-        if (card.style.display === 'none' || card.classList.contains('hidden')) continue;
-
-        // Charts row — two charts side by side on one page
-        if (card.closest('.stat-charts-row')) {
-          const chartsRow = card.closest('.stat-charts-row');
-          if (processedCharts.has(chartsRow)) continue;
-          processedCharts.add(chartsRow);
-
-          let chartsHtml = '<div style="display:flex; gap:16px;">';
-          chartsRow.querySelectorAll('.stat-chart-card').forEach(cc => {
-            const header = cc.querySelector('.stat-report__header');
-            const canvas = cc.querySelector('canvas');
-            chartsHtml += `<div style="flex:1; min-width:0;">`;
-            if (header) chartsHtml += header.innerHTML;
-            chartsHtml += canvasToImgHtml(canvas, '100%');
-            chartsHtml += '</div>';
-          });
-          chartsHtml += '</div>';
-          addSection(chartsHtml);
-          continue;
-        }
-
-        // Investments row — table + chart side by side
-        const investRow = card.querySelector('.stat-investments-row');
-        if (investRow) {
-          let html = '<div style="display:flex; gap:20px;">';
-          const tableWrap = investRow.querySelector('.stat-investments-table-wrap');
-          if (tableWrap) html += `<div style="flex:1;">${tableWrap.innerHTML}</div>`;
-          const chartWrap = investRow.querySelector('.stat-investments-chart-wrap');
-          if (chartWrap) {
-            const header = chartWrap.querySelector('.stat-report__header');
-            const canvas = chartWrap.querySelector('canvas');
-            html += `<div style="flex:1;">${header ? header.innerHTML : ''}${canvasToImgHtml(canvas, '100%')}</div>`;
-          }
-          html += '</div>';
-          addSection(html);
-          continue;
-        }
-
-        // Regular card — table with header. Each gets its own page.
-        addSection(card.innerHTML);
-      }
-
-      // Style all elements in the PDF container
-      container.querySelectorAll('h3').forEach(h => {
-        h.style.cssText = 'font-size: 13px; font-weight: 700; margin: 0 0 8px 0; color: #1a1a1a;';
+      await StatisticsPdf.build(pdfState, {
+        lang: pdfLang || 'en',
+        country: pdfState.country.displayLabel,
+        charts,
       });
-      container.querySelectorAll('table').forEach(t => {
-        t.style.cssText = 'width: 100%; border-collapse: collapse; font-size: 10px; table-layout: auto;';
-      });
-      container.querySelectorAll('th').forEach(th => {
-        th.style.cssText = 'padding: 4px 6px; text-align: left; font-weight: 600; font-size: 9px; border-bottom: 2px solid #ccc; color: #555; white-space: nowrap;';
-      });
-      container.querySelectorAll('td').forEach(td => {
-        td.style.cssText = 'padding: 3px 6px; border-bottom: 1px solid #eee; font-size: 10px;';
-      });
-      container.querySelectorAll('.stat-col-value, .stat-col-change, .stat-col-reexport, .stat-col-diff').forEach(el => {
-        el.style.textAlign = 'right';
-        el.style.whiteSpace = 'nowrap';
-      });
-      container.querySelectorAll('.stat-col-overview').forEach(el => {
-        el.style.textAlign = 'center';
-      });
-      container.querySelectorAll('.stat-positive').forEach(el => { el.style.color = '#16a34a'; });
-      container.querySelectorAll('.stat-negative').forEach(el => { el.style.color = '#dc2626'; });
-
-      const countryName = selectedCountry.displayLabel.replace(/[^a-zA-Z0-9\u10A0-\u10FF]/g, '_');
-      const filename = `${countryName}_${activeTab}_report.pdf`;
-
-      await html2pdf().from(container).set({
-        margin: [10, 10, 10, 10],
-        filename,
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { format: 'a4', orientation: 'portrait' },
-        image: { type: 'jpeg', quality: 0.95 },
-      }).save();
-
     } catch (err) {
       console.error('PDF export error:', err);
+      alert('Failed to export PDF: ' + (err.message || err));
     } finally {
+      document.body.classList.remove('stat-exporting');
+      // Restore chart sizes to fit their actual visible containers
+      [turnoverChartInstance, dynamicsChartInstance, tourismChartInstance, fdiChartInstance]
+        .forEach(c => { if (c) { try { c.resize(); } catch (_) {} } });
       exportPdfBtn.disabled = false;
-      exportPdfBtn.textContent = 'PDF';
+      exportPdfBtn.textContent = origBtnText;
     }
   }
 })();

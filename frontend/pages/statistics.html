@@ -35,7 +35,13 @@
             <label class="form-label">&nbsp;</label>
             <div class="stat-controls__buttons">
               <button class="btn btn-primary" id="generateBtn" disabled data-i18n="statistics.generate">Generate</button>
-              <button class="btn btn-outline" id="exportPdfBtn" disabled>PDF</button>
+              <div class="stat-pdf-menu-wrap">
+                <button class="btn btn-outline" id="exportPdfBtn" disabled>PDF ▾</button>
+                <div id="exportPdfMenu" class="stat-pdf-menu hidden">
+                  <button class="stat-pdf-menu__item" data-lang="en">English</button>
+                  <button class="stat-pdf-menu__item" data-lang="ka">ქართული</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -155,12 +161,13 @@
   </div>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.20/pdfmake.min.js"></script>
   <script src="/js/core/config.js"></script>
   <script src="/js/core/api.js"></script>
   <script src="/js/core/i18n.js"></script>
   <script src="/js/core/utils.js"></script>
   <script src="/js/core/app.js"></script>
+  <script src="/js/pages/statistics-pdf.js"></script>
   <script src="/js/pages/statistics.js"></script>
 </body>
 </html>
