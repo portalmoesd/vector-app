@@ -451,6 +451,22 @@
         }
       }
 
+      // Fetch ranking + share for the PDF trade-summary paragraph. If it
+      // fails, store null and let the PDF builder render without those
+      // sentences rather than blocking the whole generation.
+      let ranking = null;
+      try {
+        const rankRes = await fetch(`${PROXY_API}/country-ranking`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ year: latestYear, months: monthsYTD, countryId: selectedCountry.value }),
+        });
+        if (rankRes.ok) {
+          const j = await rankRes.json();
+          if (j.success && j.country) ranking = { country: j.country, totals: j.totals };
+        }
+      } catch (_) { /* swallow: summary will render without rank/share */ }
+
       // ── Capture PDF state ────────────────────────────────────────────
       pdfState.country = selectedCountry;
       pdfState.trade = {
@@ -462,6 +478,7 @@
         importProducts: hasImport ? buildProductList(impHsCurrent, impHsPrev, null) : null,
         exportChange: hasExport ? buildChangeLists(expHsCurrent, expHsPrev) : null,
         importChange: hasImport ? buildChangeLists(impHsCurrent, impHsPrev) : null,
+        ranking,
       };
 
     } catch (err) {

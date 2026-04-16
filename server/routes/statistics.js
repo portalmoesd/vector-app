@@ -122,6 +122,188 @@ router.post('/export-report', async (req, res) => {
   }
 });
 
+// ── POST /api/statistics/country-ranking ────────────────────────────────────
+// Returns the selected country's rank + share of Georgia totals for the
+// given (year, months) across three trade flows. Caches the computed
+// all-countries rankings for 1 hour so subsequent PDF exports hit the cache.
+
+const RANKING_TTL = 60 * 60 * 1000; // 1 hour
+const RANKING_CACHE_MAX = 32;
+const rankingCache = new Map(); // key -> { data, ts }
+
+function rankingCacheGet(key) {
+  const entry = rankingCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > RANKING_TTL) { rankingCache.delete(key); return null; }
+  return entry.data;
+}
+
+function rankingCacheSet(key, data) {
+  if (rankingCache.size >= RANKING_CACHE_MAX) {
+    // Evict oldest (Map preserves insertion order)
+    const oldestKey = rankingCache.keys().next().value;
+    if (oldestKey !== undefined) rankingCache.delete(oldestKey);
+  }
+  rankingCache.set(key, { data, ts: Date.now() });
+}
+
+// Geostat row helpers
+function extractRowValue(row) {
+  for (const key of Object.keys(row)) {
+    if (key.startsWith('usd1000_')) {
+      const v = parseFloat(row[key]);
+      if (!isNaN(v)) return v;
+    }
+  }
+  return 0;
+}
+
+function extractRowCountryId(row) {
+  // Geostat may use any of these field names for the country identifier.
+  return row.country ?? row.country_id ?? row.countryId ?? row.country_code ?? null;
+}
+
+async function fetchFlowRanking(tradeFlow, year, months, allCountryIds) {
+  // First attempt: single request with all country IDs and sum:true.
+  // Fall back to per-country fetches (batched) if the response doesn't
+  // yield per-country data.
+  const filters = {
+    tradeFlow,
+    measurementUnits: [1],
+    years: [year],
+    months,
+    countries: allCountryIds,
+    locale: 'en',
+    sum: true,
+    page: 1,
+    pageSize: 1000,
+  };
+
+  let perCountry = {}; // countryId -> valueThd
+
+  try {
+    const json = await geostatFetch('/get_data', {
+      method: 'POST',
+      body: JSON.stringify(filters),
+    });
+    if (json && Array.isArray(json.data)) {
+      for (const row of json.data) {
+        const cid = extractRowCountryId(row);
+        if (cid == null) continue;
+        perCountry[cid] = (perCountry[cid] || 0) + extractRowValue(row);
+      }
+    }
+  } catch (err) {
+    console.warn('country-ranking bulk fetch failed, will fall back:', err.message);
+    perCountry = {};
+  }
+
+  // Fallback: per-country parallel fetches in batches of 20.
+  if (Object.keys(perCountry).length < Math.min(20, Math.floor(allCountryIds.length / 2))) {
+    perCountry = {};
+    const batchSize = 20;
+    for (let i = 0; i < allCountryIds.length; i += batchSize) {
+      const batch = allCountryIds.slice(i, i + batchSize);
+      const results = await Promise.all(batch.map(async (cid) => {
+        try {
+          const j = await geostatFetch('/get_data', {
+            method: 'POST',
+            body: JSON.stringify({ ...filters, countries: [cid] }),
+          });
+          if (!j || !Array.isArray(j.data)) return { cid, value: 0 };
+          let value = 0;
+          for (const row of j.data) {
+            if (row.isGroupSummary) { value = extractRowValue(row); break; }
+          }
+          if (value === 0 && j.data.length > 0) value = extractRowValue(j.data[0]);
+          return { cid, value };
+        } catch (_) {
+          return { cid, value: 0 };
+        }
+      }));
+      for (const { cid, value } of results) {
+        if (value > 0) perCountry[cid] = value;
+      }
+    }
+  }
+
+  // Compute ranks + shares. Values are in thousands USD → convert to mln.
+  const entries = Object.entries(perCountry)
+    .map(([cid, thd]) => ({ cid, valueMln: thd / 1000 }))
+    .filter((e) => e.valueMln > 0)
+    .sort((a, b) => b.valueMln - a.valueMln);
+
+  const total = entries.reduce((s, e) => s + e.valueMln, 0);
+  const map = {};
+  entries.forEach((e, idx) => {
+    map[e.cid] = {
+      valueMln: e.valueMln,
+      rank: idx + 1,
+      sharePct: total > 0 ? (100 * e.valueMln / total) : 0,
+    };
+  });
+  return { total, perCountry: map };
+}
+
+async function getAllCountryIds() {
+  // Reuse the classificatory cache so we don't hit Geostat again.
+  if (classCache.en && Date.now() - classCache.ts < CACHE_TTL) {
+    return (classCache.en.data?.countries || []).map((c) => c.value).filter((v) => v != null);
+  }
+  const data = await geostatFetch('/classificatory?lang=en');
+  classCache.en = data;
+  classCache.ts = Date.now();
+  return (data.data?.countries || []).map((c) => c.value).filter((v) => v != null);
+}
+
+router.post('/country-ranking', async (req, res) => {
+  try {
+    const { year, months, countryId } = req.body || {};
+    // Validation
+    if (!Number.isInteger(year) || year < 1990 || year > 2100) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+    if (!Array.isArray(months) || months.length === 0 || months.some((m) => !Number.isInteger(m) || m < 1 || m > 12)) {
+      return res.status(400).json({ error: 'Invalid months' });
+    }
+    if (countryId == null || countryId === '') {
+      return res.status(400).json({ error: 'Invalid countryId' });
+    }
+
+    const sortedMonths = [...months].sort((a, b) => a - b);
+    const cacheKey = `${year}:${sortedMonths.join(',')}`;
+    let cached = rankingCacheGet(cacheKey);
+
+    if (!cached) {
+      const allCountryIds = await getAllCountryIds();
+      if (!allCountryIds.length) throw new Error('No countries in classificatory');
+
+      const [turnover, exp, imp] = await Promise.all([
+        fetchFlowRanking('turnover', year, sortedMonths, allCountryIds),
+        fetchFlowRanking('export',   year, sortedMonths, allCountryIds),
+        fetchFlowRanking('import',   year, sortedMonths, allCountryIds),
+      ]);
+
+      cached = {
+        totals: { turnover: turnover.total, export: exp.total, import: imp.total },
+        flows: { turnover: turnover.perCountry, export: exp.perCountry, import: imp.perCountry },
+      };
+      rankingCacheSet(cacheKey, cached);
+    }
+
+    const country = {
+      turnover: cached.flows.turnover[countryId] || null,
+      export: cached.flows.export[countryId] || null,
+      import: cached.flows.import[countryId] || null,
+    };
+
+    res.json({ success: true, totals: cached.totals, country });
+  } catch (err) {
+    console.error('Statistics country-ranking error:', err.message);
+    res.status(502).json({ error: 'Failed to fetch country ranking' });
+  }
+});
+
 // ── GET /api/statistics/fdi ──────────────────────────────────────────────
 // Parses FDI by countries XLSX. Tries to download fresh from geostat.ge,
 // falls back to local bundled copy. Cached for 24 hours (updates quarterly).
