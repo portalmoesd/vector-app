@@ -458,16 +458,24 @@
       const ctrl = new AbortController();
       const rankTimer = setTimeout(() => ctrl.abort(), 60_000);
       try {
+        console.log('[ranking] fetching...', { year: latestYear, months: monthsYTD, countryId: selectedCountry.value });
         const rankRes = await fetch(`${PROXY_API}/country-ranking`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ year: latestYear, months: monthsYTD, countryId: selectedCountry.value }),
           signal: ctrl.signal,
         });
-        const j = await rankRes.json().catch(() => null);
-        console.log('[ranking]', rankRes.status, j);
+        console.log('[ranking] response status:', rankRes.status);
+        const j = await rankRes.json().catch((e) => { console.warn('[ranking] json parse failed:', e.message); return null; });
+        console.log('[ranking] body:', JSON.stringify(j && j._debug ? j._debug : j));
         if (rankRes.ok && j && j.success && j.country) {
+          const hasTurnover = !!(j.country.turnover);
+          const hasExport = !!(j.country.export);
+          const hasImport = !!(j.country.import);
+          console.log('[ranking] ✓ has data — turnover:', hasTurnover, 'export:', hasExport, 'import:', hasImport);
           ranking = { country: j.country, totals: j.totals };
+        } else {
+          console.warn('[ranking] ✗ no usable data in response');
         }
       } catch (err) {
         console.warn('[ranking] fetch failed:', err.message);
