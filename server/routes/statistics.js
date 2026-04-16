@@ -169,7 +169,7 @@ async function fetchFlowRanking(tradeFlow, year, months, allCountryIds) {
   // to a single Georgia-wide total in practice, so we go direct to the
   // per-country loop which mirrors the proven frontend fetchTradeTotal
   // pattern.
-  const perCountry = {}; // countryId -> valueThd USD
+  const perCountry = {}; // String(countryId) -> valueThd USD
   const batchSize = 10;
   const baseFilters = {
     tradeFlow,
@@ -184,6 +184,7 @@ async function fetchFlowRanking(tradeFlow, year, months, allCountryIds) {
 
   let okCount = 0;
   let failCount = 0;
+  let firstFailReason = null;
 
   for (let i = 0; i < allCountryIds.length; i += batchSize) {
     const batch = allCountryIds.slice(i, i + batchSize);
@@ -193,24 +194,24 @@ async function fetchFlowRanking(tradeFlow, year, months, allCountryIds) {
           method: 'POST',
           body: JSON.stringify({ ...baseFilters, countries: [cid] }),
         });
-        if (!j || !Array.isArray(j.data)) return { cid, value: 0, ok: false };
+        if (!j || !Array.isArray(j.data)) return { cid, value: 0, ok: false, reason: 'no-data' };
+        // Prefer the isGroupSummary row (per-country aggregate); if absent,
+        // sum usd1000_* across every row.
         let value = 0;
-        for (const row of j.data) {
-          if (row.isGroupSummary) { value = extractRowValue(row); break; }
-        }
-        if (value === 0 && j.data.length > 0) value = extractRowValue(j.data[0]);
+        const summary = j.data.find((r) => r.isGroupSummary);
+        if (summary) value = extractRowValue(summary);
+        else value = j.data.reduce((s, r) => s + extractRowValue(r), 0);
         return { cid, value, ok: true };
       } catch (err) {
-        return { cid, value: 0, ok: false, error: err.message };
+        return { cid, value: 0, ok: false, reason: err.message };
       }
     }));
     for (const r of results) {
-      if (r.ok) okCount++; else failCount++;
-      if (r.value > 0) perCountry[r.cid] = r.value;
+      if (r.ok) okCount++;
+      else { failCount++; if (!firstFailReason) firstFailReason = r.reason; }
+      if (r.value > 0) perCountry[String(r.cid)] = r.value;
     }
   }
-
-  console.log(`country-ranking [${tradeFlow} ${year}/${months.join(',')}]: ${okCount} ok, ${failCount} fail, ${Object.keys(perCountry).length} with trade`);
 
   // Compute ranks + shares. Values are in thousands USD → convert to mln.
   const entries = Object.entries(perCountry)
@@ -227,7 +228,16 @@ async function fetchFlowRanking(tradeFlow, year, months, allCountryIds) {
       sharePct: total > 0 ? (100 * e.valueMln / total) : 0,
     };
   });
-  return { total, perCountry: map };
+
+  const stats = {
+    ok: okCount,
+    fail: failCount,
+    withTrade: Object.keys(perCountry).length,
+    totalMln: total,
+    firstFailReason,
+  };
+  console.log(`country-ranking [${tradeFlow} ${year}/${months.join(',')}]: ${okCount} ok, ${failCount} fail, ${stats.withTrade} with trade, total $${total.toFixed(1)}M`);
+  return { total, perCountry: map, stats };
 }
 
 async function getAllCountryIds() {
@@ -242,53 +252,137 @@ async function getAllCountryIds() {
 }
 
 router.post('/country-ranking', async (req, res) => {
+  const debug = {
+    cacheKey: null,
+    cacheHit: false,
+    classificatoryCountries: 0,
+    computedMs: 0,
+    flowStats: null,
+    countryIdRequested: null,
+    countryIdType: null,
+    countryFoundInFlows: null,
+  };
   try {
     const { year, months, countryId } = req.body || {};
     // Validation
     if (!Number.isInteger(year) || year < 1990 || year > 2100) {
-      return res.status(400).json({ error: 'Invalid year' });
+      return res.status(400).json({ error: 'Invalid year', _debug: debug });
     }
     if (!Array.isArray(months) || months.length === 0 || months.some((m) => !Number.isInteger(m) || m < 1 || m > 12)) {
-      return res.status(400).json({ error: 'Invalid months' });
+      return res.status(400).json({ error: 'Invalid months', _debug: debug });
     }
     if (countryId == null || countryId === '') {
-      return res.status(400).json({ error: 'Invalid countryId' });
+      return res.status(400).json({ error: 'Invalid countryId', _debug: debug });
     }
 
     const sortedMonths = [...months].sort((a, b) => a - b);
     const cacheKey = `${year}:${sortedMonths.join(',')}`;
+    debug.cacheKey = cacheKey;
+    debug.countryIdRequested = String(countryId);
+    debug.countryIdType = typeof countryId;
+
     let cached = rankingCacheGet(cacheKey);
+    debug.cacheHit = !!cached;
 
     if (!cached) {
       const t0 = Date.now();
       const allCountryIds = await getAllCountryIds();
+      debug.classificatoryCountries = allCountryIds.length;
       if (!allCountryIds.length) throw new Error('No countries in classificatory');
       console.log(`country-ranking: computing for ${year}/${sortedMonths.join(',')} across ${allCountryIds.length} countries`);
 
-      // Run flows sequentially (not Promise.all) to halve the peak
-      // concurrency against Geostat.
-      const turnover = await fetchFlowRanking('turnover', year, sortedMonths, allCountryIds);
-      const exp      = await fetchFlowRanking('export',   year, sortedMonths, allCountryIds);
-      const imp      = await fetchFlowRanking('import',   year, sortedMonths, allCountryIds);
+      // Run flows in parallel (peak ≈ 3 × 10 = 30 concurrent Geostat calls)
+      // with a hard 45-second wall-clock cap so a hung Geostat cannot stall
+      // the whole endpoint.
+      const compute = Promise.all([
+        fetchFlowRanking('turnover', year, sortedMonths, allCountryIds),
+        fetchFlowRanking('export',   year, sortedMonths, allCountryIds),
+        fetchFlowRanking('import',   year, sortedMonths, allCountryIds),
+      ]);
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('compute-timeout-45s')), 45_000));
+
+      const [turnover, exp, imp] = await Promise.race([compute, timeout]);
 
       cached = {
         totals: { turnover: turnover.total, export: exp.total, import: imp.total },
         flows: { turnover: turnover.perCountry, export: exp.perCountry, import: imp.perCountry },
+        flowStats: { turnover: turnover.stats, export: exp.stats, import: imp.stats },
       };
       rankingCacheSet(cacheKey, cached);
-      console.log(`country-ranking: completed in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+      debug.computedMs = Date.now() - t0;
+      console.log(`country-ranking: completed in ${(debug.computedMs / 1000).toFixed(1)}s`);
     }
 
+    debug.flowStats = cached.flowStats || null;
+
+    const idKey = String(countryId);
     const country = {
-      turnover: cached.flows.turnover[countryId] || null,
-      export: cached.flows.export[countryId] || null,
-      import: cached.flows.import[countryId] || null,
+      turnover: cached.flows.turnover[idKey] || null,
+      export: cached.flows.export[idKey] || null,
+      import: cached.flows.import[idKey] || null,
+    };
+    debug.countryFoundInFlows = {
+      turnover: !!country.turnover,
+      export: !!country.export,
+      import: !!country.import,
     };
 
-    res.json({ success: true, totals: cached.totals, country });
+    res.json({ success: true, totals: cached.totals, country, _debug: debug });
   } catch (err) {
     console.error('Statistics country-ranking error:', err.message);
-    res.status(502).json({ error: 'Failed to fetch country ranking' });
+    res.status(502).json({ error: 'Failed to fetch country ranking', reason: err.message, _debug: debug });
+  }
+});
+
+// ── POST /api/statistics/country-ranking/debug ──────────────────────────
+// Returns the RAW Geostat response for exactly one country/flow/period so
+// we can inspect the row shape (isGroupSummary presence, usd1000_* field
+// naming, any country-identifier field) straight from the browser console.
+router.post('/country-ranking/debug', async (req, res) => {
+  try {
+    const { tradeFlow, year, months, countryId } = req.body || {};
+    if (!['turnover', 'export', 'import'].includes(tradeFlow)) {
+      return res.status(400).json({ error: 'tradeFlow must be turnover|export|import' });
+    }
+    if (!Number.isInteger(year)) return res.status(400).json({ error: 'Invalid year' });
+    if (!Array.isArray(months) || months.length === 0) return res.status(400).json({ error: 'Invalid months' });
+    if (countryId == null) return res.status(400).json({ error: 'Invalid countryId' });
+
+    const filters = {
+      tradeFlow,
+      measurementUnits: [1],
+      years: [year],
+      months,
+      countries: [countryId],
+      locale: 'en',
+      sum: true,
+      page: 1,
+      pageSize: 10,
+    };
+    const raw = await geostatFetch('/get_data', {
+      method: 'POST',
+      body: JSON.stringify(filters),
+    });
+
+    // Also show what fetchFlowRanking would have extracted.
+    let extracted = 0;
+    let extractionPath = null;
+    if (raw && Array.isArray(raw.data)) {
+      const summary = raw.data.find((r) => r.isGroupSummary);
+      if (summary) { extracted = extractRowValue(summary); extractionPath = 'isGroupSummary'; }
+      else { extracted = raw.data.reduce((s, r) => s + extractRowValue(r), 0); extractionPath = 'sum-all-rows'; }
+    }
+
+    res.json({
+      success: true,
+      filtersSent: filters,
+      rawResponse: raw,
+      extracted: { valueThd: extracted, valueMln: extracted / 1000, path: extractionPath },
+    });
+  } catch (err) {
+    console.error('country-ranking/debug error:', err.message);
+    res.status(502).json({ error: err.message });
   }
 });
 

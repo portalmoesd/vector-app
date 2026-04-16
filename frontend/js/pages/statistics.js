@@ -455,17 +455,25 @@
       // fails, store null and let the PDF builder render without those
       // sentences rather than blocking the whole generation.
       let ranking = null;
+      const ctrl = new AbortController();
+      const rankTimer = setTimeout(() => ctrl.abort(), 60_000);
       try {
         const rankRes = await fetch(`${PROXY_API}/country-ranking`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ year: latestYear, months: monthsYTD, countryId: selectedCountry.value }),
+          signal: ctrl.signal,
         });
-        if (rankRes.ok) {
-          const j = await rankRes.json();
-          if (j.success && j.country) ranking = { country: j.country, totals: j.totals };
+        const j = await rankRes.json().catch(() => null);
+        console.log('[ranking]', rankRes.status, j);
+        if (rankRes.ok && j && j.success && j.country) {
+          ranking = { country: j.country, totals: j.totals };
         }
-      } catch (_) { /* swallow: summary will render without rank/share */ }
+      } catch (err) {
+        console.warn('[ranking] fetch failed:', err.message);
+      } finally {
+        clearTimeout(rankTimer);
+      }
 
       // ── Capture PDF state ────────────────────────────────────────────
       pdfState.country = selectedCountry;
