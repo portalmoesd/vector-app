@@ -1506,19 +1506,22 @@
   // Trick: we render the chart at its FINAL display size (matching the PDF
   // embed width/height in points) but with a high devicePixelRatio so the
   // underlying PNG is oversampled for crisp print quality. Because Chart.js
-  // sizes fonts relative to the display size, 11px tick / label fonts end
-  // up at ~11pt in the final PDF — instead of shrinking to 2pt, which is
-  // what happens if you render the source canvas several times larger than
-  // the embed box.
+  // sizes fonts relative to the display size, font sizes set in "display px"
+  // end up at the same number in "pt" once pdfmake embeds the PNG at the
+  // matching pt width.
   //
-  // We also have to temporarily disable responsive + maintainAspectRatio,
-  // otherwise the ResizeObserver and aspect-ratio lock will override our
-  // requested dimensions.
-  function snapshotChart(chartInstance, displayWidth = 500, displayHeight = 90, pixelRatio = 4) {
+  // We also have to temporarily:
+  //   - disable responsive + maintainAspectRatio (otherwise the aspect lock
+  //     and ResizeObserver silently override our requested dimensions)
+  //   - override tick + datalabel font sizes so chart text sits at the same
+  //     ~9pt as the surrounding PDF table content
+  function snapshotChart(chartInstance, displayWidth = 500, displayHeight = 153, pixelRatio = 4, fontSize = 9) {
     if (!chartInstance || !chartInstance.canvas) return null;
 
     const canvas = chartInstance.canvas;
     const opts = chartInstance.options;
+    const ticksFont = opts?.scales?.x?.ticks?.font;
+    const datalabelsFont = opts?.plugins?.datalabels?.font;
 
     const orig = {
       responsive: opts.responsive,
@@ -1527,6 +1530,8 @@
       devicePixelRatio: opts.devicePixelRatio,
       styleWidth: canvas.style.width,
       styleHeight: canvas.style.height,
+      ticksFontSize: ticksFont ? ticksFont.size : undefined,
+      datalabelsFontSize: datalabelsFont ? datalabelsFont.size : undefined,
     };
 
     try {
@@ -1534,6 +1539,8 @@
       opts.maintainAspectRatio = false;
       opts.aspectRatio = undefined;
       opts.devicePixelRatio = pixelRatio;
+      if (ticksFont) ticksFont.size = fontSize;
+      if (datalabelsFont) datalabelsFont.size = fontSize;
       canvas.style.width = displayWidth + 'px';
       canvas.style.height = displayHeight + 'px';
       chartInstance.resize(displayWidth, displayHeight);
@@ -1547,6 +1554,8 @@
       opts.maintainAspectRatio = orig.maintainAspectRatio;
       opts.aspectRatio = orig.aspectRatio;
       opts.devicePixelRatio = orig.devicePixelRatio;
+      if (ticksFont && orig.ticksFontSize !== undefined) ticksFont.size = orig.ticksFontSize;
+      if (datalabelsFont && orig.datalabelsFontSize !== undefined) datalabelsFont.size = orig.datalabelsFontSize;
       canvas.style.width = orig.styleWidth;
       canvas.style.height = orig.styleHeight;
       try {
@@ -1578,14 +1587,14 @@
 
     try {
       // Force all known charts to resize and snapshot to PNG.
-      // Charts render at their final 500×90pt display size with DPR=4 so
-      // fonts stay at their configured 11px → ≈11pt in the PDF, while the
-      // underlying 2000×360 pixel buffer keeps the image crisp in print.
+      // Charts render at their final 500×153pt display size (70% taller
+      // than the previous 90pt). DPR=4 gives a crisp 2000×612 pixel buffer.
+      // Font size 9 matches the surrounding table content (tdText/tdNum).
       const charts = {
-        turnover: snapshotChart(turnoverChartInstance, 500, 90, 4),
-        dynamics: snapshotChart(dynamicsChartInstance, 500, 90, 4),
-        tourism: snapshotChart(tourismChartInstance, 500, 90, 4),
-        fdi: snapshotChart(fdiChartInstance, 500, 90, 4),
+        turnover: snapshotChart(turnoverChartInstance),
+        dynamics: snapshotChart(dynamicsChartInstance),
+        tourism: snapshotChart(tourismChartInstance),
+        fdi: snapshotChart(fdiChartInstance),
       };
 
       await StatisticsPdf.build(pdfState, {
