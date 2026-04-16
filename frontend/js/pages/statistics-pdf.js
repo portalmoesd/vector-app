@@ -72,7 +72,7 @@
       period: 'Period',
       visitors: 'Visitors',
       volume: 'Volume, mln $',
-      mln: 'mln USD',
+      mln: 'mln $',
       noTrade: 'No trade conducted',
       noExports: 'No exports conducted',
       noImports: 'No imports conducted',
@@ -113,7 +113,7 @@
       period: 'პერიოდი',
       visitors: 'ვიზიტორები',
       volume: 'მოცულობა, მლნ. $',
-      mln: 'მლნ. აშშ დოლარი',
+      mln: 'მლნ. $',
       noTrade: 'ვაჭრობა არ განხორციელდა',
       noExports: 'ექსპორტი არ განხორციელდა',
       noImports: 'იმპორტი არ განხორციელდა',
@@ -173,7 +173,8 @@
       fontSize: 13,
       bold: true,
       color: '#0f172a',
-      margin: [0, 14, 0, 6],
+      margin: [0, 10, 0, 6],
+      headlineLevel: 1,
     };
   }
 
@@ -184,6 +185,7 @@
       bold: true,
       color: '#1f2937',
       margin: [0, 8, 0, 4],
+      headlineLevel: 2,
     };
   }
 
@@ -199,7 +201,7 @@
   };
 
   function th(text) {
-    return { text: text, bold: true, fontSize: 8.5, color: '#475569', fillColor: '#f8fafc' };
+    return { text: text, bold: true, fontSize: 8, color: '#475569', fillColor: '#f8fafc' };
   }
 
   function tdNum(text, opts = {}) {
@@ -276,9 +278,7 @@
 
     return {
       table: {
-        headerRows: 1,
         dontBreakRows: true,
-        keepWithHeaderRows: 1,
         widths: ['auto', '*', '*'],
         body,
       },
@@ -296,9 +296,9 @@
     const header = [
       th(t.hsProduct),
       th(valueHeader),
-      th(`${t.change}\n%`),
+      th('%'),
     ];
-    if (showReexport) header.push(th(`${t.reexportShare}\n%`));
+    if (showReexport) header.push(th(`${t.reexportShare}, %`));
 
     const body = [header];
     for (const p of products) {
@@ -316,12 +316,10 @@
       body.push(row);
     }
 
-    const widths = showReexport ? ['*', 55, 50, 60] : ['*', 60, 55];
+    const widths = showReexport ? ['*', 62, 50, 70] : ['*', 65, 55];
     return {
       table: {
-        headerRows: 1,
         dontBreakRows: true,
-        keepWithHeaderRows: 1,
         widths,
         body,
       },
@@ -340,8 +338,8 @@
       [
         th(t.hsProduct),
         th(valueHeader),
-        th(`${t.change}\n%`),
-        th(`${t.difference}\n${t.valueMln}`),
+        th('%'),
+        th(`${t.difference},\n${t.valueMln}`),
       ],
     ];
     for (const p of products) {
@@ -358,10 +356,8 @@
     }
     return {
       table: {
-        headerRows: 1,
         dontBreakRows: true,
-        keepWithHeaderRows: 1,
-        widths: ['*', 48, 42, 52],
+        widths: ['*', 55, 42, 62],
         body,
       },
       layout: tableLayout,
@@ -399,6 +395,16 @@
           width: '*',
           stack: [
             { text: t.dynamics, style: 'chartCaption' },
+            {
+              columns: [
+                { width: 'auto', canvas: [{ type: 'rect', x: 0, y: 3, w: 8, h: 8, color: '#16a34a' }] },
+                { width: 'auto', text: t.export, fontSize: 8, margin: [4, 0, 10, 0] },
+                { width: 'auto', canvas: [{ type: 'rect', x: 0, y: 3, w: 8, h: 8, color: '#dc2626' }] },
+                { width: 'auto', text: t.import, fontSize: 8, margin: [4, 0, 0, 0] },
+              ],
+              alignment: 'center',
+              margin: [0, 0, 0, 2],
+            },
             { image: charts.dynamics, width: 250, alignment: 'center' },
           ],
         });
@@ -515,30 +521,26 @@
 
     const tableBlock = {
       table: {
-        headerRows: 1,
         dontBreakRows: true,
-        keepWithHeaderRows: 1,
         widths: ['*', '*', 'auto'],
         body,
       },
       layout: tableLayout,
+      margin: [0, 0, 0, 6],
     };
 
-    const chartBlock = charts.tourism ? {
-      stack: [
-        { text: t.internationalVisitors, style: 'chartCaption' },
-        { image: charts.tourism, width: 240, alignment: 'center' },
-      ],
-    } : { text: '' };
-
-    blocks.push({
-      unbreakable: true,
-      columns: [
-        { width: '*', stack: [tableBlock] },
-        { width: '*', stack: [chartBlock] },
-      ],
-      columnGap: 16,
-    });
+    if (charts.tourism) {
+      blocks.push({
+        unbreakable: true,
+        stack: [
+          tableBlock,
+          { text: t.internationalVisitors, style: 'chartCaption', margin: [0, 6, 0, 2] },
+          { image: charts.tourism, width: 500, alignment: 'center', margin: [0, 0, 0, 8] },
+        ],
+      });
+    } else {
+      blocks.push(tableBlock);
+    }
 
     return blocks;
   }
@@ -573,30 +575,26 @@
 
     const tableBlock = {
       table: {
-        headerRows: 1,
         dontBreakRows: true,
-        keepWithHeaderRows: 1,
         widths: ['auto', '*', 'auto'],
         body,
       },
       layout: tableLayout,
+      margin: [0, 0, 0, 6],
     };
 
-    const chartBlock = charts.fdi ? {
-      stack: [
-        { text: t.fdiShort, style: 'chartCaption' },
-        { image: charts.fdi, width: 240, alignment: 'center' },
-      ],
-    } : { text: '' };
-
-    blocks.push({
-      unbreakable: true,
-      columns: [
-        { width: '*', stack: [tableBlock] },
-        { width: '*', stack: [chartBlock] },
-      ],
-      columnGap: 16,
-    });
+    if (charts.fdi) {
+      blocks.push({
+        unbreakable: true,
+        stack: [
+          tableBlock,
+          { text: t.fdiShort, style: 'chartCaption', margin: [0, 6, 0, 2] },
+          { image: charts.fdi, width: 500, alignment: 'center', margin: [0, 0, 0, 8] },
+        ],
+      });
+    } else {
+      blocks.push(tableBlock);
+    }
 
     return blocks;
   }
