@@ -1501,19 +1501,48 @@
     exportPdf(pdfLang);
   });
 
-  // Capture a Chart.js canvas as a PNG data URL, using a larger render size
-  // so the embedded image stays sharp when scaled down by pdfmake.
-  function snapshotChart(chartInstance, width = 900, height = 420) {
+  // Capture a Chart.js canvas as a PNG data URL at an explicit resolution.
+  // Charts are created with responsive + maintainAspectRatio true, so their
+  // container determines the canvas size — which means a plain resize(w, h)
+  // is silently overridden by the ResizeObserver and the aspect lock.
+  // To force an exact render size we temporarily disable both flags, set
+  // the canvas style dimensions, resize, re-render, snapshot, then restore.
+  function snapshotChart(chartInstance, width = 2400, height = 432) {
     if (!chartInstance || !chartInstance.canvas) return null;
-    // Force a resize so the canvas reflects current container dims
+
+    const canvas = chartInstance.canvas;
+    const opts = chartInstance.options;
+
+    const orig = {
+      responsive: opts.responsive,
+      maintainAspectRatio: opts.maintainAspectRatio,
+      aspectRatio: opts.aspectRatio,
+      styleWidth: canvas.style.width,
+      styleHeight: canvas.style.height,
+    };
+
     try {
+      opts.responsive = false;
+      opts.maintainAspectRatio = false;
+      opts.aspectRatio = undefined;
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
       chartInstance.resize(width, height);
-    } catch (_) { /* ignore — resize may fail if container is 0-size */ }
-    try {
+      chartInstance.update('none');
       return chartInstance.toBase64Image('image/png', 1.0);
     } catch (err) {
       console.warn('Chart snapshot failed:', err);
       return null;
+    } finally {
+      opts.responsive = orig.responsive;
+      opts.maintainAspectRatio = orig.maintainAspectRatio;
+      opts.aspectRatio = orig.aspectRatio;
+      canvas.style.width = orig.styleWidth;
+      canvas.style.height = orig.styleHeight;
+      try {
+        chartInstance.resize();
+        chartInstance.update('none');
+      } catch (_) { /* ignore */ }
     }
   }
 
@@ -1540,12 +1569,13 @@
     try {
       // Force all known charts to resize and snapshot to PNG.
       // Every chart in the PDF spans full page width at identical height.
-      // Source aspect 1200×216 → embedded at 500pt wide → 90pt tall.
+      // Source aspect 2400×432 (2× oversampled for crisp print quality)
+      // embedded at 500pt wide → 90pt tall at ≈346 DPI.
       const charts = {
-        turnover: snapshotChart(turnoverChartInstance, 1200, 216),
-        dynamics: snapshotChart(dynamicsChartInstance, 1200, 216),
-        tourism: snapshotChart(tourismChartInstance, 1200, 216),
-        fdi: snapshotChart(fdiChartInstance, 1200, 216),
+        turnover: snapshotChart(turnoverChartInstance, 2400, 432),
+        dynamics: snapshotChart(dynamicsChartInstance, 2400, 432),
+        tourism: snapshotChart(tourismChartInstance, 2400, 432),
+        fdi: snapshotChart(fdiChartInstance, 2400, 432),
       };
 
       await StatisticsPdf.build(pdfState, {
