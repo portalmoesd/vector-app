@@ -1501,13 +1501,20 @@
     exportPdf(pdfLang);
   });
 
-  // Capture a Chart.js canvas as a PNG data URL at an explicit resolution.
-  // Charts are created with responsive + maintainAspectRatio true, so their
-  // container determines the canvas size — which means a plain resize(w, h)
-  // is silently overridden by the ResizeObserver and the aspect lock.
-  // To force an exact render size we temporarily disable both flags, set
-  // the canvas style dimensions, resize, re-render, snapshot, then restore.
-  function snapshotChart(chartInstance, width = 2400, height = 432) {
+  // Capture a Chart.js canvas as a PNG data URL at an explicit size.
+  //
+  // Trick: we render the chart at its FINAL display size (matching the PDF
+  // embed width/height in points) but with a high devicePixelRatio so the
+  // underlying PNG is oversampled for crisp print quality. Because Chart.js
+  // sizes fonts relative to the display size, 11px tick / label fonts end
+  // up at ~11pt in the final PDF — instead of shrinking to 2pt, which is
+  // what happens if you render the source canvas several times larger than
+  // the embed box.
+  //
+  // We also have to temporarily disable responsive + maintainAspectRatio,
+  // otherwise the ResizeObserver and aspect-ratio lock will override our
+  // requested dimensions.
+  function snapshotChart(chartInstance, displayWidth = 500, displayHeight = 90, pixelRatio = 4) {
     if (!chartInstance || !chartInstance.canvas) return null;
 
     const canvas = chartInstance.canvas;
@@ -1517,6 +1524,7 @@
       responsive: opts.responsive,
       maintainAspectRatio: opts.maintainAspectRatio,
       aspectRatio: opts.aspectRatio,
+      devicePixelRatio: opts.devicePixelRatio,
       styleWidth: canvas.style.width,
       styleHeight: canvas.style.height,
     };
@@ -1525,9 +1533,10 @@
       opts.responsive = false;
       opts.maintainAspectRatio = false;
       opts.aspectRatio = undefined;
-      canvas.style.width = width + 'px';
-      canvas.style.height = height + 'px';
-      chartInstance.resize(width, height);
+      opts.devicePixelRatio = pixelRatio;
+      canvas.style.width = displayWidth + 'px';
+      canvas.style.height = displayHeight + 'px';
+      chartInstance.resize(displayWidth, displayHeight);
       chartInstance.update('none');
       return chartInstance.toBase64Image('image/png', 1.0);
     } catch (err) {
@@ -1537,6 +1546,7 @@
       opts.responsive = orig.responsive;
       opts.maintainAspectRatio = orig.maintainAspectRatio;
       opts.aspectRatio = orig.aspectRatio;
+      opts.devicePixelRatio = orig.devicePixelRatio;
       canvas.style.width = orig.styleWidth;
       canvas.style.height = orig.styleHeight;
       try {
@@ -1568,14 +1578,14 @@
 
     try {
       // Force all known charts to resize and snapshot to PNG.
-      // Every chart in the PDF spans full page width at identical height.
-      // Source aspect 2400×432 (2× oversampled for crisp print quality)
-      // embedded at 500pt wide → 90pt tall at ≈346 DPI.
+      // Charts render at their final 500×90pt display size with DPR=4 so
+      // fonts stay at their configured 11px → ≈11pt in the PDF, while the
+      // underlying 2000×360 pixel buffer keeps the image crisp in print.
       const charts = {
-        turnover: snapshotChart(turnoverChartInstance, 2400, 432),
-        dynamics: snapshotChart(dynamicsChartInstance, 2400, 432),
-        tourism: snapshotChart(tourismChartInstance, 2400, 432),
-        fdi: snapshotChart(fdiChartInstance, 2400, 432),
+        turnover: snapshotChart(turnoverChartInstance, 500, 90, 4),
+        dynamics: snapshotChart(dynamicsChartInstance, 500, 90, 4),
+        tourism: snapshotChart(tourismChartInstance, 500, 90, 4),
+        fdi: snapshotChart(fdiChartInstance, 500, 90, 4),
       };
 
       await StatisticsPdf.build(pdfState, {
