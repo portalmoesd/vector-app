@@ -64,14 +64,13 @@
       fdi: 'Foreign Direct Investment',
       fdiShort: 'FDI, mln $',
       hsProduct: 'Product (HS 4-digit)',
-      valueMln: 'mln $',
-      change: 'Change',
-      difference: 'Difference',
-      reexportShare: 'Re-export share',
+      volumeHeader: 'Volume, mln $',
+      changeHeader: 'Change %',
+      reexportShareShort: 'Re-exp. share %',
+      differenceHeader: 'Difference, mln $',
       year: 'Year',
       period: 'Period',
       visitors: 'Visitors',
-      volume: 'Volume, mln $',
       mln: 'mln $',
       noTrade: 'No trade conducted',
       noExports: 'No exports conducted',
@@ -105,14 +104,13 @@
       fdi: 'პირდაპირი უცხოური ინვესტიციები',
       fdiShort: 'პუი, მლნ. $',
       hsProduct: 'პროდუქცია (HS 4-ნიშნა)',
-      valueMln: 'მლნ. $',
-      change: 'ცვლილება',
-      difference: 'სხვაობა',
-      reexportShare: 'რეექსპორტის წილი',
+      volumeHeader: 'მოცულობა მლნ.$',
+      changeHeader: 'ცვლილება %',
+      reexportShareShort: 'რეექს. წილი %',
+      differenceHeader: 'სხვაობა მლნ.$',
       year: 'წელი',
       period: 'პერიოდი',
       visitors: 'ვიზიტორები',
-      volume: 'მოცულობა, მლნ. $',
       mln: 'მლნ. $',
       noTrade: 'ვაჭრობა არ განხორციელდა',
       noExports: 'ექსპორტი არ განხორციელდა',
@@ -204,6 +202,10 @@
     return { text: text, bold: true, fontSize: 8, color: '#475569', fillColor: '#f8fafc' };
   }
 
+  function thRight(text) {
+    return { text: text, bold: true, fontSize: 8, color: '#475569', fillColor: '#f8fafc', alignment: 'right' };
+  }
+
   function tdNum(text, opts = {}) {
     return { text: text, alignment: 'right', fontSize: 9, ...opts };
   }
@@ -224,7 +226,7 @@
     const latestYear = periodMeta.latestYear;
     const colFull = String(prevYear);
     const monthLbl = monthNames.find(m => m.value === latestMonth)?.label || '';
-    const colMonth = `${latestYear} — ${periodMeta.periodLabel}`;
+    const colMonth = `${periodMeta.periodLabel} ${latestYear}`;
 
     const rows = [
       { key: 'turnover', label: t.turnover },
@@ -260,7 +262,7 @@
     }
 
     const body = [
-      [th(''), th(colFull), th(colMonth)],
+      [th(''), thRight(colFull), thRight(colMonth)],
     ];
 
     for (const r of rows) {
@@ -292,13 +294,12 @@
     if (!products || products.length === 0) {
       return { text: t.noData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] };
     }
-    const valueHeader = `${periodLabel} ${year}\n${t.valueMln}`;
     const header = [
       th(t.hsProduct),
-      th(valueHeader),
-      th('%'),
+      thRight(t.volumeHeader),
+      thRight(t.changeHeader),
     ];
-    if (showReexport) header.push(th(`${t.reexportShare}, %`));
+    if (showReexport) header.push(thRight(t.reexportShareShort));
 
     const body = [header];
     for (const p of products) {
@@ -316,7 +317,7 @@
       body.push(row);
     }
 
-    const widths = showReexport ? ['*', 62, 50, 70] : ['*', 65, 55];
+    const widths = showReexport ? ['*', 70, 62, 80] : ['*', 75, 70];
     return {
       table: {
         dontBreakRows: true,
@@ -333,13 +334,12 @@
     if (!products || products.length === 0) {
       return { text: t.noData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] };
     }
-    const valueHeader = `${periodLabel} ${year}\n${t.valueMln}`;
     const body = [
       [
         th(t.hsProduct),
-        th(valueHeader),
-        th('%'),
-        th(`${t.difference},\n${t.valueMln}`),
+        thRight(t.volumeHeader),
+        thRight(t.changeHeader),
+        thRight(t.differenceHeader),
       ],
     ];
     for (const p of products) {
@@ -357,7 +357,7 @@
     return {
       table: {
         dontBreakRows: true,
-        widths: ['*', 55, 42, 62],
+        widths: ['*', 70, 62, 80],
         body,
       },
       layout: tableLayout,
@@ -378,42 +378,36 @@
       t, trade.latestMonth, trade.monthNames,
     ));
 
-    // Charts pair — turnover + dynamics
-    if (charts.turnover || charts.dynamics) {
-      const cols = [];
-      if (charts.turnover) {
-        cols.push({
-          width: '*',
-          stack: [
-            { text: t.turnover, style: 'chartCaption' },
-            { image: charts.turnover, width: 250, alignment: 'center' },
-          ],
-        });
-      }
-      if (charts.dynamics) {
-        cols.push({
-          width: '*',
-          stack: [
-            { text: t.dynamics, style: 'chartCaption' },
-            {
-              columns: [
-                { width: 'auto', canvas: [{ type: 'rect', x: 0, y: 3, w: 8, h: 8, color: '#16a34a' }] },
-                { width: 'auto', text: t.export, fontSize: 8, margin: [4, 0, 10, 0] },
-                { width: 'auto', canvas: [{ type: 'rect', x: 0, y: 3, w: 8, h: 8, color: '#dc2626' }] },
-                { width: 'auto', text: t.import, fontSize: 8, margin: [4, 0, 0, 0] },
-              ],
-              alignment: 'center',
-              margin: [0, 0, 0, 2],
-            },
-            { image: charts.dynamics, width: 250, alignment: 'center' },
-          ],
-        });
-      }
+    // Charts — turnover + dynamics, stacked full-width so every chart in the
+    // document has identical width (500pt) and uniform height (≈150pt).
+    if (charts.turnover) {
       blocks.push({
         unbreakable: true,
-        columns: cols,
-        columnGap: 16,
-        margin: [0, 4, 0, 8],
+        stack: [
+          { text: t.turnover, style: 'chartCaption' },
+          { image: charts.turnover, width: 500, alignment: 'center' },
+        ],
+        margin: [0, 4, 0, 6],
+      });
+    }
+    if (charts.dynamics) {
+      blocks.push({
+        unbreakable: true,
+        stack: [
+          { text: t.dynamics, style: 'chartCaption' },
+          {
+            columns: [
+              { width: 'auto', canvas: [{ type: 'rect', x: 0, y: 3, w: 8, h: 8, color: '#16a34a' }] },
+              { width: 'auto', text: t.export, fontSize: 8, margin: [4, 0, 10, 0] },
+              { width: 'auto', canvas: [{ type: 'rect', x: 0, y: 3, w: 8, h: 8, color: '#dc2626' }] },
+              { width: 'auto', text: t.import, fontSize: 8, margin: [4, 0, 0, 0] },
+            ],
+            alignment: 'center',
+            margin: [0, 0, 0, 2],
+          },
+          { image: charts.dynamics, width: 500, alignment: 'center' },
+        ],
+        margin: [0, 0, 0, 8],
       });
     }
 
@@ -427,27 +421,13 @@
       const incProds = trade.exportGrowing ? trade.exportChange.increase : trade.exportChange.drop;
       const dropProds = trade.exportGrowing ? trade.exportChange.drop : trade.exportChange.increase;
 
-      if ((incProds && incProds.length) || (dropProds && dropProds.length)) {
-        const cols = [];
-        if (incProds && incProds.length) {
-          cols.push({
-            width: '*',
-            stack: [
-              subTitle(`${incLabel}, ${trade.periodLabel} ${trade.latestYear}`),
-              buildChangeTable(incProds, t, trade.periodLabel, trade.latestYear),
-            ],
-          });
-        }
-        if (dropProds && dropProds.length) {
-          cols.push({
-            width: '*',
-            stack: [
-              subTitle(`${dropLabel}, ${trade.periodLabel} ${trade.latestYear}`),
-              buildChangeTable(dropProds, t, trade.periodLabel, trade.latestYear),
-            ],
-          });
-        }
-        blocks.push({ unbreakable: true, columns: cols, columnGap: 14, margin: [0, 0, 0, 4] });
+      if (incProds && incProds.length) {
+        blocks.push(subTitle(`${incLabel}, ${trade.periodLabel} ${trade.latestYear}`));
+        blocks.push(buildChangeTable(incProds, t, trade.periodLabel, trade.latestYear));
+      }
+      if (dropProds && dropProds.length) {
+        blocks.push(subTitle(`${dropLabel}, ${trade.periodLabel} ${trade.latestYear}`));
+        blocks.push(buildChangeTable(dropProds, t, trade.periodLabel, trade.latestYear));
       }
     }
 
@@ -461,27 +441,13 @@
       const incProds = trade.importGrowing ? trade.importChange.increase : trade.importChange.drop;
       const dropProds = trade.importGrowing ? trade.importChange.drop : trade.importChange.increase;
 
-      if ((incProds && incProds.length) || (dropProds && dropProds.length)) {
-        const cols = [];
-        if (incProds && incProds.length) {
-          cols.push({
-            width: '*',
-            stack: [
-              subTitle(`${incLabel}, ${trade.periodLabel} ${trade.latestYear}`),
-              buildChangeTable(incProds, t, trade.periodLabel, trade.latestYear),
-            ],
-          });
-        }
-        if (dropProds && dropProds.length) {
-          cols.push({
-            width: '*',
-            stack: [
-              subTitle(`${dropLabel}, ${trade.periodLabel} ${trade.latestYear}`),
-              buildChangeTable(dropProds, t, trade.periodLabel, trade.latestYear),
-            ],
-          });
-        }
-        blocks.push({ unbreakable: true, columns: cols, columnGap: 14, margin: [0, 0, 0, 4] });
+      if (incProds && incProds.length) {
+        blocks.push(subTitle(`${incLabel}, ${trade.periodLabel} ${trade.latestYear}`));
+        blocks.push(buildChangeTable(incProds, t, trade.periodLabel, trade.latestYear));
+      }
+      if (dropProds && dropProds.length) {
+        blocks.push(subTitle(`${dropLabel}, ${trade.periodLabel} ${trade.latestYear}`));
+        blocks.push(buildChangeTable(dropProds, t, trade.periodLabel, trade.latestYear));
       }
     }
 
@@ -501,7 +467,7 @@
 
     const rows = [...(tourism.quarterlyRows || []), ...[...(tourism.annualRows || [])].reverse()];
     const body = [
-      [th(t.period), th(t.visitors), th(`${t.change}\n%`)],
+      [th(t.period), thRight(t.visitors), thRight(t.changeHeader)],
     ];
     for (const r of rows) {
       let changeCell;
@@ -558,7 +524,7 @@
 
     const data = [...inv.tableData].reverse();
     const body = [
-      [th(t.year), th(t.volume), th(`${t.change}\n%`)],
+      [th(t.year), thRight(t.volumeHeader), thRight(t.changeHeader)],
     ];
     for (const r of data) {
       const pct = r.prevMln > 0
