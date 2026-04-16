@@ -207,6 +207,10 @@
     return { text: text, bold: true, fontSize: 8, color: '#475569', fillColor: '#f8fafc', alignment: 'right' };
   }
 
+  function thCenter(text) {
+    return { text: text, bold: true, fontSize: 8, color: '#475569', fillColor: '#f8fafc', alignment: 'center' };
+  }
+
   function tdNum(text, opts = {}) {
     return { text: text, alignment: 'right', fontSize: 9, ...opts };
   }
@@ -263,7 +267,7 @@
     }
 
     const body = [
-      [th(''), thRight(colFull), thRight(colMonth)],
+      [th(''), thCenter(colFull), thCenter(colMonth)],
     ];
 
     for (const r of rows) {
@@ -318,7 +322,7 @@
       body.push(row);
     }
 
-    const widths = showReexport ? ['*', 70, 62, 80] : ['*', 75, 70];
+    const widths = showReexport ? ['*', 80, 62, 80] : ['*', 80, 70];
     return {
       table: {
         dontBreakRows: true,
@@ -358,7 +362,7 @@
     return {
       table: {
         dontBreakRows: true,
-        widths: ['*', 70, 62, 80],
+        widths: ['*', 80, 62, 80],
         body,
       },
       layout: tableLayout,
