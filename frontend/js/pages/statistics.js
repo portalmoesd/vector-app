@@ -1538,12 +1538,14 @@
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
     try {
-      // Force all known charts to resize and snapshot to PNG
+      // Force all known charts to resize and snapshot to PNG.
+      // Tourism and FDI now span full page width in the PDF, so render
+      // their source canvases at larger dimensions for a crisper image.
       const charts = {
         turnover: snapshotChart(turnoverChartInstance),
         dynamics: snapshotChart(dynamicsChartInstance),
-        tourism: snapshotChart(tourismChartInstance),
-        fdi: snapshotChart(fdiChartInstance, 700, 400),
+        tourism: snapshotChart(tourismChartInstance, 1200, 360),
+        fdi: snapshotChart(fdiChartInstance, 1200, 360),
       };
 
       await StatisticsPdf.build(pdfState, {
