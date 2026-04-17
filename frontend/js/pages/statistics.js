@@ -24,6 +24,7 @@
   const exportPdfBtn = document.getElementById('exportPdfBtn');
   const reportArea = document.getElementById('reportArea');
   const reportLoading = document.getElementById('reportLoading');
+  const tradeSummaryEl = document.getElementById('tradeSummary');
   const overviewHeader = document.getElementById('overviewHeader');
   const overviewTable = document.getElementById('overviewTable');
   const exportHeader = document.getElementById('exportHeader');
@@ -511,6 +512,8 @@
         ranking,
       };
 
+      renderTradeSummary(pdfState.trade, ranking, selectedCountry.displayLabel);
+
     } catch (err) {
       console.error('Report generation error:', err);
       overviewTable.innerHTML = `<div class="msg msg-error">Failed to generate report: ${escapeHtml(err.message)}</div>`;
@@ -619,6 +622,127 @@
       },
     };
   }
+
+  // ── Render trade summary (above overview table) ─────────────────────────
+
+  function renderTradeSummary(trade, ranking, countryName) {
+    if (!tradeSummaryEl || !trade) return;
+    const isKa = lang === 'ka';
+    const year = trade.latestYear;
+    const lm = trade.latestMonth;
+    const mn = trade.monthNames || [];
+    const rank = ranking && ranking.country ? ranking.country : null;
+    const ov = trade.overview;
+
+    const periodGen = isKa
+      ? (lm === 12 ? `${year} წლის` : lm === 1 ? `${year} წლის ${KA_MONTH_GEN[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_GEN[lm]}`)
+      : (lm === 12 ? `${year}` : lm === 1 ? `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)} ${year}` : `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)}-${(mn.find(m => m.value === lm)?.label || '').slice(0, 3)} ${year}`);
+    const periodLoc = isKa
+      ? (lm === 12 ? `${year} წელს` : lm === 1 ? `${year} წლის ${KA_MONTH_LOC[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_LOC[lm]}`)
+      : periodGen;
+
+    function b(s) { return `<strong>${escapeHtml(s)}</strong>`; }
+    function i(s) { return `<em>${escapeHtml(s)}</em>`; }
+    function fmln(v) { return formatMln2(Math.abs(v)); }
+    function pctI(x) { return Math.round(Math.abs(x)); }
+    function pctO(x) { return (Math.round(x * 10) / 10).toFixed(1); }
+    function chg(cur, prev) {
+      const c = cur && prev ? ((cur - prev) / Math.abs(prev)) * 100 : (cur > 0 ? 100 : 0);
+      const abs = pctI(c);
+      if (isKa) return b(`${c >= 0 ? 'გაიზარდა' : 'შემცირდა'} ${abs}%-ით`);
+      return b(`${c >= 0 ? 'increased' : 'decreased'} by ${abs}%`);
+    }
+    function geP(r) { return r === 1 ? 'პირველ' : `მე-${r}`; }
+    function enO(r) {
+      const n = Math.abs(r); const m = n % 100;
+      if (m >= 11 && m <= 13) return `${n}th`;
+      switch (n % 10) { case 1: return `${n}st`; case 2: return `${n}nd`; case 3: return `${n}rd`; default: return `${n}th`; }
+    }
+
+    function productListHtml(products) {
+      if (!products || !products.length) return '';
+      return products.slice(0, 10).map(p => {
+        const name = isKa ? p.name : (p.nameEn || p.name);
+        const sign = p.change > 0 ? '+' : '';
+        const unit = isKa ? 'მლნ. $' : 'mln $';
+        return `${escapeHtml(name)} <em>(${fmln(p.valueMln)} ${unit}, ${sign}${formatPct(p.change)})</em>`;
+      }).join(', ') + '.';
+    }
+
+    const lines = [];
+    const curTurn = ov.latestPeriod.turnover, prevTurn = ov.latestPeriod.turnoverPrev;
+    const curExp = ov.latestPeriod.export, prevExp = ov.latestPeriod.exportPrev;
+    const curImp = ov.latestPeriod.import, prevImp = ov.latestPeriod.importPrev;
+
+    // Turnover
+    if (isKa) {
+      lines.push(`<p>${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიური პერიოდის მაჩვენებელთან შედარებით, ${chg(curTurn, prevTurn)} და ${b(`${fmln(curTurn)} მლნ. აშშ დოლარი`)} შეადგინა.</p>`);
+      if (rank && rank.turnover) {
+        lines.push(`<p>${escapeHtml(countryName)} აღნიშნულ პერიოდში სავაჭრო ბრუნვის მოცულობის მიხედვით არის ${b(`${geP(rank.turnover.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.turnover.sharePct)}%`)}.</p>`);
+      }
+    } else {
+      lines.push(`<p>For ${escapeHtml(periodGen)}, trade turnover ${chg(curTurn, prevTurn)} compared to the same period last year, amounting to ${b(`${fmln(curTurn)} mln USD`)}.</p>`);
+      if (rank && rank.turnover) {
+        lines.push(`<p>${escapeHtml(countryName)} ranks ${b(enO(rank.turnover.rank))} by trade turnover with a ${b(`${pctO(rank.turnover.sharePct)}%`)} share.</p>`);
+      }
+    }
+
+    // Export
+    if (trade.hasExport) {
+      if (isKa) {
+        let exp = `<p>ექსპორტი ${periodLoc} ${chg(curExp, prevExp)} და ${b(`${fmln(curExp)} მლნ. აშშ დოლარი`)} შეადგინა.`;
+        if (rank && rank.export) exp += ` საქართველოსთვის ექსპორტის მოცულობის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.export.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.export.sharePct)}%`)}.`;
+        exp += '</p>';
+        lines.push(exp);
+      } else {
+        let exp = `<p>Exports in ${escapeHtml(periodGen)} ${chg(curExp, prevExp)}, amounting to ${b(`${fmln(curExp)} mln USD`)}.`;
+        if (rank && rank.export) exp += ` ${escapeHtml(countryName)} ranks ${b(enO(rank.export.rank))} by export volume with a ${b(`${pctO(rank.export.sharePct)}%`)} share.`;
+        exp += '</p>';
+        lines.push(exp);
+      }
+
+      if (rank && rank.domesticExport && curExp > 0) {
+        const domVal = rank.domesticExport.valueMln;
+        const domPct = (100 * domVal / curExp).toFixed(0);
+        const reVal = rank.reExport ? rank.reExport.valueMln : (curExp - domVal);
+        const rePct = (100 * reVal / curExp).toFixed(0);
+        if (isKa) {
+          lines.push(`<p>${periodGen} აღნიშნულ პერიოდში განხორციელდა ${b(`${fmln(domVal)} მლნ. აშშ დოლარის`)} ადგილობრივი ექსპორტი, რაც შეადგენს ${b(`${domPct}%-ს`)} სრული ექსპორტის. ადგილობრივი ექსპორტით ${escapeHtml(countryName)} იკავებს ${b(`${geP(rank.domesticExport.rank)} ადგილს`)} საქართველოს სავაჭრო პარტნიორებს შორის. რე-ექსპორტმა იმავე პერიოდში შეადგინა ${b(`${fmln(reVal)} მლნ. აშშ დოლარი`)} <em>(წილი ${rePct}%)</em>.</p>`);
+        } else {
+          lines.push(`<p>In the given period, domestic exports amounted to ${b(`${fmln(domVal)} mln USD`)}, comprising ${b(`${domPct}%`)} of total exports. By domestic exports, ${escapeHtml(countryName)} ranks ${b(enO(rank.domesticExport.rank))} among Georgia's trading partners. Re-exports in the same period amounted to ${b(`${fmln(reVal)} mln USD`)} <em>(${rePct}% share)</em>.</p>`);
+        }
+      }
+
+      const pl = productListHtml(trade.exportProducts);
+      if (pl) lines.push(`<p>${b(isKa ? 'ძირითადი საექსპორტო პროდუქცია:' : 'Main export products:')} ${pl}</p>`);
+    }
+
+    // Import
+    if (trade.hasImport) {
+      if (isKa) {
+        let imp = `<p>იმპორტი ${periodLoc} ${chg(curImp, prevImp)} და ${b(`${fmln(curImp)} მლნ. აშშ დოლარი`)} შეადგინა.`;
+        if (rank && rank.import) imp += ` საქართველოსთვის იმპორტის მოცულობის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.import.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.import.sharePct)}%`)}.`;
+        imp += '</p>';
+        lines.push(imp);
+      } else {
+        let imp = `<p>Imports in ${escapeHtml(periodGen)} ${chg(curImp, prevImp)}, amounting to ${b(`${fmln(curImp)} mln USD`)}.`;
+        if (rank && rank.import) imp += ` ${escapeHtml(countryName)} ranks ${b(enO(rank.import.rank))} by import volume with a ${b(`${pctO(rank.import.sharePct)}%`)} share.`;
+        imp += '</p>';
+        lines.push(imp);
+      }
+
+      const pl = productListHtml(trade.importProducts);
+      if (pl) lines.push(`<p>${b(isKa ? 'ძირითადი საიმპორტო პროდუქცია:' : 'Main import products:')} ${pl}</p>`);
+    }
+
+    tradeSummaryEl.innerHTML = lines.join('');
+    tradeSummaryEl.classList.remove('hidden');
+  }
+
+  // Georgian month forms for the on-page summary
+  const KA_MONTH_STEM = { 1:'იანვარ', 2:'თებერვალ', 3:'მარტ', 4:'აპრილ', 5:'მაის', 6:'ივნის', 7:'ივლის', 8:'აგვისტო', 9:'სექტემბერ', 10:'ოქტომბერ', 11:'ნოემბერ', 12:'დეკემბერ' };
+  const KA_MONTH_GEN = { 1:'იანვრის', 2:'თებერვლის', 3:'მარტის', 4:'აპრილის', 5:'მაისის', 6:'ივნისის', 7:'ივლისის', 8:'აგვისტოს', 9:'სექტემბრის', 10:'ოქტომბრის', 11:'ნოემბრის', 12:'დეკემბრის' };
+  const KA_MONTH_LOC = { 1:'იანვარში', 2:'თებერვალში', 3:'მარტში', 4:'აპრილში', 5:'მაისში', 6:'ივნისში', 7:'ივლისში', 8:'აგვისტოში', 9:'სექტემბერში', 10:'ოქტომბერში', 11:'ნოემბერში', 12:'დეკემბერში' };
 
   // ── Render trade overview ──────────────────────────────────────────────
 
