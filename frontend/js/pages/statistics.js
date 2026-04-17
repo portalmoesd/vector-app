@@ -134,6 +134,7 @@
 
   // ── Load HS4 short name mapping ──────────────────────────────────────────
   const hs4NameMap = {};
+  const hs4NameMapEn = {};
   try {
     const csvRes = await fetch('/data/hs4-names-ka.csv');
     const csvText = await csvRes.text();
@@ -146,6 +147,19 @@
     }
   } catch (err) {
     console.error('Failed to load HS4 name mapping:', err);
+  }
+  try {
+    const csvResEn = await fetch('/data/hs4-names-en.csv');
+    const csvTextEn = await csvResEn.text();
+    for (const line of csvTextEn.split('\n').slice(1)) {
+      const comma = line.indexOf(',');
+      if (comma < 0) continue;
+      const code = parseInt(line.slice(0, comma).trim(), 10);
+      const name = line.slice(comma + 1).trim().replace(/^"|"$/g, '');
+      if (code && name) hs4NameMapEn[code] = name;
+    }
+  } catch (err) {
+    console.error('Failed to load English HS4 name mapping:', err);
   }
 
   // ── Load country name mapping (for tourism tab) ────────────────────────
@@ -859,7 +873,7 @@
       if (row.isGroupSummary || !row.hs4) continue;
       const val = extractValue(row);
       if (!currentMap[row.hs4]) {
-        currentMap[row.hs4] = { hs4: row.hs4, name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`, row.hs4), valueThdUsd: 0 };
+        currentMap[row.hs4] = { hs4: row.hs4, name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`, row.hs4), nameEn: cleanHs4NameEn(row.hs4_name || `HS ${row.hs4}`, row.hs4), valueThdUsd: 0 };
       }
       currentMap[row.hs4].valueThdUsd += val;
     }
@@ -870,7 +884,7 @@
       if (row.isGroupSummary || !row.hs4) continue;
       const val = extractValue(row);
       if (!prevMap[row.hs4]) {
-        prevMap[row.hs4] = { valueThdUsd: 0, name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`, row.hs4) };
+        prevMap[row.hs4] = { valueThdUsd: 0, name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`, row.hs4), nameEn: cleanHs4NameEn(row.hs4_name || `HS ${row.hs4}`, row.hs4) };
       }
       prevMap[row.hs4].valueThdUsd += val;
     }
@@ -886,10 +900,11 @@
       const currMln = curr / 1000;
       const prevMln = prev / 1000;
       const name = currentMap[hs4]?.name || prevMap[hs4]?.name || `HS ${hs4}`;
+      const nameEn = currentMap[hs4]?.nameEn || prevMap[hs4]?.nameEn || `HS ${hs4}`;
       const changePct = prevMln > 0
         ? ((currMln - prevMln) / prevMln * 100)
         : (currMln > 0 ? 100 : 0);
-      products.push({ name, valueMln: currMln, changePct, diffMln });
+      products.push({ name, nameEn, valueMln: currMln, changePct, diffMln });
     }
 
     // Increase: positive diff, sorted by diff descending, max 15, min 0.01 mln diff
@@ -964,6 +979,7 @@
           currentMap[row.hs4] = {
             hs4: row.hs4,
             name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`, row.hs4),
+            nameEn: cleanHs4NameEn(row.hs4_name || `HS ${row.hs4}`, row.hs4),
             valueThdUsd: 0,
           };
         }
@@ -1043,8 +1059,12 @@
   }
 
   function cleanHs4Name(name, hs4Code) {
-    // Use short name from mapping if available
     if (hs4Code && hs4NameMap[hs4Code]) return hs4NameMap[hs4Code];
+    return name.replace(/^\d{2,6}\s+/, '');
+  }
+
+  function cleanHs4NameEn(name, hs4Code) {
+    if (hs4Code && hs4NameMapEn[hs4Code]) return hs4NameMapEn[hs4Code];
     return name.replace(/^\d{2,6}\s+/, '');
   }
 
