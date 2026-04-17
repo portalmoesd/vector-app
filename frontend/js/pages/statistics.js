@@ -1855,8 +1855,15 @@
     }
     html += `</tr>`;
 
-    // Sector rows — only include sectors that exist for this country.
+    // Sector rows — sort by most-recent-period value, highest to lowest.
+    // Null/zero values sort to the bottom.
     const sectorNames = Object.keys(data.sectors || {});
+    const sortYear = years[years.length - 1];
+    sectorNames.sort((a, b) => {
+      const va = (data.sectors[a] && data.sectors[a][sortYear]) || 0;
+      const vb = (data.sectors[b] && data.sectors[b][sortYear]) || 0;
+      return vb - va;
+    });
     const nameMap = sectorNameMap || {};
     for (const sector of sectorNames) {
       const vals = data.sectors[sector] || {};

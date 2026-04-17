@@ -1059,8 +1059,14 @@
     }
     body.push(totalCells);
 
-    // Sector rows
+    // Sector rows — sort by most-recent-period value, highest to lowest
     const sectorNames = Object.keys(data.sectors || {});
+    const sortYear = years[years.length - 1];
+    sectorNames.sort((a, b) => {
+      const va = (data.sectors[a] && data.sectors[a][sortYear]) || 0;
+      const vb = (data.sectors[b] && data.sectors[b][sortYear]) || 0;
+      return vb - va;
+    });
     const nameMap = sectors.sectorNameMap || {};
     for (const sector of sectorNames) {
       const displayName = isKa ? sector : (nameMap[sector] || sector);
