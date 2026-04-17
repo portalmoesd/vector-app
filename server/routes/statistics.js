@@ -293,9 +293,11 @@ router.post('/country-ranking', async (req, res) => {
       // Each passes ALL country IDs + sum=true + months=[lastMonth].
       // sum=true makes months=[N] return the cumulative Jan..N total.
       // Turnover = export + import, computed per country after fetching.
-      const [exp, imp] = await Promise.all([
+      const [exp, imp, domExp, reExp] = await Promise.all([
         fetchFlowRanking(10, year, lastMonth, allCountryIds),
         fetchFlowRanking(11, year, lastMonth, allCountryIds),
+        fetchFlowRanking(12, year, lastMonth, allCountryIds),
+        fetchFlowRanking(13, year, lastMonth, allCountryIds),
       ]);
 
       // Compute turnover per country = export + import
@@ -320,9 +322,9 @@ router.post('/country-ranking', async (req, res) => {
       });
 
       cached = {
-        totals: { turnover: turnoverTotal, export: exp.total, import: imp.total },
-        flows: { turnover: turnoverRanked, export: exp.perCountry, import: imp.perCountry },
-        flowStats: { export: exp.stats, import: imp.stats },
+        totals: { turnover: turnoverTotal, export: exp.total, import: imp.total, domesticExport: domExp.total, reExport: reExp.total },
+        flows: { turnover: turnoverRanked, export: exp.perCountry, import: imp.perCountry, domesticExport: domExp.perCountry, reExport: reExp.perCountry },
+        flowStats: { export: exp.stats, import: imp.stats, domesticExport: domExp.stats, reExport: reExp.stats },
       };
       // Only cache if we got meaningful data; never cache failures.
       const hasData = exp.stats.withTrade > 0 || imp.stats.withTrade > 0;
@@ -339,6 +341,8 @@ router.post('/country-ranking', async (req, res) => {
       turnover: cached.flows.turnover[idKey] || null,
       export: cached.flows.export[idKey] || null,
       import: cached.flows.import[idKey] || null,
+      domesticExport: cached.flows.domesticExport[idKey] || null,
+      reExport: cached.flows.reExport[idKey] || null,
     };
     debug.countryFoundInFlows = {
       turnover: !!country.turnover,
