@@ -1414,7 +1414,7 @@
       const countryData = gntaName ? json.countries[gntaName] : null;
 
       if (!countryData) {
-        tourismTableEl.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
+        tourismTableEl.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'აღნიშნული ქვეყნიდან ვიზიტორები საქართველოში არ ფიქსირდება.' : 'No visitor records from this country to Georgia.'}</p></div>`;
         pdfState.tourism = { hasData: false };
         if (tourismSummaryEl) tourismSummaryEl.classList.add('hidden');
         tourismLoading.classList.add('hidden');
@@ -1698,7 +1698,7 @@
       const allYears = json.years; // e.g. [1996, 1997, ..., 2025]
 
       if (!countryData) {
-        fdiTable.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
+        fdiTable.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'აღნიშნული ქვეყნიდან საქართველოში პირდაპირი უცხოური ინვესტიცია არ ფიქსირდება.' : 'No foreign direct investment records from this country to Georgia.'}</p></div>`;
         pdfState.investments = { hasData: false };
         if (investmentsSummaryEl) investmentsSummaryEl.classList.add('hidden');
         investmentsLoading.classList.add('hidden');
