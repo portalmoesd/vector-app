@@ -731,8 +731,61 @@
     return blocks;
   }
 
+  // ── Tourism summary (5-year total + latest-period rank) ─────────────
+  function buildTourismSummary(tourism, t, country, lang) {
+    if (!tourism || !tourism.hasData) return [];
+    const isKa = lang === 'ka';
+    const B = (s) => ({ text: s, bold: true });
+    const paraStyle = { fontSize: 10, lineHeight: 1.3, alignment: 'justify', margin: [0, 0, 0, 4] };
+    const fmt = (n) => Number(n).toLocaleString();
+    const kaFrom = (name) => name.endsWith('ი') ? name + 'დან' : name + '-დან';
+
+    function formatPeriodKa(label) {
+      const m = /^(\d{4})\s+([IVX]+)\s+კვ$/.exec(label || '');
+      if (!m) return label || '';
+      return `${m[1]} წლის ${m[2]} კვარტლის`;
+    }
+    function formatPeriodEn(label) {
+      const m = /^(\d{4})\s+([IVX]+)\s+კვ$/.exec(label || '');
+      if (!m) return label || '';
+      const roman = { I: 1, II: 2, III: 3, IV: 4 };
+      return `Q${roman[m[2]] || m[2]} ${m[1]}`;
+    }
+
+    const nodes = [];
+    if (tourism.fiveYearSum > 0) {
+      if (isKa) {
+        nodes.push({ text: [
+          B(`${tourism.fiveYearStart} - ${tourism.fiveYearEnd}`),
+          ` წლებში ${kaFrom(country)} საქართველოში შემოვიდა `,
+          B(fmt(tourism.fiveYearSum)), ` ვიზიტორი.`,
+        ], ...paraStyle });
+      } else {
+        nodes.push({ text: [
+          `Between `, B(`${tourism.fiveYearStart}-${tourism.fiveYearEnd}`),
+          `, `, B(fmt(tourism.fiveYearSum)), ` visitors came to Georgia from ${country}.`,
+        ], ...paraStyle });
+      }
+    }
+    if (tourism.currentRank && tourism.currentPeriodLabel) {
+      if (isKa) {
+        nodes.push({ text: [
+          B(formatPeriodKa(tourism.currentPeriodLabel)),
+          ` მონაცემებით ვიზიტორების რაოდენობის მიხედვით ${country} არის `,
+          B(`${gePlace(tourism.currentRank)} ადგილზე`), `.`,
+        ], ...paraStyle });
+      } else {
+        nodes.push({ text: [
+          `By visitor count in `, B(formatPeriodEn(tourism.currentPeriodLabel)),
+          `, ${country} ranks `, B(enOrdinal(tourism.currentRank)), `.`,
+        ], ...paraStyle });
+      }
+    }
+    return nodes;
+  }
+
   // ── Tourism section ────────────────────────────────────────────────────
-  function buildTourismSection(tourism, charts, t, country) {
+  function buildTourismSection(tourism, charts, t, country, lang) {
     if (!tourism) return [];
     const blocks = [];
     const title = sectionTitle(`${country} - ${t.internationalVisitors}`);
@@ -744,6 +797,8 @@
       ));
       return blocks;
     }
+
+    const summary = buildTourismSummary(tourism, t, country, lang);
 
     const rows = [...(tourism.quarterlyRows || []), ...[...(tourism.annualRows || [])].reverse()];
     const body = [
@@ -780,13 +835,14 @@
         unbreakable: true,
         stack: [
           title,
+          ...summary,
           tableBlock,
           { text: t.internationalVisitors, style: 'chartCaption', margin: [0, 6, 0, 2] },
           { image: charts.tourism, width: 500, alignment: 'center', margin: [0, 0, 0, 8] },
         ],
       });
     } else {
-      blocks.push(withTitle(title, tableBlock));
+      blocks.push(withTitle(title, ...summary, tableBlock));
     }
 
     return blocks;
@@ -860,7 +916,7 @@
 
     const content = [];
     content.push(...buildTradeSection(state.trade, charts, t, country, lang));
-    content.push(...buildTourismSection(state.tourism, charts, t, country));
+    content.push(...buildTourismSection(state.tourism, charts, t, country, lang));
     content.push(...buildInvestmentsSection(state.investments, charts, t, country));
 
     if (content.length === 0) {

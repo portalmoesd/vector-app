@@ -53,6 +53,7 @@
   // Tourism tab
   const tourismArea = document.getElementById('tourismArea');
   const tourismLoading = document.getElementById('tourismLoading');
+  const tourismSummaryEl = document.getElementById('tourismSummary');
   const tourismHeader = document.getElementById('tourismHeader');
   const tourismTableEl = document.getElementById('tourismTable');
   const tourismChartHeader = document.getElementById('tourismChartHeader');
@@ -1414,6 +1415,7 @@
       if (!countryData) {
         tourismTableEl.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
         pdfState.tourism = { hasData: false };
+        if (tourismSummaryEl) tourismSummaryEl.classList.add('hidden');
         tourismLoading.classList.add('hidden');
         return;
       }
@@ -1465,6 +1467,23 @@
       const isKa = I18n.getLocale() === 'ka';
       tourismHeader.innerHTML = `<h3 class="stat-report__title">${escapeHtml(selectedCountry.displayLabel)} - ${isKa ? 'საერთაშორისო ვიზიტორები' : 'International Visitors'}</h3>`;
 
+      // ── Summary data: 5-year sum + latest-period rank ──────────────
+      const fiveYearStart = latestYear - 4;
+      const fiveYearEnd = latestYear;
+      let fiveYearSum = 0;
+      for (let y = fiveYearStart; y <= fiveYearEnd; y++) {
+        fiveYearSum += annual[y] || 0;
+      }
+      let currentRank = null;
+      if (json.currentPeriod && countryData.current !== null && countryData.current > 0) {
+        const ranking = Object.entries(json.countries)
+          .map(([name, d]) => ({ name, current: d.current || 0 }))
+          .filter(c => c.current > 0)
+          .sort((a, b) => b.current - a.current);
+        const idx = ranking.findIndex(c => c.name === gntaName);
+        if (idx >= 0) currentRank = idx + 1;
+      }
+
       renderTourismTable(quarterlyRows, annualRows, isKa);
       renderTourismChart(annualRows, json.currentPeriod && countryData.current !== null ? {
         label: json.currentPeriod.label,
@@ -1475,7 +1494,14 @@
         hasData: true,
         quarterlyRows,
         annualRows,
+        fiveYearStart,
+        fiveYearEnd,
+        fiveYearSum,
+        currentRank,
+        currentPeriodLabel: json.currentPeriod ? json.currentPeriod.label : null,
       };
+
+      renderTourismSummary(pdfState.tourism, selectedCountry, isKa);
 
     } catch (err) {
       console.error('Tourism error:', err);
@@ -1485,6 +1511,71 @@
       tourismLoading.classList.add('hidden');
       exportPdfBtn.disabled = false;
     }
+  }
+
+  // Georgian ablative ("from country"): word ending in "ი" → replace with "იდან"
+  // (e.g. თურქეთი → თურქეთიდან). Otherwise append "-დან".
+  function kaCountryFrom(name) {
+    if (name.endsWith('ი')) return name + 'დან';
+    return name + '-დან';
+  }
+
+  // Convert a GNTA period label like "2026 I კვ" to Georgian genitive
+  // "2026 წლის I კვარტლის" or English "Q1 2026".
+  function formatCurrentPeriodKa(label) {
+    const m = /^(\d{4})\s+([IVX]+)\s+კვ$/.exec(label || '');
+    if (!m) return label || '';
+    return `${m[1]} წლის ${m[2]} კვარტლის`;
+  }
+  function formatCurrentPeriodEn(label) {
+    const m = /^(\d{4})\s+([IVX]+)\s+კვ$/.exec(label || '');
+    if (!m) return label || '';
+    const romanToInt = { I: 1, II: 2, III: 3, IV: 4 };
+    const q = romanToInt[m[2]] || m[2];
+    return `Q${q} ${m[1]}`;
+  }
+
+  function renderTourismSummary(tourism, selectedCountry, isKa) {
+    if (!tourismSummaryEl || !tourism || !tourism.hasData) {
+      if (tourismSummaryEl) tourismSummaryEl.classList.add('hidden');
+      return;
+    }
+    const b = (s) => `<strong>${escapeHtml(String(s))}</strong>`;
+    const fmt = (n) => Number(n).toLocaleString();
+    const countryKa = selectedCountry.displayLabel;
+    const countryEn = countryNameEnMap[selectedCountry.value] || countryKa;
+    const lines = [];
+
+    lines.push(`<h4 class="stat-summary__heading">${isKa ? 'ტურიზმი' : 'Tourism'}</h4>`);
+
+    if (tourism.fiveYearSum > 0) {
+      if (isKa) {
+        lines.push(`<p>${b(tourism.fiveYearStart + ' - ' + tourism.fiveYearEnd)} წლებში ${escapeHtml(kaCountryFrom(countryKa))} საქართველოში შემოვიდა ${b(fmt(tourism.fiveYearSum))} ვიზიტორი.</p>`);
+      } else {
+        lines.push(`<p>Between ${b(tourism.fiveYearStart + '-' + tourism.fiveYearEnd)}, ${b(fmt(tourism.fiveYearSum))} visitors came to Georgia from ${escapeHtml(countryEn)}.</p>`);
+      }
+    }
+    if (tourism.currentRank && tourism.currentPeriodLabel) {
+      const geP = (r) => {
+        if (r === 1) return 'პირველ';
+        if (r >= 2 && r <= 20) return `მე-${r}`;
+        if (r % 10 === 0 || r % 100 === 0) return `მე-${r}`;
+        return `${r}-ე`;
+      };
+      const enO = (r) => {
+        const n = Math.abs(r), m = n % 100;
+        if (m >= 11 && m <= 13) return `${n}th`;
+        switch (n % 10) { case 1: return `${n}st`; case 2: return `${n}nd`; case 3: return `${n}rd`; default: return `${n}th`; }
+      };
+      if (isKa) {
+        lines.push(`<p>${b(formatCurrentPeriodKa(tourism.currentPeriodLabel))} მონაცემებით ვიზიტორების რაოდენობის მიხედვით ${escapeHtml(countryKa)} არის ${b(geP(tourism.currentRank) + ' ადგილზე')}.</p>`);
+      } else {
+        lines.push(`<p>By visitor count in ${b(formatCurrentPeriodEn(tourism.currentPeriodLabel))}, ${escapeHtml(countryEn)} ranks ${b(enO(tourism.currentRank))}.</p>`);
+      }
+    }
+
+    tourismSummaryEl.innerHTML = lines.join('');
+    tourismSummaryEl.classList.remove('hidden');
   }
 
   function renderTourismTable(quarterlyRows, annualRows, isKa) {
