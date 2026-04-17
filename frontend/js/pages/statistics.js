@@ -694,7 +694,7 @@
     if (trade.hasExport) {
       if (isKa) {
         let exp = `<p>ექსპორტი ${periodLoc} ${chg(curExp, prevExp)} და ${b(`${fmln(curExp)} მლნ. აშშ დოლარი`)} შეადგინა.`;
-        if (rank && rank.export) exp += ` საქართველოსთვის ექსპორტის მოცულობის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.export.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.export.sharePct)}%`)}.`;
+        if (rank && rank.export) exp += ` საქართველოსთვის ექსპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.export.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.export.sharePct)}%`)}.`;
         exp += '</p>';
         lines.push(exp);
       } else {
@@ -710,7 +710,7 @@
         const reVal = rank.reExport ? rank.reExport.valueMln : (curExp - domVal);
         const rePct = (100 * reVal / curExp).toFixed(0);
         if (isKa) {
-          lines.push(`<p>${periodGen} აღნიშნულ პერიოდში განხორციელდა ${b(`${fmln(domVal)} მლნ. აშშ დოლარის`)} ადგილობრივი ექსპორტი, რაც შეადგენს ${b(`${domPct}%-ს`)} სრული ექსპორტის. ადგილობრივი ექსპორტით ${escapeHtml(countryName)} იკავებს ${b(`${geP(rank.domesticExport.rank)} ადგილს`)} საქართველოს სავაჭრო პარტნიორებს შორის. რე-ექსპორტმა იმავე პერიოდში შეადგინა ${b(`${fmln(reVal)} მლნ. აშშ დოლარი`)} <em>(წილი ${rePct}%)</em>.</p>`);
+          lines.push(`<p>${periodGen} აღნიშნულ პერიოდში განხორციელდა ${b(`${fmln(domVal)} მლნ. აშშ დოლარის`)} ${b('ადგილობრივი ექსპორტი')}, რაც შეადგენს ${b(`${domPct}%-ს`)} სრული ექსპორტის. ადგილობრივი ექსპორტით ${escapeHtml(countryName)} იკავებს ${b(`${geP(rank.domesticExport.rank)} ადგილს`)} საქართველოს სავაჭრო პარტნიორებს შორის. რე-ექსპორტმა იმავე პერიოდში შეადგინა ${b(`${fmln(reVal)} მლნ. აშშ დოლარი`)} <em>(წილი ${rePct}%)</em>.</p>`);
         } else {
           lines.push(`<p>In the given period, domestic exports amounted to ${b(`${fmln(domVal)} mln USD`)}, comprising ${b(`${domPct}%`)} of total exports. By domestic exports, ${escapeHtml(countryName)} ranks ${b(enO(rank.domesticExport.rank))} among Georgia's trading partners. Re-exports in the same period amounted to ${b(`${fmln(reVal)} mln USD`)} <em>(${rePct}% share)</em>.</p>`);
         }
@@ -726,7 +726,7 @@
     if (trade.hasImport) {
       if (isKa) {
         let imp = `<p>იმპორტი ${periodLoc} ${chg(curImp, prevImp)} და ${b(`${fmln(curImp)} მლნ. აშშ დოლარი`)} შეადგინა.`;
-        if (rank && rank.import) imp += ` საქართველოსთვის იმპორტის მოცულობის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.import.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.import.sharePct)}%`)}.`;
+        if (rank && rank.import) imp += ` საქართველოსთვის იმპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.import.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.import.sharePct)}%`)}.`;
         imp += '</p>';
         lines.push(imp);
       } else {

@@ -519,7 +519,7 @@
           changeVerbParts(curExp, prevExp),
           ` და `, B(`${formatMln(curExp)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
           ...(rank && rank.export ? [
-            ` საქართველოსთვის ექსპორტის მოცულობის მიხედვით ${country} არის `,
+            ` საქართველოსთვის ექსპორტის მიხედვით ${country} არის `,
             B(`${gePlace(rank.export.rank)} ადგილზე`), `, წილი `, B(`${pctOne(rank.export.sharePct)}%`), `.`,
           ] : []),
         ], ...paraStyle, margin: [0, 6, 0, 4] });
@@ -546,7 +546,7 @@
           nodes.push({ text: [
             `${periodGen} აღნიშნულ პერიოდში განხორციელდა `,
             B(`${formatMln(domVal)} მლნ. აშშ დოლარის`),
-            ` ადგილობრივი ექსპორტი, რაც შეადგენს `, B(`${domPct}%-ს`), ` სრული ექსპორტის. `,
+            ` `, B('ადგილობრივი ექსპორტი'), `, რაც შეადგენს `, B(`${domPct}%-ს`), ` სრული ექსპორტის. `,
             `ადგილობრივი ექსპორტით ${country} იკავებს `,
             B(`${gePlace(rank.domesticExport.rank)} ადგილს`),
             ` საქართველოს სავაჭრო პარტნიორებს შორის. `,
@@ -589,7 +589,7 @@
           changeVerbParts(curImp, prevImp),
           ` და `, B(`${formatMln(curImp)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
           ...(rank && rank.import ? [
-            ` საქართველოსთვის იმპორტის მოცულობის მიხედვით ${country} არის `,
+            ` საქართველოსთვის იმპორტის მიხედვით ${country} არის `,
             B(`${gePlace(rank.import.rank)} ადგილზე`), `, წილი `, B(`${pctOne(rank.import.sharePct)}%`), `.`,
           ] : []),
         ], ...paraStyle, margin: [0, 6, 0, 4] });
