@@ -351,7 +351,7 @@
   }
 
   // ── Trade: products table (export/import) ─────────────────────────────
-  function buildProductsTable(products, t, periodLabel, year, showReexport) {
+  function buildProductsTable(products, t, periodLabel, year, showReexport, lang) {
     if (!products || products.length === 0) {
       return { text: t.noData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] };
     }
@@ -368,7 +368,7 @@
       const changeColor = change > 0 ? '#16a34a' : (change < 0 ? '#dc2626' : '#475569');
       const changeSign = change > 0 ? '+' : '';
       const row = [
-        tdText(p.name),
+        tdText(lang === 'en' && p.nameEn ? p.nameEn : p.name),
         tdNum(formatMln(p.valueMln)),
         tdNum(`${changeSign}${formatPct(change)}`, { color: changeColor }),
       ];
@@ -391,7 +391,7 @@
   }
 
   // ── Trade: change table (increase/drop) ────────────────────────────────
-  function buildChangeTable(products, t, periodLabel, year) {
+  function buildChangeTable(products, t, periodLabel, year, lang) {
     if (!products || products.length === 0) {
       return { text: t.noData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] };
     }
@@ -409,7 +409,7 @@
       const changeSign = p.changePct > 0 ? '+' : '';
       const diffSign = p.diffMln > 0 ? '+' : '';
       body.push([
-        tdText(p.name),
+        tdText(lang === 'en' && p.nameEn ? p.nameEn : p.name),
         tdNum(formatMln(p.valueMln)),
         tdNum(`${changeSign}${formatPct(p.changePct)}`, { color: changeColor }),
         tdNum(`${diffSign}${formatMln(Math.abs(p.diffMln))}`, { color: diffColor }),
@@ -456,7 +456,8 @@
     function productEntry(p) {
       const changeSign = p.change > 0 ? '+' : '';
       const unit = isKa ? 'მლნ. $' : 'mln $';
-      return `${p.name} (${formatMln(p.valueMln)} ${unit}, ${changeSign}${formatPct(p.change)})`;
+      const name = isKa ? p.name : (p.nameEn || p.name);
+      return `${name} (${formatMln(p.valueMln)} ${unit}, ${changeSign}${formatPct(p.change)})`;
     }
     function productList(products) {
       if (!products || !products.length) return '';
@@ -595,7 +596,7 @@
     if (trade.hasExport) {
       blocks.push(withTitle(
         subTitle(`${t.mainExport}, ${trade.periodLabel} ${trade.latestYear}`),
-        buildProductsTable(trade.exportProducts, t, trade.periodLabel, trade.latestYear, true),
+        buildProductsTable(trade.exportProducts, t, trade.periodLabel, trade.latestYear, true, lang),
       ));
 
       const incLabel = trade.exportGrowing ? t.exportIncrease : t.exportDrop;
@@ -606,13 +607,13 @@
       if (incProds && incProds.length) {
         blocks.push(withTitle(
           subTitle(`${incLabel}, ${trade.periodLabel} ${trade.latestYear}`),
-          buildChangeTable(incProds, t, trade.periodLabel, trade.latestYear),
+          buildChangeTable(incProds, t, trade.periodLabel, trade.latestYear, lang),
         ));
       }
       if (dropProds && dropProds.length) {
         blocks.push(withTitle(
           subTitle(`${dropLabel}, ${trade.periodLabel} ${trade.latestYear}`),
-          buildChangeTable(dropProds, t, trade.periodLabel, trade.latestYear),
+          buildChangeTable(dropProds, t, trade.periodLabel, trade.latestYear, lang),
         ));
       }
     }
@@ -621,7 +622,7 @@
     if (trade.hasImport) {
       blocks.push(withTitle(
         subTitle(`${t.mainImport}, ${trade.periodLabel} ${trade.latestYear}`),
-        buildProductsTable(trade.importProducts, t, trade.periodLabel, trade.latestYear, false),
+        buildProductsTable(trade.importProducts, t, trade.periodLabel, trade.latestYear, false, lang),
       ));
 
       const incLabel = trade.importGrowing ? t.importIncrease : t.importDrop;
@@ -632,13 +633,13 @@
       if (incProds && incProds.length) {
         blocks.push(withTitle(
           subTitle(`${incLabel}, ${trade.periodLabel} ${trade.latestYear}`),
-          buildChangeTable(incProds, t, trade.periodLabel, trade.latestYear),
+          buildChangeTable(incProds, t, trade.periodLabel, trade.latestYear, lang),
         ));
       }
       if (dropProds && dropProds.length) {
         blocks.push(withTitle(
           subTitle(`${dropLabel}, ${trade.periodLabel} ${trade.latestYear}`),
-          buildChangeTable(dropProds, t, trade.periodLabel, trade.latestYear),
+          buildChangeTable(dropProds, t, trade.periodLabel, trade.latestYear, lang),
         ));
       }
     }
