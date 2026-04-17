@@ -483,7 +483,7 @@
     nodes.push(heading('სავაჭრო ბრუნვა', 'Trade Turnover'));
     if (isKa) {
       nodes.push({ text: [
-        `${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიური პერიოდის მაჩვენებელთან შედარებით, `,
+        `${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიურ პერიოდთან შედარებით, `,
         changeVerbParts(curTurn, prevTurn),
         ` და `, B(`${formatMln(curTurn)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
       ], ...paraStyle });

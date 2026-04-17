@@ -677,7 +677,7 @@
     // Turnover
     lines.push(`<h4 class="stat-summary__heading">${isKa ? 'სავაჭრო ბრუნვა' : 'Trade Turnover'}</h4>`);
     if (isKa) {
-      lines.push(`<p>${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიური პერიოდის მაჩვენებელთან შედარებით, ${chg(curTurn, prevTurn)} და ${b(`${fmln(curTurn)} მლნ. აშშ დოლარი`)} შეადგინა.</p>`);
+      lines.push(`<p>${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიურ პერიოდთან შედარებით, ${chg(curTurn, prevTurn)} და ${b(`${fmln(curTurn)} მლნ. აშშ დოლარი`)} შეადგინა.</p>`);
       if (rank && rank.turnover) {
         lines.push(`<p>${escapeHtml(countryName)} აღნიშნულ პერიოდში სავაჭრო ბრუნვის მოცულობის მიხედვით არის ${b(`${geP(rank.turnover.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.turnover.sharePct)}%`)}.</p>`);
       }
