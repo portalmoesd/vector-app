@@ -504,12 +504,30 @@
       if (rank && rank.export) {
         p2 += ` საქართველოსთვის ექსპორტის მოცულობის მიხედვით ${country} არის ${gePlace(rank.export.rank)} ადგილზე, წილი ${pctOne(rank.export.sharePct)}%.`;
       }
+      if (rank && rank.domesticExport && curExp > 0) {
+        const domVal = rank.domesticExport.valueMln;
+        const domPct = (100 * domVal / curExp).toFixed(0);
+        const reVal = rank.reExport ? rank.reExport.valueMln : (curExp - domVal);
+        const rePct = (100 * reVal / curExp).toFixed(0);
+        p2 += ` ${periodGen} აღნიშნულ პერიოდში განხორციელდა ${formatMln(domVal)} მლნ. აშშ დოლარის ადგილობრივი ექსპორტი, რაც შეადგენს ${domPct}%-ს სრული ექსპორტის.`;
+        p2 += ` ადგილობრივი ექსპორტით ${country} იკავებს ${gePlace(rank.domesticExport.rank)} ადგილს საქართველოს სავაჭრო პარტნიორებს შორის.`;
+        p2 += ` რე-ექსპორტმა იმავე პერიოდში შეადგინა ${formatMln(reVal)} მლნ. აშშ დოლარი (წილი ${rePct}%).`;
+      }
       const pl = productList(trade.exportProducts);
       if (pl) p2 += ` ძირითადი საექსპორტო პროდუქცია: ${pl}`;
     } else {
       p2 = `Exports in ${periodEn} ${expVerb.text}, amounting to ${formatMln(curExp)} mln USD.`;
       if (rank && rank.export) {
         p2 += ` ${country} ranks ${enOrdinal(rank.export.rank)} by export volume with a ${pctOne(rank.export.sharePct)}% share.`;
+      }
+      if (rank && rank.domesticExport && curExp > 0) {
+        const domVal = rank.domesticExport.valueMln;
+        const domPct = (100 * domVal / curExp).toFixed(0);
+        const reVal = rank.reExport ? rank.reExport.valueMln : (curExp - domVal);
+        const rePct = (100 * reVal / curExp).toFixed(0);
+        p2 += ` In the given period, domestic exports amounted to ${formatMln(domVal)} mln USD, comprising ${domPct}% of total exports.`;
+        p2 += ` By domestic exports, ${country} ranks ${enOrdinal(rank.domesticExport.rank)} among Georgia's trading partners.`;
+        p2 += ` Re-exports in the same period amounted to ${formatMln(reVal)} mln USD (${rePct}% share).`;
       }
       const pl = productList(trade.exportProducts);
       if (pl) p2 += ` Main export products: ${pl}`;
