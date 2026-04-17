@@ -174,7 +174,7 @@ async function fetchFlowRanking(tradeFlow, year, months) {
   let rawResponse = null;
   let perCountry = {}; // String(countryId) -> valueThd
 
-  // ── Strategy 1: unfiltered call ──────────────────────────────────────
+  // ── Strategy 1: single call with grouping by country ───────────────
   try {
     const json = await geostatFetch('/get_data', {
       method: 'POST',
@@ -183,6 +183,8 @@ async function fetchFlowRanking(tradeFlow, year, months) {
         measurementUnits: [1],
         years: [year],
         months,
+        countries: ['global'],
+        grouping: ['countries'],
         locale: 'en',
         sum: true,
         page: 1,
