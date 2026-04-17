@@ -54,6 +54,7 @@
   const tourismArea = document.getElementById('tourismArea');
   const tourismLoading = document.getElementById('tourismLoading');
   const tourismSummaryEl = document.getElementById('tourismSummary');
+  const investmentsSummaryEl = document.getElementById('investmentsSummary');
   const tourismHeader = document.getElementById('tourismHeader');
   const tourismTableEl = document.getElementById('tourismTable');
   const tourismChartHeader = document.getElementById('tourismChartHeader');
@@ -1699,6 +1700,7 @@
       if (!countryData) {
         fdiTable.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
         pdfState.investments = { hasData: false };
+        if (investmentsSummaryEl) investmentsSummaryEl.classList.add('hidden');
         investmentsLoading.classList.add('hidden');
         return;
       }
@@ -1719,6 +1721,49 @@
         return { year: y, valueMln: val, prevMln: prev };
       });
 
+      // ── Summary data ──────────────────────────────────────────────
+      // First year country had positive investment
+      let firstYear = null;
+      for (const y of allYears) {
+        if ((countryData[y] || 0) > 0) { firstYear = y; break; }
+      }
+      // Total sum (all years, in mln USD)
+      let totalSum = 0;
+      for (const y of allYears) totalSum += (countryData[y] || 0) / 1000;
+      // Rank by total sum across all countries
+      const totalByCountry = [];
+      for (const [code, data] of Object.entries(json.countries)) {
+        let s = 0;
+        for (const y of allYears) s += (data[y] || 0) / 1000;
+        if (s > 0) totalByCountry.push({ code, sum: s });
+      }
+      totalByCountry.sort((a, b) => b.sum - a.sum);
+      const totalRankIdx = totalByCountry.findIndex(c => c.code === String(countryCode));
+      const totalRank = totalRankIdx >= 0 ? totalRankIdx + 1 : null;
+      // Last 5 complete years (latestYear-4 through latestYear)
+      const fiveYearStart = latestYear - 4;
+      const fiveYearEnd = latestYear;
+      let fiveYearSum = 0;
+      for (let y = fiveYearStart; y <= fiveYearEnd; y++) {
+        fiveYearSum += (countryData[y] || 0) / 1000;
+      }
+      // Per-year value + rank for latestYear and previous year
+      function rankForYear(year) {
+        const entries = [];
+        for (const [code, data] of Object.entries(json.countries)) {
+          const v = (data[year] || 0) / 1000;
+          if (v > 0) entries.push({ code, v });
+        }
+        entries.sort((a, b) => b.v - a.v);
+        const idx = entries.findIndex(e => e.code === String(countryCode));
+        return idx >= 0 ? idx + 1 : null;
+      }
+      const latestYearValue = (countryData[latestYear] || 0) / 1000;
+      const latestYearRank = rankForYear(latestYear);
+      const prevYear = latestYear - 1;
+      const prevYearValue = (countryData[prevYear] || 0) / 1000;
+      const prevYearRank = rankForYear(prevYear);
+
       const isKa = I18n.getLocale() === 'ka';
       fdiHeader.innerHTML = `<h3 class="stat-report__title">${escapeHtml(selectedCountry.displayLabel)} - ${isKa ? 'პირდაპირი უცხოური ინვესტიციები' : 'Foreign Direct Investment'}</h3>`;
 
@@ -1728,7 +1773,15 @@
       pdfState.investments = {
         hasData: true,
         tableData,
+        firstYear,
+        totalSum,
+        totalRank,
+        fiveYearStart, fiveYearEnd, fiveYearSum,
+        latestYear, latestYearValue, latestYearRank,
+        prevYear, prevYearValue, prevYearRank,
       };
+
+      renderInvestmentsSummary(pdfState.investments, selectedCountry, isKa);
 
     } catch (err) {
       console.error('Investments error:', err);
@@ -1738,6 +1791,88 @@
       investmentsLoading.classList.add('hidden');
       exportPdfBtn.disabled = false;
     }
+  }
+
+  function renderInvestmentsSummary(inv, selectedCountry, isKa) {
+    if (!investmentsSummaryEl) return;
+    if (!inv || !inv.hasData) { investmentsSummaryEl.classList.add('hidden'); return; }
+    const b = (s) => `<strong>${escapeHtml(String(s))}</strong>`;
+    const fmt = (n) => (Math.round(Math.abs(n) * 100) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const countryKa = selectedCountry.displayLabel;
+    const countryEn = countryNameEnMap[selectedCountry.value] || countryKa;
+    const countryKaFrom = kaCountryFrom(countryKa);
+    const lines = [];
+
+    lines.push(`<h4 class="stat-summary__heading">${isKa ? 'ინვესტიციები' : 'Investments'}</h4>`);
+
+    function geP(r) {
+      if (r === 1) return 'პირველ';
+      if (r >= 2 && r <= 20) return `მე-${r}`;
+      if (r % 10 === 0 || r % 100 === 0) return `მე-${r}`;
+      return `${r}-ე`;
+    }
+    function enO(r) {
+      const n = Math.abs(r), m = n % 100;
+      if (m >= 11 && m <= 13) return `${n}th`;
+      switch (n % 10) { case 1: return `${n}st`; case 2: return `${n}nd`; case 3: return `${n}rd`; default: return `${n}th`; }
+    }
+
+    // Sentence 1: first year + total + total rank
+    if (inv.firstYear && inv.totalSum > 0) {
+      if (isKa) {
+        let s = `<p>${escapeHtml(countryKaFrom)} საქართველოში პირდაპირი უცხოური ინვესტიცია პირველად ${b(inv.firstYear)} წელს განხორციელდა. ჯამური განხორციელებული პირდაპირი უცხოური ინვესტიცია შეადგენს ${b(`${fmt(inv.totalSum)} მლნ. აშშ დოლარს`)}.`;
+        if (inv.totalRank) s += ` ${escapeHtml(countryKa)} იკავებს ${b(`${geP(inv.totalRank)} ადგილს`)} ჯამური განხორციელებული ინვესტიციის მოცულობით საქართველოში.`;
+        s += '</p>';
+        lines.push(s);
+      } else {
+        let s = `<p>Foreign direct investment from ${escapeHtml(countryEn)} to Georgia was first made in ${b(inv.firstYear)}. Total conducted FDI amounts to ${b(`${fmt(inv.totalSum)} mln USD`)}.`;
+        if (inv.totalRank) s += ` ${escapeHtml(countryEn)} ranks ${b(enO(inv.totalRank))} by total FDI volume in Georgia.`;
+        s += '</p>';
+        lines.push(s);
+      }
+    }
+
+    // Sentence 2: last 5 years sum
+    if (inv.fiveYearSum > 0) {
+      if (isKa) {
+        lines.push(`<p>${b(`${inv.fiveYearStart} - ${inv.fiveYearEnd}`)} წლებში ${escapeHtml(countryKaFrom)} საქართველოში შემოსული ინვესტიციების მოცულობამ შეადგინა ${b(`${fmt(inv.fiveYearSum)} მლნ. აშშ დოლარი`)}.</p>`);
+      } else {
+        lines.push(`<p>Between ${b(`${inv.fiveYearStart}-${inv.fiveYearEnd}`)}, investments from ${escapeHtml(countryEn)} to Georgia amounted to ${b(`${fmt(inv.fiveYearSum)} mln USD`)}.</p>`);
+      }
+    }
+
+    // Sentence 3: latest full year + rank
+    if (inv.latestYearValue > 0 && inv.latestYear) {
+      if (isKa) {
+        let s = `<p>${b(`${inv.latestYear} წელს`)} ${escapeHtml(countryKaFrom)} საქართველოში განხორციელდა ${b(`${fmt(inv.latestYearValue)} მლნ. აშშ დოლარის`)} პირდაპირი უცხოური ინვესტიცია.`;
+        if (inv.latestYearRank) s += ` ${escapeHtml(countryKa)} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით ${inv.latestYear} წელს ${b(`${geP(inv.latestYearRank)} ადგილს`)} იკავებს.`;
+        s += '</p>';
+        lines.push(s);
+      } else {
+        let s = `<p>In ${b(inv.latestYear)}, ${b(`${fmt(inv.latestYearValue)} mln USD`)} of foreign direct investment came to Georgia from ${escapeHtml(countryEn)}.`;
+        if (inv.latestYearRank) s += ` ${escapeHtml(countryEn)} ranked ${b(enO(inv.latestYearRank))} by FDI volume in ${inv.latestYear}.`;
+        s += '</p>';
+        lines.push(s);
+      }
+    }
+
+    // Sentence 4: previous full year + rank
+    if (inv.prevYearValue > 0 && inv.prevYear) {
+      if (isKa) {
+        let s = `<p>${b(`${inv.prevYear} წელს`)} ${escapeHtml(countryKaFrom)} საქართველოში განხორციელდა ${b(`${fmt(inv.prevYearValue)} მლნ. აშშ დოლარის`)} პირდაპირი უცხოური ინვესტიცია.`;
+        if (inv.prevYearRank) s += ` ${escapeHtml(countryKa)} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით ${inv.prevYear} წელს ${b(`${geP(inv.prevYearRank)} ადგილს`)} იკავებს.`;
+        s += '</p>';
+        lines.push(s);
+      } else {
+        let s = `<p>In ${b(inv.prevYear)}, ${b(`${fmt(inv.prevYearValue)} mln USD`)} of foreign direct investment came to Georgia from ${escapeHtml(countryEn)}.`;
+        if (inv.prevYearRank) s += ` ${escapeHtml(countryEn)} ranked ${b(enO(inv.prevYearRank))} by FDI volume in ${inv.prevYear}.`;
+        s += '</p>';
+        lines.push(s);
+      }
+    }
+
+    investmentsSummaryEl.innerHTML = lines.join('');
+    investmentsSummaryEl.classList.remove('hidden');
   }
 
   function renderFdiTable(data, isKa) {

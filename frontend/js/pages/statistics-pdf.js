@@ -849,7 +849,94 @@
   }
 
   // ── Investments section ────────────────────────────────────────────────
-  function buildInvestmentsSection(inv, charts, t, country) {
+  // ── Investments summary ─────────────────────────────────────────────
+  function buildInvestmentsSummary(inv, t, country, lang) {
+    if (!inv || !inv.hasData) return [];
+    const isKa = lang === 'ka';
+    const B = (s) => ({ text: s, bold: true });
+    const paraStyle = { fontSize: 10, lineHeight: 1.3, alignment: 'justify', margin: [0, 0, 0, 4] };
+    const fmt = (n) => (Math.round(Math.abs(n) * 100) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const kaFrom = (name) => name + 'დან';
+    const countryFrom = isKa ? kaFrom(country) : country;
+
+    const nodes = [];
+
+    // Sentence 1: first year + total + total rank
+    if (inv.firstYear && inv.totalSum > 0) {
+      if (isKa) {
+        const parts = [
+          `${countryFrom} საქართველოში პირდაპირი უცხოური ინვესტიცია პირველად `,
+          B(`${inv.firstYear}`), ` წელს განხორციელდა. ჯამური განხორციელებული პირდაპირი უცხოური ინვესტიცია შეადგენს `,
+          B(`${fmt(inv.totalSum)} მლნ. აშშ დოლარს`), `.`,
+        ];
+        if (inv.totalRank) {
+          parts.push(` ${country} იკავებს `, B(`${gePlace(inv.totalRank)} ადგილს`),
+            ` ჯამური განხორციელებული ინვესტიციის მოცულობით საქართველოში.`);
+        }
+        nodes.push({ text: parts, ...paraStyle });
+      } else {
+        const parts = [
+          `Foreign direct investment from ${country} to Georgia was first made in `,
+          B(`${inv.firstYear}`), `. Total FDI amounts to `,
+          B(`${fmt(inv.totalSum)} mln USD`), `.`,
+        ];
+        if (inv.totalRank) {
+          parts.push(` ${country} ranks `, B(enOrdinal(inv.totalRank)),
+            ` by total FDI volume in Georgia.`);
+        }
+        nodes.push({ text: parts, ...paraStyle });
+      }
+    }
+
+    // Sentence 2: last 5 years sum
+    if (inv.fiveYearSum > 0) {
+      if (isKa) {
+        nodes.push({ text: [
+          B(`${inv.fiveYearStart} - ${inv.fiveYearEnd}`),
+          ` წლებში ${countryFrom} საქართველოში შემოსული ინვესტიციების მოცულობამ შეადგინა `,
+          B(`${fmt(inv.fiveYearSum)} მლნ. აშშ დოლარი`), `.`,
+        ], ...paraStyle });
+      } else {
+        nodes.push({ text: [
+          `Between `, B(`${inv.fiveYearStart}-${inv.fiveYearEnd}`),
+          `, investments from ${country} to Georgia amounted to `,
+          B(`${fmt(inv.fiveYearSum)} mln USD`), `.`,
+        ], ...paraStyle });
+      }
+    }
+
+    // Sentence 3/4: latest + previous year
+    function yearSentence(year, value, rank) {
+      if (!(value > 0) || !year) return null;
+      if (isKa) {
+        const parts = [
+          B(`${year} წელს`), ` ${countryFrom} საქართველოში განხორციელდა `,
+          B(`${fmt(value)} მლნ. აშშ დოლარის`), ` პირდაპირი უცხოური ინვესტიცია.`,
+        ];
+        if (rank) {
+          parts.push(` ${country} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით `,
+            `${year} წელს `, B(`${gePlace(rank)} ადგილს`), ` იკავებს.`);
+        }
+        return { text: parts, ...paraStyle };
+      }
+      const parts = [
+        `In `, B(`${year}`), `, `, B(`${fmt(value)} mln USD`),
+        ` of foreign direct investment came to Georgia from ${country}.`,
+      ];
+      if (rank) {
+        parts.push(` ${country} ranked `, B(enOrdinal(rank)), ` by FDI volume in ${year}.`);
+      }
+      return { text: parts, ...paraStyle };
+    }
+    const s3 = yearSentence(inv.latestYear, inv.latestYearValue, inv.latestYearRank);
+    if (s3) nodes.push(s3);
+    const s4 = yearSentence(inv.prevYear, inv.prevYearValue, inv.prevYearRank);
+    if (s4) nodes.push(s4);
+
+    return nodes;
+  }
+
+  function buildInvestmentsSection(inv, charts, t, country, lang) {
     if (!inv) return [];
     const blocks = [];
     const title = sectionTitle(`${country} - ${t.fdi}`);
@@ -861,6 +948,8 @@
       ));
       return blocks;
     }
+
+    const summary = buildInvestmentsSummary(inv, t, country, lang);
 
     const data = [...inv.tableData].reverse();
     const body = [
@@ -894,13 +983,14 @@
         unbreakable: true,
         stack: [
           title,
+          ...summary,
           tableBlock,
           { text: t.fdiShort, style: 'chartCaption', margin: [0, 6, 0, 2] },
           { image: charts.fdi, width: 500, alignment: 'center', margin: [0, 0, 0, 8] },
         ],
       });
     } else {
-      blocks.push(withTitle(title, tableBlock));
+      blocks.push(withTitle(title, ...summary, tableBlock));
     }
 
     return blocks;
@@ -917,7 +1007,7 @@
     const content = [];
     content.push(...buildTradeSection(state.trade, charts, t, country, lang));
     content.push(...buildTourismSection(state.tourism, charts, t, country, lang));
-    content.push(...buildInvestmentsSection(state.investments, charts, t, country));
+    content.push(...buildInvestmentsSection(state.investments, charts, t, country, lang));
 
     if (content.length === 0) {
       content.push({ text: t.noData, italics: true, color: '#94a3b8', margin: [0, 40, 0, 0], alignment: 'center' });
