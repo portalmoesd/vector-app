@@ -816,6 +816,39 @@ const { upload, adminOnly, saveParsedAndRaw, loadParsedFromDisk } = require('./a
 
 let fdiSectorsCache = { data: null };
 
+// Sector name mapping: full Georgian name → { short (Georgian), en (English) }
+const SECTOR_NAMES = {
+  'სულ': { short: 'სულ', en: 'Total' },
+  'სოფლის, სატყეო და თევზის მეურნეობა': { short: 'სოფლის მეურნეობა', en: 'Agriculture' },
+  'დამამუშავებელი მრეწველობა': { short: 'დამამუშავებელი მრეწველობა', en: 'Manufacturing' },
+  'ელექტროენერგიის, აირის, ორთქლის და კონდიცირებული ჰაერის მიწოდება': { short: 'ენერგეტიკა', en: 'Energy' },
+  'მშენებლობა': { short: 'მშენებლობა', en: 'Construction' },
+  'საბითუმო და საცალო ვაჭრობა; ავტომობილების და მოტოციკლების რემონტი': { short: 'საბითუმო და საცალო ვაჭრობა', en: 'Wholesale and Retail Trade' },
+  'ტრანსპორტი და დასაწყობება': { short: 'ტრანსპორტი', en: 'Transport' },
+  'განთავსების საშუალებებით უზრუნველყოფის და საკვების მიწოდების საქმიანობები': { short: 'სასტუმროები და რესტორნები', en: 'Hotels and Restaurants' },
+  'ინფორმაცია და კომუნიკაცია': { short: 'ინფორმაცია და კომუნიკაცია', en: 'Information and Communication' },
+  'საფინანსო და სადაზღვევო საქმიანობები': { short: 'საფინანსო და სადაზღვევო საქმიანობები', en: 'Financial and Insurance Activities' },
+  'უძრავ ქონებასთან დაკავშირებული საქმიანობები': { short: 'უძრავი ქონება', en: 'Real Estate' },
+  'პროფესიული, სამეცნიერო და ტექნიკური საქმიანობები': { short: 'სამეცნიერო საქმიანობები', en: 'Scientific Activities' },
+  'ადმინისტრაციული და დამხმარე მომსახურების საქმიანობები': { short: 'ადმინისტრაციული საქმიანობები', en: 'Administrative Activities' },
+  'განათლება': { short: 'განათლება', en: 'Education' },
+  'ჯანდაცვა და სოციალური მომსახურების საქმიანობები': { short: 'ჯანდაცვა', en: 'Healthcare' },
+  'სამთომოპოვებითი მრეწველობა და კარიერების დამუშავება': { short: 'სამთომოპოვებითი მრეწველობა', en: 'Mining and Quarrying' },
+  'წყალმომარაგება; კანალიზაცია, ნარჩენების მართვა და დაბინძურებისაგან გასუფთავების საქმიანობები': { short: 'წყალმომარაგება', en: 'Water Supply' },
+  'სხვა სახის მომსახურება': { short: 'სხვა სახის მომსახურება', en: 'Other Services' },
+  'ხელოვნება, გართობა და დასვენება': { short: 'ხელოვნება', en: 'Arts' },
+};
+
+function sectorShortName(fullName) {
+  const m = SECTOR_NAMES[fullName];
+  return m ? m.short : fullName;
+}
+
+function sectorEnName(fullName) {
+  const m = SECTOR_NAMES[fullName];
+  return m ? m.en : fullName;
+}
+
 function parseFdiSectorsWorkbook(wb) {
   const sheet = wb.Sheets[wb.SheetNames[0]];
   if (!sheet) throw new Error('Workbook has no sheets');
@@ -887,15 +920,28 @@ function parseFdiSectorsWorkbook(wb) {
     if (sectorRaw === 'სულ') {
       countries[current.code].totals = values;
     } else {
-      countries[current.code].sectors[sectorRaw] = values;
-      sectorsSet.add(sectorRaw);
+      // Store using the short Georgian name as the key
+      const shortName = sectorShortName(sectorRaw);
+      countries[current.code].sectors[shortName] = values;
+      sectorsSet.add(shortName);
     }
+  }
+
+  // Build sector name mapping for the API response (short KA → EN)
+  const sectorNameMap = {};
+  for (const s of sectorsSet) {
+    // Find the English name by checking all mappings
+    for (const [full, m] of Object.entries(SECTOR_NAMES)) {
+      if (m.short === s) { sectorNameMap[s] = m.en; break; }
+    }
+    if (!sectorNameMap[s]) sectorNameMap[s] = s;
   }
 
   return {
     uploadedAt: new Date().toISOString(),
     years,
     sectors: Array.from(sectorsSet),
+    sectorNameMap,
     countries,
   };
 }
@@ -919,6 +965,7 @@ router.get('/fdi-sectors', (req, res) => {
     uploadedAt: data.uploadedAt,
     years: data.years,
     sectors: data.sectors,
+    sectorNameMap: data.sectorNameMap || {},
     countries: data.countries,
     yearsCovered: data.years,
     countryCount: Object.keys(data.countries).length,
