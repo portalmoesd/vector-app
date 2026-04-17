@@ -437,6 +437,9 @@
     const B = (s) => ({ text: s, bold: true });
     const I = (s) => ({ text: s, italics: true });
 
+    const heading = (ka, en) => ({ text: isKa ? ka : en, bold: true, fontSize: 11, color: '#0f172a', margin: [0, 0, 0, 4] });
+    const divider = () => ({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 531, y2: 0, lineWidth: 0.5, lineColor: '#d1d5db' }], margin: [0, 6, 0, 6] });
+
     function pctInt(x) { return Math.round(Math.abs(x)); }
     function pctOne(x) { return (Math.round(x * 10) / 10).toFixed(1); }
 
@@ -477,6 +480,7 @@
     const prevImp  = trade.overview.latestPeriod.importPrev;
 
     // ── Turnover ─────────────────────────────────────────────────────────
+    nodes.push(heading('სავაჭრო ბრუნვა', 'Trade Turnover'));
     if (isKa) {
       nodes.push({ text: [
         `${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიური პერიოდის მაჩვენებელთან შედარებით, `,
@@ -504,6 +508,8 @@
     }
 
     // ── Export ────────────────────────────────────────────────────────────
+    nodes.push(divider());
+    nodes.push(heading('ექსპორტი', 'Export'));
     if (!trade.hasExport) {
       nodes.push({ text: isKa ? `ექსპორტი ${periodLoc} არ განხორციელდა.` : `No exports were conducted in ${periodEn}.`, ...paraStyle, margin: [0, 6, 0, 4] });
     } else {
@@ -572,6 +578,8 @@
     }
 
     // ── Import ───────────────────────────────────────────────────────────
+    nodes.push(divider());
+    nodes.push(heading('იმპორტი', 'Import'));
     if (!trade.hasImport) {
       nodes.push({ text: isKa ? `იმპორტი ${periodLoc} არ განხორციელდა.` : `No imports were conducted in ${periodEn}.`, ...paraStyle, margin: [0, 6, 0, 4] });
     } else {

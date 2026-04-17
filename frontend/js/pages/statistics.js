@@ -675,6 +675,7 @@
     const curImp = ov.latestPeriod.import, prevImp = ov.latestPeriod.importPrev;
 
     // Turnover
+    lines.push(`<h4 class="stat-summary__heading">${isKa ? 'სავაჭრო ბრუნვა' : 'Trade Turnover'}</h4>`);
     if (isKa) {
       lines.push(`<p>${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიური პერიოდის მაჩვენებელთან შედარებით, ${chg(curTurn, prevTurn)} და ${b(`${fmln(curTurn)} მლნ. აშშ დოლარი`)} შეადგინა.</p>`);
       if (rank && rank.turnover) {
@@ -688,6 +689,8 @@
     }
 
     // Export
+    lines.push(`<hr class="stat-summary__divider">`);
+    lines.push(`<h4 class="stat-summary__heading">${isKa ? 'ექსპორტი' : 'Export'}</h4>`);
     if (trade.hasExport) {
       if (isKa) {
         let exp = `<p>ექსპორტი ${periodLoc} ${chg(curExp, prevExp)} და ${b(`${fmln(curExp)} მლნ. აშშ დოლარი`)} შეადგინა.`;
@@ -718,6 +721,8 @@
     }
 
     // Import
+    lines.push(`<hr class="stat-summary__divider">`);
+    lines.push(`<h4 class="stat-summary__heading">${isKa ? 'იმპორტი' : 'Import'}</h4>`);
     if (trade.hasImport) {
       if (isKa) {
         let imp = `<p>იმპორტი ${periodLoc} ${chg(curImp, prevImp)} და ${b(`${fmln(curImp)} მლნ. აშშ დოლარი`)} შეადგინა.`;

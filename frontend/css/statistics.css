@@ -120,6 +120,17 @@
 .stat-summary p:last-child {
   margin-bottom: 0;
 }
+.stat-summary__heading {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+.stat-summary__divider {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 12px 0;
+}
 
 /* While exporting: un-hide all tabs off-screen so chart canvases render with real dimensions */
 body.stat-exporting #reportArea.hidden,
