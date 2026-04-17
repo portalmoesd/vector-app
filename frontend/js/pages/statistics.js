@@ -652,7 +652,13 @@
       if (isKa) return b(`${c >= 0 ? 'გაიზარდა' : 'შემცირდა'} ${abs}%-ით`);
       return b(`${c >= 0 ? 'increased' : 'decreased'} by ${abs}%`);
     }
-    function geP(r) { return r === 1 ? 'პირველ' : `მე-${r}`; }
+    function geP(r) {
+      if (r === 1) return 'პირველ';
+      if (r >= 2 && r <= 20) return `მე-${r}`;
+      if (r % 10 === 0) return `მე-${r}`;
+      if (r % 100 === 0) return `მე-${r}`;
+      return `${r}-ე`;
+    }
     function enO(r) {
       const n = Math.abs(r); const m = n % 100;
       if (m >= 11 && m <= 13) return `${n}th`;

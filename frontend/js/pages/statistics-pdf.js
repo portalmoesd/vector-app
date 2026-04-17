@@ -170,7 +170,10 @@
 
   function gePlace(rank) {
     if (rank === 1) return 'პირველ';
-    return `მე-${rank}`;
+    if (rank >= 2 && rank <= 20) return `მე-${rank}`;
+    if (rank % 10 === 0) return `მე-${rank}`;
+    if (rank % 100 === 0) return `მე-${rank}`;
+    return `${rank}-ე`;
   }
 
   function enOrdinal(rank) {
