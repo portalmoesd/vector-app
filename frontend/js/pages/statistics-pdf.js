@@ -523,7 +523,7 @@
           ` და `, B(`${formatMln(curExp)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
           ...(rank && rank.export ? [
             ` საქართველოსთვის ექსპორტის მიხედვით ${country} არის `,
-            B(`${gePlace(rank.export.rank)} ადგილზე`), `, წილი `, B(`${pctOne(rank.export.sharePct)}%`), `.`,
+            B(`${gePlace(rank.export.rank)} ადგილზე`), ` საქართველოს სავაჭრო პარტნიორებს შორის, წილი `, B(`${pctOne(rank.export.sharePct)}%`), `.`,
           ] : []),
         ], ...paraStyle, margin: [0, 6, 0, 4] });
       } else {
@@ -592,8 +592,8 @@
           changeVerbParts(curImp, prevImp),
           ` და `, B(`${formatMln(curImp)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
           ...(rank && rank.import ? [
-            ` საქართველოსთვის იმპორტის მიხედვით ${country} არის `,
-            B(`${gePlace(rank.import.rank)} ადგილზე`), `, წილი `, B(`${pctOne(rank.import.sharePct)}%`), `.`,
+            ` იმპორტის მიხედვით ${country} არის `,
+            B(`${gePlace(rank.import.rank)} ადგილზე`), ` საქართველოს სავაჭრო პარტნიორებს შორის, წილი `, B(`${pctOne(rank.import.sharePct)}%`), `.`,
           ] : []),
         ], ...paraStyle, margin: [0, 6, 0, 4] });
       } else {

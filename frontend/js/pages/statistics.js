@@ -700,7 +700,7 @@
     if (trade.hasExport) {
       if (isKa) {
         let exp = `<p>ექსპორტი ${periodLoc} ${chg(curExp, prevExp)} და ${b(`${fmln(curExp)} მლნ. აშშ დოლარი`)} შეადგინა.`;
-        if (rank && rank.export) exp += ` საქართველოსთვის ექსპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.export.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.export.sharePct)}%`)}.`;
+        if (rank && rank.export) exp += ` საქართველოსთვის ექსპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.export.rank)} ადგილზე`)} საქართველოს სავაჭრო პარტნიორებს შორის, წილი ${b(`${pctO(rank.export.sharePct)}%`)}.`;
         exp += '</p>';
         lines.push(exp);
       } else {
@@ -732,7 +732,7 @@
     if (trade.hasImport) {
       if (isKa) {
         let imp = `<p>იმპორტი ${periodLoc} ${chg(curImp, prevImp)} და ${b(`${fmln(curImp)} მლნ. აშშ დოლარი`)} შეადგინა.`;
-        if (rank && rank.import) imp += ` საქართველოსთვის იმპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.import.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.import.sharePct)}%`)}.`;
+        if (rank && rank.import) imp += ` იმპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.import.rank)} ადგილზე`)} საქართველოს სავაჭრო პარტნიორებს შორის, წილი ${b(`${pctO(rank.import.sharePct)}%`)}.`;
         imp += '</p>';
         lines.push(imp);
       } else {
