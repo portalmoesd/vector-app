@@ -710,7 +710,7 @@
         const reVal = rank.reExport ? rank.reExport.valueMln : (curExp - domVal);
         const rePct = (100 * reVal / curExp).toFixed(0);
         if (isKa) {
-          lines.push(`<p>${periodGen} აღნიშნულ პერიოდში განხორციელდა ${b(`${fmln(domVal)} მლნ. აშშ დოლარის`)} ${b('ადგილობრივი ექსპორტი')}, რაც შეადგენს ${b(`${domPct}%-ს`)} სრული ექსპორტის. ადგილობრივი ექსპორტით ${escapeHtml(countryName)} იკავებს ${b(`${geP(rank.domesticExport.rank)} ადგილს`)} საქართველოს სავაჭრო პარტნიორებს შორის. რე-ექსპორტმა იმავე პერიოდში შეადგინა ${b(`${fmln(reVal)} მლნ. აშშ დოლარი`)} <em>(წილი ${rePct}%)</em>.</p>`);
+          lines.push(`<p>${periodGen} პერიოდში განხორციელდა ${b(`${fmln(domVal)} მლნ. აშშ დოლარის`)} ${b('ადგილობრივი ექსპორტი')}, რაც შეადგენს ${b(`${domPct}%-ს`)} სრული ექსპორტის. ადგილობრივი ექსპორტით ${escapeHtml(countryName)} იკავებს ${b(`${geP(rank.domesticExport.rank)} ადგილს`)} საქართველოს სავაჭრო პარტნიორებს შორის. რე-ექსპორტმა იმავე პერიოდში შეადგინა ${b(`${fmln(reVal)} მლნ. აშშ დოლარი`)} <em>(წილი ${rePct}%)</em>.</p>`);
         } else {
           lines.push(`<p>In the given period, domestic exports amounted to ${b(`${fmln(domVal)} mln USD`)}, comprising ${b(`${domPct}%`)} of total exports. By domestic exports, ${escapeHtml(countryName)} ranks ${b(enO(rank.domesticExport.rank))} among Georgia's trading partners. Re-exports in the same period amounted to ${b(`${fmln(reVal)} mln USD`)} <em>(${rePct}% share)</em>.</p>`);
         }
