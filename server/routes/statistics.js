@@ -295,7 +295,7 @@ router.post('/country-ranking', async (req, res) => {
       // Turnover = export + import, computed per country after fetching.
       const [exp, imp] = await Promise.all([
         fetchFlowRanking(10, year, lastMonth, allCountryIds),
-        fetchFlowRanking(20, year, lastMonth, allCountryIds),
+        fetchFlowRanking(11, year, lastMonth, allCountryIds),
       ]);
 
       // Compute turnover per country = export + import
