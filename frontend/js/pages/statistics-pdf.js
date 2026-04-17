@@ -349,7 +349,7 @@
         body,
       },
       layout: tableLayout,
-      margin: [0, 0, 0, 8],
+      margin: [0, 14, 0, 8],
     };
   }
 
