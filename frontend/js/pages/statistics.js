@@ -635,10 +635,10 @@
     const ov = trade.overview;
 
     const periodGen = isKa
-      ? (lm === 12 ? `${year} წლის` : lm === 1 ? `${year} წლის ${KA_MONTH_GEN[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_GEN[lm]}`)
+      ? (lm === 12 ? `${year} წლის` : lm === 1 ? `${year} წლის ${KA_MONTH_GEN[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_GEN[lm]}`)
       : (lm === 12 ? `${year}` : lm === 1 ? `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)} ${year}` : `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)}-${(mn.find(m => m.value === lm)?.label || '').slice(0, 3)} ${year}`);
     const periodLoc = isKa
-      ? (lm === 12 ? `${year} წელს` : lm === 1 ? `${year} წლის ${KA_MONTH_LOC[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_LOC[lm]}`)
+      ? (lm === 12 ? `${year} წელს` : lm === 1 ? `${year} წლის ${KA_MONTH_LOC[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_LOC[lm]}`)
       : periodGen;
 
     function b(s) { return `<strong>${escapeHtml(s)}</strong>`; }

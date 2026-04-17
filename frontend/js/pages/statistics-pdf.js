@@ -53,7 +53,7 @@
       export: 'Export',
       import: 'Import',
       balance: 'Balance',
-      dynamics: 'Export–Import Dynamics',
+      dynamics: 'Export-Import Dynamics',
       mainExport: 'Main Export Products',
       mainImport: 'Main Import Products',
       exportIncrease: 'Most Increased Export Products',
@@ -151,13 +151,13 @@
   function gePeriodGen(year, latestMonth) {
     if (latestMonth === 12) return `${year} წლის`;
     if (latestMonth === 1)  return `${year} წლის ${KA_MONTHS[1].gen}`;
-    return `${year} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].gen}`;
+    return `${year} წლის ${KA_MONTHS[1].stem}\u2011${KA_MONTHS[latestMonth].gen}`;
   }
 
   function gePeriodLoc(year, latestMonth) {
     if (latestMonth === 12) return `${year} წელს`;
     if (latestMonth === 1)  return `${year} წლის ${KA_MONTHS[1].loc}`;
-    return `${year} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].loc}`;
+    return `${year} წლის ${KA_MONTHS[1].stem}\u2011${KA_MONTHS[latestMonth].loc}`;
   }
 
   function enPeriod(year, latestMonth, monthNames) {
@@ -306,7 +306,7 @@
     };
 
     function cell(value, prev, isBalance, key, periodData) {
-      if (isBalance && periodData.turnover === 0) return { text: '—', alignment: 'center' };
+      if (isBalance && periodData.turnover === 0) return { text: '-', alignment: 'center' };
       if (value === 0 && !isBalance && zeroMsg[key]) return { text: zeroMsg[key], alignment: 'center', color: '#94a3b8', fontSize: 8.5 };
       if (isBalance) {
         const sign = value < 0 ? t.negative : t.positive;
@@ -376,7 +376,7 @@
         tdNum(`${changeSign}${formatPct(change)}`, { color: changeColor }),
       ];
       if (showReexport) {
-        row.push(tdNum(p.reexportShare === 0 ? '—' : formatPct(p.reexportShare)));
+        row.push(tdNum(p.reexportShare === 0 ? '-' : formatPct(p.reexportShare)));
       }
       body.push(row);
     }
@@ -625,7 +625,7 @@
     if (!trade) return [];
 
     const blocks = [];
-    const title = `${country} — ${t.tradeOverview}, ${trade.periodLabel} ${trade.latestYear}`;
+    const title = `${country} - ${t.tradeOverview}, ${trade.periodLabel} ${trade.latestYear}`;
     const summary = buildTradeSummary(trade, t, country, lang);
     blocks.push(withTitle(
       sectionTitle(title),
@@ -729,7 +729,7 @@
   function buildTourismSection(tourism, charts, t, country) {
     if (!tourism) return [];
     const blocks = [];
-    const title = sectionTitle(`${country} — ${t.internationalVisitors}`);
+    const title = sectionTitle(`${country} - ${t.internationalVisitors}`);
 
     if (!tourism.hasData) {
       blocks.push(withTitle(
@@ -746,7 +746,7 @@
     for (const r of rows) {
       let changeCell;
       if (r.changePct === null || r.changePct === undefined) {
-        changeCell = tdNum('—');
+        changeCell = tdNum('-');
       } else {
         const color = r.changePct > 0 ? '#16a34a' : (r.changePct < 0 ? '#dc2626' : '#475569');
         const sign = r.changePct > 0 ? '+' : '';
@@ -790,7 +790,7 @@
   function buildInvestmentsSection(inv, charts, t, country) {
     if (!inv) return [];
     const blocks = [];
-    const title = sectionTitle(`${country} — ${t.fdi}`);
+    const title = sectionTitle(`${country} - ${t.fdi}`);
 
     if (!inv.hasData) {
       blocks.push(withTitle(
