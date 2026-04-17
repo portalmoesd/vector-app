@@ -511,6 +511,7 @@ const TOURISM_QUARTERLY_SCAN_RANGE = 200;
 
 let tourismCache = { data: null, ts: 0 };
 const TOURISM_CACHE_TTL = 24 * 60 * 60 * 1000;
+const TOURISM_DATA_FILE = path.join(__dirname, '../data/tourism-cache.json');
 
 // Parse the historical file — country names in col A, years 2011-YYYY in cols B+
 function parseHistoricalWorkbook(wb) {
@@ -658,13 +659,18 @@ function writeCachedQuarterlyId(id) {
   try { fs.writeFileSync(TOURISM_QUARTERLY_ID_FILE, String(id)); } catch (_) {}
 }
 
-router.get('/tourism', async (req, res) => {
-  try {
-    if (tourismCache.data && Date.now() - tourismCache.ts < TOURISM_CACHE_TTL) {
-      return res.json(tourismCache.data);
-    }
+// ── Refresh tourism data: fetch, parse, merge, save to disk ──────────
+// Called by the daily scheduler and on first request if no cached file.
+let tourismRefreshRunning = false;
 
-    // ── 1. Fetch historical file (stable ID) ──
+async function refreshTourismData() {
+  if (tourismRefreshRunning) return;
+  tourismRefreshRunning = true;
+  const t0 = Date.now();
+  console.log('tourism: refreshing data...');
+
+  try {
+    // 1. Fetch historical file (stable ID)
     let histWb;
     try {
       const r = await fetch(TOURISM_HISTORICAL_URL, {
@@ -676,17 +682,16 @@ router.get('/tourism', async (req, res) => {
       histWb = XLSX.read(buf, { type: 'buffer' });
       fs.writeFileSync(TOURISM_HISTORICAL_LOCAL, buf);
     } catch (err) {
-      console.log('Historical tourism download failed, using local:', err.message);
+      console.log('tourism: historical download failed, using local:', err.message);
       histWb = XLSX.readFile(TOURISM_HISTORICAL_LOCAL);
     }
     const historical = parseHistoricalWorkbook(histWb);
 
-    // ── 2. Discover + fetch latest quarterly file ──
+    // 2. Discover + fetch latest quarterly file
     let quarterly = null;
     let quarterlyId = readCachedQuarterlyId();
 
     try {
-      // Scan from last-known ID upwards for anything newer
       const scanStart = quarterlyId || TOURISM_QUARTERLY_BASE_ID;
       const match = await findLatestQuarterlyFile(scanStart);
       if (match) {
@@ -694,22 +699,20 @@ router.get('/tourism', async (req, res) => {
         quarterlyId = match.id;
         fs.writeFileSync(TOURISM_QUARTERLY_LOCAL, match.buffer);
         writeCachedQuarterlyId(match.id);
-        console.log(`Tourism quarterly file discovered: ID ${match.id} (${match.parsed.currentLabel})`);
+        console.log(`tourism: quarterly file discovered: ID ${match.id} (${match.parsed.currentLabel})`);
       } else if (quarterlyId) {
-        // No new file found, but we had one cached. Use the local copy.
         const localWb = XLSX.readFile(TOURISM_QUARTERLY_LOCAL);
         quarterly = parseQuarterlyWorkbook(localWb);
       }
     } catch (err) {
-      console.log('Quarterly discovery failed, trying local:', err.message);
+      console.log('tourism: quarterly discovery failed, trying local:', err.message);
       try {
         const localWb = XLSX.readFile(TOURISM_QUARTERLY_LOCAL);
         quarterly = parseQuarterlyWorkbook(localWb);
       } catch (_) { /* no local either */ }
     }
 
-    // ── 3. Merge ──
-    // Build unified countries map: { name: { annual: {year:N}, current: N|null, compare: N|null } }
+    // 3. Merge
     const countries = {};
     for (const [name, years] of Object.entries(historical.countries)) {
       countries[name] = { annual: years, current: null, compare: null };
@@ -720,12 +723,9 @@ router.get('/tourism', async (req, res) => {
         label: quarterly.currentLabel,
         compareLabel: quarterly.compareLabel,
       };
-      // Only include currentPeriod if the label indicates a quarterly period
-      // (i.e. contains "კვ"). Plain year labels mean this file just duplicates annual data.
       if (!/კვ/.test(quarterly.currentLabel)) {
         currentPeriod = null;
       }
-
       if (currentPeriod) {
         for (const [name, vals] of Object.entries(quarterly.countries)) {
           if (!countries[name]) {
@@ -744,8 +744,64 @@ router.get('/tourism', async (req, res) => {
       countries,
     };
 
+    // Save to disk + memory cache
+    fs.writeFileSync(TOURISM_DATA_FILE, JSON.stringify(result));
     tourismCache = { data: result, ts: Date.now() };
-    res.json(result);
+    console.log(`tourism: refresh completed in ${((Date.now() - t0) / 1000).toFixed(1)}s — ${Object.keys(countries).length} countries`);
+  } catch (err) {
+    console.error('tourism: refresh failed:', err.message);
+  } finally {
+    tourismRefreshRunning = false;
+  }
+}
+
+// Load cached data from disk on startup (instant, no network)
+function loadTourismFromDisk() {
+  try {
+    if (fs.existsSync(TOURISM_DATA_FILE)) {
+      const raw = fs.readFileSync(TOURISM_DATA_FILE, 'utf8');
+      const data = JSON.parse(raw);
+      if (data && data.success) {
+        tourismCache = { data, ts: Date.now() };
+        console.log('tourism: loaded from disk cache');
+        return true;
+      }
+    }
+  } catch (_) {}
+  return false;
+}
+
+// Schedule daily refresh at 11:00 AM server time
+function scheduleTourismRefresh() {
+  const HOUR = 11;
+  const now = new Date();
+  const next = new Date();
+  next.setHours(HOUR, 0, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  const delay = next - now;
+  console.log(`tourism: next scheduled refresh in ${(delay / 3600000).toFixed(1)}h (${next.toISOString()})`);
+  setTimeout(() => {
+    refreshTourismData();
+    setInterval(refreshTourismData, 24 * 60 * 60 * 1000);
+  }, delay);
+}
+
+// Init: load from disk, schedule daily refresh
+loadTourismFromDisk();
+scheduleTourismRefresh();
+
+router.get('/tourism', async (req, res) => {
+  try {
+    // Serve from memory/disk cache if available
+    if (tourismCache.data) {
+      return res.json(tourismCache.data);
+    }
+    // First request ever with no disk cache — do one blocking refresh
+    await refreshTourismData();
+    if (tourismCache.data) {
+      return res.json(tourismCache.data);
+    }
+    res.status(502).json({ error: 'Tourism data not available yet' });
   } catch (err) {
     console.error('Tourism data error:', err.message);
     res.status(502).json({ error: 'Failed to load tourism data' });
