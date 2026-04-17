@@ -928,10 +928,21 @@
       }
       return { text: parts, ...paraStyle };
     }
-    const s3 = yearSentence(inv.latestYear, inv.latestYearValue, inv.latestYearRank);
-    if (s3) nodes.push(s3);
-    const s4 = yearSentence(inv.prevYear, inv.prevYearValue, inv.prevYearRank);
-    if (s4) nodes.push(s4);
+    function noInvestmentSentence(year) {
+      if (isKa) {
+        return { text: [B(`${year} წელს`), ` ${countryFrom} ინვესტიცია არ განხორციელდა.`], ...paraStyle };
+      }
+      return { text: [`In `, B(`${year}`), `, no investment was conducted from ${country}.`], ...paraStyle };
+    }
+
+    if (inv.latestYear) {
+      const s3 = yearSentence(inv.latestYear, inv.latestYearValue, inv.latestYearRank);
+      nodes.push(s3 || noInvestmentSentence(inv.latestYear));
+    }
+    if (inv.prevYear) {
+      const s4 = yearSentence(inv.prevYear, inv.prevYearValue, inv.prevYearRank);
+      nodes.push(s4 || noInvestmentSentence(inv.prevYear));
+    }
 
     return nodes;
   }

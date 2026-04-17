@@ -1842,32 +1842,41 @@
     }
 
     // Sentence 3: latest full year + rank
-    if (inv.latestYearValue > 0 && inv.latestYear) {
-      if (isKa) {
-        let s = `<p>${b(`${inv.latestYear} წელს`)} ${escapeHtml(countryKaFrom)} საქართველოში განხორციელდა ${b(`${fmt(inv.latestYearValue)} მლნ. აშშ დოლარის`)} პირდაპირი უცხოური ინვესტიცია.`;
-        if (inv.latestYearRank) s += ` ${escapeHtml(countryKa)} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით ${inv.latestYear} წელს ${b(`${geP(inv.latestYearRank)} ადგილს`)} იკავებს.`;
-        s += '</p>';
-        lines.push(s);
+    // Sentence 3: latest full year + rank (show "no investment" if value ≤ 0)
+    if (inv.latestYear) {
+      if (inv.latestYearValue > 0) {
+        if (isKa) {
+          let s = `<p>${b(`${inv.latestYear} წელს`)} ${escapeHtml(countryKaFrom)} საქართველოში განხორციელდა ${b(`${fmt(inv.latestYearValue)} მლნ. აშშ დოლარის`)} პირდაპირი უცხოური ინვესტიცია.`;
+          if (inv.latestYearRank) s += ` ${escapeHtml(countryKa)} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით ${inv.latestYear} წელს ${b(`${geP(inv.latestYearRank)} ადგილს`)} იკავებს.`;
+          s += '</p>';
+          lines.push(s);
+        } else {
+          let s = `<p>In ${b(inv.latestYear)}, ${b(`${fmt(inv.latestYearValue)} mln USD`)} of foreign direct investment came to Georgia from ${escapeHtml(countryEn)}.`;
+          if (inv.latestYearRank) s += ` ${escapeHtml(countryEn)} ranked ${b(enO(inv.latestYearRank))} by FDI volume in ${inv.latestYear}.`;
+          s += '</p>';
+          lines.push(s);
+        }
       } else {
-        let s = `<p>In ${b(inv.latestYear)}, ${b(`${fmt(inv.latestYearValue)} mln USD`)} of foreign direct investment came to Georgia from ${escapeHtml(countryEn)}.`;
-        if (inv.latestYearRank) s += ` ${escapeHtml(countryEn)} ranked ${b(enO(inv.latestYearRank))} by FDI volume in ${inv.latestYear}.`;
-        s += '</p>';
-        lines.push(s);
+        lines.push(`<p>${isKa ? `${b(`${inv.latestYear} წელს`)} ${escapeHtml(countryKaFrom)} ინვესტიცია არ განხორციელდა.` : `In ${b(inv.latestYear)}, no investment was conducted from ${escapeHtml(countryEn)}.`}</p>`);
       }
     }
 
-    // Sentence 4: previous full year + rank
-    if (inv.prevYearValue > 0 && inv.prevYear) {
-      if (isKa) {
-        let s = `<p>${b(`${inv.prevYear} წელს`)} ${escapeHtml(countryKaFrom)} საქართველოში განხორციელდა ${b(`${fmt(inv.prevYearValue)} მლნ. აშშ დოლარის`)} პირდაპირი უცხოური ინვესტიცია.`;
-        if (inv.prevYearRank) s += ` ${escapeHtml(countryKa)} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით ${inv.prevYear} წელს ${b(`${geP(inv.prevYearRank)} ადგილს`)} იკავებს.`;
-        s += '</p>';
-        lines.push(s);
+    // Sentence 4: previous full year + rank (show "no investment" if value ≤ 0)
+    if (inv.prevYear) {
+      if (inv.prevYearValue > 0) {
+        if (isKa) {
+          let s = `<p>${b(`${inv.prevYear} წელს`)} ${escapeHtml(countryKaFrom)} საქართველოში განხორციელდა ${b(`${fmt(inv.prevYearValue)} მლნ. აშშ დოლარის`)} პირდაპირი უცხოური ინვესტიცია.`;
+          if (inv.prevYearRank) s += ` ${escapeHtml(countryKa)} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით ${inv.prevYear} წელს ${b(`${geP(inv.prevYearRank)} ადგილს`)} იკავებს.`;
+          s += '</p>';
+          lines.push(s);
+        } else {
+          let s = `<p>In ${b(inv.prevYear)}, ${b(`${fmt(inv.prevYearValue)} mln USD`)} of foreign direct investment came to Georgia from ${escapeHtml(countryEn)}.`;
+          if (inv.prevYearRank) s += ` ${escapeHtml(countryEn)} ranked ${b(enO(inv.prevYearRank))} by FDI volume in ${inv.prevYear}.`;
+          s += '</p>';
+          lines.push(s);
+        }
       } else {
-        let s = `<p>In ${b(inv.prevYear)}, ${b(`${fmt(inv.prevYearValue)} mln USD`)} of foreign direct investment came to Georgia from ${escapeHtml(countryEn)}.`;
-        if (inv.prevYearRank) s += ` ${escapeHtml(countryEn)} ranked ${b(enO(inv.prevYearRank))} by FDI volume in ${inv.prevYear}.`;
-        s += '</p>';
-        lines.push(s);
+        lines.push(`<p>${isKa ? `${b(`${inv.prevYear} წელს`)} ${escapeHtml(countryKaFrom)} ინვესტიცია არ განხორციელდა.` : `In ${b(inv.prevYear)}, no investment was conducted from ${escapeHtml(countryEn)}.`}</p>`);
       }
     }
 
