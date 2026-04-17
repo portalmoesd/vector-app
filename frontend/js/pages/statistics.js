@@ -190,6 +190,16 @@
     console.error('Failed to load country name mapping:', err);
   }
 
+  // Apply canonical names from the mapping to each country's display label.
+  // If a trade country name has a canonical entry in countryNameMap, show
+  // the canonical name in the dropdown; otherwise keep the raw trade name.
+  // rawLabel is preserved for downstream matching (e.g. tourism GNTA data).
+  for (const c of countries) {
+    c.rawLabel = c.displayLabel;
+    const canonical = countryNameMap[c.displayLabel];
+    if (canonical) c.displayLabel = canonical;
+  }
+
   // ── Country search dropdown ──────────────────────────────────────────────
 
   function renderDropdown(filter) {
@@ -1325,24 +1335,24 @@
   // ── TOURISM TAB ────────────────────────────────────────────────────────
   // ════════════════════════════════════════════════════════════════════════
 
-  // Resolve a country displayLabel to GNTA country name
-  function resolveGntaName(displayLabel, gntaCountries) {
-    // Direct match
-    if (gntaCountries[displayLabel]) return displayLabel;
-    // Try via mapping
-    const canonical = countryNameMap[displayLabel];
-    if (canonical && gntaCountries[canonical]) return canonical;
-    // Try reverse: the mapping canonical might differ from GNTA name
-    // Check all mapping entries where variant matches displayLabel
+  // Resolve the selected country to GNTA country name.
+  // The country has two labels: displayLabel (canonical, for dropdown) and
+  // rawLabel (original trade name). GNTA might use either form, so try both
+  // plus any variant that maps to the same canonical.
+  function resolveGntaName(country, gntaCountries) {
+    const canonical = country.displayLabel;
+    const raw = country.rawLabel || canonical;
+    // Direct match on canonical
+    if (gntaCountries[canonical]) return canonical;
+    // Direct match on raw trade name
+    if (gntaCountries[raw]) return raw;
+    // Try any variant that maps to the same canonical
     for (const [variant, canon] of Object.entries(countryNameMap)) {
-      if (variant === displayLabel) {
-        // Try finding a GNTA country that starts with the canonical name or vice versa
-        for (const gntaName of Object.keys(gntaCountries)) {
-          if (gntaName === canon || gntaName.includes(canon) || canon.includes(gntaName)) {
-            return gntaName;
-          }
-        }
-      }
+      if (canon === canonical && gntaCountries[variant]) return variant;
+    }
+    // Fuzzy match: GNTA name starts with / contains / is contained by canonical
+    for (const gntaName of Object.keys(gntaCountries)) {
+      if (gntaName.includes(canonical) || canonical.includes(gntaName)) return gntaName;
     }
     return null;
   }
@@ -1363,7 +1373,7 @@
       const json = await res.json();
       if (!json.success) throw new Error('Tourism data fetch failed');
 
-      const gntaName = resolveGntaName(selectedCountry.displayLabel, json.countries);
+      const gntaName = resolveGntaName(selectedCountry, json.countries);
       const countryData = gntaName ? json.countries[gntaName] : null;
 
       if (!countryData) {
