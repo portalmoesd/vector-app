@@ -6,8 +6,11 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: var(--bg-page, #f5f7fa);
+  background: transparent;
   padding-bottom: 4px;
+}
+.stat-sticky-header .stat-controls {
+  margin-bottom: 0;
 }
 
 /* Scroll padding so anchor-scrolled sections don't hide behind sticky header */

@@ -1471,7 +1471,7 @@
       }
 
       const isKa = I18n.getLocale() === 'ka';
-      tourismHeader.innerHTML = `<h3 class="stat-report__title">${escapeHtml(selectedCountry.displayLabel)} - ${isKa ? 'საერთაშორისო ვიზიტორები' : 'International Visitors'}</h3>`;
+      // Section heading handles the title; skip inner header to avoid duplication.
 
       // ── Summary data: 5-year sum + latest-period rank ──────────────
       const fiveYearStart = latestYear - 4;
@@ -1772,7 +1772,7 @@
       const prevYearRank = rankForYear(prevYear);
 
       const isKa = I18n.getLocale() === 'ka';
-      fdiHeader.innerHTML = `<h3 class="stat-report__title">${escapeHtml(selectedCountry.displayLabel)} - ${isKa ? 'პირდაპირი უცხოური ინვესტიციები' : 'Foreign Direct Investment'}</h3>`;
+      // Section heading handles the title; skip inner header to avoid duplication.
 
       renderFdiTable(tableData, isKa);
       renderFdiChart(tableData, isKa);

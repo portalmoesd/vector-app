@@ -55,7 +55,11 @@
     "change": "Change, %",
     "reexportShare": "Re-export share, %",
     "total": "Total (displayed products)",
-    "noData": "No data found"
+    "noData": "No data found",
+    "tradeTab": "Trade",
+    "tourismTab": "Tourism",
+    "investmentsTab": "Investments",
+    "appendixTab": "Appendix"
   },
   "common": {
     "save": "Save",
