@@ -147,6 +147,22 @@
     for (const c of countries) countryNameEnMap[c.value] = c.displayLabel;
   }
 
+  // Always load the Georgian classificatory too — we need Georgian canonical
+  // country names (by ID) to match GNTA tourism data, regardless of UI lang.
+  const countryNameKaMap = {}; // id → Georgian country name
+  if (lang === 'ka') {
+    for (const c of countries) countryNameKaMap[c.value] = c.displayLabel;
+  } else {
+    try {
+      const kaJson = await geostatGet('/classificatory?lang=ka');
+      if (kaJson.success && kaJson.data && kaJson.data.countries) {
+        for (const c of kaJson.data.countries) {
+          countryNameKaMap[c.value] = c.label.replace(/^\d+\s+/, '');
+        }
+      }
+    } catch (_) {}
+  }
+
   // ── Load HS4 short name mapping ──────────────────────────────────────────
   const hs4NameMap = {};
   const hs4NameMapEn = {};
@@ -202,11 +218,15 @@
 
   // Add English → Georgian canonical entries so resolveGntaName works
   // when the UI is in English. The shared numeric country ID bridges
-  // the two classificatories.
+  // the two classificatories — always use the Georgian canonical as
+  // the target (since GNTA tourism data is always in Georgian).
   for (const c of countries) {
     const englishName = countryNameEnMap[c.value];
-    if (englishName && !countryNameMap[englishName]) {
-      countryNameMap[englishName] = c.displayLabel;
+    const georgianName = countryNameKaMap[c.value];
+    // Apply any variant→canonical mapping to the Georgian name too
+    const georgianCanonical = (georgianName && countryNameMap[georgianName]) || georgianName;
+    if (englishName && georgianCanonical && !countryNameMap[englishName]) {
+      countryNameMap[englishName] = georgianCanonical;
     }
   }
 
