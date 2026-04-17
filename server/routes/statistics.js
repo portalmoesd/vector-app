@@ -829,16 +829,27 @@ function parseFdiSectorsWorkbook(wb) {
   }
   if (headerIdx < 0) throw new Error('Header row with "ქვეყნის კოდი" not found');
 
-  // Detect year columns from the header (D onwards). Accept "2025" or "2025*".
+  // Detect period columns from the header (D onwards). Accepts:
+  //   "2025"           → label "2025"
+  //   "2025*"          → label "2025" (preliminary marker stripped)
+  //   "2026 I კვ"      → label "2026 I კვ" (quarterly)
+  //   "Q1 2026"        → label "Q1 2026"
+  // Any header whose stripped form contains a 4-digit year in [2000..2100]
+  // counts. The raw label is preserved so the UI can render "2026 I კვ"
+  // instead of just "2026".
   const header = rows[headerIdx];
-  const yearCols = [];
+  const periodCols = [];
   for (let c = 3; c < header.length; c++) {
-    const raw = String(header[c] || '').replace('*', '').trim();
-    const y = parseInt(raw, 10);
-    if (y >= 2000 && y <= 2100) yearCols.push({ col: c, year: y });
+    const raw = String(header[c] || '').replace(/\*/g, '').trim();
+    if (!raw) continue;
+    const m = /\b(20\d{2}|21\d{2})\b/.exec(raw);
+    if (!m) continue;
+    const year = parseInt(m[1], 10);
+    if (year < 2000 || year > 2100) continue;
+    periodCols.push({ col: c, label: raw });
   }
-  if (!yearCols.length) throw new Error('No year columns found in header');
-  const years = yearCols.map(y => y.year);
+  if (!periodCols.length) throw new Error('No year/period columns found in header');
+  const years = periodCols.map(p => p.label); // strings (may include quarter suffix)
 
   function parseNum(v) {
     if (v === null || v === undefined || v === '-' || v === '') return null;
@@ -871,7 +882,7 @@ function parseFdiSectorsWorkbook(wb) {
     if (!current || !sectorRaw) continue;
 
     const values = {};
-    for (const { col, year } of yearCols) values[year] = parseNum(row[col]);
+    for (const { col, label } of periodCols) values[label] = parseNum(row[col]);
 
     if (sectorRaw === 'სულ') {
       countries[current.code].totals = values;
