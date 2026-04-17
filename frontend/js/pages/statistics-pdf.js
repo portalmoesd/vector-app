@@ -484,6 +484,12 @@
 
     // ── Turnover ─────────────────────────────────────────────────────────
     nodes.push(heading('სავაჭრო ბრუნვა', 'Trade Turnover'));
+    if (curTurn < 0.01) {
+      nodes.push({ text: isKa
+        ? `${periodGen} მონაცემებით, ვაჭრობა არ განხორციელდა.`
+        : `For ${periodEn}, no trade was conducted.`, ...paraStyle });
+      return nodes;
+    }
     if (isKa) {
       nodes.push({ text: [
         `${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიურ პერიოდთან შედარებით, `,
@@ -513,7 +519,7 @@
     // ── Export ────────────────────────────────────────────────────────────
     nodes.push(divider());
     nodes.push(heading('ექსპორტი', 'Export'));
-    if (!trade.hasExport) {
+    if (!trade.hasExport || curExp < 0.01) {
       nodes.push({ text: isKa ? `ექსპორტი ${periodLoc} არ განხორციელდა.` : `No exports were conducted in ${periodEn}.`, ...paraStyle, margin: [0, 6, 0, 4] });
     } else {
       if (isKa) {
@@ -583,7 +589,7 @@
     // ── Import ───────────────────────────────────────────────────────────
     nodes.push(divider());
     nodes.push(heading('იმპორტი', 'Import'));
-    if (!trade.hasImport) {
+    if (!trade.hasImport || curImp < 0.01) {
       nodes.push({ text: isKa ? `იმპორტი ${periodLoc} არ განხორციელდა.` : `No imports were conducted in ${periodEn}.`, ...paraStyle, margin: [0, 6, 0, 4] });
     } else {
       if (isKa) {
