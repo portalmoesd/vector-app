@@ -163,10 +163,8 @@ function extractRowCountryId(row) {
   return row.country ?? row.country_id ?? row.countryId ?? row.country_code ?? null;
 }
 
-async function fetchFlowRanking(tradeFlowCode, year, lastMonth, allCountryIds) {
-  // Single Geostat call: pass ALL country IDs + sum=true + months=[lastMonth].
-  // sum=true makes months=[N] return the cumulative Jan..N total.
-  // Response: one row per country, each with a usd1000_* value field.
+async function fetchFlowRanking(tradeFlowCode, year, months, allCountryIds) {
+  // Single Geostat call: pass ALL country IDs + all months + sum=true.
 
   let rawResponse = null;
   const perCountry = {}; // String(countryId) -> valueThd
@@ -178,7 +176,7 @@ async function fetchFlowRanking(tradeFlowCode, year, lastMonth, allCountryIds) {
         tradeFlow: tradeFlowCode,
         measurementUnits: [1],
         years: [year],
-        months: [lastMonth],
+        months,
         countries: allCountryIds,
         sum: true,
         locale: 'en',
@@ -234,7 +232,7 @@ async function fetchFlowRanking(tradeFlowCode, year, lastMonth, allCountryIds) {
   });
 
   const stats = { withTrade: countryCount, totalMln: total, rawResponse };
-  console.log(`country-ranking [flow=${tradeFlowCode} ${year}/m${lastMonth}]: ${countryCount} countries, total $${total.toFixed(1)}M`);
+  console.log(`country-ranking [flow=${tradeFlowCode} ${year}/m${months.join(',')}]: ${countryCount} countries, total $${total.toFixed(1)}M`);
   return { total, perCountry: map, stats };
 }
 
@@ -284,20 +282,17 @@ router.post('/country-ranking', async (req, res) => {
 
     if (!cached) {
       const t0 = Date.now();
-      const lastMonth = Math.max(...sortedMonths);
       const allCountryIds = await getAllCountryIds();
       debug.classificatoryCountries = allCountryIds.length;
-      console.log(`country-ranking: computing for ${year}/m${lastMonth}, ${allCountryIds.length} countries`);
+      console.log(`country-ranking: computing for ${year}/m${sortedMonths.join(',')}, ${allCountryIds.length} countries`);
 
-      // 2 parallel Geostat calls: export (tradeFlow=10) + import (tradeFlow=20).
-      // Each passes ALL country IDs + sum=true + months=[lastMonth].
-      // sum=true makes months=[N] return the cumulative Jan..N total.
-      // Turnover = export + import, computed per country after fetching.
+      // 4 parallel Geostat calls: export + import + domestic export + re-export.
+      // Each passes ALL country IDs + full months array + sum=true.
       const [exp, imp, domExp, reExp] = await Promise.all([
-        fetchFlowRanking(10, year, lastMonth, allCountryIds),
-        fetchFlowRanking(11, year, lastMonth, allCountryIds),
-        fetchFlowRanking(12, year, lastMonth, allCountryIds),
-        fetchFlowRanking(13, year, lastMonth, allCountryIds),
+        fetchFlowRanking(10, year, sortedMonths, allCountryIds),
+        fetchFlowRanking(11, year, sortedMonths, allCountryIds),
+        fetchFlowRanking(12, year, sortedMonths, allCountryIds),
+        fetchFlowRanking(13, year, sortedMonths, allCountryIds),
       ]);
 
       // Compute turnover per country = export + import
