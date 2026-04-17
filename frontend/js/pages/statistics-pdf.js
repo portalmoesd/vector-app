@@ -1061,8 +1061,10 @@
 
     // Sector rows
     const sectorNames = Object.keys(data.sectors || {});
+    const nameMap = sectors.sectorNameMap || {};
     for (const sector of sectorNames) {
-      const row = [{ text: sector, fontSize: 8 }];
+      const displayName = isKa ? sector : (nameMap[sector] || sector);
+      const row = [{ text: displayName, fontSize: 8 }];
       const vals = data.sectors[sector] || {};
       for (const y of years) {
         const v = vals[y];

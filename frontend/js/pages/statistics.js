@@ -1795,7 +1795,7 @@
         const sJson = await sRes.json();
         if (sJson && sJson.success && !sJson.empty) {
           const c = sJson.countries && sJson.countries[String(countryCode)];
-          if (c) sectorsData = { years: sJson.years, sectors: sJson.sectors, data: c };
+          if (c) sectorsData = { years: sJson.years, sectors: sJson.sectors, sectorNameMap: sJson.sectorNameMap || {}, data: c };
         }
       } catch (_) { /* silently hide sectors card */ }
       pdfState.investmentsSectors = sectorsData;
@@ -1818,7 +1818,7 @@
       fdiSectorsCardEl.classList.add('hidden');
       return;
     }
-    const { years, data } = sectorsState;
+    const { years, data, sectorNameMap } = sectorsState;
     const country = isKa ? selectedCountry.displayLabel : (countryNameEnMap[selectedCountry.value] || selectedCountry.displayLabel);
     const yrRange = years.length > 1 ? `${years[0]}–${years[years.length - 1]}` : `${years[0]}`;
     const title = isKa
@@ -1857,9 +1857,11 @@
 
     // Sector rows — only include sectors that exist for this country.
     const sectorNames = Object.keys(data.sectors || {});
+    const nameMap = sectorNameMap || {};
     for (const sector of sectorNames) {
       const vals = data.sectors[sector] || {};
-      html += `<tr><td>${escapeHtml(sector)}</td>`;
+      const displayName = isKa ? sector : (nameMap[sector] || sector);
+      html += `<tr><td>${escapeHtml(displayName)}</td>`;
       for (const y of years) {
         const v = vals[y];
         html += `<td class="stat-col-value ${cellCls(v)}">${fmt(v)}</td>`;
