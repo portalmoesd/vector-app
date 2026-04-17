@@ -163,30 +163,25 @@ function extractRowCountryId(row) {
   return row.country ?? row.country_id ?? row.countryId ?? row.country_code ?? null;
 }
 
-async function fetchFlowRanking(tradeFlow, year, months) {
-  // Strategy 1: ONE Geostat call per flow WITHOUT a countries filter.
-  // When no countries filter is applied, Geostat may return per-country rows.
-  //
-  // Strategy 2 (fallback): if strategy 1 yields < 10 countries, do
-  // per-country requests using the proven fetchTradeTotal pattern.
+async function fetchFlowRanking(tradeFlowCode, year, lastMonth, allCountryIds) {
+  // Single Geostat call: pass ALL country IDs + sum=true + months=[lastMonth].
+  // sum=true makes months=[N] return the cumulative Jan..N total.
+  // Response: one row per country, each with a usd1000_* value field.
 
-  const CID_FIELDS = ['country', 'country_id', 'countryId', 'country_code', 'countries'];
   let rawResponse = null;
-  let perCountry = {}; // String(countryId) -> valueThd
+  const perCountry = {}; // String(countryId) -> valueThd
 
-  // ── Strategy 1: single call with grouping by country ───────────────
   try {
     const json = await geostatFetch('/get_data', {
       method: 'POST',
       body: JSON.stringify({
-        tradeFlow,
+        tradeFlow: tradeFlowCode,
         measurementUnits: [1],
         years: [year],
-        months,
-        countries: ['global'],
-        grouping: ['countries'],
-        locale: 'en',
+        months: [lastMonth],
+        countries: allCountryIds,
         sum: true,
+        locale: 'en',
         page: 1,
         pageSize: 500,
       }),
@@ -200,16 +195,20 @@ async function fetchFlowRanking(tradeFlow, year, months) {
     if (json && Array.isArray(json.data)) {
       for (const row of json.data) {
         if (row.isGroupSummary) continue;
+        const val = extractRowValue(row);
+        if (val <= 0) continue;
+        // Try every plausible field name for the country identifier.
         let cid = null;
-        for (const f of CID_FIELDS) {
+        for (const f of ['country', 'country_id', 'countryId', 'country_code', 'countries']) {
           if (row[f] != null && row[f] !== '') { cid = row[f]; break; }
         }
         if (cid == null) {
-          if (!rawResponse.sampleRowKeys) rawResponse.sampleRowKeys = Object.keys(row);
-          if (!rawResponse.sampleRow) rawResponse.sampleRow = row;
+          if (!rawResponse.sampleRowKeys) {
+            rawResponse.sampleRowKeys = Object.keys(row);
+            rawResponse.sampleRow = row;
+          }
           continue;
         }
-        const val = extractRowValue(row);
         const key = String(cid);
         perCountry[key] = (perCountry[key] || 0) + val;
       }
@@ -218,7 +217,6 @@ async function fetchFlowRanking(tradeFlow, year, months) {
     rawResponse = { error: err.message };
   }
 
-  // ── Compute ranks + shares ───────────────────────────────────────────
   const countryCount = Object.keys(perCountry).length;
   const entries = Object.entries(perCountry)
     .map(([cid, thd]) => ({ cid, valueMln: thd / 1000 }))
@@ -235,13 +233,8 @@ async function fetchFlowRanking(tradeFlow, year, months) {
     };
   });
 
-  const stats = {
-    withTrade: countryCount,
-    totalMln: total,
-    error: rawResponse && rawResponse.error ? rawResponse.error : null,
-    rawResponse,
-  };
-  console.log(`country-ranking [${tradeFlow} ${year}/${months.join(',')}]: ${countryCount} countries, total $${total.toFixed(1)}M`);
+  const stats = { withTrade: countryCount, totalMln: total, rawResponse };
+  console.log(`country-ranking [flow=${tradeFlowCode} ${year}/m${lastMonth}]: ${countryCount} countries, total $${total.toFixed(1)}M`);
   return { total, perCountry: map, stats };
 }
 
@@ -291,28 +284,52 @@ router.post('/country-ranking', async (req, res) => {
 
     if (!cached) {
       const t0 = Date.now();
-      console.log(`country-ranking: computing for ${year}/${sortedMonths.join(',')}`);
+      const lastMonth = Math.max(...sortedMonths);
+      const allCountryIds = await getAllCountryIds();
+      debug.classificatoryCountries = allCountryIds.length;
+      console.log(`country-ranking: computing for ${year}/m${lastMonth}, ${allCountryIds.length} countries`);
 
-      // 3 parallel Geostat calls (one per flow) — each uses
-      // countries:['global'] + grouping:['countries'] + sum:true
-      // to get per-country aggregates in a single request.
-      const [turnover, exp, imp] = await Promise.all([
-        fetchFlowRanking('turnover', year, sortedMonths),
-        fetchFlowRanking('export',   year, sortedMonths),
-        fetchFlowRanking('import',   year, sortedMonths),
+      // 2 parallel Geostat calls: export (tradeFlow=10) + import (tradeFlow=20).
+      // Each passes ALL country IDs + sum=true + months=[lastMonth].
+      // sum=true makes months=[N] return the cumulative Jan..N total.
+      // Turnover = export + import, computed per country after fetching.
+      const [exp, imp] = await Promise.all([
+        fetchFlowRanking(10, year, lastMonth, allCountryIds),
+        fetchFlowRanking(20, year, lastMonth, allCountryIds),
       ]);
 
+      // Compute turnover per country = export + import
+      const turnoverMap = {};
+      const allCids = new Set([...Object.keys(exp.perCountry), ...Object.keys(imp.perCountry)]);
+      let turnoverTotal = 0;
+      for (const cid of allCids) {
+        const val = (exp.perCountry[cid]?.valueMln || 0) + (imp.perCountry[cid]?.valueMln || 0);
+        if (val > 0) turnoverMap[cid] = val;
+      }
+      // Sort and assign ranks for turnover
+      const turnoverEntries = Object.entries(turnoverMap)
+        .sort(([, a], [, b]) => b - a);
+      turnoverTotal = turnoverEntries.reduce((s, [, v]) => s + v, 0);
+      const turnoverRanked = {};
+      turnoverEntries.forEach(([cid, valueMln], idx) => {
+        turnoverRanked[cid] = {
+          valueMln,
+          rank: idx + 1,
+          sharePct: turnoverTotal > 0 ? (100 * valueMln / turnoverTotal) : 0,
+        };
+      });
+
       cached = {
-        totals: { turnover: turnover.total, export: exp.total, import: imp.total },
-        flows: { turnover: turnover.perCountry, export: exp.perCountry, import: imp.perCountry },
-        flowStats: { turnover: turnover.stats, export: exp.stats, import: imp.stats },
+        totals: { turnover: turnoverTotal, export: exp.total, import: imp.total },
+        flows: { turnover: turnoverRanked, export: exp.perCountry, import: imp.perCountry },
+        flowStats: { export: exp.stats, import: imp.stats },
       };
       // Only cache if we got meaningful data; never cache failures.
-      const hasData = turnover.stats.withTrade > 0 || exp.stats.withTrade > 0 || imp.stats.withTrade > 0;
+      const hasData = exp.stats.withTrade > 0 || imp.stats.withTrade > 0;
       if (hasData) rankingCacheSet(cacheKey, cached);
       debug.computedMs = Date.now() - t0;
       debug.cached = hasData;
-      console.log(`country-ranking: completed in ${(debug.computedMs / 1000).toFixed(1)}s`);
+      console.log(`country-ranking: completed in ${(debug.computedMs / 1000).toFixed(1)}s — exp:${exp.stats.withTrade} imp:${imp.stats.withTrade} countries`);
     }
 
     debug.flowStats = cached.flowStats || null;
