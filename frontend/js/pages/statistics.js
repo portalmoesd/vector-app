@@ -682,6 +682,12 @@
 
     // Turnover
     lines.push(`<h4 class="stat-summary__heading">${isKa ? 'სავაჭრო ბრუნვა' : 'Trade Turnover'}</h4>`);
+    if (curTurn < 0.01) {
+      lines.push(`<p>${isKa ? `${periodGen} მონაცემებით, ვაჭრობა არ განხორციელდა.` : `For ${escapeHtml(periodGen)}, no trade was conducted.`}</p>`);
+      tradeSummaryEl.innerHTML = lines.join('');
+      tradeSummaryEl.classList.remove('hidden');
+      return;
+    }
     if (isKa) {
       lines.push(`<p>${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიურ პერიოდთან შედარებით, ${chg(curTurn, prevTurn)} და ${b(`${fmln(curTurn)} მლნ. აშშ დოლარი`)} შეადგინა.</p>`);
       if (rank && rank.turnover) {
@@ -697,7 +703,7 @@
     // Export
     lines.push(`<hr class="stat-summary__divider">`);
     lines.push(`<h4 class="stat-summary__heading">${isKa ? 'ექსპორტი' : 'Export'}</h4>`);
-    if (trade.hasExport) {
+    if (trade.hasExport && curExp >= 0.01) {
       if (isKa) {
         let exp = `<p>ექსპორტი ${periodLoc} ${chg(curExp, prevExp)} და ${b(`${fmln(curExp)} მლნ. აშშ დოლარი`)} შეადგინა.`;
         if (rank && rank.export) exp += ` საქართველოსთვის ექსპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.export.rank)} ადგილზე`)} საქართველოს სავაჭრო პარტნიორებს შორის, წილი ${b(`${pctO(rank.export.sharePct)}%`)}.`;
@@ -724,12 +730,14 @@
 
       const pl = productListHtml(trade.exportProducts);
       if (pl) lines.push(`<p>${b(isKa ? 'ძირითადი საექსპორტო პროდუქცია:' : 'Main export products:')} ${pl}</p>`);
+    } else {
+      lines.push(`<p>${isKa ? 'ექსპორტი არ განხორციელდა.' : 'No exports were conducted.'}</p>`);
     }
 
     // Import
     lines.push(`<hr class="stat-summary__divider">`);
     lines.push(`<h4 class="stat-summary__heading">${isKa ? 'იმპორტი' : 'Import'}</h4>`);
-    if (trade.hasImport) {
+    if (trade.hasImport && curImp >= 0.01) {
       if (isKa) {
         let imp = `<p>იმპორტი ${periodLoc} ${chg(curImp, prevImp)} და ${b(`${fmln(curImp)} მლნ. აშშ დოლარი`)} შეადგინა.`;
         if (rank && rank.import) imp += ` იმპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.import.rank)} ადგილზე`)} საქართველოს სავაჭრო პარტნიორებს შორის, წილი ${b(`${pctO(rank.import.sharePct)}%`)}.`;
@@ -744,6 +752,8 @@
 
       const pl = productListHtml(trade.importProducts);
       if (pl) lines.push(`<p>${b(isKa ? 'ძირითადი საიმპორტო პროდუქცია:' : 'Main import products:')} ${pl}</p>`);
+    } else {
+      lines.push(`<p>${isKa ? 'იმპორტი არ განხორციელდა.' : 'No imports were conducted.'}</p>`);
     }
 
     tradeSummaryEl.innerHTML = lines.join('');
