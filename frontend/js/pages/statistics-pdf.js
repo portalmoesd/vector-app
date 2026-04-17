@@ -1013,7 +1013,74 @@
       blocks.push(withTitle(title, ...summary, tableBlock));
     }
 
+    // Optional sectors table (only if admin has uploaded the file AND the
+    // selected country has a row in it).
+    if (inv.sectors) {
+      const sectorsBlock = buildFdiSectorsTable(inv.sectors, t, country, lang);
+      if (sectorsBlock) blocks.push(sectorsBlock);
+    }
+
     return blocks;
+  }
+
+  // ── FDI Sectors table (admin-uploaded; below main FDI block) ────────
+  function buildFdiSectorsTable(sectors, t, country, lang) {
+    if (!sectors || !sectors.data) return null;
+    const isKa = lang === 'ka';
+    const { years, data } = sectors;
+    const yrRange = years.length > 1 ? `${years[0]}-${years[years.length - 1]}` : String(years[0]);
+    const titleText = isKa
+      ? `${country} - პირდაპირი უცხოური ინვესტიციები სექტორების მიხედვით, ${yrRange}`
+      : `${country} - Foreign Direct Investment by Sector, ${yrRange}`;
+    const subtitleText = isKa ? 'მლნ. აშშ დოლარი' : 'mln USD';
+    const totalLabel = isKa ? 'სულ' : 'Total';
+    const sectorHeader = isKa ? 'სექტორი' : 'Sector';
+
+    function fmt(v) {
+      if (v === null || v === undefined || v === 0) return '-';
+      const sign = v < 0 ? '-' : '';
+      const abs = Math.abs(v);
+      const str = abs >= 100 ? abs.toFixed(1) : abs.toFixed(2);
+      return sign + str.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+    function cellColor(v) {
+      if (v === null || v === undefined || v === 0) return '#475569';
+      return v < 0 ? '#dc2626' : '#0f172a';
+    }
+
+    const body = [];
+    body.push([th(sectorHeader), ...years.map(y => thRight(String(y)))]);
+
+    // Totals row (bold)
+    const totalCells = [{ text: totalLabel, bold: true, fontSize: 8, color: '#0f172a', fillColor: '#f1f5f9' }];
+    for (const y of years) {
+      const v = data.totals ? data.totals[y] : null;
+      totalCells.push({ text: fmt(v), alignment: 'right', bold: true, fontSize: 9, color: cellColor(v), fillColor: '#f1f5f9' });
+    }
+    body.push(totalCells);
+
+    // Sector rows
+    const sectorNames = Object.keys(data.sectors || {});
+    for (const sector of sectorNames) {
+      const row = [{ text: sector, fontSize: 8 }];
+      const vals = data.sectors[sector] || {};
+      for (const y of years) {
+        const v = vals[y];
+        row.push({ text: fmt(v), alignment: 'right', fontSize: 9, color: cellColor(v) });
+      }
+      body.push(row);
+    }
+
+    const yearColWidth = years.length >= 6 ? 48 : years.length >= 5 ? 55 : 65;
+    const widths = ['*', ...years.map(() => yearColWidth)];
+
+    return {
+      stack: [
+        { text: titleText, fontSize: 11, bold: true, color: '#0f172a', margin: [0, 12, 0, 2] },
+        { text: subtitleText, fontSize: 8.5, color: '#64748b', margin: [0, 0, 0, 4] },
+        { table: { dontBreakRows: true, widths, body }, layout: tableLayout },
+      ],
+    };
   }
 
   // ── Document definition ────────────────────────────────────────────────
@@ -1027,7 +1094,10 @@
     const content = [];
     content.push(...buildTradeSection(state.trade, charts, t, country, lang));
     content.push(...buildTourismSection(state.tourism, charts, t, country, lang));
-    content.push(...buildInvestmentsSection(state.investments, charts, t, country, lang));
+    const investmentsWithSectors = state.investments
+      ? { ...state.investments, sectors: state.investmentsSectors || null }
+      : state.investments;
+    content.push(...buildInvestmentsSection(investmentsWithSectors, charts, t, country, lang));
 
     if (content.length === 0) {
       content.push({ text: t.noData, italics: true, color: '#94a3b8', margin: [0, 40, 0, 0], alignment: 'center' });

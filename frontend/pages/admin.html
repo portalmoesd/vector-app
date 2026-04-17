@@ -25,6 +25,7 @@
         <button class="admin-tab" data-tab="users">Users</button>
         <button class="admin-tab" data-tab="links">Deputy–Supervisor Links</button>
         <button class="admin-tab" data-tab="hierarchy">Department Hierarchy</button>
+        <button class="admin-tab" data-tab="uploads">Data Uploads</button>
       </div>
 
       <!-- Departments Tab -->
@@ -71,6 +72,24 @@
           </p>
           <div id="hierarchyList"><div class="empty-state"><p>Loading...</p></div></div>
         </div>
+      </div>
+
+      <!-- Data Uploads Tab -->
+      <div class="admin-panel" id="tab-uploads" style="display:none;">
+        <section class="card admin-upload-panel" id="panel-fdi-sectors">
+          <h3>FDI Sectors</h3>
+          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">
+            Upload the Georgian FDI-by-country-by-sector XLSX file. The file
+            must have a header row with "ქვეყნის კოდი" in column A, then one
+            block per country (code, name, "სულ" row, sector sub-rows).
+          </p>
+          <div class="upload-status" style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:10px;">Loading…</div>
+          <form class="upload-form" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;">
+            <input type="file" name="file" accept=".xlsx,.xls" required>
+            <button type="submit" class="btn btn-primary">Upload</button>
+          </form>
+          <div class="upload-feedback" style="margin-top:10px;font-size:0.9rem;"></div>
+        </section>
       </div>
 
       <!-- Modal overlay -->

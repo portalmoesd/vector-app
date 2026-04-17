@@ -463,4 +463,74 @@
   loadUsers();
   loadLinks();
   loadHierarchy();
+
+  // ── Data Uploads tab ──────────────────────────────────────────────────
+  // Generic upload-panel initialiser. Adding a new data source later =
+  // add one HTML panel + one initUploadPanel({...}) call here.
+  function initUploadPanel({ panelId, endpoint, labels }) {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+    const statusEl = panel.querySelector('.upload-status');
+    const form = panel.querySelector('.upload-form');
+    const feedback = panel.querySelector('.upload-feedback');
+
+    async function refresh() {
+      try {
+        const res = await fetch(`${API_BASE}${endpoint}`);
+        const j = await res.json();
+        if (j && j.success && !j.empty) {
+          const date = j.uploadedAt ? new Date(j.uploadedAt).toLocaleString() : '-';
+          const years = Array.isArray(j.yearsCovered) ? `${j.yearsCovered[0]}–${j.yearsCovered[j.yearsCovered.length - 1]}` : '';
+          statusEl.textContent = `${labels.current}: ${date} · ${j.countryCount || 0} ${labels.countries}${years ? ' · ' + years : ''}`;
+        } else {
+          statusEl.textContent = labels.noFile;
+        }
+      } catch (err) {
+        statusEl.textContent = labels.noFile;
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      feedback.textContent = labels.uploading;
+      feedback.style.color = 'var(--text-secondary)';
+      try {
+        const fd = new FormData(form);
+        const token = Api.getToken();
+        const res = await fetch(`${API_BASE}${endpoint}/upload`, {
+          method: 'POST',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          body: fd,
+        });
+        const j = await res.json();
+        if (res.ok && j.success) {
+          feedback.textContent = `${labels.success} · ${j.countryCount || 0} ${labels.countries}`;
+          feedback.style.color = 'green';
+          form.reset();
+          refresh();
+        } else {
+          feedback.textContent = (j && j.error) || labels.failure;
+          feedback.style.color = 'crimson';
+        }
+      } catch (err) {
+        feedback.textContent = err.message || labels.failure;
+        feedback.style.color = 'crimson';
+      }
+    });
+
+    refresh();
+  }
+
+  initUploadPanel({
+    panelId: 'panel-fdi-sectors',
+    endpoint: '/api/statistics/fdi-sectors',
+    labels: {
+      current: 'Current',
+      countries: 'countries',
+      noFile: 'No file uploaded yet',
+      uploading: 'Uploading…',
+      success: 'Uploaded successfully',
+      failure: 'Upload failed',
+    },
+  });
 })();
