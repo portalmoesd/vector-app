@@ -20,150 +20,150 @@
         <div class="page-title" data-i18n="nav.statistics">Statistics</div>
       </div>
 
-      <!-- Controls -->
-      <div class="card stat-controls">
-        <div class="stat-controls__row">
-          <div class="form-group stat-controls__country">
-            <label class="form-label" data-i18n="statistics.country">Country</label>
-            <div class="stat-search-wrap">
-              <input type="text" id="countrySearch" class="form-input" placeholder="Search country..." data-i18n-placeholder="statistics.searchCountry" autocomplete="off" />
-              <div id="countryDropdown" class="stat-dropdown hidden"></div>
+      <!-- Sticky header: controls + tabs -->
+      <div class="stat-sticky-header">
+        <div class="card stat-controls">
+          <div class="stat-controls__row">
+            <div class="form-group stat-controls__country">
+              <label class="form-label" data-i18n="statistics.country">Country</label>
+              <div class="stat-search-wrap">
+                <input type="text" id="countrySearch" class="form-input" placeholder="Search country..." data-i18n-placeholder="statistics.searchCountry" autocomplete="off" />
+                <div id="countryDropdown" class="stat-dropdown hidden"></div>
+              </div>
+              <input type="hidden" id="countryValue" />
             </div>
-            <input type="hidden" id="countryValue" />
-          </div>
-          <div class="form-group stat-controls__btn-wrap">
-            <label class="form-label">&nbsp;</label>
-            <div class="stat-controls__buttons">
-              <button class="btn btn-primary" id="generateBtn" disabled data-i18n="statistics.generate">Generate</button>
-              <div class="stat-pdf-menu-wrap">
-                <button class="btn btn-outline" id="exportPdfBtn" disabled>PDF ▾</button>
-                <div id="exportPdfMenu" class="stat-pdf-menu hidden">
-                  <button class="stat-pdf-menu__item" data-lang="en">English</button>
-                  <button class="stat-pdf-menu__item" data-lang="ka">ქართული</button>
+            <div class="form-group stat-controls__btn-wrap">
+              <label class="form-label">&nbsp;</label>
+              <div class="stat-controls__buttons">
+                <button class="btn btn-primary" id="generateBtn" disabled data-i18n="statistics.generate">Generate</button>
+                <div class="stat-pdf-menu-wrap">
+                  <button class="btn btn-outline" id="exportPdfBtn" disabled>PDF ▾</button>
+                  <div id="exportPdfMenu" class="stat-pdf-menu hidden">
+                    <button class="stat-pdf-menu__item" data-lang="en">English</button>
+                    <button class="stat-pdf-menu__item" data-lang="ka">ქართული</button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Tabs -->
-      <div class="stat-tabs">
-        <button class="stat-tab active" data-tab="trade">ვაჭრობა</button>
-        <button class="stat-tab" data-tab="tourism">ტურიზმი</button>
-        <button class="stat-tab" data-tab="investments">ინვესტიციები</button>
-        <button class="stat-tab" data-tab="appendix">დანართი</button>
-      </div>
-
-      <!-- Report output -->
-      <div id="reportArea" class="hidden">
-        <div id="reportLoading" class="stat-report__loading hidden">
-          <div class="stat-spinner"></div>
-          <span data-i18n="common.loading">Loading...</span>
-        </div>
-
-        <!-- Trade summary -->
-        <div id="tradeSummary" class="card stat-summary hidden"></div>
-
-        <!-- Trade overview table -->
-        <div class="card">
-          <div id="overviewHeader" class="stat-report__header"></div>
-          <div id="overviewTable" class="table-wrap"></div>
-        </div>
-
-        <!-- Trade charts -->
-        <div class="stat-charts-row">
-          <div class="card stat-chart-card">
-            <div id="turnoverChartHeader" class="stat-report__header"></div>
-            <canvas id="turnoverChart"></canvas>
-          </div>
-          <div class="card stat-chart-card">
-            <div id="dynamicsChartHeader" class="stat-report__header"></div>
-            <canvas id="dynamicsChart"></canvas>
-          </div>
-        </div>
-
-        <!-- Export table -->
-        <div class="card">
-          <div id="exportHeader" class="stat-report__header"></div>
-          <div id="exportTable" class="table-wrap"></div>
-        </div>
-
-        <!-- Export increase / drop tables -->
-        <div class="stat-charts-row">
-          <div class="card stat-chart-card">
-            <div id="exportIncreaseHeader" class="stat-report__header"></div>
-            <div id="exportIncreaseTable" class="table-wrap"></div>
-          </div>
-          <div class="card stat-chart-card">
-            <div id="exportDropHeader" class="stat-report__header"></div>
-            <div id="exportDropTable" class="table-wrap"></div>
-          </div>
-        </div>
-
-        <!-- Import table -->
-        <div class="card">
-          <div id="importHeader" class="stat-report__header"></div>
-          <div id="importTable" class="table-wrap"></div>
-        </div>
-
-        <!-- Import increase / drop tables -->
-        <div class="stat-charts-row">
-          <div class="card stat-chart-card">
-            <div id="importIncreaseHeader" class="stat-report__header"></div>
-            <div id="importIncreaseTable" class="table-wrap"></div>
-          </div>
-          <div class="card stat-chart-card">
-            <div id="importDropHeader" class="stat-report__header"></div>
-            <div id="importDropTable" class="table-wrap"></div>
-          </div>
+        <div class="stat-tabs">
+          <button class="stat-tab active" data-tab="trade">ვაჭრობა</button>
+          <button class="stat-tab" data-tab="tourism">ტურიზმი</button>
+          <button class="stat-tab" data-tab="investments">ინვესტიციები</button>
+          <button class="stat-tab" data-tab="appendix">დანართი</button>
         </div>
       </div>
 
-      <!-- Tourism tab content -->
-      <div id="tourismArea" class="hidden">
-        <div id="tourismLoading" class="stat-report__loading hidden">
-          <div class="stat-spinner"></div>
-          <span data-i18n="common.loading">Loading...</span>
-        </div>
-        <div id="tourismSummary" class="card stat-summary hidden"></div>
-        <div class="card">
-          <div class="stat-investments-row">
-            <div class="stat-investments-table-wrap">
-              <div id="tourismHeader" class="stat-report__header"></div>
-              <div id="tourismTable" class="table-wrap"></div>
-            </div>
-            <div class="stat-investments-chart-wrap">
-              <div id="tourismChartHeader" class="stat-report__header"></div>
-              <canvas id="tourismChart"></canvas>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- All sections render sequentially after Generate -->
+      <div id="statSections" class="stat-sections hidden">
 
-      <!-- Investments tab content -->
-      <div id="investmentsArea" class="hidden">
-        <div id="investmentsLoading" class="stat-report__loading hidden">
-          <div class="stat-spinner"></div>
-          <span data-i18n="common.loading">Loading...</span>
-        </div>
-        <div id="investmentsSummary" class="card stat-summary hidden"></div>
-        <div class="card">
-          <div class="stat-investments-row">
-            <div class="stat-investments-table-wrap">
-              <div id="fdiHeader" class="stat-report__header"></div>
-              <div id="fdiTable" class="table-wrap"></div>
+        <!-- Trade section -->
+        <section id="section-trade" class="stat-section">
+          <h2 class="stat-section__heading">ვაჭრობა</h2>
+          <div id="reportLoading" class="stat-report__loading hidden">
+            <div class="stat-spinner"></div>
+            <span data-i18n="common.loading">Loading...</span>
+          </div>
+          <div id="tradeSummary" class="card stat-summary hidden"></div>
+          <div class="card">
+            <div id="overviewHeader" class="stat-report__header"></div>
+            <div id="overviewTable" class="table-wrap"></div>
+          </div>
+          <div class="stat-charts-row">
+            <div class="card stat-chart-card">
+              <div id="turnoverChartHeader" class="stat-report__header"></div>
+              <canvas id="turnoverChart"></canvas>
             </div>
-            <div class="stat-investments-chart-wrap">
-              <div id="fdiChartHeader" class="stat-report__header"></div>
-              <canvas id="fdiChart"></canvas>
+            <div class="card stat-chart-card">
+              <div id="dynamicsChartHeader" class="stat-report__header"></div>
+              <canvas id="dynamicsChart"></canvas>
             </div>
           </div>
-        </div>
-        <div id="fdiSectorsCard" class="card hidden">
-          <div id="fdiSectorsHeader" class="stat-report__header"></div>
-          <div id="fdiSectorsTable" class="table-wrap"></div>
-        </div>
+          <div class="card">
+            <div id="exportHeader" class="stat-report__header"></div>
+            <div id="exportTable" class="table-wrap"></div>
+          </div>
+          <div class="stat-charts-row">
+            <div class="card stat-chart-card">
+              <div id="exportIncreaseHeader" class="stat-report__header"></div>
+              <div id="exportIncreaseTable" class="table-wrap"></div>
+            </div>
+            <div class="card stat-chart-card">
+              <div id="exportDropHeader" class="stat-report__header"></div>
+              <div id="exportDropTable" class="table-wrap"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div id="importHeader" class="stat-report__header"></div>
+            <div id="importTable" class="table-wrap"></div>
+          </div>
+          <div class="stat-charts-row">
+            <div class="card stat-chart-card">
+              <div id="importIncreaseHeader" class="stat-report__header"></div>
+              <div id="importIncreaseTable" class="table-wrap"></div>
+            </div>
+            <div class="card stat-chart-card">
+              <div id="importDropHeader" class="stat-report__header"></div>
+              <div id="importDropTable" class="table-wrap"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tourism section -->
+        <section id="section-tourism" class="stat-section">
+          <h2 class="stat-section__heading">ტურიზმი</h2>
+          <div id="tourismLoading" class="stat-report__loading hidden">
+            <div class="stat-spinner"></div>
+            <span data-i18n="common.loading">Loading...</span>
+          </div>
+          <div id="tourismSummary" class="card stat-summary hidden"></div>
+          <div class="card">
+            <div class="stat-investments-row">
+              <div class="stat-investments-table-wrap">
+                <div id="tourismHeader" class="stat-report__header"></div>
+                <div id="tourismTable" class="table-wrap"></div>
+              </div>
+              <div class="stat-investments-chart-wrap">
+                <div id="tourismChartHeader" class="stat-report__header"></div>
+                <canvas id="tourismChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Investments section -->
+        <section id="section-investments" class="stat-section">
+          <h2 class="stat-section__heading">ინვესტიციები</h2>
+          <div id="investmentsLoading" class="stat-report__loading hidden">
+            <div class="stat-spinner"></div>
+            <span data-i18n="common.loading">Loading...</span>
+          </div>
+          <div id="investmentsSummary" class="card stat-summary hidden"></div>
+          <div class="card">
+            <div class="stat-investments-row">
+              <div class="stat-investments-table-wrap">
+                <div id="fdiHeader" class="stat-report__header"></div>
+                <div id="fdiTable" class="table-wrap"></div>
+              </div>
+              <div class="stat-investments-chart-wrap">
+                <div id="fdiChartHeader" class="stat-report__header"></div>
+                <canvas id="fdiChart"></canvas>
+              </div>
+            </div>
+          </div>
+          <div id="fdiSectorsCard" class="card hidden">
+            <div id="fdiSectorsHeader" class="stat-report__header"></div>
+            <div id="fdiSectorsTable" class="table-wrap"></div>
+          </div>
+        </section>
+
+        <!-- Appendix section -->
+        <section id="section-appendix" class="stat-section">
+          <h2 class="stat-section__heading">დანართი</h2>
+        </section>
+
       </div>
 
     </main>

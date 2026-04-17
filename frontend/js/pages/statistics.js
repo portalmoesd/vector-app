@@ -22,7 +22,7 @@
   const countryValue = document.getElementById('countryValue');
   const generateBtn = document.getElementById('generateBtn');
   const exportPdfBtn = document.getElementById('exportPdfBtn');
-  const reportArea = document.getElementById('reportArea');
+  const statSections = document.getElementById('statSections');
   const reportLoading = document.getElementById('reportLoading');
   const tradeSummaryEl = document.getElementById('tradeSummary');
   const overviewHeader = document.getElementById('overviewHeader');
@@ -44,14 +44,14 @@
   const dynamicsChartHeader = document.getElementById('dynamicsChartHeader');
   const dynamicsChartCanvas = document.getElementById('dynamicsChart');
   // Investments tab
-  const investmentsArea = document.getElementById('investmentsArea');
+  // investmentsArea removed — unified scroll layout
   const investmentsLoading = document.getElementById('investmentsLoading');
   const fdiHeader = document.getElementById('fdiHeader');
   const fdiTable = document.getElementById('fdiTable');
   const fdiChartHeader = document.getElementById('fdiChartHeader');
   const fdiChartCanvas = document.getElementById('fdiChart');
   // Tourism tab
-  const tourismArea = document.getElementById('tourismArea');
+  // tourismArea removed — unified scroll layout
   const tourismLoading = document.getElementById('tourismLoading');
   const tourismSummaryEl = document.getElementById('tourismSummary');
   const investmentsSummaryEl = document.getElementById('investmentsSummary');
@@ -73,7 +73,7 @@
   let fdiChartInstance = null;
   let tourismChartInstance = null;
   let countryNameMap = {}; // variant → canonical GNTA name
-  let activeTab = 'trade';
+  // activeTab removed — unified scroll layout with scroll-spy
 
   // ── PDF state ────────────────────────────────────────────────────────────
   // Captured alongside each tab's render so the PDF builder doesn't scrape
@@ -276,26 +276,27 @@
     }
   });
 
-  // ── Tab switching ─────────────────────────────────────────────────────────
-
-  function showActiveTab() {
-    reportArea.classList.add('hidden');
-    investmentsArea.classList.add('hidden');
-    tourismArea.classList.add('hidden');
-
-    if (activeTab === 'trade') reportArea.classList.remove('hidden');
-    else if (activeTab === 'tourism') tourismArea.classList.remove('hidden');
-    else if (activeTab === 'investments') investmentsArea.classList.remove('hidden');
-  }
+  // ── Tab navigation (scroll-to-section) ───────────────────────────────────
 
   document.querySelectorAll('.stat-tab').forEach(tab => {
     tab.addEventListener('click', () => {
-      document.querySelectorAll('.stat-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      activeTab = tab.dataset.tab;
-      showActiveTab();
+      const section = document.getElementById('section-' + tab.dataset.tab);
+      if (section) section.scrollIntoView({ behavior: 'smooth' });
     });
   });
+
+  // Scroll-spy: update active tab as the user scrolls past sections
+  const sectionEls = document.querySelectorAll('.stat-section');
+  const scrollSpy = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        const tabName = entry.target.id.replace('section-', '');
+        document.querySelectorAll('.stat-tab').forEach(b =>
+          b.classList.toggle('active', b.dataset.tab === tabName));
+      }
+    }
+  }, { rootMargin: '-160px 0px -60% 0px' });
+  sectionEls.forEach(s => scrollSpy.observe(s));
 
   // ── Determine latest available period ────────────────────────────────────
 
@@ -312,6 +313,8 @@
 
   generateBtn.addEventListener('click', async () => {
     if (!selectedCountry) return;
+    // Show all sections (unified scroll layout)
+    statSections.classList.remove('hidden');
     // Reset PDF state for new country/run
     pdfState.country = selectedCountry;
     pdfState.trade = null;

@@ -1,11 +1,37 @@
 /* ─── Statistics Page ─────────────────────────────────────────────────────── */
 
+/* ─── Sticky Header ─────────────────────────────────────────────────────── */
+
+.stat-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg-page, #f5f7fa);
+  padding-bottom: 4px;
+}
+
+/* Scroll padding so anchor-scrolled sections don't hide behind sticky header */
+html { scroll-padding-top: 160px; }
+
+/* ─── Sections ──────────────────────────────────────────────────────────── */
+
+.stat-sections.hidden { display: none; }
+
+.stat-section__heading {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  padding: 16px 0 8px;
+  border-bottom: 2px solid var(--border-color, #e5e7eb);
+  margin-bottom: 12px;
+}
+
 /* ─── Tabs ───────────────────────────────────────────────────────────────── */
 
 .stat-tabs {
   display: flex;
   gap: 4px;
-  margin-bottom: 16px;
+  margin-bottom: 0;
   border-bottom: 2px solid var(--border-color);
   padding-bottom: 0;
 }
@@ -132,10 +158,8 @@
   margin: 12px 0;
 }
 
-/* While exporting: un-hide all tabs off-screen so chart canvases render with real dimensions */
-body.stat-exporting #reportArea.hidden,
-body.stat-exporting #tourismArea.hidden,
-body.stat-exporting #investmentsArea.hidden {
+/* While exporting: ensure chart canvases have real dimensions */
+body.stat-exporting .stat-sections.hidden {
   display: block !important;
   position: absolute !important;
   left: -99999px !important;
