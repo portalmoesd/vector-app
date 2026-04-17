@@ -1892,16 +1892,27 @@
       <tbody>`;
 
     for (const r of data) {
-      const pct = r.prevMln > 0
-        ? ((r.valueMln - r.prevMln) / Math.abs(r.prevMln) * 100)
-        : (r.valueMln > 0 ? 100 : 0);
-      const changeClass = pct > 0 ? 'stat-positive' : (pct < 0 ? 'stat-negative' : '');
-      const sign = pct > 0 ? '+' : '';
+      // Show "-" when current year's FDI is non-positive (disinvestment)
+      // or when previous year was non-positive (can't compute meaningful %)
+      const isCurNeg = !(r.valueMln > 0);
+      const isPrevNeg = !(r.prevMln > 0);
+      const valueCell = isCurNeg
+        ? '-'
+        : formatMln(r.valueMln);
+      let changeCell = '-';
+      let changeClass = '';
+      let sign = '';
+      if (!isCurNeg && !isPrevNeg) {
+        const pct = ((r.valueMln - r.prevMln) / r.prevMln) * 100;
+        changeClass = pct > 0 ? 'stat-positive' : (pct < 0 ? 'stat-negative' : '');
+        sign = pct > 0 ? '+' : '';
+        changeCell = `${sign}${formatChangePct(pct)}`;
+      }
       html += `
         <tr>
           <td>${r.year}</td>
-          <td class="stat-col-value">${formatMln(Math.abs(r.valueMln))}</td>
-          <td class="stat-col-change ${changeClass}">${sign}${formatChangePct(pct)}</td>
+          <td class="stat-col-value">${valueCell}</td>
+          <td class="stat-col-change ${changeClass}">${changeCell}</td>
         </tr>`;
     }
 

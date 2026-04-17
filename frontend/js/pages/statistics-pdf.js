@@ -956,15 +956,24 @@
       [th(t.year), thRight(t.volumeHeader), thRight(t.changeHeader)],
     ];
     for (const r of data) {
-      const pct = r.prevMln > 0
-        ? ((r.valueMln - r.prevMln) / Math.abs(r.prevMln) * 100)
-        : (r.valueMln > 0 ? 100 : 0);
-      const color = pct > 0 ? '#16a34a' : (pct < 0 ? '#dc2626' : '#475569');
-      const sign = pct > 0 ? '+' : '';
+      // Show "-" when current year's FDI is non-positive (disinvestment)
+      // or when previous year was non-positive (can't compute meaningful %)
+      const isCurNeg = !(r.valueMln > 0);
+      const isPrevNeg = !(r.prevMln > 0);
+      const valueCell = isCurNeg ? tdNum('-') : tdNum(formatMln(r.valueMln));
+      let changeCell;
+      if (isCurNeg || isPrevNeg) {
+        changeCell = tdNum('-');
+      } else {
+        const pct = ((r.valueMln - r.prevMln) / r.prevMln) * 100;
+        const color = pct > 0 ? '#16a34a' : (pct < 0 ? '#dc2626' : '#475569');
+        const sign = pct > 0 ? '+' : '';
+        changeCell = tdNum(`${sign}${formatPct(pct)}`, { color });
+      }
       body.push([
         tdText(String(r.year)),
-        tdNum(formatMln(Math.abs(r.valueMln))),
-        tdNum(`${sign}${formatPct(pct)}`, { color }),
+        valueCell,
+        changeCell,
       ]);
     }
 
