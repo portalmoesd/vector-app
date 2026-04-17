@@ -330,7 +330,6 @@
   async function generateReport() {
     if (!selectedCountry || !classData) return;
 
-    showActiveTab();
     reportLoading.classList.remove('hidden');
 
     // Clear all sections and hide product cards
