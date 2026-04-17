@@ -1022,6 +1022,7 @@
 
     return result.map(p => ({
       name: p.name,
+      nameEn: p.nameEn,
       valueMln: p.valueMln,
       change: p.prevValueMln > 0
         ? ((p.valueMln - p.prevValueMln) / p.prevValueMln * 100)
