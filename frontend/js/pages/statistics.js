@@ -947,7 +947,7 @@
           },
         },
       },
-      plugins: [ChartDataLabels],
+      plugins: typeof ChartDataLabels !== 'undefined' ? [ChartDataLabels] : [],
     });
 
     // ── Export–Import dynamics chart ────────────────────────────────
@@ -996,7 +996,7 @@
           },
         },
       },
-      plugins: [ChartDataLabels],
+      plugins: typeof ChartDataLabels !== 'undefined' ? [ChartDataLabels] : [],
     });
   }
 
@@ -1517,7 +1517,7 @@
           },
         },
       },
-      plugins: [ChartDataLabels],
+      plugins: typeof ChartDataLabels !== 'undefined' ? [ChartDataLabels] : [],
     });
   }
 
@@ -1667,7 +1667,7 @@
           },
         },
       },
-      plugins: [ChartDataLabels],
+      plugins: typeof ChartDataLabels !== 'undefined' ? [ChartDataLabels] : [],
     });
   }
 
