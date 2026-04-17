@@ -55,6 +55,9 @@
   const tourismLoading = document.getElementById('tourismLoading');
   const tourismSummaryEl = document.getElementById('tourismSummary');
   const investmentsSummaryEl = document.getElementById('investmentsSummary');
+  const fdiSectorsCardEl = document.getElementById('fdiSectorsCard');
+  const fdiSectorsHeaderEl = document.getElementById('fdiSectorsHeader');
+  const fdiSectorsTableEl = document.getElementById('fdiSectorsTable');
   const tourismHeader = document.getElementById('tourismHeader');
   const tourismTableEl = document.getElementById('tourismTable');
   const tourismChartHeader = document.getElementById('tourismChartHeader');
@@ -1700,7 +1703,9 @@
       if (!countryData) {
         fdiTable.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'აღნიშნული ქვეყნიდან საქართველოში პირდაპირი უცხოური ინვესტიცია არ ფიქსირდება.' : 'No foreign direct investment records from this country to Georgia.'}</p></div>`;
         pdfState.investments = { hasData: false };
+        pdfState.investmentsSectors = null;
         if (investmentsSummaryEl) investmentsSummaryEl.classList.add('hidden');
+        if (fdiSectorsCardEl) fdiSectorsCardEl.classList.add('hidden');
         investmentsLoading.classList.add('hidden');
         return;
       }
@@ -1783,14 +1788,87 @@
 
       renderInvestmentsSummary(pdfState.investments, selectedCountry, isKa);
 
+      // ── Sectors breakdown (admin-uploaded file; may be absent) ──────
+      let sectorsData = null;
+      try {
+        const sRes = await fetch(`${API_BASE}/api/statistics/fdi-sectors`);
+        const sJson = await sRes.json();
+        if (sJson && sJson.success && !sJson.empty) {
+          const c = sJson.countries && sJson.countries[String(countryCode)];
+          if (c) sectorsData = { years: sJson.years, sectors: sJson.sectors, data: c };
+        }
+      } catch (_) { /* silently hide sectors card */ }
+      pdfState.investmentsSectors = sectorsData;
+      renderFdiSectorsTable(sectorsData, selectedCountry, isKa);
+
     } catch (err) {
       console.error('Investments error:', err);
       fdiTable.innerHTML = `<div class="msg msg-error">${escapeHtml(err.message)}</div>`;
       pdfState.investments = { hasData: false };
+      if (fdiSectorsCardEl) fdiSectorsCardEl.classList.add('hidden');
     } finally {
       investmentsLoading.classList.add('hidden');
       exportPdfBtn.disabled = false;
     }
+  }
+
+  function renderFdiSectorsTable(sectorsState, selectedCountry, isKa) {
+    if (!fdiSectorsCardEl || !fdiSectorsHeaderEl || !fdiSectorsTableEl) return;
+    if (!sectorsState || !sectorsState.data) {
+      fdiSectorsCardEl.classList.add('hidden');
+      return;
+    }
+    const { years, data } = sectorsState;
+    const country = isKa ? selectedCountry.displayLabel : (countryNameEnMap[selectedCountry.value] || selectedCountry.displayLabel);
+    const yrRange = years.length > 1 ? `${years[0]}–${years[years.length - 1]}` : `${years[0]}`;
+    const title = isKa
+      ? `${country} - პირდაპირი უცხოური ინვესტიციები სექტორების მიხედვით, ${yrRange}`
+      : `${country} - Foreign Direct Investment by Sector, ${yrRange}`;
+    fdiSectorsHeaderEl.innerHTML = `<h3 class="stat-report__title">${escapeHtml(title)}</h3><div style="font-size:0.85rem;color:var(--text-secondary);">${isKa ? 'მლნ. აშშ დოლარი' : 'mln USD'}</div>`;
+
+    const fmt = (v) => {
+      if (v === null || v === undefined || v === 0) return '-';
+      const sign = v < 0 ? '-' : '';
+      const abs = Math.abs(v);
+      const str = abs >= 100 ? abs.toFixed(1) : abs.toFixed(2);
+      return sign + str.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    };
+    const cellCls = (v) => (v === null || v === undefined || v === 0) ? '' : (v < 0 ? 'stat-negative' : '');
+
+    const sectorHeader = isKa ? 'სექტორი' : 'Sector';
+    const totalLabel = isKa ? 'სულ' : 'Total';
+
+    let html = `<table class="stat-table">
+      <thead>
+        <tr>
+          <th>${sectorHeader}</th>
+          ${years.map(y => `<th class="stat-col-value">${y}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>`;
+
+    // Totals row first (bold).
+    html += `<tr><td style="font-weight:700;">${totalLabel}</td>`;
+    for (const y of years) {
+      const v = data.totals ? data.totals[y] : null;
+      html += `<td class="stat-col-value ${cellCls(v)}" style="font-weight:700;">${fmt(v)}</td>`;
+    }
+    html += `</tr>`;
+
+    // Sector rows — only include sectors that exist for this country.
+    const sectorNames = Object.keys(data.sectors || {});
+    for (const sector of sectorNames) {
+      const vals = data.sectors[sector] || {};
+      html += `<tr><td>${escapeHtml(sector)}</td>`;
+      for (const y of years) {
+        const v = vals[y];
+        html += `<td class="stat-col-value ${cellCls(v)}">${fmt(v)}</td>`;
+      }
+      html += `</tr>`;
+    }
+    html += `</tbody></table>`;
+    fdiSectorsTableEl.innerHTML = html;
+    fdiSectorsCardEl.classList.remove('hidden');
   }
 
   function renderInvestmentsSummary(inv, selectedCountry, isKa) {
@@ -1842,32 +1920,41 @@
     }
 
     // Sentence 3: latest full year + rank
-    if (inv.latestYearValue > 0 && inv.latestYear) {
-      if (isKa) {
-        let s = `<p>${b(`${inv.latestYear} წელს`)} ${escapeHtml(countryKaFrom)} საქართველოში განხორციელდა ${b(`${fmt(inv.latestYearValue)} მლნ. აშშ დოლარის`)} პირდაპირი უცხოური ინვესტიცია.`;
-        if (inv.latestYearRank) s += ` ${escapeHtml(countryKa)} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით ${inv.latestYear} წელს ${b(`${geP(inv.latestYearRank)} ადგილს`)} იკავებს.`;
-        s += '</p>';
-        lines.push(s);
+    // Sentence 3: latest full year + rank (show "no investment" if value ≤ 0)
+    if (inv.latestYear) {
+      if (inv.latestYearValue > 0) {
+        if (isKa) {
+          let s = `<p>${b(`${inv.latestYear} წელს`)} ${escapeHtml(countryKaFrom)} საქართველოში განხორციელდა ${b(`${fmt(inv.latestYearValue)} მლნ. აშშ დოლარის`)} პირდაპირი უცხოური ინვესტიცია.`;
+          if (inv.latestYearRank) s += ` ${escapeHtml(countryKa)} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით ${inv.latestYear} წელს ${b(`${geP(inv.latestYearRank)} ადგილს`)} იკავებს.`;
+          s += '</p>';
+          lines.push(s);
+        } else {
+          let s = `<p>In ${b(inv.latestYear)}, ${b(`${fmt(inv.latestYearValue)} mln USD`)} of foreign direct investment came to Georgia from ${escapeHtml(countryEn)}.`;
+          if (inv.latestYearRank) s += ` ${escapeHtml(countryEn)} ranked ${b(enO(inv.latestYearRank))} by FDI volume in ${inv.latestYear}.`;
+          s += '</p>';
+          lines.push(s);
+        }
       } else {
-        let s = `<p>In ${b(inv.latestYear)}, ${b(`${fmt(inv.latestYearValue)} mln USD`)} of foreign direct investment came to Georgia from ${escapeHtml(countryEn)}.`;
-        if (inv.latestYearRank) s += ` ${escapeHtml(countryEn)} ranked ${b(enO(inv.latestYearRank))} by FDI volume in ${inv.latestYear}.`;
-        s += '</p>';
-        lines.push(s);
+        lines.push(`<p>${isKa ? `${b(`${inv.latestYear} წელს`)} ${escapeHtml(countryKaFrom)} ინვესტიცია არ განხორციელდა.` : `In ${b(inv.latestYear)}, no investment was conducted from ${escapeHtml(countryEn)}.`}</p>`);
       }
     }
 
-    // Sentence 4: previous full year + rank
-    if (inv.prevYearValue > 0 && inv.prevYear) {
-      if (isKa) {
-        let s = `<p>${b(`${inv.prevYear} წელს`)} ${escapeHtml(countryKaFrom)} საქართველოში განხორციელდა ${b(`${fmt(inv.prevYearValue)} მლნ. აშშ დოლარის`)} პირდაპირი უცხოური ინვესტიცია.`;
-        if (inv.prevYearRank) s += ` ${escapeHtml(countryKa)} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით ${inv.prevYear} წელს ${b(`${geP(inv.prevYearRank)} ადგილს`)} იკავებს.`;
-        s += '</p>';
-        lines.push(s);
+    // Sentence 4: previous full year + rank (show "no investment" if value ≤ 0)
+    if (inv.prevYear) {
+      if (inv.prevYearValue > 0) {
+        if (isKa) {
+          let s = `<p>${b(`${inv.prevYear} წელს`)} ${escapeHtml(countryKaFrom)} საქართველოში განხორციელდა ${b(`${fmt(inv.prevYearValue)} მლნ. აშშ დოლარის`)} პირდაპირი უცხოური ინვესტიცია.`;
+          if (inv.prevYearRank) s += ` ${escapeHtml(countryKa)} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით ${inv.prevYear} წელს ${b(`${geP(inv.prevYearRank)} ადგილს`)} იკავებს.`;
+          s += '</p>';
+          lines.push(s);
+        } else {
+          let s = `<p>In ${b(inv.prevYear)}, ${b(`${fmt(inv.prevYearValue)} mln USD`)} of foreign direct investment came to Georgia from ${escapeHtml(countryEn)}.`;
+          if (inv.prevYearRank) s += ` ${escapeHtml(countryEn)} ranked ${b(enO(inv.prevYearRank))} by FDI volume in ${inv.prevYear}.`;
+          s += '</p>';
+          lines.push(s);
+        }
       } else {
-        let s = `<p>In ${b(inv.prevYear)}, ${b(`${fmt(inv.prevYearValue)} mln USD`)} of foreign direct investment came to Georgia from ${escapeHtml(countryEn)}.`;
-        if (inv.prevYearRank) s += ` ${escapeHtml(countryEn)} ranked ${b(enO(inv.prevYearRank))} by FDI volume in ${inv.prevYear}.`;
-        s += '</p>';
-        lines.push(s);
+        lines.push(`<p>${isKa ? `${b(`${inv.prevYear} წელს`)} ${escapeHtml(countryKaFrom)} ინვესტიცია არ განხორციელდა.` : `In ${b(inv.prevYear)}, no investment was conducted from ${escapeHtml(countryEn)}.`}</p>`);
       }
     }
 

@@ -807,4 +807,146 @@ router.get('/tourism', async (req, res) => {
   }
 });
 
+// ── POST /api/statistics/fdi-sectors(/upload) ───────────────────────────
+// FDI breakdown by country × sector × year. Data comes from an admin-uploaded
+// XLSX file. No initial data is bundled — the endpoint returns {empty:true}
+// until the first upload.
+
+const { upload, adminOnly, saveParsedAndRaw, loadParsedFromDisk } = require('./admin-uploads');
+
+let fdiSectorsCache = { data: null };
+
+function parseFdiSectorsWorkbook(wb) {
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  if (!sheet) throw new Error('Workbook has no sheets');
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+
+  // Find the header row: it has "ქვეყნის კოდი" in column A.
+  let headerIdx = -1;
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const row = rows[i] || [];
+    if (String(row[0] || '').trim() === 'ქვეყნის კოდი') { headerIdx = i; break; }
+  }
+  if (headerIdx < 0) throw new Error('Header row with "ქვეყნის კოდი" not found');
+
+  // Detect period columns from the header (D onwards). Accepts:
+  //   "2025"           → label "2025"
+  //   "2025*"          → label "2025" (preliminary marker stripped)
+  //   "2026 I კვ"      → label "2026 I კვ" (quarterly)
+  //   "Q1 2026"        → label "Q1 2026"
+  // Any header whose stripped form contains a 4-digit year in [2000..2100]
+  // counts. The raw label is preserved so the UI can render "2026 I კვ"
+  // instead of just "2026".
+  const header = rows[headerIdx];
+  const periodCols = [];
+  for (let c = 3; c < header.length; c++) {
+    const raw = String(header[c] || '').replace(/\*/g, '').trim();
+    if (!raw) continue;
+    const m = /\b(20\d{2}|21\d{2})\b/.exec(raw);
+    if (!m) continue;
+    const year = parseInt(m[1], 10);
+    if (year < 2000 || year > 2100) continue;
+    periodCols.push({ col: c, label: raw });
+  }
+  if (!periodCols.length) throw new Error('No year/period columns found in header');
+  const years = periodCols.map(p => p.label); // strings (may include quarter suffix)
+
+  function parseNum(v) {
+    if (v === null || v === undefined || v === '-' || v === '') return null;
+    const s = String(v).replace(/,/g, '').replace(/\s/g, '').replace(/\u00A0/g, '');
+    const n = parseFloat(s);
+    if (isNaN(n)) return null;
+    return n / 1000; // thousand USD → mln USD
+  }
+
+  const countries = {};
+  const sectorsSet = new Set();
+  let current = null;
+
+  // Skip the grand-total block at the top: first country block starts when a
+  // row has a non-empty country code in col A.
+  for (let r = headerIdx + 1; r < rows.length; r++) {
+    const row = rows[r];
+    if (!row) continue;
+    const codeRaw = row[0] != null ? String(row[0]).trim() : '';
+    const nameRaw = row[1] != null ? String(row[1]).trim() : '';
+    const sectorRaw = row[2] != null ? String(row[2]).trim() : '';
+
+    if (codeRaw && !isNaN(parseInt(codeRaw, 10))) {
+      // Start a new country block (the row itself may be "სულ" or a sector —
+      // but typically it's the total row).
+      const code = String(parseInt(codeRaw, 10));
+      current = { code, name: nameRaw };
+      if (!countries[code]) countries[code] = { name: nameRaw, sectors: {}, totals: {} };
+    }
+    if (!current || !sectorRaw) continue;
+
+    const values = {};
+    for (const { col, label } of periodCols) values[label] = parseNum(row[col]);
+
+    if (sectorRaw === 'სულ') {
+      countries[current.code].totals = values;
+    } else {
+      countries[current.code].sectors[sectorRaw] = values;
+      sectorsSet.add(sectorRaw);
+    }
+  }
+
+  return {
+    uploadedAt: new Date().toISOString(),
+    years,
+    sectors: Array.from(sectorsSet),
+    countries,
+  };
+}
+
+function loadFdiSectorsFromDisk() {
+  const parsed = loadParsedFromDisk('fdi-sectors');
+  if (parsed) {
+    fdiSectorsCache.data = parsed;
+    console.log(`fdi-sectors: loaded from disk (${Object.keys(parsed.countries || {}).length} countries, years ${parsed.years?.join(',')})`);
+  }
+}
+
+// Init: load any previously uploaded data on module load.
+loadFdiSectorsFromDisk();
+
+router.get('/fdi-sectors', (req, res) => {
+  const data = fdiSectorsCache.data;
+  if (!data) return res.json({ success: true, empty: true });
+  res.json({
+    success: true,
+    uploadedAt: data.uploadedAt,
+    years: data.years,
+    sectors: data.sectors,
+    countries: data.countries,
+    yearsCovered: data.years,
+    countryCount: Object.keys(data.countries).length,
+    sectorCount: data.sectors.length,
+  });
+});
+
+router.post('/fdi-sectors/upload', ...adminOnly, upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded (field name: "file")' });
+    const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const parsed = parseFdiSectorsWorkbook(wb);
+    const countryCount = Object.keys(parsed.countries).length;
+    if (!countryCount) return res.status(400).json({ error: 'No country data found in file' });
+    saveParsedAndRaw('fdi-sectors', parsed, req.file.buffer);
+    fdiSectorsCache.data = parsed;
+    console.log(`fdi-sectors: uploaded (${countryCount} countries, ${parsed.sectors.length} sectors, years ${parsed.years.join(',')})`);
+    res.json({
+      success: true,
+      uploadedAt: parsed.uploadedAt,
+      yearsCovered: parsed.years,
+      countryCount,
+      sectorCount: parsed.sectors.length,
+    });
+  } catch (err) {
+    console.error('fdi-sectors upload error:', err.message);
+    res.status(400).json({ error: err.message || 'Failed to parse uploaded file' });
+  }
+});
+
 module.exports = router;
