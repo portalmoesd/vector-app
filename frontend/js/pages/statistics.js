@@ -1414,7 +1414,7 @@
       const countryData = gntaName ? json.countries[gntaName] : null;
 
       if (!countryData) {
-        tourismTableEl.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
+        tourismTableEl.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'აღნიშნული ქვეყნიდან ვიზიტორები საქართველოში არ ფიქსირდება.' : 'No visitor records from this country to Georgia.'}</p></div>`;
         pdfState.tourism = { hasData: false };
         if (tourismSummaryEl) tourismSummaryEl.classList.add('hidden');
         tourismLoading.classList.add('hidden');
@@ -1698,7 +1698,7 @@
       const allYears = json.years; // e.g. [1996, 1997, ..., 2025]
 
       if (!countryData) {
-        fdiTable.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
+        fdiTable.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'აღნიშნული ქვეყნიდან საქართველოში პირდაპირი უცხოური ინვესტიცია არ ფიქსირდება.' : 'No foreign direct investment records from this country to Georgia.'}</p></div>`;
         pdfState.investments = { hasData: false };
         if (investmentsSummaryEl) investmentsSummaryEl.classList.add('hidden');
         investmentsLoading.classList.add('hidden');
@@ -1892,16 +1892,27 @@
       <tbody>`;
 
     for (const r of data) {
-      const pct = r.prevMln > 0
-        ? ((r.valueMln - r.prevMln) / Math.abs(r.prevMln) * 100)
-        : (r.valueMln > 0 ? 100 : 0);
-      const changeClass = pct > 0 ? 'stat-positive' : (pct < 0 ? 'stat-negative' : '');
-      const sign = pct > 0 ? '+' : '';
+      // Show "-" when current year's FDI is non-positive (disinvestment)
+      // or when previous year was non-positive (can't compute meaningful %)
+      const isCurNeg = !(r.valueMln > 0);
+      const isPrevNeg = !(r.prevMln > 0);
+      const valueCell = isCurNeg
+        ? '-'
+        : formatMln(r.valueMln);
+      let changeCell = '-';
+      let changeClass = '';
+      let sign = '';
+      if (!isCurNeg && !isPrevNeg) {
+        const pct = ((r.valueMln - r.prevMln) / r.prevMln) * 100;
+        changeClass = pct > 0 ? 'stat-positive' : (pct < 0 ? 'stat-negative' : '');
+        sign = pct > 0 ? '+' : '';
+        changeCell = `${sign}${formatChangePct(pct)}`;
+      }
       html += `
         <tr>
           <td>${r.year}</td>
-          <td class="stat-col-value">${formatMln(Math.abs(r.valueMln))}</td>
-          <td class="stat-col-change ${changeClass}">${sign}${formatChangePct(pct)}</td>
+          <td class="stat-col-value">${valueCell}</td>
+          <td class="stat-col-change ${changeClass}">${changeCell}</td>
         </tr>`;
     }
 
