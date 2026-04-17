@@ -106,6 +106,21 @@
   cursor: not-allowed;
 }
 
+/* ─── Trade Summary ────────────────────────────────────────────────────── */
+
+.stat-summary {
+  padding: 16px 20px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1f2937;
+}
+.stat-summary p {
+  margin: 0 0 8px 0;
+}
+.stat-summary p:last-child {
+  margin-bottom: 0;
+}
+
 /* While exporting: un-hide all tabs off-screen so chart canvases render with real dimensions */
 body.stat-exporting #reportArea.hidden,
 body.stat-exporting #tourismArea.hidden,
