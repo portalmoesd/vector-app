@@ -1372,17 +1372,22 @@
   function resolveGntaName(country, gntaCountries) {
     const canonical = country.displayLabel;
     const raw = country.rawLabel || canonical;
-    // Direct match on canonical
+    // Direct match on canonical or raw
     if (gntaCountries[canonical]) return canonical;
-    // Direct match on raw trade name
     if (gntaCountries[raw]) return raw;
-    // Try any variant that maps to the same canonical
+    // Look up the mapping — e.g. "Lithuania" → "ლიეტუვა"
+    const mapped = countryNameMap[canonical];
+    if (mapped && gntaCountries[mapped]) return mapped;
+    const mappedRaw = countryNameMap[raw];
+    if (mappedRaw && gntaCountries[mappedRaw]) return mappedRaw;
+    // Try any variant that maps to the same Georgian canonical
+    const target = mapped || canonical;
     for (const [variant, canon] of Object.entries(countryNameMap)) {
-      if (canon === canonical && gntaCountries[variant]) return variant;
+      if (canon === target && gntaCountries[variant]) return variant;
     }
-    // Fuzzy match: GNTA name starts with / contains / is contained by canonical
+    // Fuzzy substring match against the Georgian target
     for (const gntaName of Object.keys(gntaCountries)) {
-      if (gntaName.includes(canonical) || canonical.includes(gntaName)) return gntaName;
+      if (gntaName.includes(target) || target.includes(gntaName)) return gntaName;
     }
     return null;
   }
