@@ -1516,8 +1516,7 @@
   // Georgian ablative ("from country"): word ending in "ი" → replace with "იდან"
   // (e.g. თურქეთი → თურქეთიდან). Otherwise append "-დან".
   function kaCountryFrom(name) {
-    if (name.endsWith('ი')) return name + 'დან';
-    return name + '-დან';
+    return name + 'დან';
   }
 
   // Convert a GNTA period label like "2026 I კვ" to Georgian genitive

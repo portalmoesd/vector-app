@@ -738,7 +738,7 @@
     const B = (s) => ({ text: s, bold: true });
     const paraStyle = { fontSize: 10, lineHeight: 1.3, alignment: 'justify', margin: [0, 0, 0, 4] };
     const fmt = (n) => Number(n).toLocaleString();
-    const kaFrom = (name) => name.endsWith('ი') ? name + 'დან' : name + '-დან';
+    const kaFrom = (name) => name + 'დან';
 
     function formatPeriodKa(label) {
       const m = /^(\d{4})\s+([IVX]+)\s+კვ$/.exec(label || '');
