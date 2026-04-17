@@ -160,12 +160,12 @@
     return `${year} წლის ${KA_MONTHS[1].stem}\u2011${KA_MONTHS[latestMonth].loc}`;
   }
 
-  function enPeriod(year, latestMonth, monthNames) {
+  const EN_MONTHS = { 1:'Jan', 2:'Feb', 3:'Mar', 4:'Apr', 5:'May', 6:'Jun', 7:'Jul', 8:'Aug', 9:'Sep', 10:'Oct', 11:'Nov', 12:'Dec' };
+
+  function enPeriod(year, latestMonth) {
     if (latestMonth === 12) return String(year);
-    const firstLbl = (monthNames.find(m => m.value === 1)?.label || 'Jan').slice(0, 3);
-    if (latestMonth === 1) return `${firstLbl} ${year}`;
-    const lastLbl = (monthNames.find(m => m.value === latestMonth)?.label || '').slice(0, 3);
-    return `${firstLbl}-${lastLbl} ${year}`;
+    if (latestMonth === 1) return `${EN_MONTHS[1]} ${year}`;
+    return `${EN_MONTHS[1]}-${EN_MONTHS[latestMonth]} ${year}`;
   }
 
   function gePlace(rank) {
@@ -434,7 +434,7 @@
     const isKa = lang === 'ka';
     const periodGen = isKa ? gePeriodGen(trade.latestYear, trade.latestMonth) : null;
     const periodLoc = isKa ? gePeriodLoc(trade.latestYear, trade.latestMonth) : null;
-    const periodEn  = !isKa ? enPeriod(trade.latestYear, trade.latestMonth, trade.monthNames || []) : null;
+    const periodEn  = !isKa ? enPeriod(trade.latestYear, trade.latestMonth) : null;
     const rank = trade.ranking && trade.ranking.country ? trade.ranking.country : null;
 
     const B = (s) => ({ text: s, bold: true });
@@ -854,7 +854,7 @@
   function buildDocDefinition(state, opts) {
     const lang = opts.lang || 'en';
     const t = T[lang] || T.en;
-    const country = opts.country || '';
+    const country = lang === 'en' && opts.countryNameEn ? opts.countryNameEn : (opts.country || '');
     const dateStr = formatDate(lang);
     const charts = opts.charts || {};
 

@@ -119,6 +119,7 @@
 
   // ── Load classificatory data ─────────────────────────────────────────────
   const lang = I18n.getLocale() || 'en';
+  const countryNameEnMap = {};
 
   try {
     const json = await geostatGet(`/classificatory?lang=${lang}`);
@@ -131,6 +132,19 @@
     }
   } catch (err) {
     console.error('Failed to load classificatory data:', err);
+  }
+  // Load English country names for PDF export (when UI is Georgian)
+  if (lang !== 'en') {
+    try {
+      const enJson = await geostatGet('/classificatory?lang=en');
+      if (enJson.success && enJson.data && enJson.data.countries) {
+        for (const c of enJson.data.countries) {
+          countryNameEnMap[c.value] = c.label.replace(/^\d+\s+/, '');
+        }
+      }
+    } catch (_) {}
+  } else {
+    for (const c of countries) countryNameEnMap[c.value] = c.displayLabel;
   }
 
   // ── Load HS4 short name mapping ──────────────────────────────────────────
@@ -500,6 +514,7 @@
 
       // ── Capture PDF state ────────────────────────────────────────────
       pdfState.country = selectedCountry;
+      pdfState.countryNameEn = countryNameEnMap[selectedCountry.value] || selectedCountry.displayLabel;
       pdfState.trade = {
         overview,
         prevYear, prevPrevYear, latestYear, latestMonth,
@@ -1211,7 +1226,8 @@
 
   function cleanHs4NameEn(name, hs4Code) {
     if (hs4Code && hs4NameMapEn[hs4Code]) return hs4NameMapEn[hs4Code];
-    return name.replace(/^\d{2,6}\s+/, '');
+    // Don't fall back to Georgian name — use HS code instead
+    return `HS ${hs4Code || '????'}`;
   }
 
   // ── Render section header ────────────────────────────────────────────────
@@ -1799,6 +1815,7 @@
       await StatisticsPdf.build(pdfState, {
         lang: pdfLang || 'en',
         country: pdfState.country.displayLabel,
+        countryNameEn: pdfState.countryNameEn,
         charts,
       });
     } catch (err) {
