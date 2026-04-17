@@ -53,7 +53,7 @@
       export: 'Export',
       import: 'Import',
       balance: 'Balance',
-      dynamics: 'Export–Import Dynamics',
+      dynamics: 'Export-Import Dynamics',
       mainExport: 'Main Export Products',
       mainImport: 'Main Import Products',
       exportIncrease: 'Most Increased Export Products',
@@ -151,13 +151,13 @@
   function gePeriodGen(year, latestMonth) {
     if (latestMonth === 12) return `${year} წლის`;
     if (latestMonth === 1)  return `${year} წლის ${KA_MONTHS[1].gen}`;
-    return `${year} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].gen}`;
+    return `${year} წლის ${KA_MONTHS[1].stem}\u2011${KA_MONTHS[latestMonth].gen}`;
   }
 
   function gePeriodLoc(year, latestMonth) {
     if (latestMonth === 12) return `${year} წელს`;
     if (latestMonth === 1)  return `${year} წლის ${KA_MONTHS[1].loc}`;
-    return `${year} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].loc}`;
+    return `${year} წლის ${KA_MONTHS[1].stem}\u2011${KA_MONTHS[latestMonth].loc}`;
   }
 
   function enPeriod(year, latestMonth, monthNames) {
@@ -170,7 +170,10 @@
 
   function gePlace(rank) {
     if (rank === 1) return 'პირველ';
-    return `მე-${rank}`;
+    if (rank >= 2 && rank <= 20) return `მე-${rank}`;
+    if (rank % 10 === 0) return `მე-${rank}`;
+    if (rank % 100 === 0) return `მე-${rank}`;
+    return `${rank}-ე`;
   }
 
   function enOrdinal(rank) {
@@ -303,7 +306,7 @@
     };
 
     function cell(value, prev, isBalance, key, periodData) {
-      if (isBalance && periodData.turnover === 0) return { text: '—', alignment: 'center' };
+      if (isBalance && periodData.turnover === 0) return { text: '-', alignment: 'center' };
       if (value === 0 && !isBalance && zeroMsg[key]) return { text: zeroMsg[key], alignment: 'center', color: '#94a3b8', fontSize: 8.5 };
       if (isBalance) {
         const sign = value < 0 ? t.negative : t.positive;
@@ -373,7 +376,7 @@
         tdNum(`${changeSign}${formatPct(change)}`, { color: changeColor }),
       ];
       if (showReexport) {
-        row.push(tdNum(p.reexportShare === 0 ? '—' : formatPct(p.reexportShare)));
+        row.push(tdNum(p.reexportShare === 0 ? '-' : formatPct(p.reexportShare)));
       }
       body.push(row);
     }
@@ -483,7 +486,7 @@
     nodes.push(heading('სავაჭრო ბრუნვა', 'Trade Turnover'));
     if (isKa) {
       nodes.push({ text: [
-        `${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიური პერიოდის მაჩვენებელთან შედარებით, `,
+        `${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიურ პერიოდთან შედარებით, `,
         changeVerbParts(curTurn, prevTurn),
         ` და `, B(`${formatMln(curTurn)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
       ], ...paraStyle });
@@ -519,7 +522,7 @@
           changeVerbParts(curExp, prevExp),
           ` და `, B(`${formatMln(curExp)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
           ...(rank && rank.export ? [
-            ` საქართველოსთვის ექსპორტის მოცულობის მიხედვით ${country} არის `,
+            ` საქართველოსთვის ექსპორტის მიხედვით ${country} არის `,
             B(`${gePlace(rank.export.rank)} ადგილზე`), `, წილი `, B(`${pctOne(rank.export.sharePct)}%`), `.`,
           ] : []),
         ], ...paraStyle, margin: [0, 6, 0, 4] });
@@ -544,9 +547,9 @@
 
         if (isKa) {
           nodes.push({ text: [
-            `${periodGen} აღნიშნულ პერიოდში განხორციელდა `,
+            `${periodGen} პერიოდში განხორციელდა `,
             B(`${formatMln(domVal)} მლნ. აშშ დოლარის`),
-            ` ადგილობრივი ექსპორტი, რაც შეადგენს `, B(`${domPct}%-ს`), ` სრული ექსპორტის. `,
+            ` `, B('ადგილობრივი ექსპორტი'), `, რაც შეადგენს `, B(`${domPct}%-ს`), ` სრული ექსპორტის. `,
             `ადგილობრივი ექსპორტით ${country} იკავებს `,
             B(`${gePlace(rank.domesticExport.rank)} ადგილს`),
             ` საქართველოს სავაჭრო პარტნიორებს შორის. `,
@@ -589,7 +592,7 @@
           changeVerbParts(curImp, prevImp),
           ` და `, B(`${formatMln(curImp)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
           ...(rank && rank.import ? [
-            ` საქართველოსთვის იმპორტის მოცულობის მიხედვით ${country} არის `,
+            ` საქართველოსთვის იმპორტის მიხედვით ${country} არის `,
             B(`${gePlace(rank.import.rank)} ადგილზე`), `, წილი `, B(`${pctOne(rank.import.sharePct)}%`), `.`,
           ] : []),
         ], ...paraStyle, margin: [0, 6, 0, 4] });
@@ -622,7 +625,7 @@
     if (!trade) return [];
 
     const blocks = [];
-    const title = `${country} — ${t.tradeOverview}, ${trade.periodLabel} ${trade.latestYear}`;
+    const title = `${country} - ${t.tradeOverview}, ${trade.periodLabel} ${trade.latestYear}`;
     const summary = buildTradeSummary(trade, t, country, lang);
     blocks.push(withTitle(
       sectionTitle(title),
@@ -726,7 +729,7 @@
   function buildTourismSection(tourism, charts, t, country) {
     if (!tourism) return [];
     const blocks = [];
-    const title = sectionTitle(`${country} — ${t.internationalVisitors}`);
+    const title = sectionTitle(`${country} - ${t.internationalVisitors}`);
 
     if (!tourism.hasData) {
       blocks.push(withTitle(
@@ -743,7 +746,7 @@
     for (const r of rows) {
       let changeCell;
       if (r.changePct === null || r.changePct === undefined) {
-        changeCell = tdNum('—');
+        changeCell = tdNum('-');
       } else {
         const color = r.changePct > 0 ? '#16a34a' : (r.changePct < 0 ? '#dc2626' : '#475569');
         const sign = r.changePct > 0 ? '+' : '';
@@ -787,7 +790,7 @@
   function buildInvestmentsSection(inv, charts, t, country) {
     if (!inv) return [];
     const blocks = [];
-    const title = sectionTitle(`${country} — ${t.fdi}`);
+    const title = sectionTitle(`${country} - ${t.fdi}`);
 
     if (!inv.hasData) {
       blocks.push(withTitle(

@@ -635,10 +635,10 @@
     const ov = trade.overview;
 
     const periodGen = isKa
-      ? (lm === 12 ? `${year} წლის` : lm === 1 ? `${year} წლის ${KA_MONTH_GEN[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_GEN[lm]}`)
+      ? (lm === 12 ? `${year} წლის` : lm === 1 ? `${year} წლის ${KA_MONTH_GEN[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_GEN[lm]}`)
       : (lm === 12 ? `${year}` : lm === 1 ? `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)} ${year}` : `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)}-${(mn.find(m => m.value === lm)?.label || '').slice(0, 3)} ${year}`);
     const periodLoc = isKa
-      ? (lm === 12 ? `${year} წელს` : lm === 1 ? `${year} წლის ${KA_MONTH_LOC[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_LOC[lm]}`)
+      ? (lm === 12 ? `${year} წელს` : lm === 1 ? `${year} წლის ${KA_MONTH_LOC[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_LOC[lm]}`)
       : periodGen;
 
     function b(s) { return `<strong>${escapeHtml(s)}</strong>`; }
@@ -652,7 +652,13 @@
       if (isKa) return b(`${c >= 0 ? 'გაიზარდა' : 'შემცირდა'} ${abs}%-ით`);
       return b(`${c >= 0 ? 'increased' : 'decreased'} by ${abs}%`);
     }
-    function geP(r) { return r === 1 ? 'პირველ' : `მე-${r}`; }
+    function geP(r) {
+      if (r === 1) return 'პირველ';
+      if (r >= 2 && r <= 20) return `მე-${r}`;
+      if (r % 10 === 0) return `მე-${r}`;
+      if (r % 100 === 0) return `მე-${r}`;
+      return `${r}-ე`;
+    }
     function enO(r) {
       const n = Math.abs(r); const m = n % 100;
       if (m >= 11 && m <= 13) return `${n}th`;
@@ -677,7 +683,7 @@
     // Turnover
     lines.push(`<h4 class="stat-summary__heading">${isKa ? 'სავაჭრო ბრუნვა' : 'Trade Turnover'}</h4>`);
     if (isKa) {
-      lines.push(`<p>${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიური პერიოდის მაჩვენებელთან შედარებით, ${chg(curTurn, prevTurn)} და ${b(`${fmln(curTurn)} მლნ. აშშ დოლარი`)} შეადგინა.</p>`);
+      lines.push(`<p>${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიურ პერიოდთან შედარებით, ${chg(curTurn, prevTurn)} და ${b(`${fmln(curTurn)} მლნ. აშშ დოლარი`)} შეადგინა.</p>`);
       if (rank && rank.turnover) {
         lines.push(`<p>${escapeHtml(countryName)} აღნიშნულ პერიოდში სავაჭრო ბრუნვის მოცულობის მიხედვით არის ${b(`${geP(rank.turnover.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.turnover.sharePct)}%`)}.</p>`);
       }
@@ -694,7 +700,7 @@
     if (trade.hasExport) {
       if (isKa) {
         let exp = `<p>ექსპორტი ${periodLoc} ${chg(curExp, prevExp)} და ${b(`${fmln(curExp)} მლნ. აშშ დოლარი`)} შეადგინა.`;
-        if (rank && rank.export) exp += ` საქართველოსთვის ექსპორტის მოცულობის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.export.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.export.sharePct)}%`)}.`;
+        if (rank && rank.export) exp += ` საქართველოსთვის ექსპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.export.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.export.sharePct)}%`)}.`;
         exp += '</p>';
         lines.push(exp);
       } else {
@@ -710,7 +716,7 @@
         const reVal = rank.reExport ? rank.reExport.valueMln : (curExp - domVal);
         const rePct = (100 * reVal / curExp).toFixed(0);
         if (isKa) {
-          lines.push(`<p>${periodGen} აღნიშნულ პერიოდში განხორციელდა ${b(`${fmln(domVal)} მლნ. აშშ დოლარის`)} ადგილობრივი ექსპორტი, რაც შეადგენს ${b(`${domPct}%-ს`)} სრული ექსპორტის. ადგილობრივი ექსპორტით ${escapeHtml(countryName)} იკავებს ${b(`${geP(rank.domesticExport.rank)} ადგილს`)} საქართველოს სავაჭრო პარტნიორებს შორის. რე-ექსპორტმა იმავე პერიოდში შეადგინა ${b(`${fmln(reVal)} მლნ. აშშ დოლარი`)} <em>(წილი ${rePct}%)</em>.</p>`);
+          lines.push(`<p>${periodGen} პერიოდში განხორციელდა ${b(`${fmln(domVal)} მლნ. აშშ დოლარის`)} ${b('ადგილობრივი ექსპორტი')}, რაც შეადგენს ${b(`${domPct}%-ს`)} სრული ექსპორტის. ადგილობრივი ექსპორტით ${escapeHtml(countryName)} იკავებს ${b(`${geP(rank.domesticExport.rank)} ადგილს`)} საქართველოს სავაჭრო პარტნიორებს შორის. რე-ექსპორტმა იმავე პერიოდში შეადგინა ${b(`${fmln(reVal)} მლნ. აშშ დოლარი`)} <em>(წილი ${rePct}%)</em>.</p>`);
         } else {
           lines.push(`<p>In the given period, domestic exports amounted to ${b(`${fmln(domVal)} mln USD`)}, comprising ${b(`${domPct}%`)} of total exports. By domestic exports, ${escapeHtml(countryName)} ranks ${b(enO(rank.domesticExport.rank))} among Georgia's trading partners. Re-exports in the same period amounted to ${b(`${fmln(reVal)} mln USD`)} <em>(${rePct}% share)</em>.</p>`);
         }
@@ -726,7 +732,7 @@
     if (trade.hasImport) {
       if (isKa) {
         let imp = `<p>იმპორტი ${periodLoc} ${chg(curImp, prevImp)} და ${b(`${fmln(curImp)} მლნ. აშშ დოლარი`)} შეადგინა.`;
-        if (rank && rank.import) imp += ` საქართველოსთვის იმპორტის მოცულობის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.import.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.import.sharePct)}%`)}.`;
+        if (rank && rank.import) imp += ` საქართველოსთვის იმპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.import.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.import.sharePct)}%`)}.`;
         imp += '</p>';
         lines.push(imp);
       } else {
