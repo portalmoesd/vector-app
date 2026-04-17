@@ -200,6 +200,16 @@
     if (canonical) c.displayLabel = canonical;
   }
 
+  // Add English → Georgian canonical entries so resolveGntaName works
+  // when the UI is in English. The shared numeric country ID bridges
+  // the two classificatories.
+  for (const c of countries) {
+    const englishName = countryNameEnMap[c.value];
+    if (englishName && !countryNameMap[englishName]) {
+      countryNameMap[englishName] = c.displayLabel;
+    }
+  }
+
   // ── Country search dropdown ──────────────────────────────────────────────
 
   function renderDropdown(filter) {
