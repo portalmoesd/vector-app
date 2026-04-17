@@ -665,7 +665,7 @@
         const name = isKa ? p.name : (p.nameEn || p.name);
         const sign = p.change > 0 ? '+' : '';
         const unit = isKa ? 'მლნ. $' : 'mln $';
-        return `${escapeHtml(name)} <em>(${fmln(p.valueMln)} ${unit}, ${sign}${formatPct(p.change)})</em>`;
+        return `${escapeHtml(name)} <em>(${fmln(p.valueMln)} ${unit}, ${sign}${formatChangePct(p.change)})</em>`;
       }).join(', ') + '.';
     }
 
