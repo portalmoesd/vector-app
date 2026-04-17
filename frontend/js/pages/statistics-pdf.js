@@ -427,10 +427,6 @@
   }
 
   // ── Trade summary paragraphs ───────────────────────────────────────────
-  // Three narrative paragraphs (turnover / export / import) rendered at the
-  // top of the Trade section. Ranking / share sentences are added when
-  // trade.ranking is present; otherwise those sentences are silently
-  // skipped so a backend failure never blocks the PDF.
   function buildTradeSummary(trade, t, country, lang) {
     const isKa = lang === 'ka';
     const periodGen = isKa ? gePeriodGen(trade.latestYear, trade.latestMonth) : null;
@@ -438,34 +434,40 @@
     const periodEn  = !isKa ? enPeriod(trade.latestYear, trade.latestMonth, trade.monthNames || []) : null;
     const rank = trade.ranking && trade.ranking.country ? trade.ranking.country : null;
 
+    const B = (s) => ({ text: s, bold: true });
+    const I = (s) => ({ text: s, italics: true });
+
     function pctInt(x) { return Math.round(Math.abs(x)); }
     function pctOne(x) { return (Math.round(x * 10) / 10).toFixed(1); }
 
-    function changeVerb(current, prev) {
+    function changeVerbParts(current, prev) {
       const c = calcChange(current, prev);
       const abs = pctInt(c);
       if (isKa) {
-        // Georgian: the verb itself conveys the direction.
         const verb = c >= 0 ? 'გაიზარდა' : 'შემცირდა';
-        return { text: `${verb} ${abs}%-ით`, positive: c >= 0 };
+        return B(`${verb} ${abs}%-ით`);
       }
       const verb = c >= 0 ? 'increased' : 'decreased';
-      return { text: `${verb} by ${abs}%`, positive: c >= 0 };
+      return B(`${verb} by ${abs}%`);
     }
 
-    function productEntry(p) {
-      const changeSign = p.change > 0 ? '+' : '';
+    function productListParts(products) {
+      if (!products || !products.length) return [];
+      const parts = [];
+      const items = products.slice(0, 10);
       const unit = isKa ? 'მლნ. $' : 'mln $';
-      const name = isKa ? p.name : (p.nameEn || p.name);
-      return `${name} (${formatMln(p.valueMln)} ${unit}, ${changeSign}${formatPct(p.change)})`;
-    }
-    function productList(products) {
-      if (!products || !products.length) return '';
-      return products.slice(0, 10).map(productEntry).join(', ') + '.';
+      items.forEach((p, i) => {
+        const changeSign = p.change > 0 ? '+' : '';
+        const name = isKa ? p.name : (p.nameEn || p.name);
+        parts.push(name + ' ');
+        parts.push(I(`(${formatMln(p.valueMln)} ${unit}, ${changeSign}${formatPct(p.change)})`));
+        parts.push(i < items.length - 1 ? ', ' : '.');
+      });
+      return parts;
     }
 
-    const paraStyle = { fontSize: 10, lineHeight: 1.3, alignment: 'justify', margin: [0, 0, 0, 6] };
-    const paragraphs = [];
+    const paraStyle = { fontSize: 10, lineHeight: 1.3, alignment: 'justify', margin: [0, 0, 0, 4] };
+    const nodes = [];
 
     const curTurn  = trade.overview.latestPeriod.turnover;
     const prevTurn = trade.overview.latestPeriod.turnoverPrev;
@@ -474,90 +476,137 @@
     const curImp   = trade.overview.latestPeriod.import;
     const prevImp  = trade.overview.latestPeriod.importPrev;
 
-    const turnVerb = changeVerb(curTurn, prevTurn);
-    const expVerb  = changeVerb(curExp,  prevExp);
-    const impVerb  = changeVerb(curImp,  prevImp);
-
-    // ── Paragraph 1: Turnover ────────────────────────────────────────────
-    let p1 = '';
+    // ── Turnover ─────────────────────────────────────────────────────────
     if (isKa) {
-      p1 = `${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიური პერიოდის მაჩვენებელთან შედარებით, ${turnVerb.text} და ${formatMln(curTurn)} მლნ. აშშ დოლარი შეადგინა.`;
+      nodes.push({ text: [
+        `${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიური პერიოდის მაჩვენებელთან შედარებით, `,
+        changeVerbParts(curTurn, prevTurn),
+        ` და `, B(`${formatMln(curTurn)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
+      ], ...paraStyle });
       if (rank && rank.turnover) {
-        p1 += ` ${country} აღნიშნულ პერიოდში სავაჭრო ბრუნვის მოცულობის მიხედვით არის ${gePlace(rank.turnover.rank)} ადგილზე, წილი ${pctOne(rank.turnover.sharePct)}%.`;
+        nodes.push({ text: [
+          `${country} აღნიშნულ პერიოდში სავაჭრო ბრუნვის მოცულობის მიხედვით არის `,
+          B(`${gePlace(rank.turnover.rank)} ადგილზე`), `, წილი `, B(`${pctOne(rank.turnover.sharePct)}%`), `.`,
+        ], ...paraStyle });
       }
     } else {
-      p1 = `For ${periodEn}, trade turnover ${turnVerb.text} compared to the same period last year, amounting to ${formatMln(curTurn)} mln USD.`;
+      nodes.push({ text: [
+        `For ${periodEn}, trade turnover `,
+        changeVerbParts(curTurn, prevTurn),
+        ` compared to the same period last year, amounting to `, B(`${formatMln(curTurn)} mln USD`), `.`,
+      ], ...paraStyle });
       if (rank && rank.turnover) {
-        p1 += ` ${country} ranks ${enOrdinal(rank.turnover.rank)} by trade turnover with a ${pctOne(rank.turnover.sharePct)}% share.`;
+        nodes.push({ text: [
+          `${country} ranks `, B(enOrdinal(rank.turnover.rank)),
+          ` by trade turnover with a `, B(`${pctOne(rank.turnover.sharePct)}%`), ` share.`,
+        ], ...paraStyle });
       }
     }
-    paragraphs.push({ text: p1, ...paraStyle });
 
-    // ── Paragraph 2: Export ──────────────────────────────────────────────
-    let p2 = '';
+    // ── Export ────────────────────────────────────────────────────────────
     if (!trade.hasExport) {
-      p2 = isKa
-        ? `ექსპორტი ${periodLoc} არ განხორციელდა.`
-        : `No exports were conducted in ${periodEn}.`;
-    } else if (isKa) {
-      p2 = `ექსპორტი ${periodLoc} ${expVerb.text} და ${formatMln(curExp)} მლნ. აშშ დოლარი შეადგინა.`;
-      if (rank && rank.export) {
-        p2 += ` საქართველოსთვის ექსპორტის მოცულობის მიხედვით ${country} არის ${gePlace(rank.export.rank)} ადგილზე, წილი ${pctOne(rank.export.sharePct)}%.`;
-      }
-      if (rank && rank.domesticExport && curExp > 0) {
-        const domVal = rank.domesticExport.valueMln;
-        const domPct = (100 * domVal / curExp).toFixed(0);
-        const reVal = rank.reExport ? rank.reExport.valueMln : (curExp - domVal);
-        const rePct = (100 * reVal / curExp).toFixed(0);
-        p2 += ` ${periodGen} აღნიშნულ პერიოდში განხორციელდა ${formatMln(domVal)} მლნ. აშშ დოლარის ადგილობრივი ექსპორტი, რაც შეადგენს ${domPct}%-ს სრული ექსპორტის.`;
-        p2 += ` ადგილობრივი ექსპორტით ${country} იკავებს ${gePlace(rank.domesticExport.rank)} ადგილს საქართველოს სავაჭრო პარტნიორებს შორის.`;
-        p2 += ` რე-ექსპორტმა იმავე პერიოდში შეადგინა ${formatMln(reVal)} მლნ. აშშ დოლარი (წილი ${rePct}%).`;
-      }
-      const pl = productList(trade.exportProducts);
-      if (pl) p2 += ` ძირითადი საექსპორტო პროდუქცია: ${pl}`;
+      nodes.push({ text: isKa ? `ექსპორტი ${periodLoc} არ განხორციელდა.` : `No exports were conducted in ${periodEn}.`, ...paraStyle, margin: [0, 6, 0, 4] });
     } else {
-      p2 = `Exports in ${periodEn} ${expVerb.text}, amounting to ${formatMln(curExp)} mln USD.`;
-      if (rank && rank.export) {
-        p2 += ` ${country} ranks ${enOrdinal(rank.export.rank)} by export volume with a ${pctOne(rank.export.sharePct)}% share.`;
+      if (isKa) {
+        nodes.push({ text: [
+          `ექსპორტი ${periodLoc} `,
+          changeVerbParts(curExp, prevExp),
+          ` და `, B(`${formatMln(curExp)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
+          ...(rank && rank.export ? [
+            ` საქართველოსთვის ექსპორტის მოცულობის მიხედვით ${country} არის `,
+            B(`${gePlace(rank.export.rank)} ადგილზე`), `, წილი `, B(`${pctOne(rank.export.sharePct)}%`), `.`,
+          ] : []),
+        ], ...paraStyle, margin: [0, 6, 0, 4] });
+      } else {
+        nodes.push({ text: [
+          `Exports in ${periodEn} `,
+          changeVerbParts(curExp, prevExp),
+          `, amounting to `, B(`${formatMln(curExp)} mln USD`), `.`,
+          ...(rank && rank.export ? [
+            ` ${country} ranks `, B(enOrdinal(rank.export.rank)),
+            ` by export volume with a `, B(`${pctOne(rank.export.sharePct)}%`), ` share.`,
+          ] : []),
+        ], ...paraStyle, margin: [0, 6, 0, 4] });
       }
+
+      // Domestic export + re-export
       if (rank && rank.domesticExport && curExp > 0) {
         const domVal = rank.domesticExport.valueMln;
         const domPct = (100 * domVal / curExp).toFixed(0);
         const reVal = rank.reExport ? rank.reExport.valueMln : (curExp - domVal);
         const rePct = (100 * reVal / curExp).toFixed(0);
-        p2 += ` In the given period, domestic exports amounted to ${formatMln(domVal)} mln USD, comprising ${domPct}% of total exports.`;
-        p2 += ` By domestic exports, ${country} ranks ${enOrdinal(rank.domesticExport.rank)} among Georgia's trading partners.`;
-        p2 += ` Re-exports in the same period amounted to ${formatMln(reVal)} mln USD (${rePct}% share).`;
-      }
-      const pl = productList(trade.exportProducts);
-      if (pl) p2 += ` Main export products: ${pl}`;
-    }
-    paragraphs.push({ text: p2, ...paraStyle });
 
-    // ── Paragraph 3: Import ──────────────────────────────────────────────
-    let p3 = '';
+        if (isKa) {
+          nodes.push({ text: [
+            `${periodGen} აღნიშნულ პერიოდში განხორციელდა `,
+            B(`${formatMln(domVal)} მლნ. აშშ დოლარის`),
+            ` ადგილობრივი ექსპორტი, რაც შეადგენს `, B(`${domPct}%-ს`), ` სრული ექსპორტის. `,
+            `ადგილობრივი ექსპორტით ${country} იკავებს `,
+            B(`${gePlace(rank.domesticExport.rank)} ადგილს`),
+            ` საქართველოს სავაჭრო პარტნიორებს შორის. `,
+            `რე-ექსპორტმა იმავე პერიოდში შეადგინა `,
+            B(`${formatMln(reVal)} მლნ. აშშ დოლარი`), ` `, I(`(წილი ${rePct}%)`), `.`,
+          ], ...paraStyle });
+        } else {
+          nodes.push({ text: [
+            `In the given period, domestic exports amounted to `,
+            B(`${formatMln(domVal)} mln USD`),
+            `, comprising `, B(`${domPct}%`), ` of total exports. `,
+            `By domestic exports, ${country} ranks `,
+            B(enOrdinal(rank.domesticExport.rank)),
+            ` among Georgia's trading partners. `,
+            `Re-exports in the same period amounted to `,
+            B(`${formatMln(reVal)} mln USD`), ` `, I(`(${rePct}% share)`), `.`,
+          ], ...paraStyle });
+        }
+      }
+
+      // Product list
+      const expParts = productListParts(trade.exportProducts);
+      if (expParts.length) {
+        nodes.push({ text: [
+          B(isKa ? 'ძირითადი საექსპორტო პროდუქცია: ' : 'Main export products: '),
+          ...expParts,
+        ], ...paraStyle });
+      }
+    }
+
+    // ── Import ───────────────────────────────────────────────────────────
     if (!trade.hasImport) {
-      p3 = isKa
-        ? `იმპორტი ${periodLoc} არ განხორციელდა.`
-        : `No imports were conducted in ${periodEn}.`;
-    } else if (isKa) {
-      p3 = `იმპორტი ${periodLoc} ${impVerb.text} და ${formatMln(curImp)} მლნ. აშშ დოლარი შეადგინა.`;
-      if (rank && rank.import) {
-        p3 += ` საქართველოსთვის იმპორტის მოცულობის მიხედვით ${country} არის ${gePlace(rank.import.rank)} ადგილზე, წილი ${pctOne(rank.import.sharePct)}%.`;
-      }
-      const pl = productList(trade.importProducts);
-      if (pl) p3 += ` ძირითადი საიმპორტო პროდუქცია: ${pl}`;
+      nodes.push({ text: isKa ? `იმპორტი ${periodLoc} არ განხორციელდა.` : `No imports were conducted in ${periodEn}.`, ...paraStyle, margin: [0, 6, 0, 4] });
     } else {
-      p3 = `Imports in ${periodEn} ${impVerb.text}, amounting to ${formatMln(curImp)} mln USD.`;
-      if (rank && rank.import) {
-        p3 += ` ${country} ranks ${enOrdinal(rank.import.rank)} by import volume with a ${pctOne(rank.import.sharePct)}% share.`;
+      if (isKa) {
+        nodes.push({ text: [
+          `იმპორტი ${periodLoc} `,
+          changeVerbParts(curImp, prevImp),
+          ` და `, B(`${formatMln(curImp)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
+          ...(rank && rank.import ? [
+            ` საქართველოსთვის იმპორტის მოცულობის მიხედვით ${country} არის `,
+            B(`${gePlace(rank.import.rank)} ადგილზე`), `, წილი `, B(`${pctOne(rank.import.sharePct)}%`), `.`,
+          ] : []),
+        ], ...paraStyle, margin: [0, 6, 0, 4] });
+      } else {
+        nodes.push({ text: [
+          `Imports in ${periodEn} `,
+          changeVerbParts(curImp, prevImp),
+          `, amounting to `, B(`${formatMln(curImp)} mln USD`), `.`,
+          ...(rank && rank.import ? [
+            ` ${country} ranks `, B(enOrdinal(rank.import.rank)),
+            ` by import volume with a `, B(`${pctOne(rank.import.sharePct)}%`), ` share.`,
+          ] : []),
+        ], ...paraStyle, margin: [0, 6, 0, 4] });
       }
-      const pl = productList(trade.importProducts);
-      if (pl) p3 += ` Main import products: ${pl}`;
-    }
-    paragraphs.push({ text: p3, ...paraStyle });
 
-    return paragraphs;
+      const impParts = productListParts(trade.importProducts);
+      if (impParts.length) {
+        nodes.push({ text: [
+          B(isKa ? 'ძირითადი საიმპორტო პროდუქცია: ' : 'Main import products: '),
+          ...impParts,
+        ], ...paraStyle });
+      }
+    }
+
+    return nodes;
   }
 
   // ── Trade section ──────────────────────────────────────────────────────
