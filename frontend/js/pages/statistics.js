@@ -467,7 +467,7 @@
         });
         console.log('[ranking] response status:', rankRes.status);
         const j = await rankRes.json().catch((e) => { console.warn('[ranking] json parse failed:', e.message); return null; });
-        console.log('[ranking] body:', JSON.stringify(j && j._debug ? j._debug : j));
+        console.log('[ranking] body:', JSON.stringify(j));
         if (rankRes.ok && j && j.success && j.country) {
           const hasTurnover = !!(j.country.turnover);
           const hasExport = !!(j.country.export);
