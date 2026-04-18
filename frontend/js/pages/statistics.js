@@ -2544,8 +2544,8 @@
       const cells = cols.map((_, i) => {
         const cur = getCountry(i, flow);
         const tot = getTotal(i, flow);
-        if (cur == null || !tot) return `<td>-</td>`;
-        return `<td>${fmtAppendixPct((cur / tot) * 100, false)}</td>`;
+        if (cur == null || !tot) return `<td class="stat-appendix__share">-</td>`;
+        return `<td class="stat-appendix__share">${fmtAppendixPct((cur / tot) * 100, false)}</td>`;
       }).join('');
       return `<tr><td>${escapeHtml(label)}</td>${cells}</tr>`;
     }

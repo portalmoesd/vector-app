@@ -512,3 +512,7 @@ body.stat-exporting .stat-sections.hidden {
   font-size: 0.72rem;
 }
 
+.stat-appendix__share {
+  color: var(--text-primary) !important;
+}
+

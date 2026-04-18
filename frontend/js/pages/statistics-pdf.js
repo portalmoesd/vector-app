@@ -1190,22 +1190,31 @@
       return d && d.totals ? d.totals[flow] : null;
     };
 
-    const fontSmall = 7;
-    const fontHdr = 7.5;
+    const fontSmall = 8.5;
+    const fontHdr = 9;
 
     // First 3 characters of the country name — forms labels like
     // "Turnover-TUR" / "ბრუნვა-თურ" for the country-value rows.
     const countryAbbr = (country || '').slice(0, 3);
 
+    // Empty cells render "-" right-aligned (matches the data cells) so the
+    // dash sits flush with the numeric column rather than centred.
+    function dashCell(opts = {}) {
+      return { text: '-', alignment: 'right', fontSize: fontSmall, ...opts };
+    }
     function numCell(v, opts = {}) {
-      if (v == null || !isFinite(v)) return { text: '-', alignment: 'center', fontSize: fontSmall, ...opts };
+      if (v == null || !isFinite(v)) return dashCell(opts);
       return { text: formatMln2(v), alignment: 'right', fontSize: fontSmall, ...opts };
     }
-    function pctCell(v, signed, opts = {}) {
-      if (v == null || !isFinite(v)) return { text: '-', alignment: 'center', fontSize: fontSmall, ...opts };
+    function pctCellColored(v, signed) {
+      if (v == null || !isFinite(v)) return dashCell();
       const color = v > 0 ? '#16a34a' : (v < 0 ? '#dc2626' : '#475569');
       const sign = signed && v > 0 ? '+' : '';
-      return { text: `${sign}${formatPct(v)}`, alignment: 'right', fontSize: fontSmall, color, ...opts };
+      return { text: `${sign}${formatPct(v)}`, alignment: 'right', fontSize: fontSmall, color };
+    }
+    function pctCellPlain(v) {
+      if (v == null || !isFinite(v)) return dashCell();
+      return { text: formatPct(v), alignment: 'right', fontSize: fontSmall };
     }
     function labelCell(text, opts = {}) {
       return { text, fontSize: fontSmall, color: '#475569', ...opts };
@@ -1232,17 +1241,17 @@
       const totals = cols.map((_, i) => numCell(getTotal(i, flow), groupOpts));
       const values = cols.map((_, i) => numCell(getCountry(i, flow)));
       const changes = cols.map((_, i) => {
-        if (!canCompareChange(i)) return { text: '-', alignment: 'center', fontSize: fontSmall };
+        if (!canCompareChange(i)) return dashCell();
         const cur = getCountry(i, flow);
         const prev = getCountry(i - 1, flow);
-        if (cur == null || prev == null || prev === 0) return { text: '-', alignment: 'center', fontSize: fontSmall };
-        return pctCell(((cur - prev) / prev) * 100, true);
+        if (cur == null || prev == null || prev === 0) return dashCell();
+        return pctCellColored(((cur - prev) / prev) * 100, true);
       });
       const shares = cols.map((_, i) => {
         const cur = getCountry(i, flow);
         const tot = getTotal(i, flow);
-        if (cur == null || !tot) return { text: '-', alignment: 'center', fontSize: fontSmall };
-        return pctCell((cur / tot) * 100, false);
+        if (cur == null || !tot) return dashCell();
+        return pctCellPlain((cur / tot) * 100);
       });
       return [
         [{ text: grpLabel, ...groupOpts }].concat(totals),
@@ -1254,7 +1263,7 @@
 
     const balanceCells = cols.map((_, i) => {
       const c = appendix.data[i] && appendix.data[i].country;
-      if (!c) return { text: '-', alignment: 'center', ...groupOpts };
+      if (!c) return { ...dashCell(), ...groupOpts };
       const bal = (c.export || 0) - (c.import || 0);
       const color = bal > 0 ? '#16a34a' : (bal < 0 ? '#dc2626' : '#1f2937');
       const sign = bal < 0 ? '-' : '';
@@ -1267,14 +1276,20 @@
       .concat(flowRows(t.appImportGrp, 'import'))
       .concat([[{ text: t.appBalanceGrp, ...groupOpts }].concat(balanceCells)]);
 
-    // Widths: label column + N numeric columns. Fits within A4 portrait
-    // content width (531 pt) up to roughly 9 columns.
+    // Landscape A4 content width with 32pt margins = 778pt. The 7- or
+    // 8-column matrix doesn't fit portrait (531pt) at a readable font size,
+    // so the appendix page is forced to landscape via pageOrientation on
+    // the title's page-break.
     const labelW = 110;
-    const numW = Math.max(22, Math.floor((531 - labelW - 6) / N));
+    const numW = Math.max(40, Math.floor((778 - labelW - 6) / N));
     const widths = [labelW].concat(new Array(N).fill(numW));
 
     const titleText = `${country} - ${t.appendixSection}`;
-    const title = { ...sectionTitle(titleText), pageBreak: 'before' };
+    const title = {
+      ...sectionTitle(titleText),
+      pageBreak: 'before',
+      pageOrientation: 'landscape',
+    };
 
     return [
       title,
