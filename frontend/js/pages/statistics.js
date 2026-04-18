@@ -352,13 +352,12 @@
     ];
     for (const el of hiddenCards) hideCard(el);
 
-    if (turnoverChartInstance) { turnoverChartInstance.destroy(); turnoverChartInstance = null; }
-    if (dynamicsChartInstance) { dynamicsChartInstance.destroy(); dynamicsChartInstance = null; }
-    // Also clear any orphaned chart instances on the canvases
-    const existingTurnover = Chart.getChart(turnoverChartCanvas);
-    if (existingTurnover) existingTurnover.destroy();
-    const existingDynamics = Chart.getChart(dynamicsChartCanvas);
-    if (existingDynamics) existingDynamics.destroy();
+    try { if (turnoverChartInstance) turnoverChartInstance.destroy(); } catch (_) {}
+    turnoverChartInstance = null;
+    try { if (dynamicsChartInstance) dynamicsChartInstance.destroy(); } catch (_) {}
+    dynamicsChartInstance = null;
+    try { const ec1 = Chart.getChart(turnoverChartCanvas); if (ec1) ec1.destroy(); } catch (_) {}
+    try { const ec2 = Chart.getChart(dynamicsChartCanvas); if (ec2) ec2.destroy(); } catch (_) {}
 
     try {
       const { year: latestYear, month: latestMonth } = detectLatestPeriod(classData);
@@ -1406,9 +1405,9 @@
     tourismTableEl.innerHTML = '';
     tourismHeader.innerHTML = '';
     tourismChartHeader.innerHTML = '';
-    if (tourismChartInstance) { tourismChartInstance.destroy(); tourismChartInstance = null; }
-    const existingChart = Chart.getChart(tourismChartCanvas);
-    if (existingChart) existingChart.destroy();
+    try { if (tourismChartInstance) { tourismChartInstance.destroy(); } } catch (_) {}
+    tourismChartInstance = null;
+    try { const ec = Chart.getChart(tourismChartCanvas); if (ec) ec.destroy(); } catch (_) {}
 
     try {
       const res = await fetch(`${API_BASE}/api/statistics/tourism`);
@@ -1731,9 +1730,9 @@
     fdiTable.innerHTML = '';
     fdiHeader.innerHTML = '';
     fdiChartHeader.innerHTML = '';
-    if (fdiChartInstance) { fdiChartInstance.destroy(); fdiChartInstance = null; }
-    const existingFdi = Chart.getChart(fdiChartCanvas);
-    if (existingFdi) existingFdi.destroy();
+    try { if (fdiChartInstance) { fdiChartInstance.destroy(); } } catch (_) {}
+    fdiChartInstance = null;
+    try { const ec = Chart.getChart(fdiChartCanvas); if (ec) ec.destroy(); } catch (_) {}
 
     try {
       const res = await fetch(`${API_BASE}/api/statistics/fdi`);
