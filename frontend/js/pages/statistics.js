@@ -1437,29 +1437,31 @@
         if (resolved) validGntaNames.add(resolved);
       }
 
-      // Compute {rank, total, share%} for the selected country among real countries
-      // for a given period, where 'pickVal' pulls the value from a country's data.
-      function rankAndShare(pickVal) {
+      // Compute {rank, share%} for the selected country.
+      // rank = position among real countries sorted by pickVal descending.
+      // share = own value / GRAND TOTAL from the "საერთაშორისო" row in the
+      // source file (not the sum of country values — those don't include
+      // every visitor because some are in other categories).
+      function rankAndShare(pickVal, totalVal) {
         const entries = [];
-        let total = 0;
         for (const [name, d] of Object.entries(json.countries)) {
           if (!validGntaNames.has(name)) continue;
           const val = pickVal(d) || 0;
-          if (val > 0) {
-            entries.push({ name, val });
-            total += val;
-          }
+          if (val > 0) entries.push({ name, val });
         }
         entries.sort((a, b) => b.val - a.val);
         const idx = entries.findIndex(e => e.name === gntaName);
         const rank = idx >= 0 ? idx + 1 : null;
         const ownVal = idx >= 0 ? entries[idx].val : 0;
-        const share = total > 0 ? (ownVal / total) * 100 : null;
+        const share = totalVal && totalVal > 0 ? (ownVal / totalVal) * 100 : null;
         return { rank, share };
       }
-      const rankForYear = (year) => rankAndShare(d => (d.annual && d.annual[year]) || 0);
-      const rankForCurrent = () => rankAndShare(d => d.current || 0);
-      const rankForCompare = () => rankAndShare(d => d.compare || 0);
+      const annualTotals = (json.totals && json.totals.annual) || {};
+      const currentTotal = json.totals ? json.totals.current : null;
+      const compareTotal = json.totals ? json.totals.compare : null;
+      const rankForYear = (year) => rankAndShare(d => (d.annual && d.annual[year]) || 0, annualTotals[year]);
+      const rankForCurrent = () => rankAndShare(d => d.current || 0, currentTotal);
+      const rankForCompare = () => rankAndShare(d => d.compare || 0, compareTotal);
 
       // Build annual rows: last 5 years
       const annualRows = [];

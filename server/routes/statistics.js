@@ -536,11 +536,25 @@ function parseHistoricalWorkbook(wb) {
   }
 
   const countries = {};
+  let totals = null; // grand totals per year from "საერთაშორისო" row
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
     if (!row) continue;
     const name = String(row[0] || '').trim();
     if (!name) continue;
+
+    // Capture the totals row before skipping
+    if (name.startsWith('საერთაშორისო') && !totals) {
+      const t = {};
+      for (const { col, year } of years) {
+        const v = row[col];
+        if (v === null || v === undefined || v === '-' || v === '') { t[year] = 0; continue; }
+        const num = parseFloat(String(v).replace(/,/g, ''));
+        t[year] = isNaN(num) ? 0 : Math.round(num);
+      }
+      totals = t;
+    }
+
     if (name.startsWith('მათ შორის') || name.startsWith('საერთაშორისო') ||
         name.startsWith('სხვა ვიზიტ') || name.startsWith('წყარო')) continue;
 
@@ -559,7 +573,7 @@ function parseHistoricalWorkbook(wb) {
     if (hasAnyValue) countries[name] = values;
   }
 
-  return { years: years.map(y => y.year), countries };
+  return { years: years.map(y => y.year), countries, totals };
 }
 
 // Check if a workbook matches the quarterly file fingerprint.
@@ -583,19 +597,27 @@ function parseQuarterlyWorkbook(wb) {
 
     // Matched! Extract data.
     const countries = {};
+    let periodTotals = null; // { current, compare } from "საერთაშორისო" row
     for (let r = 1; r < rows.length; r++) {
       const row = rows[r];
       if (!row) continue;
       const name = String(row[1] || '').trim();
       if (!name) continue;
-      if (name.startsWith('მათ შორის') || name.startsWith('საერთაშორისო') ||
-          name.startsWith('სხვა ვიზიტ') || name.startsWith('წყარო')) continue;
 
       const parseVal = (v) => {
         if (v === null || v === undefined || v === '-' || v === '') return 0;
         const n = parseFloat(String(v).replace(/,/g, ''));
         return isNaN(n) ? 0 : Math.round(n);
       };
+
+      // Capture totals row
+      if (name.startsWith('საერთაშორისო') && !periodTotals) {
+        periodTotals = { compare: parseVal(row[2]), current: parseVal(row[3]) };
+      }
+
+      if (name.startsWith('მათ შორის') || name.startsWith('საერთაშორისო') ||
+          name.startsWith('სხვა ვიზიტ') || name.startsWith('წყარო')) continue;
+
       const compare = parseVal(row[2]);
       const current = parseVal(row[3]);
       if (compare > 0 || current > 0) {
@@ -603,7 +625,7 @@ function parseQuarterlyWorkbook(wb) {
       }
     }
 
-    return { compareLabel: colC, currentLabel: colD, countries };
+    return { compareLabel: colC, currentLabel: colD, countries, periodTotals };
   }
   return null;
 }
@@ -741,6 +763,11 @@ async function refreshTourismData() {
       years: historical.years,
       currentPeriod,
       countries,
+      totals: {
+        annual: historical.totals || {},
+        current: quarterly && quarterly.periodTotals ? quarterly.periodTotals.current : null,
+        compare: quarterly && quarterly.periodTotals ? quarterly.periodTotals.compare : null,
+      },
     };
 
     // Save to disk + memory cache
