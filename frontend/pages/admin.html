@@ -90,6 +90,21 @@
           </form>
           <div class="upload-feedback" style="margin-top:10px;font-size:0.9rem;"></div>
         </section>
+
+        <section class="card admin-upload-panel" id="panel-companies" style="margin-top:16px;">
+          <h3>Companies</h3>
+          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">
+            Upload the active-companies XLSX file. Column S contains the active
+            flag (blank = inactive), column V lists the capital-origin countries
+            separated by " / ".
+          </p>
+          <div class="upload-status" style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:10px;">Loading…</div>
+          <form class="upload-form" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;">
+            <input type="file" name="file" accept=".xlsx,.xls" required>
+            <button type="submit" class="btn btn-primary">Upload</button>
+          </form>
+          <div class="upload-feedback" style="margin-top:10px;font-size:0.9rem;"></div>
+        </section>
       </div>
 
       <!-- Modal overlay -->

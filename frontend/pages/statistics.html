@@ -52,6 +52,7 @@
           <button class="stat-tab active" data-tab="trade" data-i18n="statistics.tradeTab">ვაჭრობა</button>
           <button class="stat-tab" data-tab="tourism" data-i18n="statistics.tourismTab">ტურიზმი</button>
           <button class="stat-tab" data-tab="investments" data-i18n="statistics.investmentsTab">ინვესტიციები</button>
+          <button class="stat-tab" data-tab="companies" data-i18n="statistics.companiesTab">კომპანიები</button>
           <button class="stat-tab" data-tab="appendix" data-i18n="statistics.appendixTab">დანართი</button>
         </div>
       </div>
@@ -157,6 +158,16 @@
             <div id="fdiSectorsHeader" class="stat-report__header"></div>
             <div id="fdiSectorsTable" class="table-wrap"></div>
           </div>
+        </section>
+
+        <!-- Companies section -->
+        <section id="section-companies" class="stat-section">
+          <h2 class="stat-section__heading" data-i18n="statistics.companiesTab">კომპანიები</h2>
+          <div id="companiesLoading" class="stat-report__loading hidden">
+            <div class="stat-spinner"></div>
+            <span data-i18n="common.loading">Loading...</span>
+          </div>
+          <div id="companiesSummary" class="card stat-summary hidden"></div>
         </section>
 
         <!-- Appendix section -->

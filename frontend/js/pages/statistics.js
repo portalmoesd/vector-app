@@ -55,6 +55,8 @@
   const tourismLoading = document.getElementById('tourismLoading');
   const tourismSummaryEl = document.getElementById('tourismSummary');
   const investmentsSummaryEl = document.getElementById('investmentsSummary');
+  const companiesSummaryEl = document.getElementById('companiesSummary');
+  const companiesLoading = document.getElementById('companiesLoading');
   const fdiSectorsCardEl = document.getElementById('fdiSectorsCard');
   const fdiSectorsHeaderEl = document.getElementById('fdiSectorsHeader');
   const fdiSectorsTableEl = document.getElementById('fdiSectorsTable');
@@ -320,11 +322,13 @@
     pdfState.trade = null;
     pdfState.tourism = null;
     pdfState.investments = null;
+    pdfState.companies = null;
     // Generate trade first (user sees it immediately)
     await generateReport();
     // Fire tourism and investments in background (no await)
     generateTourism();
     generateInvestments();
+    generateCompanies();
   });
 
   async function generateReport() {
@@ -2028,6 +2032,87 @@
 
     investmentsSummaryEl.innerHTML = lines.join('');
     investmentsSummaryEl.classList.remove('hidden');
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // ── COMPANIES TAB ──────────────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════
+
+  async function generateCompanies() {
+    if (!selectedCountry) return;
+    if (!companiesSummaryEl) return;
+    if (companiesLoading) companiesLoading.classList.remove('hidden');
+    companiesSummaryEl.classList.add('hidden');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/statistics/companies`);
+      const json = await res.json();
+      if (!json.success || json.empty) {
+        pdfState.companies = { hasData: false };
+        return;
+      }
+      const isKa = I18n.getLocale() === 'ka';
+      const countryKa = selectedCountry.displayLabel;
+      const countryEn = countryNameEnMap[selectedCountry.value] || countryKa;
+      // The file uses Georgian country names in column V. Look up by the
+      // canonical Georgian name from the Geostat classificatory (mirrors
+      // the tourism matching pattern).
+      const georgianName = countryNameKaMap[selectedCountry.value] || countryKa;
+      const canonical = countryNameMap[georgianName] || georgianName;
+      // Try both the canonical and the raw Georgian name
+      let data = json.countries[canonical] || json.countries[georgianName] || null;
+      // Last resort: if the file uses an English-ish name and the selected
+      // country's English name is in the map
+      if (!data) data = json.countries[countryEn] || null;
+
+      pdfState.companies = data
+        ? { hasData: true, uploadedAt: json.uploadedAt, counts: data, countryKa, countryEn }
+        : { hasData: false };
+
+      renderCompaniesSummary(pdfState.companies, isKa);
+    } catch (err) {
+      console.error('Companies error:', err);
+      pdfState.companies = { hasData: false };
+      companiesSummaryEl.classList.add('hidden');
+    } finally {
+      if (companiesLoading) companiesLoading.classList.add('hidden');
+    }
+  }
+
+  function renderCompaniesSummary(state, isKa) {
+    if (!companiesSummaryEl) return;
+    if (!state || !state.hasData) {
+      companiesSummaryEl.innerHTML = `<p>${isKa ? 'აღნიშნული ქვეყნის კაპიტალით დარეგისტრირებული მოქმედი კომპანია ვერ მოიძებნა.' : 'No active companies with capital from this country found.'}</p>`;
+      companiesSummaryEl.classList.remove('hidden');
+      return;
+    }
+    const c = state.counts;
+    const country = isKa ? state.countryKa : state.countryEn;
+    const b = (s) => `<strong>${escapeHtml(String(s))}</strong>`;
+    const fmt = (n) => Number(n || 0).toLocaleString();
+    const lines = [];
+    lines.push(`<h4 class="stat-summary__heading">${isKa ? 'კომპანიები' : 'Companies'}</h4>`);
+    if (isKa) {
+      lines.push(`<p>${escapeHtml(country)}-ის კაპიტალის მონაწილეობით დარეგისტრირებული მოქმედი კომპანიები:</p>`);
+      lines.push(`<p>${b(fmt(c.total))} მოქმედი კომპანია ${escapeHtml(country)}-ის კაპიტალის მონაწილეობით.</p>`);
+      lines.push(`<ul style="margin:0;padding-left:1.2em;">`);
+      lines.push(`<li>${b(fmt(c.solo))} კომპანია - ${escapeHtml(country)}-ის კაპიტალით შექმნილი;</li>`);
+      lines.push(`<li>${b(fmt(c.withGeorgia))} კომპანია - ${escapeHtml(country)} - საქართველოს წილობრივი კაპიტალით შექმნილი;</li>`);
+      lines.push(`<li>${b(fmt(c.withGeorgiaAndThird))} კომპანია - ${escapeHtml(country)}, საქართველოსა და მესამე ქვეყნის კაპიტალით შექმნილი;</li>`);
+      lines.push(`<li>${b(fmt(c.withThirdOnly))} კომპანია - ${escapeHtml(country)}-ის და მესამე ქვეყნების წილობრივი კაპიტალით შექმნილი.</li>`);
+      lines.push(`</ul>`);
+    } else {
+      lines.push(`<p>Active companies with capital originating from ${escapeHtml(country)}:</p>`);
+      lines.push(`<p>${b(fmt(c.total))} active companies with capital originating from ${escapeHtml(country)}.</p>`);
+      lines.push(`<ul style="margin:0;padding-left:1.2em;">`);
+      lines.push(`<li>${b(fmt(c.solo))} companies - established with capital from only ${escapeHtml(country)};</li>`);
+      lines.push(`<li>${b(fmt(c.withGeorgia))} companies - established with joint capital from ${escapeHtml(country)} and Georgia;</li>`);
+      lines.push(`<li>${b(fmt(c.withGeorgiaAndThird))} companies - established with joint capital from ${escapeHtml(country)}, Georgia and the third country;</li>`);
+      lines.push(`<li>${b(fmt(c.withThirdOnly))} companies - established with joint capital from ${escapeHtml(country)} and third countries.</li>`);
+      lines.push(`</ul>`);
+    }
+    companiesSummaryEl.innerHTML = lines.join('');
+    companiesSummaryEl.classList.remove('hidden');
   }
 
   function renderFdiTable(data, isKa) {

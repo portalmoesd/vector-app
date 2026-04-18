@@ -955,6 +955,48 @@
     return nodes;
   }
 
+  // ── Companies section ──────────────────────────────────────────────────
+  function buildCompaniesSection(state, t, country, lang, countryNameEn) {
+    if (!state || !state.hasData) return [];
+    const isKa = lang === 'ka';
+    const displayCountry = isKa ? (state.countryKa || country) : (state.countryEn || countryNameEn || country);
+    const c = state.counts;
+    const B = (s) => ({ text: s, bold: true });
+    const fmt = (n) => Number(n || 0).toLocaleString();
+    const paraStyle = { fontSize: 10, lineHeight: 1.3, alignment: 'justify', margin: [0, 0, 0, 4] };
+    const liStyle = { fontSize: 10, lineHeight: 1.3, margin: [0, 0, 0, 2] };
+
+    const title = isKa ? 'კომპანიები' : 'Companies';
+    const heading = sectionTitle(title);
+    const nodes = [];
+
+    if (isKa) {
+      nodes.push({ text: `${displayCountry}-ის კაპიტალის მონაწილეობით დარეგისტრირებული მოქმედი კომპანიები:`, ...paraStyle });
+      nodes.push({ text: [B(fmt(c.total)), ` მოქმედი კომპანია ${displayCountry}-ის კაპიტალის მონაწილეობით.`], ...paraStyle });
+      nodes.push({
+        ul: [
+          { text: [B(fmt(c.solo)), ` კომპანია - ${displayCountry}-ის კაპიტალით შექმნილი;`], ...liStyle },
+          { text: [B(fmt(c.withGeorgia)), ` კომპანია - ${displayCountry} - საქართველოს წილობრივი კაპიტალით შექმნილი;`], ...liStyle },
+          { text: [B(fmt(c.withGeorgiaAndThird)), ` კომპანია - ${displayCountry}, საქართველოსა და მესამე ქვეყნის კაპიტალით შექმნილი;`], ...liStyle },
+          { text: [B(fmt(c.withThirdOnly)), ` კომპანია - ${displayCountry}-ის და მესამე ქვეყნების წილობრივი კაპიტალით შექმნილი.`], ...liStyle },
+        ],
+      });
+    } else {
+      nodes.push({ text: `Active companies with capital originating from ${displayCountry}:`, ...paraStyle });
+      nodes.push({ text: [B(fmt(c.total)), ` active companies with capital originating from ${displayCountry}.`], ...paraStyle });
+      nodes.push({
+        ul: [
+          { text: [B(fmt(c.solo)), ` companies - established with capital from only ${displayCountry};`], ...liStyle },
+          { text: [B(fmt(c.withGeorgia)), ` companies - established with joint capital from ${displayCountry} and Georgia;`], ...liStyle },
+          { text: [B(fmt(c.withGeorgiaAndThird)), ` companies - established with joint capital from ${displayCountry}, Georgia and the third country;`], ...liStyle },
+          { text: [B(fmt(c.withThirdOnly)), ` companies - established with joint capital from ${displayCountry} and third countries.`], ...liStyle },
+        ],
+      });
+    }
+
+    return [withTitle(heading, ...nodes)];
+  }
+
   function buildInvestmentsSection(inv, charts, t, country, lang) {
     if (!inv) return [];
     const blocks = [];
@@ -1120,6 +1162,7 @@
       ? { ...state.investments, sectors: state.investmentsSectors || null }
       : state.investments;
     content.push(...buildInvestmentsSection(investmentsWithSectors, charts, t, country, lang));
+    content.push(...buildCompaniesSection(state.companies, t, country, lang, opts.countryNameEn));
 
     if (content.length === 0) {
       content.push({ text: t.noData, italics: true, color: '#94a3b8', margin: [0, 40, 0, 0], alignment: 'center' });
