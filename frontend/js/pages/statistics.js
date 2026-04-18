@@ -1437,40 +1437,29 @@
         if (resolved) validGntaNames.add(resolved);
       }
 
-      // Compute the selected country's rank among real countries for a given year
-      function rankForYear(year) {
+      // Compute {rank, total, share%} for the selected country among real countries
+      // for a given period, where 'pickVal' pulls the value from a country's data.
+      function rankAndShare(pickVal) {
         const entries = [];
+        let total = 0;
         for (const [name, d] of Object.entries(json.countries)) {
           if (!validGntaNames.has(name)) continue;
-          const val = (d.annual && d.annual[year]) || 0;
-          if (val > 0) entries.push({ name, val });
+          const val = pickVal(d) || 0;
+          if (val > 0) {
+            entries.push({ name, val });
+            total += val;
+          }
         }
         entries.sort((a, b) => b.val - a.val);
         const idx = entries.findIndex(e => e.name === gntaName);
-        return idx >= 0 ? idx + 1 : null;
+        const rank = idx >= 0 ? idx + 1 : null;
+        const ownVal = idx >= 0 ? entries[idx].val : 0;
+        const share = total > 0 ? (ownVal / total) * 100 : null;
+        return { rank, share };
       }
-      function rankForCurrent() {
-        const entries = [];
-        for (const [name, d] of Object.entries(json.countries)) {
-          if (!validGntaNames.has(name)) continue;
-          const val = d.current || 0;
-          if (val > 0) entries.push({ name, val });
-        }
-        entries.sort((a, b) => b.val - a.val);
-        const idx = entries.findIndex(e => e.name === gntaName);
-        return idx >= 0 ? idx + 1 : null;
-      }
-      function rankForCompare() {
-        const entries = [];
-        for (const [name, d] of Object.entries(json.countries)) {
-          if (!validGntaNames.has(name)) continue;
-          const val = d.compare || 0;
-          if (val > 0) entries.push({ name, val });
-        }
-        entries.sort((a, b) => b.val - a.val);
-        const idx = entries.findIndex(e => e.name === gntaName);
-        return idx >= 0 ? idx + 1 : null;
-      }
+      const rankForYear = (year) => rankAndShare(d => (d.annual && d.annual[year]) || 0);
+      const rankForCurrent = () => rankAndShare(d => d.current || 0);
+      const rankForCompare = () => rankAndShare(d => d.compare || 0);
 
       // Build annual rows: last 5 years
       const annualRows = [];
@@ -1481,13 +1470,15 @@
           const pct = prev > 0
             ? ((val - prev) / prev * 100)
             : (val > 0 ? 100 : 0);
+          const { rank, share } = val > 0 ? rankForYear(y) : { rank: null, share: null };
           annualRows.push({
             label: String(y),
             year: y,
             visitors: val,
             changePct: pct,
             isCurrent: false,
-            rank: val > 0 ? rankForYear(y) : null,
+            rank,
+            share,
           });
         }
       }
@@ -1498,19 +1489,23 @@
         const cur = countryData.current || 0;
         const cmp = countryData.compare || 0;
         const pct = cmp > 0 ? ((cur - cmp) / cmp * 100) : (cur > 0 ? 100 : 0);
+        const curStats = cur > 0 ? rankForCurrent() : { rank: null, share: null };
+        const cmpStats = cmp > 0 ? rankForCompare() : { rank: null, share: null };
         quarterlyRows.push({
           label: json.currentPeriod.label,
           visitors: cur,
           changePct: pct,
           isCurrent: true,
-          rank: cur > 0 ? rankForCurrent() : null,
+          rank: curStats.rank,
+          share: curStats.share,
         });
         quarterlyRows.push({
           label: json.currentPeriod.compareLabel,
           visitors: cmp,
           changePct: null,
           isCurrent: false,
-          rank: cmp > 0 ? rankForCompare() : null,
+          rank: cmpStats.rank,
+          share: cmpStats.share,
         });
       }
 
@@ -1628,6 +1623,7 @@
     const hValue = isKa ? 'ვიზიტორები' : 'Visitors';
     const hChange = isKa ? 'ცვლილება, %' : 'Change, %';
     const hRank = isKa ? 'ადგილი' : 'Rank';
+    const hShare = isKa ? 'წილი, %' : 'Share, %';
 
     let html = `<table class="stat-table">
       <thead>
@@ -1636,6 +1632,7 @@
           <th class="stat-col-change">${hRank}</th>
           <th class="stat-col-value">${hValue}</th>
           <th class="stat-col-change">${hChange}</th>
+          <th class="stat-col-change">${hShare}</th>
         </tr>
       </thead>
       <tbody>`;
@@ -1650,12 +1647,16 @@
         changeCell = `<td class="stat-col-change ${changeClass}">${sign}${formatChangePct(r.changePct)}</td>`;
       }
       const rankCell = r.rank ? `<td class="stat-col-change">${r.rank}</td>` : '<td class="stat-col-change">-</td>';
+      const shareCell = (r.share != null)
+        ? `<td class="stat-col-change">${(Math.round(r.share * 10) / 10).toFixed(1)}%</td>`
+        : '<td class="stat-col-change">-</td>';
       html += `
         <tr>
           <td>${escapeHtml(r.label)}</td>
           ${rankCell}
           <td class="stat-col-value">${r.visitors.toLocaleString()}</td>
           ${changeCell}
+          ${shareCell}
         </tr>`;
     }
 
