@@ -973,7 +973,10 @@
     // Common chart options
     const commonOptions = {
       responsive: true,
-      maintainAspectRatio: true,
+      // Canvas size is pinned via CSS (500×153) to match the PDF footprint,
+      // so the chart must honour the container dimensions rather than the
+      // default 2:1 aspect ratio.
+      maintainAspectRatio: false,
       layout: { padding: { top: 24 } },
       plugins: {
         legend: { display: false },
@@ -1709,7 +1712,7 @@
       },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
+        maintainAspectRatio: false,
         layout: { padding: { top: 24 } },
         plugins: {
           legend: { display: false },
@@ -2137,10 +2140,10 @@
       <thead>
         <tr>
           <th>${hYear}</th>
-          <th class="stat-col-change">${hRank}</th>
           <th class="stat-col-value">${hValue}</th>
           <th class="stat-col-change">${hChange}</th>
           <th class="stat-col-change">${hShare}</th>
+          <th class="stat-col-change">${hRank}</th>
         </tr>
       </thead>
       <tbody>`;
@@ -2162,10 +2165,10 @@
       html += `
         <tr>
           <td>${r.year}</td>
-          <td class="stat-col-change">${rankCell}</td>
           <td class="stat-col-value">${valueCell}</td>
           <td class="stat-col-change ${changeClass}">${changeCell}</td>
           <td class="stat-col-change">${shareCell}</td>
+          <td class="stat-col-change">${rankCell}</td>
         </tr>`;
     }
 
@@ -2191,7 +2194,7 @@
       },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
+        maintainAspectRatio: false,
         layout: { padding: { top: 24 } },
         plugins: {
           legend: { display: false },

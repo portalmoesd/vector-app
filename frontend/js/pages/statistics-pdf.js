@@ -109,7 +109,7 @@
       importDrop: 'იმპორტში ყველაზე მეტად შემცირებული პროდუქცია',
       internationalVisitors: 'საერთაშორისო ვიზიტორები',
       fdi: 'პირდაპირი უცხოური ინვესტიციები',
-      fdiShort: 'პუი, მლნ. $',
+      fdiShort: 'პირდაპირი უცხოური ინვესტიციები, მლნ. $',
       hsProduct: 'პროდუქცია (HS 4-ნიშნა)',
       volumeHeader: 'მოცულობა მლნ.$',
       changeHeader: 'ცვლილება %',
@@ -175,6 +175,18 @@
   }
 
   const EN_MONTHS = { 1:'Jan', 2:'Feb', 3:'Mar', 4:'Apr', 5:'May', 6:'Jun', 7:'Jul', 8:'Aug', 9:'Sep', 10:'Oct', 11:'Nov', 12:'Dec' };
+
+  const KA_MONTHS_SHORT = { 1:'იან', 2:'თებ', 3:'მარ', 4:'აპრ', 5:'მაი', 6:'ივნ', 7:'ივლ', 8:'აგვ', 9:'სექ', 10:'ოქტ', 11:'ნოე', 12:'დეკ' };
+
+  // Derive the short period label ("Jan-Feb" / "იან-თებ") from latestMonth +
+  // the PDF's language. trade.periodLabel is baked from the page locale at
+  // fetch time, which is wrong when PDF language differs from page language.
+  function periodShortLabel(latestMonth, lang) {
+    const months = lang === 'ka' ? KA_MONTHS_SHORT : EN_MONTHS;
+    if (latestMonth === 12) return '';
+    if (latestMonth === 1) return months[1];
+    return `${months[1]}-${months[latestMonth]}`;
+  }
 
   function enPeriod(year, latestMonth) {
     if (latestMonth === 12) return String(year);
@@ -644,15 +656,20 @@
   function buildTradeSection(trade, charts, t, country, lang) {
     if (!trade) return [];
 
+    // Derive the period label in the PDF's language. trade.periodLabel was
+    // baked from the page locale at fetch time, which is wrong when the
+    // user exports an EN PDF from the KA page (or vice versa).
+    const periodLabel = periodShortLabel(trade.latestMonth, lang) || trade.periodLabel;
+
     const blocks = [];
-    const title = `${country} - ${t.tradeOverview}, ${trade.periodLabel} ${trade.latestYear}`;
+    const title = `${country} - ${t.tradeOverview}, ${periodLabel} ${trade.latestYear}`;
     const summary = buildTradeSummary(trade, t, country, lang);
     blocks.push(withTitle(
       sectionTitle(title),
       ...summary,
       buildOverviewTable(
         trade.overview,
-        { prevYear: trade.prevYear, latestYear: trade.latestYear, periodLabel: trade.periodLabel },
+        { prevYear: trade.prevYear, latestYear: trade.latestYear, periodLabel },
         t, trade.latestMonth, trade.monthNames,
       ),
     ));
@@ -693,8 +710,8 @@
     // Export products + changes
     if (trade.hasExport) {
       blocks.push(withTitle(
-        subTitle(`${t.mainExport}, ${trade.periodLabel} ${trade.latestYear}`),
-        buildProductsTable(trade.exportProducts, t, trade.periodLabel, trade.latestYear, true, lang),
+        subTitle(`${t.mainExport}, ${periodLabel} ${trade.latestYear}`),
+        buildProductsTable(trade.exportProducts, t, periodLabel, trade.latestYear, true, lang),
       ));
 
       const incLabel = trade.exportGrowing ? t.exportIncrease : t.exportDrop;
@@ -704,14 +721,14 @@
 
       if (incProds && incProds.length) {
         blocks.push(withTitle(
-          subTitle(`${incLabel}, ${trade.periodLabel} ${trade.latestYear}`),
-          buildChangeTable(incProds, t, trade.periodLabel, trade.latestYear, lang),
+          subTitle(`${incLabel}, ${periodLabel} ${trade.latestYear}`),
+          buildChangeTable(incProds, t, periodLabel, trade.latestYear, lang),
         ));
       }
       if (dropProds && dropProds.length) {
         blocks.push(withTitle(
-          subTitle(`${dropLabel}, ${trade.periodLabel} ${trade.latestYear}`),
-          buildChangeTable(dropProds, t, trade.periodLabel, trade.latestYear, lang),
+          subTitle(`${dropLabel}, ${periodLabel} ${trade.latestYear}`),
+          buildChangeTable(dropProds, t, periodLabel, trade.latestYear, lang),
         ));
       }
     }
@@ -719,8 +736,8 @@
     // Import products + changes
     if (trade.hasImport) {
       blocks.push(withTitle(
-        subTitle(`${t.mainImport}, ${trade.periodLabel} ${trade.latestYear}`),
-        buildProductsTable(trade.importProducts, t, trade.periodLabel, trade.latestYear, false, lang),
+        subTitle(`${t.mainImport}, ${periodLabel} ${trade.latestYear}`),
+        buildProductsTable(trade.importProducts, t, periodLabel, trade.latestYear, false, lang),
       ));
 
       const incLabel = trade.importGrowing ? t.importIncrease : t.importDrop;
@@ -730,14 +747,14 @@
 
       if (incProds && incProds.length) {
         blocks.push(withTitle(
-          subTitle(`${incLabel}, ${trade.periodLabel} ${trade.latestYear}`),
-          buildChangeTable(incProds, t, trade.periodLabel, trade.latestYear, lang),
+          subTitle(`${incLabel}, ${periodLabel} ${trade.latestYear}`),
+          buildChangeTable(incProds, t, periodLabel, trade.latestYear, lang),
         ));
       }
       if (dropProds && dropProds.length) {
         blocks.push(withTitle(
-          subTitle(`${dropLabel}, ${trade.periodLabel} ${trade.latestYear}`),
-          buildChangeTable(dropProds, t, trade.periodLabel, trade.latestYear, lang),
+          subTitle(`${dropLabel}, ${periodLabel} ${trade.latestYear}`),
+          buildChangeTable(dropProds, t, periodLabel, trade.latestYear, lang),
         ));
       }
     }
@@ -1030,7 +1047,7 @@
     const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
     const shareHeader = lang === 'ka' ? 'წილი, %' : 'Share, %';
     const body = [
-      [th(t.year), thRight(rankHeader), thRight(t.volumeHeader), thRight(t.changeHeader), thRight(shareHeader)],
+      [th(t.year), thRight(t.volumeHeader), thRight(t.changeHeader), thRight(shareHeader), thRight(rankHeader)],
     ];
     for (const r of data) {
       const isCurNeg = !(r.valueMln > 0);
@@ -1051,17 +1068,17 @@
         : tdNum('-');
       body.push([
         tdText(String(r.year)),
-        rankCell,
         valueCell,
         changeCell,
         shareCell,
+        rankCell,
       ]);
     }
 
     const tableBlock = {
       table: {
         dontBreakRows: true,
-        widths: ['auto', 'auto', '*', 'auto', 'auto'],
+        widths: ['auto', '*', 'auto', 'auto', 'auto'],
         body,
       },
       layout: tableLayout,
