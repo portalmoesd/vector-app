@@ -26,7 +26,7 @@ const DATA_DIR = path.join(__dirname, '../data');
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 },
 });
 
 // Spread this into route definitions: router.post('/x', ...adminOnly, handler)
