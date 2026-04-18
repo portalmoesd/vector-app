@@ -1765,11 +1765,29 @@
         if (allYears.includes(y)) displayYears.push(y);
       }
 
-      // Build table data: year, value (mln USD), change %
+      // Per-year rank + share for the FDI table rows
+      // Share = country_value / total_positive_FDI_that_year (all countries with FDI > 0)
+      function fdiRankAndShare(year) {
+        const entries = [];
+        let total = 0;
+        for (const [code, data] of Object.entries(json.countries)) {
+          const v = (data[year] || 0) / 1000;
+          if (v > 0) { entries.push({ code, v }); total += v; }
+        }
+        entries.sort((a, b) => b.v - a.v);
+        const idx = entries.findIndex(e => e.code === String(countryCode));
+        const rank = idx >= 0 ? idx + 1 : null;
+        const ownVal = idx >= 0 ? entries[idx].v : 0;
+        const share = total > 0 ? (ownVal / total) * 100 : null;
+        return { rank, share };
+      }
+
+      // Build table data: year, value (mln USD), change %, rank, share
       const tableData = displayYears.map(y => {
-        const val = (countryData[y] || 0) / 1000; // Thsd → Mln
+        const val = (countryData[y] || 0) / 1000;
         const prev = (countryData[y - 1] || 0) / 1000;
-        return { year: y, valueMln: val, prevMln: prev };
+        const rs = val > 0 ? fdiRankAndShare(y) : { rank: null, share: null };
+        return { year: y, valueMln: val, prevMln: prev, rank: rs.rank, share: rs.share };
       });
 
       // ── Summary data ──────────────────────────────────────────────
@@ -1798,22 +1816,12 @@
       for (let y = fiveYearStart; y <= fiveYearEnd; y++) {
         fiveYearSum += (countryData[y] || 0) / 1000;
       }
-      // Per-year value + rank for latestYear and previous year
-      function rankForYear(year) {
-        const entries = [];
-        for (const [code, data] of Object.entries(json.countries)) {
-          const v = (data[year] || 0) / 1000;
-          if (v > 0) entries.push({ code, v });
-        }
-        entries.sort((a, b) => b.v - a.v);
-        const idx = entries.findIndex(e => e.code === String(countryCode));
-        return idx >= 0 ? idx + 1 : null;
-      }
+      // Per-year value + rank for latestYear and previous year (for summary)
       const latestYearValue = (countryData[latestYear] || 0) / 1000;
-      const latestYearRank = rankForYear(latestYear);
+      const latestYearRank = latestYearValue > 0 ? fdiRankAndShare(latestYear).rank : null;
       const prevYear = latestYear - 1;
       const prevYearValue = (countryData[prevYear] || 0) / 1000;
-      const prevYearRank = rankForYear(prevYear);
+      const prevYearRank = prevYearValue > 0 ? fdiRankAndShare(prevYear).rank : null;
 
       const isKa = I18n.getLocale() === 'ka';
       // Section heading handles the title; skip inner header to avoid duplication.
@@ -2020,41 +2028,44 @@
   function renderFdiTable(data, isKa) {
     data = [...data].reverse();
     const hYear = isKa ? 'წელი' : 'Year';
+    const hRank = isKa ? 'ადგილი' : 'Rank';
     const hValue = isKa ? 'მოცულობა, მლნ. $' : 'Volume, mln $';
     const hChange = isKa ? 'ცვლილება, %' : 'Change, %';
+    const hShare = isKa ? 'წილი, %' : 'Share, %';
 
     let html = `<table class="stat-table">
       <thead>
         <tr>
           <th>${hYear}</th>
+          <th class="stat-col-change">${hRank}</th>
           <th class="stat-col-value">${hValue}</th>
           <th class="stat-col-change">${hChange}</th>
+          <th class="stat-col-change">${hShare}</th>
         </tr>
       </thead>
       <tbody>`;
 
     for (const r of data) {
-      // Show "-" when current year's FDI is non-positive (disinvestment)
-      // or when previous year was non-positive (can't compute meaningful %)
       const isCurNeg = !(r.valueMln > 0);
       const isPrevNeg = !(r.prevMln > 0);
-      const valueCell = isCurNeg
-        ? '-'
-        : formatMln(r.valueMln);
+      const valueCell = isCurNeg ? '-' : formatMln(r.valueMln);
       let changeCell = '-';
       let changeClass = '';
-      let sign = '';
       if (!isCurNeg && !isPrevNeg) {
         const pct = ((r.valueMln - r.prevMln) / r.prevMln) * 100;
         changeClass = pct > 0 ? 'stat-positive' : (pct < 0 ? 'stat-negative' : '');
-        sign = pct > 0 ? '+' : '';
+        const sign = pct > 0 ? '+' : '';
         changeCell = `${sign}${formatChangePct(pct)}`;
       }
+      const rankCell = (!isCurNeg && r.rank) ? String(r.rank) : '-';
+      const shareCell = (!isCurNeg && r.share != null) ? `${(Math.round(r.share * 10) / 10).toFixed(1)}%` : '-';
       html += `
         <tr>
           <td>${r.year}</td>
+          <td class="stat-col-change">${rankCell}</td>
           <td class="stat-col-value">${valueCell}</td>
           <td class="stat-col-change ${changeClass}">${changeCell}</td>
+          <td class="stat-col-change">${shareCell}</td>
         </tr>`;
     }
 
