@@ -1443,6 +1443,7 @@
       // source file (not the sum of country values — those don't include
       // every visitor because some are in other categories).
       function rankAndShare(pickVal, totalVal) {
+        // Rank: position among real countries with positive visitors
         const entries = [];
         for (const [name, d] of Object.entries(json.countries)) {
           if (!validGntaNames.has(name)) continue;
@@ -1452,7 +1453,9 @@
         entries.sort((a, b) => b.val - a.val);
         const idx = entries.findIndex(e => e.name === gntaName);
         const rank = idx >= 0 ? idx + 1 : null;
-        const ownVal = idx >= 0 ? entries[idx].val : 0;
+        // Share: country's own visitor count divided by the grand total from
+        // the file's "საერთაშორისო" row. No summing, no aggregation.
+        const ownVal = pickVal(countryData) || 0;
         const share = totalVal && totalVal > 0 ? (ownVal / totalVal) * 100 : null;
         return { rank, share };
       }
