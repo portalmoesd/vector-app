@@ -502,14 +502,13 @@ body.stat-exporting .stat-sections.hidden {
   background: var(--bg-secondary, #f1f5f9) !important;
   font-weight: 700;
   color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   padding: 6px 10px;
 }
 
-.stat-appendix__total td:first-child {
-  font-weight: 600;
-  color: var(--text-primary);
+.stat-appendix__group td:first-child {
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-size: 0.72rem;
 }
 

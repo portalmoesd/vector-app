@@ -91,11 +91,8 @@
       appExportGrp: 'Export',
       appImportGrp: 'Import',
       appBalanceGrp: 'Balance',
-      appGeoTotal: 'Georgia total, mln $',
-      appValue: 'Value, mln $',
-      appChange: 'Change YoY, %',
-      appShare: 'Share, %',
-      appBalanceRow: 'Country balance, mln $',
+      appChange: 'Change %',
+      appShare: 'Share %',
     },
     ka: {
       tradeOverview: 'სავაჭრო მიმოხილვა',
@@ -141,11 +138,8 @@
       appExportGrp: 'ექსპორტი',
       appImportGrp: 'იმპორტი',
       appBalanceGrp: 'სალდო',
-      appGeoTotal: 'სულ, მლნ. $',
-      appValue: 'მნიშვნელობა, მლნ. $',
-      appChange: 'ცვლილება წ/წ, %',
-      appShare: 'წილი, %',
-      appBalanceRow: 'ქვეყნის ბალანსი, მლნ. $',
+      appChange: 'ცვლილება %',
+      appShare: 'წილი %',
     },
   };
 
@@ -1199,15 +1193,19 @@
     const fontSmall = 7;
     const fontHdr = 7.5;
 
-    function numCell(v) {
-      if (v == null || !isFinite(v)) return { text: '-', alignment: 'center', fontSize: fontSmall };
-      return { text: formatMln2(v), alignment: 'right', fontSize: fontSmall };
+    // First 3 characters of the country name — forms labels like
+    // "Turnover-TUR" / "ბრუნვა-თურ" for the country-value rows.
+    const countryAbbr = (country || '').slice(0, 3);
+
+    function numCell(v, opts = {}) {
+      if (v == null || !isFinite(v)) return { text: '-', alignment: 'center', fontSize: fontSmall, ...opts };
+      return { text: formatMln2(v), alignment: 'right', fontSize: fontSmall, ...opts };
     }
-    function pctCell(v, signed) {
-      if (v == null || !isFinite(v)) return { text: '-', alignment: 'center', fontSize: fontSmall };
+    function pctCell(v, signed, opts = {}) {
+      if (v == null || !isFinite(v)) return { text: '-', alignment: 'center', fontSize: fontSmall, ...opts };
       const color = v > 0 ? '#16a34a' : (v < 0 ? '#dc2626' : '#475569');
       const sign = signed && v > 0 ? '+' : '';
-      return { text: `${sign}${formatPct(v)}`, alignment: 'right', fontSize: fontSmall, color };
+      return { text: `${sign}${formatPct(v)}`, alignment: 'right', fontSize: fontSmall, color, ...opts };
     }
     function labelCell(text, opts = {}) {
       return { text, fontSize: fontSmall, color: '#475569', ...opts };
@@ -1223,22 +1221,15 @@
         ...opts,
       };
     }
-    function groupRow(label) {
-      return [{
-        colSpan: N + 1,
-        text: label,
-        bold: true,
-        fontSize: fontHdr,
-        color: '#1f2937',
-        fillColor: '#f1f5f9',
-      }].concat(new Array(N).fill({}));
-    }
+    // Totals row doubles as group header — carries the group name in the
+    // first column and Georgia's grand totals in the period columns.
+    const groupOpts = { bold: true, fillColor: '#f1f5f9', color: '#1f2937', fontSize: fontHdr };
 
     const header = [hdrCell('', { alignment: 'left' })]
       .concat(cols.map((c) => hdrCell(c.label)));
 
     function flowRows(grpLabel, flow) {
-      const totals = cols.map((_, i) => numCell(getTotal(i, flow)));
+      const totals = cols.map((_, i) => numCell(getTotal(i, flow), groupOpts));
       const values = cols.map((_, i) => numCell(getCountry(i, flow)));
       const changes = cols.map((_, i) => {
         if (!canCompareChange(i)) return { text: '-', alignment: 'center', fontSize: fontSmall };
@@ -1254,9 +1245,8 @@
         return pctCell((cur / tot) * 100, false);
       });
       return [
-        groupRow(grpLabel),
-        [labelCell(t.appGeoTotal, { bold: true })].concat(totals),
-        [labelCell(t.appValue)].concat(values),
+        [{ text: grpLabel, ...groupOpts }].concat(totals),
+        [labelCell(`${grpLabel}-${countryAbbr}`)].concat(values),
         [labelCell(t.appChange)].concat(changes),
         [labelCell(t.appShare)].concat(shares),
       ];
@@ -1264,19 +1254,18 @@
 
     const balanceCells = cols.map((_, i) => {
       const c = appendix.data[i] && appendix.data[i].country;
-      if (!c) return { text: '-', alignment: 'center', fontSize: fontSmall };
+      if (!c) return { text: '-', alignment: 'center', ...groupOpts };
       const bal = (c.export || 0) - (c.import || 0);
-      const color = bal > 0 ? '#16a34a' : (bal < 0 ? '#dc2626' : '#475569');
+      const color = bal > 0 ? '#16a34a' : (bal < 0 ? '#dc2626' : '#1f2937');
       const sign = bal < 0 ? '-' : '';
-      return { text: `${sign}${formatMln2(Math.abs(bal))}`, alignment: 'right', fontSize: fontSmall, color };
+      return { text: `${sign}${formatMln2(Math.abs(bal))}`, alignment: 'right', ...groupOpts, color };
     });
 
     const body = [header]
       .concat(flowRows(t.appTurnoverGrp, 'turnover'))
       .concat(flowRows(t.appExportGrp, 'export'))
       .concat(flowRows(t.appImportGrp, 'import'))
-      .concat([groupRow(t.appBalanceGrp)])
-      .concat([[labelCell(t.appBalanceRow, { bold: true })].concat(balanceCells)]);
+      .concat([[{ text: t.appBalanceGrp, ...groupOpts }].concat(balanceCells)]);
 
     // Widths: label column + N numeric columns. Fits within A4 portrait
     // content width (531 pt) up to roughly 9 columns.
