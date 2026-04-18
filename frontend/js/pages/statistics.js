@@ -973,10 +973,7 @@
     // Common chart options
     const commonOptions = {
       responsive: true,
-      // Canvas size is pinned via CSS (500×153) to match the PDF footprint,
-      // so the chart must honour the container dimensions rather than the
-      // default 2:1 aspect ratio.
-      maintainAspectRatio: false,
+      maintainAspectRatio: true,
       layout: { padding: { top: 24 } },
       plugins: {
         legend: { display: false },
@@ -1712,7 +1709,7 @@
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,
+        maintainAspectRatio: true,
         layout: { padding: { top: 24 } },
         plugins: {
           legend: { display: false },
@@ -2194,7 +2191,7 @@
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,
+        maintainAspectRatio: true,
         layout: { padding: { top: 24 } },
         plugins: {
           legend: { display: false },
@@ -2270,50 +2267,71 @@
   function snapshotChart(chartInstance, displayWidth = 500, displayHeight = 153, pixelRatio = 4, fontSize = 9) {
     if (!chartInstance || !chartInstance.canvas) return null;
 
-    const canvas = chartInstance.canvas;
-    const opts = chartInstance.options;
-    const ticksFont = opts?.scales?.x?.ticks?.font;
-    const datalabelsFont = opts?.plugins?.datalabels?.font;
+    // Render a clone of the chart into an off-screen canvas at the PDF's
+    // target dimensions. The on-screen chart is never touched — so the
+    // user doesn't see a shrink-and-snap-back during export, and the
+    // visible chart keeps its responsive, good-looking aspect ratio.
+    const host = document.createElement('div');
+    host.style.cssText = `position:absolute;left:-99999px;top:0;width:${displayWidth}px;height:${displayHeight}px;`;
+    const tmpCanvas = document.createElement('canvas');
+    host.appendChild(tmpCanvas);
+    document.body.appendChild(host);
 
-    const orig = {
-      responsive: opts.responsive,
-      maintainAspectRatio: opts.maintainAspectRatio,
-      aspectRatio: opts.aspectRatio,
-      devicePixelRatio: opts.devicePixelRatio,
-      styleWidth: canvas.style.width,
-      styleHeight: canvas.style.height,
-      ticksFontSize: ticksFont ? ticksFont.size : undefined,
-      datalabelsFontSize: datalabelsFont ? datalabelsFont.size : undefined,
-    };
-
+    let tmpChart = null;
     try {
-      opts.responsive = false;
-      opts.maintainAspectRatio = false;
-      opts.aspectRatio = undefined;
-      opts.devicePixelRatio = pixelRatio;
-      if (ticksFont) ticksFont.size = fontSize;
-      if (datalabelsFont) datalabelsFont.size = fontSize;
-      canvas.style.width = displayWidth + 'px';
-      canvas.style.height = displayHeight + 'px';
-      chartInstance.resize(displayWidth, displayHeight);
-      chartInstance.update('none');
-      return chartInstance.toBase64Image('image/png', 1.0);
+      const src = chartInstance.config;
+
+      // Shallow clone the nested option paths we need to override so we
+      // don't mutate the live chart's config. Other keys (callbacks,
+      // colour functions, etc.) are shared by reference — fine for a
+      // one-shot read-only render.
+      const srcOptions = src.options || {};
+      const srcScales  = srcOptions.scales  || {};
+      const srcPlugins = srcOptions.plugins || {};
+
+      const clonedScales = {};
+      for (const axisKey of Object.keys(srcScales)) {
+        const ax = srcScales[axisKey] || {};
+        const ticks = ax.ticks || {};
+        const ticksFont = ticks.font || {};
+        clonedScales[axisKey] = {
+          ...ax,
+          ticks: { ...ticks, font: { ...ticksFont, size: fontSize } },
+        };
+      }
+
+      const clonedPlugins = { ...srcPlugins };
+      if (srcPlugins.datalabels) {
+        clonedPlugins.datalabels = {
+          ...srcPlugins.datalabels,
+          font: { ...(srcPlugins.datalabels.font || {}), size: fontSize },
+        };
+      }
+
+      tmpChart = new Chart(tmpCanvas, {
+        type: src.type,
+        data: src.data,
+        plugins: src.plugins || [],
+        options: {
+          ...srcOptions,
+          responsive: false,
+          maintainAspectRatio: false,
+          aspectRatio: undefined,
+          animation: false,
+          devicePixelRatio: pixelRatio,
+          scales: clonedScales,
+          plugins: clonedPlugins,
+        },
+      });
+      tmpChart.resize(displayWidth, displayHeight);
+      tmpChart.update('none');
+      return tmpChart.toBase64Image('image/png', 1.0);
     } catch (err) {
       console.warn('Chart snapshot failed:', err);
       return null;
     } finally {
-      opts.responsive = orig.responsive;
-      opts.maintainAspectRatio = orig.maintainAspectRatio;
-      opts.aspectRatio = orig.aspectRatio;
-      opts.devicePixelRatio = orig.devicePixelRatio;
-      if (ticksFont && orig.ticksFontSize !== undefined) ticksFont.size = orig.ticksFontSize;
-      if (datalabelsFont && orig.datalabelsFontSize !== undefined) datalabelsFont.size = orig.datalabelsFontSize;
-      canvas.style.width = orig.styleWidth;
-      canvas.style.height = orig.styleHeight;
-      try {
-        chartInstance.resize();
-        chartInstance.update('none');
-      } catch (_) { /* ignore */ }
+      if (tmpChart) { try { tmpChart.destroy(); } catch (_) {} }
+      host.remove();
     }
   }
 
