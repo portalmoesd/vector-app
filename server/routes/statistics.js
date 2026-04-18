@@ -1055,37 +1055,41 @@ let companiesCache = { data: null };
 function parseCompaniesWorkbook(wb) {
   const sheet = wb.Sheets[wb.SheetNames[0]];
   if (!sheet) throw new Error('Workbook has no sheets');
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
 
-  // Header row is at index 3; data starts at index 4
-  // Column S (index 18) = active flag ("აქტიური" or blank)
-  // Column V (index 21) = country list separated by " / "
+  // The companies registry is large (~152K rows). Reading the entire sheet
+  // via sheet_to_json would allocate a huge in-memory array. Instead,
+  // iterate cells directly and only read the two columns we need.
+  const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:A1');
+  const FIRST_DATA_ROW = 4; // header is on row 3 (0-indexed)
+  const COL_S = 18; // active flag
+  const COL_V = 21; // countries list
+
   const counts = {}; // name → { total, solo, withGeorgia, withGeorgiaAndThird, withThirdOnly }
-
   function bucket(name) {
     if (!counts[name]) counts[name] = { total: 0, solo: 0, withGeorgia: 0, withGeorgiaAndThird: 0, withThirdOnly: 0 };
     return counts[name];
   }
+  function cellVal(r, c) {
+    const addr = XLSX.utils.encode_cell({ r, c });
+    const cell = sheet[addr];
+    return cell && cell.v != null ? cell.v : null;
+  }
 
   let activeCount = 0;
-  for (let r = 4; r < rows.length; r++) {
-    const row = rows[r];
-    if (!row) continue;
-    const active = String(row[18] || '').trim();
+  let processed = 0;
+  for (let r = FIRST_DATA_ROW; r <= range.e.r; r++) {
+    const active = String(cellVal(r, COL_S) || '').trim();
     if (active !== 'აქტიური') continue;
     activeCount++;
 
-    const raw = String(row[21] || '').trim();
+    const raw = String(cellVal(r, COL_V) || '').trim();
     if (!raw) continue;
-    // Separator is " / " but the file sometimes has extra spaces — split on
-    // "/" then trim each piece.
     const list = raw.split('/').map((s) => s.trim()).filter(Boolean);
     if (!list.length) continue;
 
     const hasGeorgia = list.includes('საქართველო');
     const foreign = list.filter((c) => c !== 'საქართველო');
 
-    // Attribute this row to every foreign country in the list.
     for (const country of foreign) {
       const b = bucket(country);
       b.total++;
@@ -1094,6 +1098,9 @@ function parseCompaniesWorkbook(wb) {
       else if (others.length === 0 && hasGeorgia) b.withGeorgia++;
       else if (others.length > 0 && hasGeorgia) b.withGeorgiaAndThird++;
       else if (others.length > 0 && !hasGeorgia) b.withThirdOnly++;
+    }
+    if (++processed % 20000 === 0) {
+      console.log(`companies: parsed ${processed} active rows so far...`);
     }
   }
 
