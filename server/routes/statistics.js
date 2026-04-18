@@ -1045,75 +1045,15 @@ router.post('/fdi-sectors/upload', ...adminOnly, upload.single('file'), (req, re
   }
 });
 
-// ── POST /api/statistics/companies(/upload) ─────────────────────────────
+// ── POST /api/statistics/companies/data ─────────────────────────────────
 // Active-companies registry broken down by partner-country composition.
-// Data comes from an admin-uploaded XLSX (152K+ rows). Aggregation is done
-// at parse time; the response is a small per-country count object.
+// The source XLSX is ~27 MB with ~152K rows. Parsing that synchronously
+// in Node exceeds the upstream proxy timeout AND can OOM the container,
+// so the aggregation is performed client-side in the admin browser and
+// the already-aggregated JSON is POSTed here. The payload is tiny (one
+// entry per country).
 
-// Parsing a 27MB / 152K-row workbook synchronously on the request thread
-// exceeds the platform's reverse-proxy timeout (502). Upload now saves the
-// raw file and responds immediately; parsing runs in the background and
-// the client polls GET /companies for completion.
-let companiesCache = { data: null, processing: false, startedAt: null, error: null };
-
-function parseCompaniesWorkbook(wb) {
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  if (!sheet) throw new Error('Workbook has no sheets');
-
-  // The companies registry is large (~152K rows). Reading the entire sheet
-  // via sheet_to_json would allocate a huge in-memory array. Instead,
-  // iterate cells directly and only read the two columns we need.
-  const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:A1');
-  const FIRST_DATA_ROW = 4; // header is on row 3 (0-indexed)
-  const COL_S = 18; // active flag
-  const COL_V = 21; // countries list
-
-  const counts = {}; // name → { total, solo, withGeorgia, withGeorgiaAndThird, withThirdOnly }
-  function bucket(name) {
-    if (!counts[name]) counts[name] = { total: 0, solo: 0, withGeorgia: 0, withGeorgiaAndThird: 0, withThirdOnly: 0 };
-    return counts[name];
-  }
-  function cellVal(r, c) {
-    const addr = XLSX.utils.encode_cell({ r, c });
-    const cell = sheet[addr];
-    return cell && cell.v != null ? cell.v : null;
-  }
-
-  let activeCount = 0;
-  let processed = 0;
-  for (let r = FIRST_DATA_ROW; r <= range.e.r; r++) {
-    const active = String(cellVal(r, COL_S) || '').trim();
-    if (active !== 'აქტიური') continue;
-    activeCount++;
-
-    const raw = String(cellVal(r, COL_V) || '').trim();
-    if (!raw) continue;
-    const list = raw.split('/').map((s) => s.trim()).filter(Boolean);
-    if (!list.length) continue;
-
-    const hasGeorgia = list.includes('საქართველო');
-    const foreign = list.filter((c) => c !== 'საქართველო');
-
-    for (const country of foreign) {
-      const b = bucket(country);
-      b.total++;
-      const others = foreign.filter((c) => c !== country);
-      if (others.length === 0 && !hasGeorgia) b.solo++;
-      else if (others.length === 0 && hasGeorgia) b.withGeorgia++;
-      else if (others.length > 0 && hasGeorgia) b.withGeorgiaAndThird++;
-      else if (others.length > 0 && !hasGeorgia) b.withThirdOnly++;
-    }
-    if (++processed % 20000 === 0) {
-      console.log(`companies: parsed ${processed} active rows so far...`);
-    }
-  }
-
-  return {
-    uploadedAt: new Date().toISOString(),
-    activeCount,
-    countries: counts,
-  };
-}
+let companiesCache = { data: null };
 
 function loadCompaniesFromDisk() {
   const parsed = loadParsedFromDisk('companies');
@@ -1124,64 +1064,58 @@ function loadCompaniesFromDisk() {
 }
 loadCompaniesFromDisk();
 
-function processCompaniesBuffer(buffer) {
-  const t0 = Date.now();
-  try {
-    const wb = XLSX.read(buffer, { type: 'buffer' });
-    const parsed = parseCompaniesWorkbook(wb);
-    const countryCount = Object.keys(parsed.countries).length;
-    if (!countryCount) throw new Error('No country data found in file');
-    saveParsedAndRaw('companies', parsed, buffer);
-    companiesCache.data = parsed;
-    companiesCache.error = null;
-    console.log(`companies: parsed (${countryCount} countries, ${parsed.activeCount} active) in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
-  } catch (err) {
-    companiesCache.error = err.message || 'Failed to parse uploaded file';
-    console.error('companies: parse failed:', err.message);
-  } finally {
-    companiesCache.processing = false;
-    companiesCache.startedAt = null;
-  }
-}
-
 router.get('/companies', (req, res) => {
   const data = companiesCache.data;
-  const body = data
-    ? {
-        success: true,
-        uploadedAt: data.uploadedAt,
-        countries: data.countries,
-        countryCount: Object.keys(data.countries).length,
-        activeCount: data.activeCount,
-      }
-    : { success: true, empty: true };
-  if (companiesCache.processing) {
-    body.processing = true;
-    body.startedAt = companiesCache.startedAt;
-  }
-  if (companiesCache.error) body.lastError = companiesCache.error;
-  res.json(body);
+  if (!data) return res.json({ success: true, empty: true });
+  res.json({
+    success: true,
+    uploadedAt: data.uploadedAt,
+    countries: data.countries,
+    countryCount: Object.keys(data.countries).length,
+    activeCount: data.activeCount,
+  });
 });
 
-router.post('/companies/upload', ...adminOnly, upload.single('file'), (req, res) => {
+function sanitizeCounts(raw) {
+  const out = {};
+  for (const k of ['total', 'solo', 'withGeorgia', 'withGeorgiaAndThird', 'withThirdOnly']) {
+    const n = Number(raw && raw[k]);
+    out[k] = Number.isFinite(n) && n >= 0 ? Math.round(n) : 0;
+  }
+  return out;
+}
+
+router.post('/companies/data', ...adminOnly, (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded (field name: "file")' });
-    if (companiesCache.processing) {
-      return res.status(409).json({ error: 'An upload is already being processed' });
+    const { countries, activeCount } = req.body || {};
+    if (!countries || typeof countries !== 'object') {
+      return res.status(400).json({ error: 'Missing "countries" object' });
     }
-    const buffer = req.file.buffer;
-    companiesCache.processing = true;
-    companiesCache.startedAt = new Date().toISOString();
-    companiesCache.error = null;
-    // Respond immediately; parsing a 27MB workbook takes longer than the
-    // upstream proxy timeout, which would otherwise return 502.
-    res.json({ success: true, processing: true, startedAt: companiesCache.startedAt });
-    setImmediate(() => processCompaniesBuffer(buffer));
+    const clean = {};
+    for (const [name, counts] of Object.entries(countries)) {
+      if (!name || typeof name !== 'string') continue;
+      clean[name] = sanitizeCounts(counts);
+    }
+    if (!Object.keys(clean).length) {
+      return res.status(400).json({ error: 'No valid country entries' });
+    }
+    const parsed = {
+      uploadedAt: new Date().toISOString(),
+      activeCount: Number.isFinite(Number(activeCount)) ? Math.round(Number(activeCount)) : 0,
+      countries: clean,
+    };
+    saveParsedAndRaw('companies', parsed);
+    companiesCache.data = parsed;
+    console.log(`companies: data saved (${Object.keys(clean).length} countries, ${parsed.activeCount} active)`);
+    res.json({
+      success: true,
+      uploadedAt: parsed.uploadedAt,
+      countryCount: Object.keys(clean).length,
+      activeCount: parsed.activeCount,
+    });
   } catch (err) {
-    companiesCache.processing = false;
-    companiesCache.startedAt = null;
-    console.error('companies upload error:', err.message);
-    if (!res.headersSent) res.status(400).json({ error: err.message || 'Failed to accept uploaded file' });
+    console.error('companies data save error:', err.message);
+    res.status(400).json({ error: err.message || 'Failed to save companies data' });
   }
 });
 
