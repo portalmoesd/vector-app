@@ -1765,20 +1765,22 @@
         if (allYears.includes(y)) displayYears.push(y);
       }
 
-      // Per-year rank + share for the FDI table rows
-      // Share = country_value / total_positive_FDI_that_year (all countries with FDI > 0)
+      // Per-year rank + share for the FDI table rows.
+      // Rank = position among countries with positive FDI that year.
+      // Share = country_value / grand_total_from_"სულ"_row × 100.
+      const fdiTotalsThd = json.totals || {};
       function fdiRankAndShare(year) {
         const entries = [];
-        let total = 0;
         for (const [code, data] of Object.entries(json.countries)) {
           const v = (data[year] || 0) / 1000;
-          if (v > 0) { entries.push({ code, v }); total += v; }
+          if (v > 0) entries.push({ code, v });
         }
         entries.sort((a, b) => b.v - a.v);
         const idx = entries.findIndex(e => e.code === String(countryCode));
         const rank = idx >= 0 ? idx + 1 : null;
         const ownVal = idx >= 0 ? entries[idx].v : 0;
-        const share = total > 0 ? (ownVal / total) * 100 : null;
+        const totalMln = (fdiTotalsThd[year] || 0) / 1000;
+        const share = totalMln > 0 ? (ownVal / totalMln) * 100 : null;
         return { rank, share };
       }
 
