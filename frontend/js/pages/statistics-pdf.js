@@ -971,12 +971,12 @@
     const summary = buildInvestmentsSummary(inv, t, country, lang);
 
     const data = [...inv.tableData].reverse();
+    const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
+    const shareHeader = lang === 'ka' ? 'წილი, %' : 'Share, %';
     const body = [
-      [th(t.year), thRight(t.volumeHeader), thRight(t.changeHeader)],
+      [th(t.year), thRight(rankHeader), thRight(t.volumeHeader), thRight(t.changeHeader), thRight(shareHeader)],
     ];
     for (const r of data) {
-      // Show "-" when current year's FDI is non-positive (disinvestment)
-      // or when previous year was non-positive (can't compute meaningful %)
       const isCurNeg = !(r.valueMln > 0);
       const isPrevNeg = !(r.prevMln > 0);
       const valueCell = isCurNeg ? tdNum('-') : tdNum(formatMln(r.valueMln));
@@ -989,17 +989,23 @@
         const sign = pct > 0 ? '+' : '';
         changeCell = tdNum(`${sign}${formatPct(pct)}`, { color });
       }
+      const rankCell = (!isCurNeg && r.rank) ? tdNum(String(r.rank)) : tdNum('-');
+      const shareCell = (!isCurNeg && r.share != null)
+        ? tdNum(`${(Math.round(r.share * 10) / 10).toFixed(1)}%`)
+        : tdNum('-');
       body.push([
         tdText(String(r.year)),
+        rankCell,
         valueCell,
         changeCell,
+        shareCell,
       ]);
     }
 
     const tableBlock = {
       table: {
         dontBreakRows: true,
-        widths: ['auto', '*', 'auto'],
+        widths: ['auto', 'auto', '*', 'auto', 'auto'],
         body,
       },
       layout: tableLayout,
