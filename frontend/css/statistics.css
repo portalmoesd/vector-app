@@ -376,20 +376,6 @@ body.stat-exporting .stat-sections.hidden {
   min-width: 0;
 }
 
-/* Pin every Chart.js canvas to the 500×153 footprint the PDF renders at
-   so the page-side chart matches the export, and so the PDF-export
-   snapshot path is a visual no-op (no more shrink-and-snap-back).
-   Target by ID — some `.stat-chart-card` elements are table-only cards
-   and must stay full width. */
-#turnoverChart,
-#dynamicsChart,
-#tourismChart,
-#fdiChart {
-  width: 100% !important;
-  max-width: 500px !important;
-  height: 153px !important;
-}
-
 @media (max-width: 980px) {
   .stat-charts-row {
     flex-direction: column;
