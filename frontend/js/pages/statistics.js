@@ -1431,6 +1431,48 @@
       const allYears = json.years || [];
       const latestYear = allYears[allYears.length - 1];
 
+      // Build the set of valid GNTA country names (excludes regions)
+      const validGntaNames = new Set();
+      for (const c of countries) {
+        const resolved = resolveGntaName(c, json.countries);
+        if (resolved) validGntaNames.add(resolved);
+      }
+
+      // Compute the selected country's rank among real countries for a given year
+      function rankForYear(year) {
+        const entries = [];
+        for (const [name, d] of Object.entries(json.countries)) {
+          if (!validGntaNames.has(name)) continue;
+          const val = (d.annual && d.annual[year]) || 0;
+          if (val > 0) entries.push({ name, val });
+        }
+        entries.sort((a, b) => b.val - a.val);
+        const idx = entries.findIndex(e => e.name === gntaName);
+        return idx >= 0 ? idx + 1 : null;
+      }
+      function rankForCurrent() {
+        const entries = [];
+        for (const [name, d] of Object.entries(json.countries)) {
+          if (!validGntaNames.has(name)) continue;
+          const val = d.current || 0;
+          if (val > 0) entries.push({ name, val });
+        }
+        entries.sort((a, b) => b.val - a.val);
+        const idx = entries.findIndex(e => e.name === gntaName);
+        return idx >= 0 ? idx + 1 : null;
+      }
+      function rankForCompare() {
+        const entries = [];
+        for (const [name, d] of Object.entries(json.countries)) {
+          if (!validGntaNames.has(name)) continue;
+          const val = d.compare || 0;
+          if (val > 0) entries.push({ name, val });
+        }
+        entries.sort((a, b) => b.val - a.val);
+        const idx = entries.findIndex(e => e.name === gntaName);
+        return idx >= 0 ? idx + 1 : null;
+      }
+
       // Build annual rows: last 5 years
       const annualRows = [];
       for (let y = latestYear - 4; y <= latestYear; y++) {
@@ -1446,6 +1488,7 @@
             visitors: val,
             changePct: pct,
             isCurrent: false,
+            rank: val > 0 ? rankForYear(y) : null,
           });
         }
       }
@@ -1461,12 +1504,14 @@
           visitors: cur,
           changePct: pct,
           isCurrent: true,
+          rank: cur > 0 ? rankForCurrent() : null,
         });
         quarterlyRows.push({
           label: json.currentPeriod.compareLabel,
           visitors: cmp,
-          changePct: null, // no previous comparison available
+          changePct: null,
           isCurrent: false,
+          rank: cmp > 0 ? rankForCompare() : null,
         });
       }
 
@@ -1480,23 +1525,8 @@
       for (let y = fiveYearStart; y <= fiveYearEnd; y++) {
         fiveYearSum += annual[y] || 0;
       }
-      let currentRank = null;
-      if (json.currentPeriod && countryData.current !== null && countryData.current > 0) {
-        // Build the set of valid GNTA country names: entries in json.countries
-        // that also resolve from our classificatory. This filters out regions,
-        // "საქართველო (არარეზიდენტი)", and any other aggregate rows.
-        const validGntaNames = new Set();
-        for (const c of countries) {
-          const resolved = resolveGntaName(c, json.countries);
-          if (resolved) validGntaNames.add(resolved);
-        }
-        const ranking = Object.entries(json.countries)
-          .map(([name, d]) => ({ name, current: d.current || 0 }))
-          .filter(c => c.current > 0 && validGntaNames.has(c.name))
-          .sort((a, b) => b.current - a.current);
-        const idx = ranking.findIndex(c => c.name === gntaName);
-        if (idx >= 0) currentRank = idx + 1;
-      }
+      // Use the current-period rank from the quarterly row (already computed)
+      const currentRank = quarterlyRows.length > 0 ? quarterlyRows[0].rank : null;
 
       renderTourismTable(quarterlyRows, annualRows, isKa);
       renderTourismChart(annualRows, json.currentPeriod && countryData.current !== null ? {
@@ -1598,11 +1628,13 @@
     const hPeriod = isKa ? 'პერიოდი' : 'Period';
     const hValue = isKa ? 'ვიზიტორები' : 'Visitors';
     const hChange = isKa ? 'ცვლილება, %' : 'Change, %';
+    const hRank = isKa ? 'ადგილი' : 'Rank';
 
     let html = `<table class="stat-table">
       <thead>
         <tr>
           <th>${hPeriod}</th>
+          <th class="stat-col-change">${hRank}</th>
           <th class="stat-col-value">${hValue}</th>
           <th class="stat-col-change">${hChange}</th>
         </tr>
@@ -1612,15 +1644,17 @@
     for (const r of rows) {
       let changeCell = '';
       if (r.changePct === null || r.changePct === undefined) {
-        changeCell = '<td class="stat-col-change">—</td>';
+        changeCell = '<td class="stat-col-change">-</td>';
       } else {
         const changeClass = r.changePct > 0 ? 'stat-positive' : (r.changePct < 0 ? 'stat-negative' : '');
         const sign = r.changePct > 0 ? '+' : '';
         changeCell = `<td class="stat-col-change ${changeClass}">${sign}${formatChangePct(r.changePct)}</td>`;
       }
+      const rankCell = r.rank ? `<td class="stat-col-change">${r.rank}</td>` : '<td class="stat-col-change">-</td>';
       html += `
         <tr>
           <td>${escapeHtml(r.label)}</td>
+          ${rankCell}
           <td class="stat-col-value">${r.visitors.toLocaleString()}</td>
           ${changeCell}
         </tr>`;

@@ -801,8 +801,9 @@
     const summary = buildTourismSummary(tourism, t, country, lang);
 
     const rows = [...(tourism.quarterlyRows || []), ...[...(tourism.annualRows || [])].reverse()];
+    const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
     const body = [
-      [th(t.period), thRight(t.visitors), thRight(t.changeHeader)],
+      [th(t.period), thRight(rankHeader), thRight(t.visitors), thRight(t.changeHeader)],
     ];
     for (const r of rows) {
       let changeCell;
@@ -813,8 +814,10 @@
         const sign = r.changePct > 0 ? '+' : '';
         changeCell = tdNum(`${sign}${formatPct(r.changePct)}`, { color });
       }
+      const rankCell = r.rank ? tdNum(String(r.rank)) : tdNum('-');
       body.push([
         tdText(r.label, r.isCurrent ? { bold: true } : {}),
+        rankCell,
         tdNum(r.visitors.toLocaleString()),
         changeCell,
       ]);
@@ -823,7 +826,7 @@
     const tableBlock = {
       table: {
         dontBreakRows: true,
-        widths: ['*', '*', 'auto'],
+        widths: ['*', 'auto', 'auto', 'auto'],
         body,
       },
       layout: tableLayout,
