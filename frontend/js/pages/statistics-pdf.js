@@ -86,6 +86,16 @@
       tradeSection: 'Foreign Trade',
       tourismSection: 'Tourism',
       investmentsSection: 'Investments',
+      appendixSection: 'Appendix',
+      appTurnoverGrp: 'Turnover',
+      appExportGrp: 'Export',
+      appImportGrp: 'Import',
+      appBalanceGrp: 'Balance',
+      appGeoTotal: 'Georgia total, mln $',
+      appValue: 'Value, mln $',
+      appChange: 'Change YoY, %',
+      appShare: 'Share, %',
+      appBalanceRow: 'Country balance, mln $',
     },
     ka: {
       tradeOverview: 'სავაჭრო მიმოხილვა',
@@ -126,6 +136,16 @@
       tradeSection: 'საგარეო ვაჭრობა',
       tourismSection: 'ტურიზმი',
       investmentsSection: 'ინვესტიციები',
+      appendixSection: 'დანართი',
+      appTurnoverGrp: 'ბრუნვა',
+      appExportGrp: 'ექსპორტი',
+      appImportGrp: 'იმპორტი',
+      appBalanceGrp: 'სალდო',
+      appGeoTotal: 'სულ, მლნ. $',
+      appValue: 'მნიშვნელობა, მლნ. $',
+      appChange: 'ცვლილება წ/წ, %',
+      appShare: 'წილი, %',
+      appBalanceRow: 'ქვეყნის ბალანსი, მლნ. $',
     },
   };
 
@@ -1147,6 +1167,136 @@
     };
   }
 
+  // ── Appendix section ───────────────────────────────────────────────────
+  // Multi-year trade matrix. One row per metric × one column per period.
+  // Starts on a fresh page because the 9-column table is too wide to share
+  // a page with other content.
+  function buildAppendixSection(appendix, t, country, lang) {
+    if (!appendix || !Array.isArray(appendix.columns) || !appendix.columns.length) return [];
+    const hasAny = (appendix.data || []).some((d) => d && d.totals);
+    if (!hasAny) return [];
+
+    const cols = appendix.columns;
+    const N = cols.length;
+
+    function canCompareChange(i) {
+      if (i === 0) return false;
+      const a = cols[i - 1], b = cols[i];
+      if (a.kind !== b.kind) return false;
+      if (b.year - a.year !== 1) return false;
+      if (b.kind === 'ytd' && a.months.length !== b.months.length) return false;
+      return true;
+    }
+    const getCountry = (i, flow) => {
+      const d = appendix.data[i];
+      return d && d.country ? d.country[flow] : null;
+    };
+    const getTotal = (i, flow) => {
+      const d = appendix.data[i];
+      return d && d.totals ? d.totals[flow] : null;
+    };
+
+    const fontSmall = 7;
+    const fontHdr = 7.5;
+
+    function numCell(v) {
+      if (v == null || !isFinite(v)) return { text: '-', alignment: 'center', fontSize: fontSmall };
+      return { text: formatMln2(v), alignment: 'right', fontSize: fontSmall };
+    }
+    function pctCell(v, signed) {
+      if (v == null || !isFinite(v)) return { text: '-', alignment: 'center', fontSize: fontSmall };
+      const color = v > 0 ? '#16a34a' : (v < 0 ? '#dc2626' : '#475569');
+      const sign = signed && v > 0 ? '+' : '';
+      return { text: `${sign}${formatPct(v)}`, alignment: 'right', fontSize: fontSmall, color };
+    }
+    function labelCell(text, opts = {}) {
+      return { text, fontSize: fontSmall, color: '#475569', ...opts };
+    }
+    function hdrCell(text, opts = {}) {
+      return {
+        text,
+        bold: true,
+        fontSize: fontHdr,
+        color: '#475569',
+        fillColor: '#f8fafc',
+        alignment: 'right',
+        ...opts,
+      };
+    }
+    function groupRow(label) {
+      return [{
+        colSpan: N + 1,
+        text: label,
+        bold: true,
+        fontSize: fontHdr,
+        color: '#1f2937',
+        fillColor: '#f1f5f9',
+      }].concat(new Array(N).fill({}));
+    }
+
+    const header = [hdrCell('', { alignment: 'left' })]
+      .concat(cols.map((c) => hdrCell(c.label)));
+
+    function flowRows(grpLabel, flow) {
+      const totals = cols.map((_, i) => numCell(getTotal(i, flow)));
+      const values = cols.map((_, i) => numCell(getCountry(i, flow)));
+      const changes = cols.map((_, i) => {
+        if (!canCompareChange(i)) return { text: '-', alignment: 'center', fontSize: fontSmall };
+        const cur = getCountry(i, flow);
+        const prev = getCountry(i - 1, flow);
+        if (cur == null || prev == null || prev === 0) return { text: '-', alignment: 'center', fontSize: fontSmall };
+        return pctCell(((cur - prev) / prev) * 100, true);
+      });
+      const shares = cols.map((_, i) => {
+        const cur = getCountry(i, flow);
+        const tot = getTotal(i, flow);
+        if (cur == null || !tot) return { text: '-', alignment: 'center', fontSize: fontSmall };
+        return pctCell((cur / tot) * 100, false);
+      });
+      return [
+        groupRow(grpLabel),
+        [labelCell(t.appGeoTotal, { bold: true })].concat(totals),
+        [labelCell(t.appValue)].concat(values),
+        [labelCell(t.appChange)].concat(changes),
+        [labelCell(t.appShare)].concat(shares),
+      ];
+    }
+
+    const balanceCells = cols.map((_, i) => {
+      const c = appendix.data[i] && appendix.data[i].country;
+      if (!c) return { text: '-', alignment: 'center', fontSize: fontSmall };
+      const bal = (c.export || 0) - (c.import || 0);
+      const color = bal > 0 ? '#16a34a' : (bal < 0 ? '#dc2626' : '#475569');
+      const sign = bal < 0 ? '-' : '';
+      return { text: `${sign}${formatMln2(Math.abs(bal))}`, alignment: 'right', fontSize: fontSmall, color };
+    });
+
+    const body = [header]
+      .concat(flowRows(t.appTurnoverGrp, 'turnover'))
+      .concat(flowRows(t.appExportGrp, 'export'))
+      .concat(flowRows(t.appImportGrp, 'import'))
+      .concat([groupRow(t.appBalanceGrp)])
+      .concat([[labelCell(t.appBalanceRow, { bold: true })].concat(balanceCells)]);
+
+    // Widths: label column + N numeric columns. Fits within A4 portrait
+    // content width (531 pt) up to roughly 9 columns.
+    const labelW = 110;
+    const numW = Math.max(22, Math.floor((531 - labelW - 6) / N));
+    const widths = [labelW].concat(new Array(N).fill(numW));
+
+    const titleText = `${country} - ${t.appendixSection}`;
+    const title = { ...sectionTitle(titleText), pageBreak: 'before' };
+
+    return [
+      title,
+      {
+        table: { headerRows: 1, dontBreakRows: true, widths, body },
+        layout: tableLayout,
+        margin: [0, 4, 0, 6],
+      },
+    ];
+  }
+
   // ── Document definition ────────────────────────────────────────────────
   function buildDocDefinition(state, opts) {
     const lang = opts.lang || 'en';
@@ -1163,6 +1313,7 @@
       : state.investments;
     content.push(...buildInvestmentsSection(investmentsWithSectors, charts, t, country, lang));
     content.push(...buildCompaniesSection(state.companies, t, country, lang, opts.countryNameEn));
+    content.push(...buildAppendixSection(state.appendix, t, country, lang));
 
     if (content.length === 0) {
       content.push({ text: t.noData, italics: true, color: '#94a3b8', margin: [0, 40, 0, 0], alignment: 'center' });

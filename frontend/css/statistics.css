@@ -447,3 +447,69 @@ body.stat-exporting .stat-sections.hidden {
   color: var(--accent-red);
 }
 
+/* ─── Appendix table ─────────────────────────────────────────────────────── */
+
+.stat-appendix-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md, 6px);
+}
+
+.stat-appendix {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-appendix thead th {
+  background: var(--bg-secondary, #f8f9fa);
+  font-weight: 600;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-align: right;
+  padding: 6px 10px;
+  border-bottom: 2px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.stat-appendix thead th:first-child {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: var(--bg-secondary, #f8f9fa);
+  z-index: 2;
+}
+
+.stat-appendix tbody td {
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border-color);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.stat-appendix tbody td:first-child {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: var(--bg-primary, #fff);
+  font-weight: 500;
+  color: var(--text-secondary);
+  z-index: 1;
+}
+
+.stat-appendix__group td {
+  background: var(--bg-secondary, #f1f5f9) !important;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-size: 0.72rem;
+  padding: 6px 10px;
+}
+
+.stat-appendix__total td:first-child {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+

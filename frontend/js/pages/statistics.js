@@ -64,6 +64,10 @@
   const tourismTableEl = document.getElementById('tourismTable');
   const tourismChartHeader = document.getElementById('tourismChartHeader');
   const tourismChartCanvas = document.getElementById('tourismChart');
+  // Appendix tab
+  const appendixLoadingEl = document.getElementById('appendixLoading');
+  const appendixHeaderEl = document.getElementById('appendixHeader');
+  const appendixTableEl = document.getElementById('appendixTable');
 
   // ── State ────────────────────────────────────────────────────────────────
   let countries = [];
@@ -86,6 +90,7 @@
     trade: null,      // { overview, prevYear, prevPrevYear, latestYear, latestMonth, periodLabel, monthNames, hasExport, hasImport, exportGrowing, importGrowing, exportProducts, importProducts, exportChange, importChange }
     tourism: null,    // { hasData, quarterlyRows, annualRows }
     investments: null, // { hasData, tableData }
+    appendix: null,   // { latestYear, latestMonth, columns, data } — multi-year trade matrix
   };
 
   // ── Geostat API helpers (direct + proxy fallback) ────────────────────────
@@ -323,12 +328,17 @@
     pdfState.tourism = null;
     pdfState.investments = null;
     pdfState.companies = null;
+    pdfState.appendix = null;
+    renderAppendix(null, I18n.getLocale() === 'ka');
     // Generate trade first (user sees it immediately)
     await generateReport();
-    // Fire tourism and investments in background (no await)
+    // Fire tourism, investments, companies, appendix in background (no await)
     generateTourism();
     generateInvestments();
     generateCompanies();
+    if (pdfState.trade) {
+      generateAppendix(pdfState.trade.latestYear, pdfState.trade.latestMonth);
+    }
   });
 
   async function generateReport() {
@@ -2352,6 +2362,239 @@
         .forEach(c => { if (c) { try { c.resize(); } catch (_) {} } });
       exportPdfBtn.disabled = false;
       exportPdfBtn.textContent = origBtnText;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // ── APPENDIX TAB ───────────────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════
+  // Multi-year trade matrix: 6 full years + 2 YTD columns (prior-year YTD
+  // and current-year YTD). Rows: Georgia total / country value / YoY change
+  // / share, for each of Turnover/Export/Import, plus a single Balance row.
+  // Data source: POST /api/statistics/country-ranking (one call per column,
+  // server-side cached).
+
+  function buildAppendixColumns(latestYear, latestMonth) {
+    const cols = [];
+    if (latestMonth >= 12) {
+      for (let y = latestYear - 5; y <= latestYear; y++) {
+        cols.push({ kind: 'full', year: y, label: String(y) });
+      }
+    } else {
+      for (let y = latestYear - 6; y <= latestYear - 1; y++) {
+        cols.push({ kind: 'full', year: y, label: String(y) });
+      }
+      const months = [];
+      for (let m = 1; m <= latestMonth; m++) months.push(m);
+      const mm = String(latestMonth).padStart(2, '0');
+      cols.push({ kind: 'ytd', year: latestYear - 1, months, label: `${latestYear - 1}.${mm}` });
+      cols.push({ kind: 'ytd', year: latestYear, months, label: `${latestYear}.${mm}` });
+    }
+    return cols;
+  }
+
+  async function fetchAppendixColumn(column, countryId) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 60_000);
+    const months = column.kind === 'full'
+      ? [1,2,3,4,5,6,7,8,9,10,11,12]
+      : column.months;
+    try {
+      const res = await fetch(`${PROXY_API}/country-ranking`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ year: column.year, months, countryId }),
+        signal: ctrl.signal,
+      });
+      const j = await res.json().catch(() => null);
+      if (!res.ok || !j || !j.success) return null;
+      // j.country is always an object, but individual flow entries are null
+      // when the country had no data for that flow. Treat "all flows null"
+      // as "country absent" so the column renders as "-" instead of 0.00.
+      const c = j.country || {};
+      const hasAny = !!(c.turnover || c.export || c.import);
+      const country = hasAny
+        ? {
+            turnover: c.turnover ? c.turnover.valueMln : 0,
+            export:   c.export   ? c.export.valueMln   : 0,
+            import:   c.import   ? c.import.valueMln   : 0,
+          }
+        : null;
+      return { totals: j.totals, country };
+    } catch (_) {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function buildAppendix(latestYear, latestMonth, countryId) {
+    const columns = buildAppendixColumns(latestYear, latestMonth);
+    const settled = await Promise.allSettled(
+      columns.map((c) => fetchAppendixColumn(c, countryId))
+    );
+    const data = settled.map((s) => (s.status === 'fulfilled' ? s.value : null));
+    const anyData = data.some((d) => d && d.totals);
+    if (!anyData) return null;
+    return {
+      latestYear,
+      latestMonth,
+      ytdMode: latestMonth < 12,
+      columns,
+      data,
+    };
+  }
+
+  function fmtAppendixNum(v) {
+    if (v == null || !isFinite(v)) return '-';
+    if (v === 0) return '0.00';
+    return formatMln2(v);
+  }
+
+  function fmtAppendixPct(v, signed) {
+    if (v == null || !isFinite(v)) return '-';
+    const sign = signed && v > 0 ? '+' : '';
+    return `${sign}${formatChangePct(v)}`;
+  }
+
+  function renderAppendix(state, isKa) {
+    if (!appendixTableEl) return;
+    if (!state || !state.columns || state.columns.length === 0) {
+      if (appendixHeaderEl) appendixHeaderEl.innerHTML = '';
+      appendixTableEl.innerHTML = '';
+      return;
+    }
+
+    const country = selectedCountry ? selectedCountry.displayLabel : '';
+    const title = isKa
+      ? `${country} - დანართი`
+      : `${country} - Appendix`;
+    if (appendixHeaderEl) {
+      appendixHeaderEl.innerHTML = `<h3 class="stat-report__title">${escapeHtml(title)}</h3>`;
+    }
+
+    const L = {
+      turnoverGrp: isKa ? 'ბრუნვა' : 'TURNOVER',
+      exportGrp:   isKa ? 'ექსპორტი' : 'EXPORT',
+      importGrp:   isKa ? 'იმპორტი' : 'IMPORT',
+      balanceGrp:  isKa ? 'სალდო' : 'BALANCE',
+      total:       isKa ? 'სულ, მლნ. $' : 'Georgia total, mln $',
+      value:       isKa ? 'მნიშვნელობა, მლნ. $' : 'Value, mln $',
+      change:      isKa ? 'ცვლილება წ/წ, %' : 'Change YoY, %',
+      share:       isKa ? 'წილი, %' : 'Share, %',
+      balanceRow:  isKa ? 'ქვეყნის ბალანსი, მლნ. $' : 'Country balance, mln $',
+    };
+
+    const cols = state.columns;
+    const N = cols.length;
+
+    // Can we compute change between column i and i-1? Only when same kind
+    // and (for full) consecutive years, (for ytd) consecutive years + same months.
+    function canCompareChange(i) {
+      if (i === 0) return false;
+      const a = cols[i - 1], b = cols[i];
+      if (a.kind !== b.kind) return false;
+      if (b.year - a.year !== 1) return false;
+      if (b.kind === 'ytd' && a.months.length !== b.months.length) return false;
+      return true;
+    }
+
+    // Cell extractors — return null when data missing (renders as "-")
+    const getCountry = (i, flow) => {
+      const d = state.data[i];
+      if (!d || !d.country) return null;
+      return d.country[flow];
+    };
+    const getTotal = (i, flow) => {
+      const d = state.data[i];
+      if (!d || !d.totals) return null;
+      return d.totals[flow];
+    };
+
+    function changeCell(i, flow) {
+      if (!canCompareChange(i)) return { text: '-', cls: '' };
+      const cur = getCountry(i, flow);
+      const prev = getCountry(i - 1, flow);
+      if (cur == null || prev == null || prev === 0) return { text: '-', cls: '' };
+      const pct = ((cur - prev) / prev) * 100;
+      const cls = pct > 0 ? 'stat-positive' : (pct < 0 ? 'stat-negative' : '');
+      return { text: fmtAppendixPct(pct, true), cls };
+    }
+
+    function shareCell(i, flow) {
+      const cur = getCountry(i, flow);
+      const tot = getTotal(i, flow);
+      if (cur == null || !tot) return '-';
+      return fmtAppendixPct((cur / tot) * 100, false);
+    }
+
+    function balanceCell(i) {
+      const c = state.data[i] && state.data[i].country;
+      if (!c) return { text: '-', cls: '' };
+      const bal = (c.export || 0) - (c.import || 0);
+      const cls = bal > 0 ? 'stat-positive' : (bal < 0 ? 'stat-negative' : '');
+      const sign = bal < 0 ? '-' : '';
+      return { text: `${sign}${fmtAppendixNum(Math.abs(bal))}`, cls };
+    }
+
+    const headerCells = [`<th>&nbsp;</th>`]
+      .concat(cols.map((c) => `<th>${escapeHtml(c.label)}</th>`))
+      .join('');
+
+    function groupRow(label) {
+      return `<tr class="stat-appendix__group"><td colspan="${N + 1}">${escapeHtml(label)}</td></tr>`;
+    }
+
+    function flowBlock(grpLabel, flow) {
+      const totals = cols.map((_, i) => `<td>${fmtAppendixNum(getTotal(i, flow))}</td>`).join('');
+      const values = cols.map((_, i) => `<td>${fmtAppendixNum(getCountry(i, flow))}</td>`).join('');
+      const changes = cols.map((_, i) => {
+        const c = changeCell(i, flow);
+        return `<td class="${c.cls}">${c.text}</td>`;
+      }).join('');
+      const shares = cols.map((_, i) => `<td>${shareCell(i, flow)}</td>`).join('');
+      return [
+        groupRow(grpLabel),
+        `<tr class="stat-appendix__total"><td>${escapeHtml(L.total)}</td>${totals}</tr>`,
+        `<tr><td>${escapeHtml(L.value)}</td>${values}</tr>`,
+        `<tr><td>${escapeHtml(L.change)}</td>${changes}</tr>`,
+        `<tr><td>${escapeHtml(L.share)}</td>${shares}</tr>`,
+      ].join('');
+    }
+
+    const balanceCells = cols.map((_, i) => {
+      const c = balanceCell(i);
+      return `<td class="${c.cls}">${c.text}</td>`;
+    }).join('');
+
+    const html = `
+      <table class="stat-appendix">
+        <thead><tr>${headerCells}</tr></thead>
+        <tbody>
+          ${flowBlock(L.turnoverGrp, 'turnover')}
+          ${flowBlock(L.exportGrp, 'export')}
+          ${flowBlock(L.importGrp, 'import')}
+          ${groupRow(L.balanceGrp)}
+          <tr><td>${escapeHtml(L.balanceRow)}</td>${balanceCells}</tr>
+        </tbody>
+      </table>`;
+    appendixTableEl.innerHTML = html;
+  }
+
+  async function generateAppendix(latestYear, latestMonth) {
+    if (!selectedCountry) return;
+    if (appendixLoadingEl) appendixLoadingEl.classList.remove('hidden');
+    try {
+      const appendix = await buildAppendix(latestYear, latestMonth, selectedCountry.value);
+      pdfState.appendix = appendix;
+      renderAppendix(appendix, I18n.getLocale() === 'ka');
+    } catch (err) {
+      console.error('Appendix error:', err);
+      pdfState.appendix = null;
+      if (appendixTableEl) appendixTableEl.innerHTML = '';
+      if (appendixHeaderEl) appendixHeaderEl.innerHTML = '';
+    } finally {
+      if (appendixLoadingEl) appendixLoadingEl.classList.add('hidden');
     }
   }
 })();
