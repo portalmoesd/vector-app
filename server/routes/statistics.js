@@ -560,24 +560,18 @@ function parseHistoricalWorkbook(wb) {
     const name = String(row[0] || '').trim();
     if (!name) continue;
 
-    // Capture the first row that looks like a totals row: it has numeric
-    // values in year columns and a label containing "საერთაშორისო", "სულ",
-    // or "ვიზიტორ". If no match, capture the very first data row (r==1)
-    // as a fallback since GNTA files put the grand total on the first row.
-    if (!totals) {
-      const lc = name.toLowerCase();
-      const isTotal = lc.includes('საერთაშორისო') || lc.includes('სულ') || lc.includes('ვიზიტორ') || r === 1;
-      if (isTotal) {
-        const t = {};
-        for (const { col, year } of years) {
-          const v = row[col];
-          if (v === null || v === undefined || v === '-' || v === '') { t[year] = 0; continue; }
-          const num = parseFloat(String(v).replace(/,/g, ''));
-          t[year] = isNaN(num) ? 0 : Math.round(num);
-        }
-        // Only use as totals if it has at least one non-zero value
-        if (Object.values(t).some(v => v > 0)) totals = t;
+    // Capture the totals row — labelled with "განხორციელებული ვიზიტები"
+    // (conducted visits). The exact label is:
+    // "საერთაშორისო ვიზიტორების მიერ განხორციელებული ვიზიტები".
+    if (!totals && name.includes('განხორციელებული ვიზიტები')) {
+      const t = {};
+      for (const { col, year } of years) {
+        const v = row[col];
+        if (v === null || v === undefined || v === '-' || v === '') { t[year] = 0; continue; }
+        const num = parseFloat(String(v).replace(/,/g, ''));
+        t[year] = isNaN(num) ? 0 : Math.round(num);
       }
+      if (Object.values(t).some(v => v > 0)) totals = t;
     }
 
     if (name.startsWith('მათ შორის') || name.startsWith('საერთაშორისო') ||
@@ -635,14 +629,10 @@ function parseQuarterlyWorkbook(wb) {
         return isNaN(n) ? 0 : Math.round(n);
       };
 
-      // Capture the first row that looks like the totals row
-      if (!periodTotals) {
-        const lc = name.toLowerCase();
-        const isTotal = lc.includes('საერთაშორისო') || lc.includes('სულ') || lc.includes('ვიზიტორ') || r === 1;
-        if (isTotal) {
-          const t = { compare: parseVal(row[2]), current: parseVal(row[3]) };
-          if (t.compare > 0 || t.current > 0) periodTotals = t;
-        }
+      // Capture the totals row — "...განხორციელებული ვიზიტები".
+      if (!periodTotals && name.includes('განხორციელებული ვიზიტები')) {
+        const t = { compare: parseVal(row[2]), current: parseVal(row[3]) };
+        if (t.compare > 0 || t.current > 0) periodTotals = t;
       }
 
       if (name.startsWith('მათ შორის') || name.startsWith('საერთაშორისო') ||
