@@ -1482,9 +1482,17 @@
       }
       let currentRank = null;
       if (json.currentPeriod && countryData.current !== null && countryData.current > 0) {
+        // Build the set of valid GNTA country names: entries in json.countries
+        // that also resolve from our classificatory. This filters out regions,
+        // "საქართველო (არარეზიდენტი)", and any other aggregate rows.
+        const validGntaNames = new Set();
+        for (const c of countries) {
+          const resolved = resolveGntaName(c, json.countries);
+          if (resolved) validGntaNames.add(resolved);
+        }
         const ranking = Object.entries(json.countries)
           .map(([name, d]) => ({ name, current: d.current || 0 }))
-          .filter(c => c.current > 0)
+          .filter(c => c.current > 0 && validGntaNames.has(c.name))
           .sort((a, b) => b.current - a.current);
         const idx = ranking.findIndex(c => c.name === gntaName);
         if (idx >= 0) currentRank = idx + 1;
