@@ -802,8 +802,9 @@
 
     const rows = [...(tourism.quarterlyRows || []), ...[...(tourism.annualRows || [])].reverse()];
     const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
+    const shareHeader = lang === 'ka' ? 'წილი, %' : 'Share, %';
     const body = [
-      [th(t.period), thRight(rankHeader), thRight(t.visitors), thRight(t.changeHeader)],
+      [th(t.period), thRight(rankHeader), thRight(t.visitors), thRight(t.changeHeader), thRight(shareHeader)],
     ];
     for (const r of rows) {
       let changeCell;
@@ -815,18 +816,22 @@
         changeCell = tdNum(`${sign}${formatPct(r.changePct)}`, { color });
       }
       const rankCell = r.rank ? tdNum(String(r.rank)) : tdNum('-');
+      const shareCell = (r.share != null)
+        ? tdNum(`${(Math.round(r.share * 10) / 10).toFixed(1)}%`)
+        : tdNum('-');
       body.push([
         tdText(r.label, r.isCurrent ? { bold: true } : {}),
         rankCell,
         tdNum(r.visitors.toLocaleString()),
         changeCell,
+        shareCell,
       ]);
     }
 
     const tableBlock = {
       table: {
         dontBreakRows: true,
-        widths: ['*', 'auto', 'auto', 'auto'],
+        widths: ['*', 'auto', 'auto', 'auto', 'auto'],
         body,
       },
       layout: tableLayout,
