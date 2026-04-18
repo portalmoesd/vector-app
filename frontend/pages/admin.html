@@ -96,7 +96,8 @@
           <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">
             Upload the active-companies XLSX file. Column S contains the active
             flag (blank = inactive), column V lists the capital-origin countries
-            separated by " / ".
+            separated by " / ". The file is parsed in your browser; only the
+            small aggregated summary is sent to the server.
           </p>
           <div class="upload-status" style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:10px;">Loading…</div>
           <form class="upload-form" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;">
@@ -126,6 +127,9 @@
   <script src="/js/core/i18n.js"></script>
   <script src="/js/core/utils.js"></script>
   <script src="/js/core/app.js"></script>
+  <!-- SheetJS: parses the 27 MB companies XLSX in-browser so the server
+       never has to touch the raw file (previously caused OOM / 502). -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="/js/pages/admin.js"></script>
 </body>
 </html>

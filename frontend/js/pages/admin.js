@@ -465,19 +465,17 @@
   loadHierarchy();
 
   // ── Data Uploads tab ──────────────────────────────────────────────────
-  // Generic upload-panel initialiser. Adding a new data source later =
-  // add one HTML panel + one initUploadPanel({...}) call here.
-  function initUploadPanel({ panelId, endpoint, labels }) {
+  // Generic upload-panel initialiser.
+  // - Server-side mode (default): POST multipart to `${endpoint}/upload`.
+  // - Client-side mode (clientParse): parse the file in the browser and
+  //   POST the aggregated JSON to `${endpoint}${clientPostPath}`. Used for
+  //   files too large for the server to parse within the proxy timeout.
+  function initUploadPanel({ panelId, endpoint, labels, clientParse, clientPostPath }) {
     const panel = document.getElementById(panelId);
     if (!panel) return;
     const statusEl = panel.querySelector('.upload-status');
     const form = panel.querySelector('.upload-form');
     const feedback = panel.querySelector('.upload-feedback');
-
-    async function fetchStatus() {
-      const res = await fetch(`${API_BASE}${endpoint}`);
-      return res.json();
-    }
 
     function renderStatus(j) {
       if (j && j.success && !j.empty) {
@@ -491,36 +489,48 @@
 
     async function refresh() {
       try {
-        renderStatus(await fetchStatus());
+        const res = await fetch(`${API_BASE}${endpoint}`);
+        renderStatus(await res.json());
       } catch (err) {
         statusEl.textContent = labels.noFile;
       }
     }
 
-    // Poll every 3 s until parsing finishes. Upload responds immediately
-    // with { processing: true } to avoid proxy timeouts on large files.
-    async function pollUntilReady(startedAt) {
-      const deadline = Date.now() + 10 * 60 * 1000; // 10 min safety cap
-      while (Date.now() < deadline) {
-        await new Promise((r) => setTimeout(r, 3000));
-        let j;
-        try { j = await fetchStatus(); } catch (_) { continue; }
-        if (!j || !j.processing) {
-          if (j && j.lastError) {
-            feedback.textContent = j.lastError;
-            feedback.style.color = 'crimson';
-          } else {
-            feedback.textContent = `${labels.success} · ${j && j.countryCount ? j.countryCount : 0} ${labels.countries}`;
-            feedback.style.color = 'green';
-          }
-          renderStatus(j);
-          return;
-        }
-        const secs = startedAt ? Math.round((Date.now() - new Date(startedAt).getTime()) / 1000) : 0;
-        feedback.textContent = `${labels.processing || 'Processing…'} (${secs}s)`;
+    async function submitServerSide() {
+      const fd = new FormData(form);
+      const token = Api.getToken();
+      const res = await fetch(`${API_BASE}${endpoint}/upload`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        body: fd,
+      });
+      return { res, body: await res.json() };
+    }
+
+    async function submitClientSide() {
+      const fileInput = form.querySelector('input[type="file"]');
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      if (!file) throw new Error('Please choose a file');
+      if (typeof XLSX === 'undefined') {
+        throw new Error('Spreadsheet parser not loaded — check your connection');
       }
-      feedback.textContent = labels.failure;
-      feedback.style.color = 'crimson';
+      feedback.textContent = labels.parsing || 'Parsing file…';
+      // Yield to the browser so the "Parsing…" label actually renders
+      // before the synchronous XLSX.read blocks the main thread.
+      await new Promise((r) => setTimeout(r, 30));
+      const buffer = await file.arrayBuffer();
+      const payload = clientParse(buffer);
+      feedback.textContent = labels.uploading;
+      const token = Api.getToken();
+      const res = await fetch(`${API_BASE}${endpoint}${clientPostPath}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+      return { res, body: await res.json() };
     }
 
     form.addEventListener('submit', async (e) => {
@@ -528,24 +538,12 @@
       feedback.textContent = labels.uploading;
       feedback.style.color = 'var(--text-secondary)';
       try {
-        const fd = new FormData(form);
-        const token = Api.getToken();
-        const res = await fetch(`${API_BASE}${endpoint}/upload`, {
-          method: 'POST',
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-          body: fd,
-        });
-        const j = await res.json();
+        const { res, body: j } = clientParse ? await submitClientSide() : await submitServerSide();
         if (res.ok && j.success) {
+          feedback.textContent = `${labels.success} · ${j.countryCount || 0} ${labels.countries}`;
+          feedback.style.color = 'green';
           form.reset();
-          if (j.processing) {
-            feedback.textContent = labels.processing || 'Processing…';
-            pollUntilReady(j.startedAt);
-          } else {
-            feedback.textContent = `${labels.success} · ${j.countryCount || 0} ${labels.countries}`;
-            feedback.style.color = 'green';
-            refresh();
-          }
+          refresh();
         } else {
           feedback.textContent = (j && j.error) || labels.failure;
           feedback.style.color = 'crimson';
@@ -557,6 +555,70 @@
     });
 
     refresh();
+  }
+
+  // Aggregate the active-companies registry in the browser. Matches the
+  // column layout described in the admin UI: S (active flag), V (capital-
+  // origin countries separated by "/"). Bucket rules:
+  //   solo                 — only the partner country
+  //   withGeorgia          — partner + Georgia, no one else
+  //   withGeorgiaAndThird  — partner + Georgia + ≥1 third country
+  //   withThirdOnly        — partner + ≥1 third country, no Georgia
+  function parseCompaniesFile(buffer) {
+    const wb = XLSX.read(buffer, {
+      type: 'array',
+      cellFormula: false,
+      cellHTML: false,
+      cellStyles: false,
+      sheetStubs: false,
+    });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    if (!sheet) throw new Error('Workbook has no sheets');
+    const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:A1');
+    const FIRST_DATA_ROW = 4; // matches the server parser: skip title+header rows
+    const COL_S = 18;
+    const COL_V = 21;
+    const GEORGIA = 'საქართველო';
+
+    const counts = {};
+    function bucket(name) {
+      if (!counts[name]) counts[name] = { total: 0, solo: 0, withGeorgia: 0, withGeorgiaAndThird: 0, withThirdOnly: 0 };
+      return counts[name];
+    }
+    function cellVal(r, c) {
+      const cell = sheet[XLSX.utils.encode_cell({ r, c })];
+      return cell && cell.v != null ? cell.v : null;
+    }
+
+    let activeCount = 0;
+    for (let r = FIRST_DATA_ROW; r <= range.e.r; r++) {
+      const active = String(cellVal(r, COL_S) || '').trim();
+      if (active !== 'აქტიური') continue;
+      activeCount++;
+
+      const raw = String(cellVal(r, COL_V) || '').trim();
+      if (!raw) continue;
+      const list = raw.split('/').map((s) => s.trim()).filter(Boolean);
+      if (!list.length) continue;
+
+      const hasGeorgia = list.indexOf(GEORGIA) !== -1;
+      const foreign = list.filter((c) => c !== GEORGIA);
+
+      for (const country of foreign) {
+        const b = bucket(country);
+        b.total++;
+        const othersCount = foreign.length - 1;
+        if (othersCount === 0 && !hasGeorgia) b.solo++;
+        else if (othersCount === 0 && hasGeorgia) b.withGeorgia++;
+        else if (othersCount > 0 && hasGeorgia) b.withGeorgiaAndThird++;
+        else if (othersCount > 0 && !hasGeorgia) b.withThirdOnly++;
+      }
+    }
+
+    if (!Object.keys(counts).length) {
+      throw new Error('No active companies with foreign capital found in the file');
+    }
+    return { activeCount, countries: counts };
   }
 
   initUploadPanel({
@@ -575,12 +637,14 @@
   initUploadPanel({
     panelId: 'panel-companies',
     endpoint: '/api/statistics/companies',
+    clientParse: parseCompaniesFile,
+    clientPostPath: '/data',
     labels: {
       current: 'Current',
       countries: 'countries',
       noFile: 'No file uploaded yet',
-      uploading: 'Uploading…',
-      processing: 'Processing… (this may take a minute)',
+      parsing: 'Parsing file in your browser…',
+      uploading: 'Uploading summary…',
       success: 'Uploaded successfully',
       failure: 'Upload failed',
     },
