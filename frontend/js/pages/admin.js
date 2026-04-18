@@ -533,4 +533,17 @@
       failure: 'Upload failed',
     },
   });
+
+  initUploadPanel({
+    panelId: 'panel-companies',
+    endpoint: '/api/statistics/companies',
+    labels: {
+      current: 'Current',
+      countries: 'countries',
+      noFile: 'No file uploaded yet',
+      uploading: 'Uploading…',
+      success: 'Uploaded successfully',
+      failure: 'Upload failed',
+    },
+  });
 })();

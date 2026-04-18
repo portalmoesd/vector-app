@@ -1045,4 +1045,107 @@ router.post('/fdi-sectors/upload', ...adminOnly, upload.single('file'), (req, re
   }
 });
 
+// ── POST /api/statistics/companies(/upload) ─────────────────────────────
+// Active-companies registry broken down by partner-country composition.
+// Data comes from an admin-uploaded XLSX (152K+ rows). Aggregation is done
+// at parse time; the response is a small per-country count object.
+
+let companiesCache = { data: null };
+
+function parseCompaniesWorkbook(wb) {
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  if (!sheet) throw new Error('Workbook has no sheets');
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+
+  // Header row is at index 3; data starts at index 4
+  // Column S (index 18) = active flag ("აქტიური" or blank)
+  // Column V (index 21) = country list separated by " / "
+  const counts = {}; // name → { total, solo, withGeorgia, withGeorgiaAndThird, withThirdOnly }
+
+  function bucket(name) {
+    if (!counts[name]) counts[name] = { total: 0, solo: 0, withGeorgia: 0, withGeorgiaAndThird: 0, withThirdOnly: 0 };
+    return counts[name];
+  }
+
+  let activeCount = 0;
+  for (let r = 4; r < rows.length; r++) {
+    const row = rows[r];
+    if (!row) continue;
+    const active = String(row[18] || '').trim();
+    if (active !== 'აქტიური') continue;
+    activeCount++;
+
+    const raw = String(row[21] || '').trim();
+    if (!raw) continue;
+    // Separator is " / " but the file sometimes has extra spaces — split on
+    // "/" then trim each piece.
+    const list = raw.split('/').map((s) => s.trim()).filter(Boolean);
+    if (!list.length) continue;
+
+    const hasGeorgia = list.includes('საქართველო');
+    const foreign = list.filter((c) => c !== 'საქართველო');
+
+    // Attribute this row to every foreign country in the list.
+    for (const country of foreign) {
+      const b = bucket(country);
+      b.total++;
+      const others = foreign.filter((c) => c !== country);
+      if (others.length === 0 && !hasGeorgia) b.solo++;
+      else if (others.length === 0 && hasGeorgia) b.withGeorgia++;
+      else if (others.length > 0 && hasGeorgia) b.withGeorgiaAndThird++;
+      else if (others.length > 0 && !hasGeorgia) b.withThirdOnly++;
+    }
+  }
+
+  return {
+    uploadedAt: new Date().toISOString(),
+    activeCount,
+    countries: counts,
+  };
+}
+
+function loadCompaniesFromDisk() {
+  const parsed = loadParsedFromDisk('companies');
+  if (parsed) {
+    companiesCache.data = parsed;
+    console.log(`companies: loaded from disk (${Object.keys(parsed.countries || {}).length} countries, ${parsed.activeCount || 0} active)`);
+  }
+}
+loadCompaniesFromDisk();
+
+router.get('/companies', (req, res) => {
+  const data = companiesCache.data;
+  if (!data) return res.json({ success: true, empty: true });
+  res.json({
+    success: true,
+    uploadedAt: data.uploadedAt,
+    countries: data.countries,
+    countryCount: Object.keys(data.countries).length,
+    activeCount: data.activeCount,
+  });
+});
+
+router.post('/companies/upload', ...adminOnly, upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded (field name: "file")' });
+    const t0 = Date.now();
+    const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const parsed = parseCompaniesWorkbook(wb);
+    const countryCount = Object.keys(parsed.countries).length;
+    if (!countryCount) return res.status(400).json({ error: 'No country data found in file' });
+    saveParsedAndRaw('companies', parsed, req.file.buffer);
+    companiesCache.data = parsed;
+    console.log(`companies: uploaded (${countryCount} countries, ${parsed.activeCount} active) in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+    res.json({
+      success: true,
+      uploadedAt: parsed.uploadedAt,
+      countryCount,
+      activeCount: parsed.activeCount,
+    });
+  } catch (err) {
+    console.error('companies upload error:', err.message);
+    res.status(400).json({ error: err.message || 'Failed to parse uploaded file' });
+  }
+});
+
 module.exports = router;
