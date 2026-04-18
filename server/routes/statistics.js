@@ -553,23 +553,31 @@ function parseHistoricalWorkbook(wb) {
   }
 
   const countries = {};
-  let totals = null; // grand totals per year from "საერთაშორისო" row
+  let totals = null; // grand totals per year — first non-country data row
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
     if (!row) continue;
     const name = String(row[0] || '').trim();
     if (!name) continue;
 
-    // Capture the totals row before skipping
-    if (name.startsWith('საერთაშორისო') && !totals) {
-      const t = {};
-      for (const { col, year } of years) {
-        const v = row[col];
-        if (v === null || v === undefined || v === '-' || v === '') { t[year] = 0; continue; }
-        const num = parseFloat(String(v).replace(/,/g, ''));
-        t[year] = isNaN(num) ? 0 : Math.round(num);
+    // Capture the first row that looks like a totals row: it has numeric
+    // values in year columns and a label containing "საერთაშორისო", "სულ",
+    // or "ვიზიტორ". If no match, capture the very first data row (r==1)
+    // as a fallback since GNTA files put the grand total on the first row.
+    if (!totals) {
+      const lc = name.toLowerCase();
+      const isTotal = lc.includes('საერთაშორისო') || lc.includes('სულ') || lc.includes('ვიზიტორ') || r === 1;
+      if (isTotal) {
+        const t = {};
+        for (const { col, year } of years) {
+          const v = row[col];
+          if (v === null || v === undefined || v === '-' || v === '') { t[year] = 0; continue; }
+          const num = parseFloat(String(v).replace(/,/g, ''));
+          t[year] = isNaN(num) ? 0 : Math.round(num);
+        }
+        // Only use as totals if it has at least one non-zero value
+        if (Object.values(t).some(v => v > 0)) totals = t;
       }
-      totals = t;
     }
 
     if (name.startsWith('მათ შორის') || name.startsWith('საერთაშორისო') ||
@@ -614,7 +622,7 @@ function parseQuarterlyWorkbook(wb) {
 
     // Matched! Extract data.
     const countries = {};
-    let periodTotals = null; // { current, compare } from "საერთაშორისო" row
+    let periodTotals = null; // { current, compare } from the totals row
     for (let r = 1; r < rows.length; r++) {
       const row = rows[r];
       if (!row) continue;
@@ -627,9 +635,14 @@ function parseQuarterlyWorkbook(wb) {
         return isNaN(n) ? 0 : Math.round(n);
       };
 
-      // Capture totals row
-      if (name.startsWith('საერთაშორისო') && !periodTotals) {
-        periodTotals = { compare: parseVal(row[2]), current: parseVal(row[3]) };
+      // Capture the first row that looks like the totals row
+      if (!periodTotals) {
+        const lc = name.toLowerCase();
+        const isTotal = lc.includes('საერთაშორისო') || lc.includes('სულ') || lc.includes('ვიზიტორ') || r === 1;
+        if (isTotal) {
+          const t = { compare: parseVal(row[2]), current: parseVal(row[3]) };
+          if (t.compare > 0 || t.current > 0) periodTotals = t;
+        }
       }
 
       if (name.startsWith('მათ შორის') || name.startsWith('საერთაშორისო') ||
@@ -791,6 +804,8 @@ async function refreshTourismData() {
     fs.writeFileSync(TOURISM_DATA_FILE, JSON.stringify(result));
     tourismCache = { data: result, ts: Date.now() };
     console.log(`tourism: refresh completed in ${((Date.now() - t0) / 1000).toFixed(1)}s — ${Object.keys(countries).length} countries`);
+    console.log(`tourism: annual totals sample:`, JSON.stringify(historical.totals ? Object.entries(historical.totals).slice(-3) : 'null'));
+    console.log(`tourism: quarterly totals:`, JSON.stringify(quarterly?.periodTotals || 'null'));
   } catch (err) {
     console.error('tourism: refresh failed:', err.message);
   } finally {
