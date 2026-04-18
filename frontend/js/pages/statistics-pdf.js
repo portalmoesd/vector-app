@@ -1190,8 +1190,8 @@
       return d && d.totals ? d.totals[flow] : null;
     };
 
-    const fontSmall = 8.5;
-    const fontHdr = 9;
+    const fontSmall = 7;
+    const fontHdr = 7.5;
 
     // First 3 characters of the country name — forms labels like
     // "Turnover-TUR" / "ბრუნვა-თურ" for the country-value rows.
@@ -1276,26 +1276,31 @@
       .concat(flowRows(t.appImportGrp, 'import'))
       .concat([[{ text: t.appBalanceGrp, ...groupOpts }].concat(balanceCells)]);
 
-    // Landscape A4 content width with 32pt margins = 778pt. The 7- or
-    // 8-column matrix doesn't fit portrait (531pt) at a readable font size,
-    // so the appendix page is forced to landscape via pageOrientation on
-    // the title's page-break.
-    const labelW = 110;
-    const numW = Math.max(40, Math.floor((778 - labelW - 6) / N));
+    // Keep the appendix on A4 portrait (pdfmake's per-page orientation is
+    // flaky across versions). Fit the 7- or 8-column matrix within the
+    // 531 pt content width by using tight cell padding and explicit
+    // widths that are guaranteed to sum below the limit.
+    const appendixLayout = {
+      ...tableLayout,
+      paddingLeft: () => 3,
+      paddingRight: () => 3,
+    };
+
+    const CONTENT_W = 531;
+    const PADDING_PER_CELL = 6; // 3pt × 2
+    const labelW = 64;
+    const available = CONTENT_W - labelW - (N + 1) * PADDING_PER_CELL;
+    const numW = Math.floor(available / N);
     const widths = [labelW].concat(new Array(N).fill(numW));
 
     const titleText = `${country} - ${t.appendixSection}`;
-    const title = {
-      ...sectionTitle(titleText),
-      pageBreak: 'before',
-      pageOrientation: 'landscape',
-    };
+    const title = { ...sectionTitle(titleText), pageBreak: 'before' };
 
     return [
       title,
       {
         table: { headerRows: 1, dontBreakRows: true, widths, body },
-        layout: tableLayout,
+        layout: appendixLayout,
         margin: [0, 4, 0, 6],
       },
     ];
