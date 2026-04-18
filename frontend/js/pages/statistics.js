@@ -1634,9 +1634,9 @@
       <thead>
         <tr>
           <th>${hPeriod}</th>
+          <th class="stat-col-change">${hRank}</th>
           <th class="stat-col-value">${hValue}</th>
           <th class="stat-col-change">${hChange}</th>
-          <th class="stat-col-change">${hRank}</th>
         </tr>
       </thead>
       <tbody>`;
@@ -1654,9 +1654,9 @@
       html += `
         <tr>
           <td>${escapeHtml(r.label)}</td>
+          ${rankCell}
           <td class="stat-col-value">${r.visitors.toLocaleString()}</td>
           ${changeCell}
-          ${rankCell}
         </tr>`;
     }
 

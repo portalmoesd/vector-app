@@ -803,7 +803,7 @@
     const rows = [...(tourism.quarterlyRows || []), ...[...(tourism.annualRows || [])].reverse()];
     const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
     const body = [
-      [th(t.period), thRight(t.visitors), thRight(t.changeHeader), thRight(rankHeader)],
+      [th(t.period), thRight(rankHeader), thRight(t.visitors), thRight(t.changeHeader)],
     ];
     for (const r of rows) {
       let changeCell;
@@ -817,9 +817,9 @@
       const rankCell = r.rank ? tdNum(String(r.rank)) : tdNum('-');
       body.push([
         tdText(r.label, r.isCurrent ? { bold: true } : {}),
+        rankCell,
         tdNum(r.visitors.toLocaleString()),
         changeCell,
-        rankCell,
       ]);
     }
 
