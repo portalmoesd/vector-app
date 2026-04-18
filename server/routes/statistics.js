@@ -431,10 +431,27 @@ function parseFdiWorkbook(wb) {
   }
 
   const countries = {};
+  let totals = null; // grand totals per year from the "სულ"/"Total" row
   for (let r = 4; r < rows.length; r++) {
     const row = rows[r];
     if (!row) continue;
     const code = parseInt(row[0], 10);
+    const label = String(row[0] || row[1] || '').trim().toLowerCase();
+
+    // Capture the totals row (no numeric country code; label contains "სულ" or "total")
+    if ((!code || isNaN(code)) && !totals &&
+        (label.includes('სულ') || label.includes('total') || label.includes('ჯამი'))) {
+      const t = {};
+      for (const { col, year } of years) {
+        const val = row[col];
+        if (val === null || val === undefined || val === '-' || val === '') { t[year] = 0; continue; }
+        const num = parseFloat(val);
+        t[year] = isNaN(num) ? 0 : num; // Thsd. USD
+      }
+      totals = t;
+      continue;
+    }
+
     if (!code || isNaN(code)) continue;
 
     const values = {};
@@ -450,7 +467,7 @@ function parseFdiWorkbook(wb) {
     countries[code] = values;
   }
 
-  return { success: true, years: years.map(y => y.year), countries };
+  return { success: true, years: years.map(y => y.year), countries, totals };
 }
 
 router.get('/fdi', async (req, res) => {
