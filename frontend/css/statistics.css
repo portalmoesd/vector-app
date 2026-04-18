@@ -374,14 +374,17 @@ body.stat-exporting .stat-sections.hidden {
 .stat-chart-card {
   flex: 1;
   min-width: 0;
-  max-width: 500px;
 }
 
-/* Pin chart canvases to the same 500×153 footprint they render at in
-   the PDF. Previously the PDF export triggered a brief resize+restore
-   that made every chart visibly shrink and snap back. With the canvas
-   already at the target size, the PDF snapshot path is a visual no-op. */
-.stat-chart-card canvas {
+/* Pin every Chart.js canvas to the 500×153 footprint the PDF renders at
+   so the page-side chart matches the export, and so the PDF-export
+   snapshot path is a visual no-op (no more shrink-and-snap-back).
+   Target by ID — some `.stat-chart-card` elements are table-only cards
+   and must stay full width. */
+#turnoverChart,
+#dynamicsChart,
+#tourismChart,
+#fdiChart {
   width: 100% !important;
   max-width: 500px !important;
   height: 153px !important;
