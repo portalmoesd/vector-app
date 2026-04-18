@@ -2377,11 +2377,13 @@
   function buildAppendixColumns(latestYear, latestMonth) {
     const cols = [];
     if (latestMonth >= 12) {
+      // Recent period is a full year → 6 full years, no YTD comparison
       for (let y = latestYear - 5; y <= latestYear; y++) {
         cols.push({ kind: 'full', year: y, label: String(y) });
       }
     } else {
-      for (let y = latestYear - 6; y <= latestYear - 1; y++) {
+      // 5 full years + the recent YTD period and the same YTD of the prior year
+      for (let y = latestYear - 5; y <= latestYear - 1; y++) {
         cols.push({ kind: 'full', year: y, label: String(y) });
       }
       const months = [];
@@ -2465,31 +2467,30 @@
       return;
     }
 
-    const country = selectedCountry ? selectedCountry.displayLabel : '';
+    const countryKa = selectedCountry ? selectedCountry.displayLabel : '';
+    const countryEn = (selectedCountry && countryNameEnMap[selectedCountry.value]) || countryKa;
+    const countryLabel = isKa ? countryKa : countryEn;
+    const countryAbbr = (countryLabel || '').slice(0, 3);
+
     const title = isKa
-      ? `${country} - დანართი`
-      : `${country} - Appendix`;
+      ? `${countryKa} - დანართი`
+      : `${countryEn} - Appendix`;
     if (appendixHeaderEl) {
       appendixHeaderEl.innerHTML = `<h3 class="stat-report__title">${escapeHtml(title)}</h3>`;
     }
 
     const L = {
-      turnoverGrp: isKa ? 'ბრუნვა' : 'TURNOVER',
-      exportGrp:   isKa ? 'ექსპორტი' : 'EXPORT',
-      importGrp:   isKa ? 'იმპორტი' : 'IMPORT',
-      balanceGrp:  isKa ? 'სალდო' : 'BALANCE',
-      total:       isKa ? 'სულ, მლნ. $' : 'Georgia total, mln $',
-      value:       isKa ? 'მნიშვნელობა, მლნ. $' : 'Value, mln $',
-      change:      isKa ? 'ცვლილება წ/წ, %' : 'Change YoY, %',
-      share:       isKa ? 'წილი, %' : 'Share, %',
-      balanceRow:  isKa ? 'ქვეყნის ბალანსი, მლნ. $' : 'Country balance, mln $',
+      turnover: isKa ? 'ბრუნვა' : 'Turnover',
+      export:   isKa ? 'ექსპორტი' : 'Export',
+      import:   isKa ? 'იმპორტი' : 'Import',
+      balance:  isKa ? 'სალდო' : 'Balance',
+      change:   isKa ? 'ცვლილება %' : 'Change %',
+      share:    isKa ? 'წილი %' : 'Share %',
     };
 
     const cols = state.columns;
     const N = cols.length;
 
-    // Can we compute change between column i and i-1? Only when same kind
-    // and (for full) consecutive years, (for ytd) consecutive years + same months.
     function canCompareChange(i) {
       if (i === 0) return false;
       const a = cols[i - 1], b = cols[i];
@@ -2499,83 +2500,82 @@
       return true;
     }
 
-    // Cell extractors — return null when data missing (renders as "-")
     const getCountry = (i, flow) => {
       const d = state.data[i];
-      if (!d || !d.country) return null;
-      return d.country[flow];
+      return d && d.country ? d.country[flow] : null;
     };
     const getTotal = (i, flow) => {
       const d = state.data[i];
-      if (!d || !d.totals) return null;
-      return d.totals[flow];
+      return d && d.totals ? d.totals[flow] : null;
     };
-
-    function changeCell(i, flow) {
-      if (!canCompareChange(i)) return { text: '-', cls: '' };
-      const cur = getCountry(i, flow);
-      const prev = getCountry(i - 1, flow);
-      if (cur == null || prev == null || prev === 0) return { text: '-', cls: '' };
-      const pct = ((cur - prev) / prev) * 100;
-      const cls = pct > 0 ? 'stat-positive' : (pct < 0 ? 'stat-negative' : '');
-      return { text: fmtAppendixPct(pct, true), cls };
-    }
-
-    function shareCell(i, flow) {
-      const cur = getCountry(i, flow);
-      const tot = getTotal(i, flow);
-      if (cur == null || !tot) return '-';
-      return fmtAppendixPct((cur / tot) * 100, false);
-    }
-
-    function balanceCell(i) {
-      const c = state.data[i] && state.data[i].country;
-      if (!c) return { text: '-', cls: '' };
-      const bal = (c.export || 0) - (c.import || 0);
-      const cls = bal > 0 ? 'stat-positive' : (bal < 0 ? 'stat-negative' : '');
-      const sign = bal < 0 ? '-' : '';
-      return { text: `${sign}${fmtAppendixNum(Math.abs(bal))}`, cls };
-    }
 
     const headerCells = [`<th>&nbsp;</th>`]
       .concat(cols.map((c) => `<th>${escapeHtml(c.label)}</th>`))
       .join('');
 
-    function groupRow(label) {
-      return `<tr class="stat-appendix__group"><td colspan="${N + 1}">${escapeHtml(label)}</td></tr>`;
+    function totalsRow(label, flow) {
+      const cells = cols
+        .map((_, i) => `<td>${fmtAppendixNum(getTotal(i, flow))}</td>`)
+        .join('');
+      return `<tr class="stat-appendix__group"><td>${escapeHtml(label)}</td>${cells}</tr>`;
     }
 
-    function flowBlock(grpLabel, flow) {
-      const totals = cols.map((_, i) => `<td>${fmtAppendixNum(getTotal(i, flow))}</td>`).join('');
-      const values = cols.map((_, i) => `<td>${fmtAppendixNum(getCountry(i, flow))}</td>`).join('');
-      const changes = cols.map((_, i) => {
-        const c = changeCell(i, flow);
-        return `<td class="${c.cls}">${c.text}</td>`;
+    function valueRow(label, flow) {
+      const cells = cols
+        .map((_, i) => `<td>${fmtAppendixNum(getCountry(i, flow))}</td>`)
+        .join('');
+      return `<tr><td>${escapeHtml(label)}</td>${cells}</tr>`;
+    }
+
+    function changeRow(label, flow) {
+      const cells = cols.map((_, i) => {
+        if (!canCompareChange(i)) return `<td>-</td>`;
+        const cur = getCountry(i, flow);
+        const prev = getCountry(i - 1, flow);
+        if (cur == null || prev == null || prev === 0) return `<td>-</td>`;
+        const pct = ((cur - prev) / prev) * 100;
+        const cls = pct > 0 ? 'stat-positive' : (pct < 0 ? 'stat-negative' : '');
+        return `<td class="${cls}">${fmtAppendixPct(pct, true)}</td>`;
       }).join('');
-      const shares = cols.map((_, i) => `<td>${shareCell(i, flow)}</td>`).join('');
+      return `<tr><td>${escapeHtml(label)}</td>${cells}</tr>`;
+    }
+
+    function shareRow(label, flow) {
+      const cells = cols.map((_, i) => {
+        const cur = getCountry(i, flow);
+        const tot = getTotal(i, flow);
+        if (cur == null || !tot) return `<td>-</td>`;
+        return `<td>${fmtAppendixPct((cur / tot) * 100, false)}</td>`;
+      }).join('');
+      return `<tr><td>${escapeHtml(label)}</td>${cells}</tr>`;
+    }
+
+    function flowBlock(groupLabel, flow) {
       return [
-        groupRow(grpLabel),
-        `<tr class="stat-appendix__total"><td>${escapeHtml(L.total)}</td>${totals}</tr>`,
-        `<tr><td>${escapeHtml(L.value)}</td>${values}</tr>`,
-        `<tr><td>${escapeHtml(L.change)}</td>${changes}</tr>`,
-        `<tr><td>${escapeHtml(L.share)}</td>${shares}</tr>`,
+        totalsRow(groupLabel, flow),
+        valueRow(`${groupLabel}-${countryAbbr}`, flow),
+        changeRow(L.change, flow),
+        shareRow(L.share, flow),
       ].join('');
     }
 
     const balanceCells = cols.map((_, i) => {
-      const c = balanceCell(i);
-      return `<td class="${c.cls}">${c.text}</td>`;
+      const c = state.data[i] && state.data[i].country;
+      if (!c) return `<td>-</td>`;
+      const bal = (c.export || 0) - (c.import || 0);
+      const cls = bal > 0 ? 'stat-positive' : (bal < 0 ? 'stat-negative' : '');
+      const sign = bal < 0 ? '-' : '';
+      return `<td class="${cls}">${sign}${fmtAppendixNum(Math.abs(bal))}</td>`;
     }).join('');
 
     const html = `
       <table class="stat-appendix">
         <thead><tr>${headerCells}</tr></thead>
         <tbody>
-          ${flowBlock(L.turnoverGrp, 'turnover')}
-          ${flowBlock(L.exportGrp, 'export')}
-          ${flowBlock(L.importGrp, 'import')}
-          ${groupRow(L.balanceGrp)}
-          <tr><td>${escapeHtml(L.balanceRow)}</td>${balanceCells}</tr>
+          ${flowBlock(L.turnover, 'turnover')}
+          ${flowBlock(L.export, 'export')}
+          ${flowBlock(L.import, 'import')}
+          <tr class="stat-appendix__group"><td>${escapeHtml(L.balance)}</td>${balanceCells}</tr>
         </tbody>
       </table>`;
     appendixTableEl.innerHTML = html;
