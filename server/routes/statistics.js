@@ -1050,7 +1050,11 @@ router.post('/fdi-sectors/upload', ...adminOnly, upload.single('file'), (req, re
 // Data comes from an admin-uploaded XLSX (152K+ rows). Aggregation is done
 // at parse time; the response is a small per-country count object.
 
-let companiesCache = { data: null };
+// Parsing a 27MB / 152K-row workbook synchronously on the request thread
+// exceeds the platform's reverse-proxy timeout (502). Upload now saves the
+// raw file and responds immediately; parsing runs in the background and
+// the client polls GET /companies for completion.
+let companiesCache = { data: null, processing: false, startedAt: null, error: null };
 
 function parseCompaniesWorkbook(wb) {
   const sheet = wb.Sheets[wb.SheetNames[0]];
@@ -1120,38 +1124,64 @@ function loadCompaniesFromDisk() {
 }
 loadCompaniesFromDisk();
 
+function processCompaniesBuffer(buffer) {
+  const t0 = Date.now();
+  try {
+    const wb = XLSX.read(buffer, { type: 'buffer' });
+    const parsed = parseCompaniesWorkbook(wb);
+    const countryCount = Object.keys(parsed.countries).length;
+    if (!countryCount) throw new Error('No country data found in file');
+    saveParsedAndRaw('companies', parsed, buffer);
+    companiesCache.data = parsed;
+    companiesCache.error = null;
+    console.log(`companies: parsed (${countryCount} countries, ${parsed.activeCount} active) in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  } catch (err) {
+    companiesCache.error = err.message || 'Failed to parse uploaded file';
+    console.error('companies: parse failed:', err.message);
+  } finally {
+    companiesCache.processing = false;
+    companiesCache.startedAt = null;
+  }
+}
+
 router.get('/companies', (req, res) => {
   const data = companiesCache.data;
-  if (!data) return res.json({ success: true, empty: true });
-  res.json({
-    success: true,
-    uploadedAt: data.uploadedAt,
-    countries: data.countries,
-    countryCount: Object.keys(data.countries).length,
-    activeCount: data.activeCount,
-  });
+  const body = data
+    ? {
+        success: true,
+        uploadedAt: data.uploadedAt,
+        countries: data.countries,
+        countryCount: Object.keys(data.countries).length,
+        activeCount: data.activeCount,
+      }
+    : { success: true, empty: true };
+  if (companiesCache.processing) {
+    body.processing = true;
+    body.startedAt = companiesCache.startedAt;
+  }
+  if (companiesCache.error) body.lastError = companiesCache.error;
+  res.json(body);
 });
 
 router.post('/companies/upload', ...adminOnly, upload.single('file'), (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded (field name: "file")' });
-    const t0 = Date.now();
-    const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
-    const parsed = parseCompaniesWorkbook(wb);
-    const countryCount = Object.keys(parsed.countries).length;
-    if (!countryCount) return res.status(400).json({ error: 'No country data found in file' });
-    saveParsedAndRaw('companies', parsed, req.file.buffer);
-    companiesCache.data = parsed;
-    console.log(`companies: uploaded (${countryCount} countries, ${parsed.activeCount} active) in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
-    res.json({
-      success: true,
-      uploadedAt: parsed.uploadedAt,
-      countryCount,
-      activeCount: parsed.activeCount,
-    });
+    if (companiesCache.processing) {
+      return res.status(409).json({ error: 'An upload is already being processed' });
+    }
+    const buffer = req.file.buffer;
+    companiesCache.processing = true;
+    companiesCache.startedAt = new Date().toISOString();
+    companiesCache.error = null;
+    // Respond immediately; parsing a 27MB workbook takes longer than the
+    // upstream proxy timeout, which would otherwise return 502.
+    res.json({ success: true, processing: true, startedAt: companiesCache.startedAt });
+    setImmediate(() => processCompaniesBuffer(buffer));
   } catch (err) {
+    companiesCache.processing = false;
+    companiesCache.startedAt = null;
     console.error('companies upload error:', err.message);
-    res.status(400).json({ error: err.message || 'Failed to parse uploaded file' });
+    if (!res.headersSent) res.status(400).json({ error: err.message || 'Failed to accept uploaded file' });
   }
 });
 

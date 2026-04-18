@@ -474,20 +474,53 @@
     const form = panel.querySelector('.upload-form');
     const feedback = panel.querySelector('.upload-feedback');
 
+    async function fetchStatus() {
+      const res = await fetch(`${API_BASE}${endpoint}`);
+      return res.json();
+    }
+
+    function renderStatus(j) {
+      if (j && j.success && !j.empty) {
+        const date = j.uploadedAt ? new Date(j.uploadedAt).toLocaleString() : '-';
+        const years = Array.isArray(j.yearsCovered) ? `${j.yearsCovered[0]}–${j.yearsCovered[j.yearsCovered.length - 1]}` : '';
+        statusEl.textContent = `${labels.current}: ${date} · ${j.countryCount || 0} ${labels.countries}${years ? ' · ' + years : ''}`;
+      } else {
+        statusEl.textContent = labels.noFile;
+      }
+    }
+
     async function refresh() {
       try {
-        const res = await fetch(`${API_BASE}${endpoint}`);
-        const j = await res.json();
-        if (j && j.success && !j.empty) {
-          const date = j.uploadedAt ? new Date(j.uploadedAt).toLocaleString() : '-';
-          const years = Array.isArray(j.yearsCovered) ? `${j.yearsCovered[0]}–${j.yearsCovered[j.yearsCovered.length - 1]}` : '';
-          statusEl.textContent = `${labels.current}: ${date} · ${j.countryCount || 0} ${labels.countries}${years ? ' · ' + years : ''}`;
-        } else {
-          statusEl.textContent = labels.noFile;
-        }
+        renderStatus(await fetchStatus());
       } catch (err) {
         statusEl.textContent = labels.noFile;
       }
+    }
+
+    // Poll every 3 s until parsing finishes. Upload responds immediately
+    // with { processing: true } to avoid proxy timeouts on large files.
+    async function pollUntilReady(startedAt) {
+      const deadline = Date.now() + 10 * 60 * 1000; // 10 min safety cap
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 3000));
+        let j;
+        try { j = await fetchStatus(); } catch (_) { continue; }
+        if (!j || !j.processing) {
+          if (j && j.lastError) {
+            feedback.textContent = j.lastError;
+            feedback.style.color = 'crimson';
+          } else {
+            feedback.textContent = `${labels.success} · ${j && j.countryCount ? j.countryCount : 0} ${labels.countries}`;
+            feedback.style.color = 'green';
+          }
+          renderStatus(j);
+          return;
+        }
+        const secs = startedAt ? Math.round((Date.now() - new Date(startedAt).getTime()) / 1000) : 0;
+        feedback.textContent = `${labels.processing || 'Processing…'} (${secs}s)`;
+      }
+      feedback.textContent = labels.failure;
+      feedback.style.color = 'crimson';
     }
 
     form.addEventListener('submit', async (e) => {
@@ -504,10 +537,15 @@
         });
         const j = await res.json();
         if (res.ok && j.success) {
-          feedback.textContent = `${labels.success} · ${j.countryCount || 0} ${labels.countries}`;
-          feedback.style.color = 'green';
           form.reset();
-          refresh();
+          if (j.processing) {
+            feedback.textContent = labels.processing || 'Processing…';
+            pollUntilReady(j.startedAt);
+          } else {
+            feedback.textContent = `${labels.success} · ${j.countryCount || 0} ${labels.countries}`;
+            feedback.style.color = 'green';
+            refresh();
+          }
         } else {
           feedback.textContent = (j && j.error) || labels.failure;
           feedback.style.color = 'crimson';
@@ -542,6 +580,7 @@
       countries: 'countries',
       noFile: 'No file uploaded yet',
       uploading: 'Uploading…',
+      processing: 'Processing… (this may take a minute)',
       success: 'Uploaded successfully',
       failure: 'Upload failed',
     },
