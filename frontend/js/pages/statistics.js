@@ -81,6 +81,24 @@
   let countryNameMap = {}; // variant → canonical GNTA name
   // activeTab removed — unified scroll layout with scroll-spy
 
+  // ── Report locale ────────────────────────────────────────────────────────
+  // The statistics page has its own language toggle (inside the controls
+  // card) that drives the entire report — tabs, section headings, country
+  // names, generated content, and the PDF export language. It is
+  // independent of the global site locale, which on this page only
+  // translates "Statistics" / "Country" / "Generate".
+  let reportLocale = localStorage.getItem('statReportLocale') || I18n.getLocale() || 'ka';
+
+  const TAB_LABELS = {
+    ka: { trade: 'ვაჭრობა', tourism: 'ტურიზმი', investments: 'ინვესტიციები', companies: 'კომპანიები', appendix: 'დანართი' },
+    en: { trade: 'Trade',    tourism: 'Tourism',  investments: 'Investments',  companies: 'Companies',  appendix: 'Appendix' },
+  };
+  const SEARCH_PLACEHOLDER = {
+    ka: 'ქვეყნის ძებნა...',
+    en: 'Search country...',
+  };
+  const LOADING_LABEL = { ka: 'იტვირთება...', en: 'Loading...' };
+
   // ── PDF state ────────────────────────────────────────────────────────────
   // Captured alongside each tab's render so the PDF builder doesn't scrape
   // the DOM. Each sub-object is set to null before the tab re-renders, and
@@ -130,49 +148,61 @@
   }
 
   // ── Load classificatory data ─────────────────────────────────────────────
-  const lang = I18n.getLocale() || 'en';
+  // Load BOTH Georgian and English classificatories up-front so the page
+  // can flip the report language without a round-trip. classDataKa and
+  // classDataEn hold the month/year/HS tables in each language; classData
+  // points at whichever one matches the current reportLocale.
   const countryNameEnMap = {};
+  const countryNameKaMap = {};
+  let classDataKa = null;
+  let classDataEn = null;
 
   try {
-    const json = await geostatGet(`/classificatory?lang=${lang}`);
-    if (json.success && json.data) {
-      classData = json.data;
-      countries = (json.data.countries || []).map(c => ({
-        ...c,
-        displayLabel: c.label.replace(/^\d+\s+/, ''),
-      }));
+    const [enJson, kaJson] = await Promise.all([
+      geostatGet('/classificatory?lang=en').catch(() => null),
+      geostatGet('/classificatory?lang=ka').catch(() => null),
+    ]);
+    if (enJson && enJson.success && enJson.data) {
+      classDataEn = enJson.data;
+      for (const c of (enJson.data.countries || [])) {
+        countryNameEnMap[c.value] = c.label.replace(/^\d+\s+/, '');
+      }
+    }
+    if (kaJson && kaJson.success && kaJson.data) {
+      classDataKa = kaJson.data;
+      for (const c of (kaJson.data.countries || [])) {
+        countryNameKaMap[c.value] = c.label.replace(/^\d+\s+/, '');
+      }
+    }
+    const primary = reportLocale === 'ka' ? (classDataKa || classDataEn) : (classDataEn || classDataKa);
+    if (primary) {
+      classData = primary;
+      countries = (primary.countries || []).map(c => {
+        const baseLabel = c.label.replace(/^\d+\s+/, '');
+        const kaName = countryNameKaMap[c.value] || baseLabel;
+        const enName = countryNameEnMap[c.value] || baseLabel;
+        return {
+          ...c,
+          displayLabelKa: kaName,
+          displayLabelEn: enName,
+          displayLabel: reportLocale === 'ka' ? kaName : enName,
+        };
+      });
     }
   } catch (err) {
     console.error('Failed to load classificatory data:', err);
   }
-  // Load English country names for PDF export (when UI is Georgian)
-  if (lang !== 'en') {
-    try {
-      const enJson = await geostatGet('/classificatory?lang=en');
-      if (enJson.success && enJson.data && enJson.data.countries) {
-        for (const c of enJson.data.countries) {
-          countryNameEnMap[c.value] = c.label.replace(/^\d+\s+/, '');
-        }
-      }
-    } catch (_) {}
-  } else {
-    for (const c of countries) countryNameEnMap[c.value] = c.displayLabel;
-  }
 
-  // Always load the Georgian classificatory too — we need Georgian canonical
-  // country names (by ID) to match GNTA tourism data, regardless of UI lang.
-  const countryNameKaMap = {}; // id → Georgian country name
-  if (lang === 'ka') {
-    for (const c of countries) countryNameKaMap[c.value] = c.displayLabel;
-  } else {
-    try {
-      const kaJson = await geostatGet('/classificatory?lang=ka');
-      if (kaJson.success && kaJson.data && kaJson.data.countries) {
-        for (const c of kaJson.data.countries) {
-          countryNameKaMap[c.value] = c.label.replace(/^\d+\s+/, '');
-        }
-      }
-    } catch (_) {}
+  function applyReportLocaleToCountries() {
+    const ka = reportLocale === 'ka';
+    // Swap classData so month/year labels pick up the new locale.
+    classData = ka ? (classDataKa || classDataEn) : (classDataEn || classDataKa);
+    for (const c of countries) {
+      c.displayLabel = ka ? c.displayLabelKa : c.displayLabelEn;
+    }
+    if (selectedCountry) {
+      selectedCountry.displayLabel = ka ? selectedCountry.displayLabelKa : selectedCountry.displayLabelEn;
+    }
   }
 
   // ── Load HS4 short name mapping ──────────────────────────────────────────
@@ -218,15 +248,79 @@
     console.error('Failed to load country name mapping:', err);
   }
 
-  // Apply canonical names from the mapping to each country's display label.
-  // If a trade country name has a canonical entry in countryNameMap, show
-  // the canonical name in the dropdown; otherwise keep the raw trade name.
-  // rawLabel is preserved for downstream matching (e.g. tourism GNTA data).
+  // Apply canonical names from the mapping to each country's KA display
+  // label. countryNameMap is Georgian-only (GNTA source), so we leave the
+  // English name alone.
   for (const c of countries) {
-    c.rawLabel = c.displayLabel;
-    const canonical = countryNameMap[c.displayLabel];
-    if (canonical) c.displayLabel = canonical;
+    c.rawLabel = c.displayLabelKa;
+    const canonical = countryNameMap[c.displayLabelKa];
+    if (canonical) c.displayLabelKa = canonical;
+    c.displayLabel = reportLocale === 'ka' ? c.displayLabelKa : c.displayLabelEn;
   }
+
+  // ── Report locale toggle ─────────────────────────────────────────────────
+
+  const reportLangToggle = document.getElementById('reportLangToggle');
+
+  function applyReportLocale(regenerate = true) {
+    const ka = reportLocale === 'ka';
+
+    // Tabs
+    document.querySelectorAll('.stat-tab').forEach(btn => {
+      const key = btn.dataset.tab;
+      const label = TAB_LABELS[reportLocale] && TAB_LABELS[reportLocale][key];
+      if (label) btn.textContent = label;
+    });
+
+    // Section h2 headings
+    document.querySelectorAll('[data-stat-heading]').forEach(h => {
+      const key = h.dataset.statHeading;
+      const label = TAB_LABELS[reportLocale] && TAB_LABELS[reportLocale][key];
+      if (label) h.textContent = label;
+    });
+
+    // Country search input + placeholder
+    searchInput.placeholder = SEARCH_PLACEHOLDER[reportLocale];
+
+    // Loading spinner labels
+    document.querySelectorAll('.stat-loading-label').forEach(el => {
+      el.textContent = LOADING_LABEL[reportLocale];
+    });
+
+    // Country objects + currently-selected country label
+    applyReportLocaleToCountries();
+    if (selectedCountry) searchInput.value = selectedCountry.displayLabel;
+
+    // Dropdown items (if open)
+    if (!dropdown.classList.contains('hidden')) renderDropdown(searchInput.value);
+
+    // Toggle button pressed state
+    if (reportLangToggle) {
+      reportLangToggle.querySelectorAll('.stat-lang-toggle__btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.reportLang === reportLocale);
+      });
+    }
+
+    // Re-render the report if one has been generated
+    if (regenerate && selectedCountry && pdfState.trade) {
+      generateBtn.click();
+    }
+  }
+
+  if (reportLangToggle) {
+    reportLangToggle.addEventListener('click', (e) => {
+      const btn = e.target.closest('.stat-lang-toggle__btn');
+      if (!btn) return;
+      const next = btn.dataset.reportLang;
+      if (!next || next === reportLocale) return;
+      reportLocale = next;
+      localStorage.setItem('statReportLocale', reportLocale);
+      applyReportLocale();
+    });
+  }
+
+  // Initial render — set labels + button state from the persisted preference.
+  applyReportLocale(false);
 
   // Add English → Georgian canonical entries so resolveGntaName works
   // when the UI is in English. The shared numeric country ID bridges
@@ -329,7 +423,7 @@
     pdfState.investments = null;
     pdfState.companies = null;
     pdfState.appendix = null;
-    renderAppendix(null, I18n.getLocale() === 'ka');
+    renderAppendix(null, reportLocale === 'ka');
     // Generate trade first (user sees it immediately)
     await generateReport();
     // Fire tourism, investments, companies, appendix in background (no await)
@@ -843,7 +937,7 @@
   // ── Render trade overview ──────────────────────────────────────────────
 
   function renderOverview(data, prevYear, prevPrevYear, latestYear, latestMonth, periodLabel, monthNames) {
-    const isKa = I18n.getLocale() === 'ka';
+    const isKa = reportLocale === 'ka';
 
     const monthLabel = monthNames.find(m => m.value === latestMonth)?.label || `${latestMonth}`;
     const colFull = `${prevYear}`;
@@ -945,7 +1039,7 @@
     monthsYTD, monthExports, monthImports,
     latestYear, monthNames,
   ) {
-    const isKa = I18n.getLocale() === 'ka';
+    const isKa = reportLocale === 'ka';
 
     // Build labels: "2021", "2022", ... "2025", "Jan-Feb'26"
     const labels = chartYears.map(String);
@@ -1148,11 +1242,11 @@
 
   function renderChangeTable(el, products, periodLabel, year) {
     if (products.length === 0) {
-      el.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
+      el.innerHTML = `<div class="empty-state"><p>${reportLocale === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
       return;
     }
 
-    const isKa = I18n.getLocale() === 'ka';
+    const isKa = reportLocale === 'ka';
     const hProduct = isKa ? 'პროდუქცია (HS 4-ნიშნა)' : 'Product (HS 4-digit)';
     const hValue = isKa ? `${periodLabel} ${year}<br>მლნ. $` : `${periodLabel} ${year}<br>mln $`;
     const hChange = isKa ? 'ცვლილება<br>%' : 'Change<br>%';
@@ -1293,7 +1387,7 @@
   // ── Render section header ────────────────────────────────────────────────
 
   function renderSectionHeader(el, type, periodLabel, year) {
-    const isKa = I18n.getLocale() === 'ka';
+    const isKa = reportLocale === 'ka';
     const labels = {
       export: isKa ? 'ძირითადი საექსპორტო პროდუქცია' : 'Main Export Products',
       import: isKa ? 'ძირითადი საიმპორტო პროდუქცია' : 'Main Import Products',
@@ -1310,11 +1404,11 @@
 
   function renderProductTable(el, products, periodLabel, year, showReexport) {
     if (products.length === 0) {
-      el.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
+      el.innerHTML = `<div class="empty-state"><p>${reportLocale === 'ka' ? 'მონაცემები ვერ მოიძებნა' : 'No data found'}</p></div>`;
       return;
     }
 
-    const isKa = I18n.getLocale() === 'ka';
+    const isKa = reportLocale === 'ka';
     const hProduct = isKa ? 'პროდუქცია (HS 4-ნიშნა)' : 'Product (HS 4-digit)';
     const hValue = isKa ? `${periodLabel} ${year}<br>მლნ. $` : `${periodLabel} ${year}<br>mln $`;
     const hChange = isKa ? 'ცვლილება<br>%' : 'Change<br>%';
@@ -1431,7 +1525,7 @@
       const countryData = gntaName ? json.countries[gntaName] : null;
 
       if (!countryData) {
-        tourismTableEl.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'აღნიშნული ქვეყნიდან ვიზიტორები საქართველოში არ ფიქსირდება.' : 'No visitor records from this country to Georgia.'}</p></div>`;
+        tourismTableEl.innerHTML = `<div class="empty-state"><p>${reportLocale === 'ka' ? 'აღნიშნული ქვეყნიდან ვიზიტორები საქართველოში არ ფიქსირდება.' : 'No visitor records from this country to Georgia.'}</p></div>`;
         pdfState.tourism = { hasData: false };
         if (tourismSummaryEl) tourismSummaryEl.classList.add('hidden');
         tourismLoading.classList.add('hidden');
@@ -1527,7 +1621,7 @@
         });
       }
 
-      const isKa = I18n.getLocale() === 'ka';
+      const isKa = reportLocale === 'ka';
       // Section heading handles the title; skip inner header to avoid duplication.
 
       // ── Summary data: 5-year sum + latest-period rank ──────────────
@@ -1760,7 +1854,7 @@
       const allYears = json.years; // e.g. [1996, 1997, ..., 2025]
 
       if (!countryData) {
-        fdiTable.innerHTML = `<div class="empty-state"><p>${I18n.getLocale() === 'ka' ? 'აღნიშნული ქვეყნიდან საქართველოში პირდაპირი უცხოური ინვესტიცია არ ფიქსირდება.' : 'No foreign direct investment records from this country to Georgia.'}</p></div>`;
+        fdiTable.innerHTML = `<div class="empty-state"><p>${reportLocale === 'ka' ? 'აღნიშნული ქვეყნიდან საქართველოში პირდაპირი უცხოური ინვესტიცია არ ფიქსირდება.' : 'No foreign direct investment records from this country to Georgia.'}</p></div>`;
         pdfState.investments = { hasData: false };
         pdfState.investmentsSectors = null;
         if (investmentsSummaryEl) investmentsSummaryEl.classList.add('hidden');
@@ -1838,7 +1932,7 @@
       const prevYearValue = (countryData[prevYear] || 0) / 1000;
       const prevYearRank = prevYearValue > 0 ? fdiRankAndShare(prevYear).rank : null;
 
-      const isKa = I18n.getLocale() === 'ka';
+      const isKa = reportLocale === 'ka';
       // Section heading handles the title; skip inner header to avoid duplication.
 
       renderFdiTable(tableData, isKa);
@@ -2055,7 +2149,7 @@
         pdfState.companies = { hasData: false };
         return;
       }
-      const isKa = I18n.getLocale() === 'ka';
+      const isKa = reportLocale === 'ka';
       const countryKa = selectedCountry.displayLabel;
       const countryEn = countryNameEnMap[selectedCountry.value] || countryKa;
       // The file uses Georgian country names in column V. Look up by the
@@ -2219,29 +2313,12 @@
   // ── PDF EXPORT ─────────────────────────────────────────────────────────
   // ════════════════════════════════════════════════════════════════════════
 
-  const exportPdfMenu = document.getElementById('exportPdfMenu');
-
-  // Toggle the language menu when PDF button is clicked
-  exportPdfBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
+  // Clicking PDF exports directly in whichever language the report toggle
+  // is currently set to. The former dropdown (English / ქართული) was
+  // removed since the toggle already carries that intent.
+  exportPdfBtn.addEventListener('click', () => {
     if (exportPdfBtn.disabled) return;
-    exportPdfMenu.classList.toggle('hidden');
-  });
-
-  // Close menu when clicking outside
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.stat-pdf-menu-wrap')) {
-      exportPdfMenu.classList.add('hidden');
-    }
-  });
-
-  // Language item click → trigger export
-  exportPdfMenu.addEventListener('click', (e) => {
-    const item = e.target.closest('.stat-pdf-menu__item');
-    if (!item) return;
-    const pdfLang = item.dataset.lang;
-    exportPdfMenu.classList.add('hidden');
-    exportPdf(pdfLang);
+    exportPdf(reportLocale);
   });
 
   // Capture a Chart.js canvas as a PNG data URL at an explicit size.
@@ -2335,7 +2412,7 @@
       return;
     }
     if (!pdfState.trade || !pdfState.country) {
-      alert(I18n.getLocale() === 'ka' ? 'ჯერ დააგენერირეთ მონაცემები' : 'Please generate data first.');
+      alert(reportLocale === 'ka' ? 'ჯერ დააგენერირეთ მონაცემები' : 'Please generate data first.');
       return;
     }
 
@@ -2602,7 +2679,7 @@
     try {
       const appendix = await buildAppendix(latestYear, latestMonth, selectedCountry.value);
       pdfState.appendix = appendix;
-      renderAppendix(appendix, I18n.getLocale() === 'ka');
+      renderAppendix(appendix, reportLocale === 'ka');
     } catch (err) {
       console.error('Appendix error:', err);
       pdfState.appendix = null;
