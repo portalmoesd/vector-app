@@ -88,6 +88,15 @@ async function migrate() {
       END $$;
     `);
 
+    // One-shot import of legacy server/data/*.json admin uploads into the
+    // new admin_uploads table, so no re-upload is needed after the move.
+    try {
+      const { migrateLegacyDiskUploadsOnce } = require('./routes/admin-uploads');
+      await migrateLegacyDiskUploadsOnce();
+    } catch (err) {
+      console.warn('admin-uploads legacy migration skipped:', err.message);
+    }
+
     // ── Fix department names to match official org chart (idempotent) ────────
     const deptNameFixes = [
       { old_en: 'Protocol Service', name: 'პროტოკოლის სამსახური', name_en: 'Protocol Department' },
