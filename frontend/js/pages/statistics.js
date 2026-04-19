@@ -48,6 +48,7 @@
   const investmentsLoading = document.getElementById('investmentsLoading');
   const fdiTable = document.getElementById('fdiTable');
   const fdiChartHeader = document.getElementById('fdiChartHeader');
+  const fdiRowEl = document.getElementById('fdiRow');
   // `tourismHeader` / `fdiHeader` were per-table headers above the table
   // column; removed when we merged the summary + row into a single card.
   const fdiChartCanvas = document.getElementById('fdiChart');
@@ -1900,6 +1901,7 @@
     // the new country's data is being fetched (matches the Trade tab).
     if (investmentsSummaryEl) investmentsSummaryEl.classList.add('hidden');
     if (fdiSectorsCardEl) fdiSectorsCardEl.classList.add('hidden');
+    if (fdiRowEl) fdiRowEl.classList.remove('hidden');
     fdiTable.innerHTML = '';
     fdiChartHeader.innerHTML = '';
     try { if (fdiChartInstance) { fdiChartInstance.destroy(); } } catch (_) {}
@@ -1916,10 +1918,22 @@
       const allYears = json.years; // e.g. [1996, 1997, ..., 2025]
 
       if (!countryData) {
-        fdiTable.innerHTML = `<div class="empty-state"><p>${reportLocale === 'ka' ? 'აღნიშნული ქვეყნიდან საქართველოში პირდაპირი უცხოური ინვესტიცია არ ფიქსირდება.' : 'No foreign direct investment records from this country to Georgia.'}</p></div>`;
+        // Match the Companies tab's style: a single paragraph inside the
+        // summary card, with the table + chart area hidden entirely so the
+        // card renders as a compact "no data" note instead of a large
+        // centred empty-state block.
+        const msg = reportLocale === 'ka'
+          ? 'აღნიშნული ქვეყნიდან საქართველოში პირდაპირი უცხოური ინვესტიცია არ ფიქსირდება.'
+          : 'No foreign direct investment records from this country to Georgia.';
+        if (investmentsSummaryEl) {
+          investmentsSummaryEl.innerHTML = `<p>${escapeHtml(msg)}</p>`;
+          investmentsSummaryEl.classList.remove('hidden');
+        }
+        fdiTable.innerHTML = '';
+        fdiChartHeader.innerHTML = '';
+        if (fdiRowEl) fdiRowEl.classList.add('hidden');
         pdfState.investments = { hasData: false };
         pdfState.investmentsSectors = null;
-        if (investmentsSummaryEl) investmentsSummaryEl.classList.add('hidden');
         if (fdiSectorsCardEl) fdiSectorsCardEl.classList.add('hidden');
         investmentsLoading.classList.add('hidden');
         return;
