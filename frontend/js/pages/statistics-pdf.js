@@ -437,9 +437,11 @@
       const diffColor = p.diffMln > 0 ? '#16a34a' : '#dc2626';
       const changeSign = p.changePct > 0 ? '+' : '';
       const diffSign = p.diffMln > 0 ? '+' : '';
+      // No trade in the current period → render "-" instead of "0.00".
+      const valueCell = p.valueMln > 0 ? formatMln(p.valueMln) : '-';
       body.push([
         tdText(lang === 'en' && p.nameEn ? p.nameEn : p.name),
-        tdNum(formatMln(p.valueMln)),
+        tdNum(valueCell),
         tdNum(`${changeSign}${formatPct(p.changePct)}`, { color: changeColor }),
         tdNum(`${diffSign}${formatMln(Math.abs(p.diffMln))}`, { color: diffColor }),
       ]);

@@ -48,6 +48,7 @@
   const investmentsLoading = document.getElementById('investmentsLoading');
   const fdiTable = document.getElementById('fdiTable');
   const fdiChartHeader = document.getElementById('fdiChartHeader');
+  const fdiRowEl = document.getElementById('fdiRow');
   // `tourismHeader` / `fdiHeader` were per-table headers above the table
   // column; removed when we merged the summary + row into a single card.
   const fdiChartCanvas = document.getElementById('fdiChart');
@@ -1319,10 +1320,13 @@
       const changeSign = p.changePct > 0 ? '+' : '';
       const diffSign = p.diffMln > 0 ? '+' : '';
       const diffClass = p.diffMln > 0 ? 'stat-positive' : 'stat-negative';
+      // No trade happened for this product in the current period → show
+      // "-" rather than "0.00" so the absence reads clearly.
+      const valueCell = p.valueMln > 0 ? formatMln(p.valueMln) : '-';
       html += `
         <tr>
           <td class="stat-col-product">${escapeHtml(reportLocale !== 'ka' && p.nameEn ? p.nameEn : p.name)}</td>
-          <td class="stat-col-value">${formatMln(p.valueMln)}</td>
+          <td class="stat-col-value">${valueCell}</td>
           <td class="stat-col-change ${changeClass}">${changeSign}${formatChangePct(p.changePct)}</td>
           <td class="stat-col-diff ${diffClass}">${diffSign}${formatMln(Math.abs(p.diffMln))}</td>
         </tr>`;
@@ -1897,6 +1901,7 @@
     // the new country's data is being fetched (matches the Trade tab).
     if (investmentsSummaryEl) investmentsSummaryEl.classList.add('hidden');
     if (fdiSectorsCardEl) fdiSectorsCardEl.classList.add('hidden');
+    if (fdiRowEl) fdiRowEl.classList.remove('hidden');
     fdiTable.innerHTML = '';
     fdiChartHeader.innerHTML = '';
     try { if (fdiChartInstance) { fdiChartInstance.destroy(); } } catch (_) {}
@@ -1913,10 +1918,22 @@
       const allYears = json.years; // e.g. [1996, 1997, ..., 2025]
 
       if (!countryData) {
-        fdiTable.innerHTML = `<div class="empty-state"><p>${reportLocale === 'ka' ? 'აღნიშნული ქვეყნიდან საქართველოში პირდაპირი უცხოური ინვესტიცია არ ფიქსირდება.' : 'No foreign direct investment records from this country to Georgia.'}</p></div>`;
+        // Match the Companies tab's style: a single paragraph inside the
+        // summary card, with the table + chart area hidden entirely so the
+        // card renders as a compact "no data" note instead of a large
+        // centred empty-state block.
+        const msg = reportLocale === 'ka'
+          ? 'აღნიშნული ქვეყნიდან საქართველოში პირდაპირი უცხოური ინვესტიცია არ ფიქსირდება.'
+          : 'No foreign direct investment records from this country to Georgia.';
+        if (investmentsSummaryEl) {
+          investmentsSummaryEl.innerHTML = `<p>${escapeHtml(msg)}</p>`;
+          investmentsSummaryEl.classList.remove('hidden');
+        }
+        fdiTable.innerHTML = '';
+        fdiChartHeader.innerHTML = '';
+        if (fdiRowEl) fdiRowEl.classList.add('hidden');
         pdfState.investments = { hasData: false };
         pdfState.investmentsSectors = null;
-        if (investmentsSummaryEl) investmentsSummaryEl.classList.add('hidden');
         if (fdiSectorsCardEl) fdiSectorsCardEl.classList.add('hidden');
         investmentsLoading.classList.add('hidden');
         return;
