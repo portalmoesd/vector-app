@@ -1561,6 +1561,9 @@
     if (!selectedCountry) return;
 
     tourismLoading.classList.remove('hidden');
+    // Hide stale content so the spinner is the only thing visible while
+    // the new country's data is being fetched (matches the Trade tab).
+    if (tourismSummaryEl) tourismSummaryEl.classList.add('hidden');
     tourismTableEl.innerHTML = '';
     tourismChartHeader.innerHTML = '';
     try { if (tourismChartInstance) { tourismChartInstance.destroy(); } } catch (_) {}
@@ -1890,6 +1893,10 @@
     if (!selectedCountry) return;
 
     investmentsLoading.classList.remove('hidden');
+    // Hide stale content so the spinner is the only thing visible while
+    // the new country's data is being fetched (matches the Trade tab).
+    if (investmentsSummaryEl) investmentsSummaryEl.classList.add('hidden');
+    if (fdiSectorsCardEl) fdiSectorsCardEl.classList.add('hidden');
     fdiTable.innerHTML = '';
     fdiChartHeader.innerHTML = '';
     try { if (fdiChartInstance) { fdiChartInstance.destroy(); } } catch (_) {}
@@ -2728,6 +2735,10 @@
   async function generateAppendix(latestYear, latestMonth) {
     if (!selectedCountry) return;
     if (appendixLoadingEl) appendixLoadingEl.classList.remove('hidden');
+    // Clear stale content so the spinner is the only thing visible while
+    // the new country's data is being fetched (matches the Trade tab).
+    if (appendixTableEl) appendixTableEl.innerHTML = '';
+    if (appendixHeaderEl) appendixHeaderEl.innerHTML = '';
     try {
       const appendix = await buildAppendix(latestYear, latestMonth, selectedCountry.value);
       pdfState.appendix = appendix;
