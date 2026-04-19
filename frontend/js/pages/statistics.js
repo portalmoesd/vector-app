@@ -475,15 +475,18 @@
     pdfState.companies = null;
     pdfState.appendix = null;
     renderAppendix(null, reportLocale === 'ka');
-    // Generate trade first (user sees it immediately)
-    await generateReport();
-    // Fire tourism, investments, companies, appendix in background (no await)
+    // Fire every section in parallel so all loading spinners appear at
+    // the same time — previously `await generateReport()` blocked the
+    // other four behind Trade's ~5s fetch, so only Trade flashed its
+    // spinner while the rest kept showing stale content until Trade
+    // finished. Each generate function is independent (only reads
+    // selectedCountry + classData) so there's no dependency to order.
+    const latest = classData ? detectLatestPeriod(classData) : null;
+    generateReport();
     generateTourism();
     generateInvestments();
     generateCompanies();
-    if (pdfState.trade) {
-      generateAppendix(pdfState.trade.latestYear, pdfState.trade.latestMonth);
-    }
+    if (latest) generateAppendix(latest.year, latest.month);
   });
 
   async function generateReport() {
