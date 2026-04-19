@@ -701,7 +701,7 @@
       years,
       months,
       countries: [countryId],
-      locale: lang,
+      locale: reportLocale,
       sum: true,
       page: 1,
       pageSize: 10,
@@ -737,7 +737,7 @@
         months,
         countries: [countryId],
         hs4: ['all'],
-        locale: lang,
+        locale: reportLocale,
         sum: true,
         page,
         pageSize,
@@ -796,7 +796,7 @@
 
   function renderTradeSummary(trade, ranking, countryName) {
     if (!tradeSummaryEl || !trade) return;
-    const isKa = lang === 'ka';
+    const isKa = reportLocale === 'ka';
     const year = trade.latestYear;
     const lm = trade.latestMonth;
     const mn = trade.monthNames || [];
@@ -1270,7 +1270,7 @@
       const diffClass = p.diffMln > 0 ? 'stat-positive' : 'stat-negative';
       html += `
         <tr>
-          <td class="stat-col-product">${escapeHtml(lang !== 'ka' && p.nameEn ? p.nameEn : p.name)}</td>
+          <td class="stat-col-product">${escapeHtml(reportLocale !== 'ka' && p.nameEn ? p.nameEn : p.name)}</td>
           <td class="stat-col-value">${formatMln(p.valueMln)}</td>
           <td class="stat-col-change ${changeClass}">${changeSign}${formatChangePct(p.changePct)}</td>
           <td class="stat-col-diff ${diffClass}">${diffSign}${formatMln(Math.abs(p.diffMln))}</td>
@@ -1434,7 +1434,7 @@
       const hiddenStyle = (hasMore && i >= INITIAL_COUNT) ? ' style="display:none" data-expandable' : '';
       html += `
         <tr${hiddenStyle}>
-          <td class="stat-col-product">${escapeHtml(lang !== 'ka' && p.nameEn ? p.nameEn : p.name)}</td>
+          <td class="stat-col-product">${escapeHtml(reportLocale !== 'ka' && p.nameEn ? p.nameEn : p.name)}</td>
           <td class="stat-col-value">${formatMln(p.valueMln)}</td>
           <td class="stat-col-change ${changeClass}">${changeSign}${formatChangePct(p.change)}</td>
           ${showReexport ? `<td class="stat-col-reexport">${p.reexportShare === 0 ? '-' : formatChangePct(p.reexportShare)}</td>` : ''}
