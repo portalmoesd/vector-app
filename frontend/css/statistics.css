@@ -208,6 +208,21 @@ html { scroll-padding-top: 160px; }
   margin-top: 0;
   margin-bottom: 12px;
 }
+
+/* An empty header (no h3 inside) should not contribute a divider or
+   vertical whitespace — used by the no-data branches of Tourism / FDI
+   where we hide the table+chart row and only render the summary. */
+.card > .stat-summary + .stat-report__header:empty {
+  border-top: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Beats the later `.stat-investments-row { display: flex }` rule so
+   adding the `hidden` class actually hides the row. */
+.stat-investments-row.hidden {
+  display: none;
+}
 .stat-summary__heading {
   font-size: 15px;
   font-weight: 700;
