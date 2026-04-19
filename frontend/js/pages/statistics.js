@@ -258,7 +258,55 @@
     c.displayLabel = reportLocale === 'ka' ? c.displayLabelKa : c.displayLabelEn;
   }
 
-  // ── Report locale toggle ─────────────────────────────────────────────────
+  // ── Load Georgian grammar forms for country names ─────────────────────
+  // CSV shape:  nominative,comitative,locative,ablative,genitive
+  //   ქვეყანა,ქვეყანასთან,ქვეყანაში,ქვეყნიდან,ქვეყნის
+  // Keyed by the nominative form (which matches the canonicalised
+  // displayLabelKa after the previous loop). Used everywhere the report
+  // needs an inflected form — right now just the ablative ("from X") but
+  // the rest are loaded so future sentences can pick them up trivially.
+  const countryGrammar = {}; // nominative → { nom, withCase, inCase, from, of }
+  try {
+    const csvRes = await fetch('/data/country-grammar.csv');
+    if (csvRes.ok) {
+      const csvText = await csvRes.text();
+      // Parse CSV line-by-line; cells are either quoted ("...") or bare.
+      const lines = csvText.split(/\r?\n/).slice(1);
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const cells = [];
+        let i = 0;
+        while (i < line.length) {
+          if (line[i] === '"') {
+            let end = i + 1;
+            while (end < line.length && line[end] !== '"') end++;
+            cells.push(line.slice(i + 1, end));
+            i = end + 2; // skip closing quote + comma
+          } else {
+            let end = i;
+            while (end < line.length && line[end] !== ',') end++;
+            cells.push(line.slice(i, end));
+            i = end + 1;
+          }
+        }
+        const [nom, withCase, inCase, from, of_] = cells.map(s => (s || '').trim());
+        if (nom) countryGrammar[nom] = { nom, withCase, inCase, from, of: of_ };
+      }
+    }
+  } catch (err) {
+    console.warn('country-grammar load failed:', err && err.message);
+  }
+
+  // Fallback when a country isn't in the grammar sheet — matches the
+  // previous naive behaviour (drop final vowel, add "იდან" for ablative).
+  function kaGrammarFallback(nom) {
+    return { nom, withCase: nom + 'თან', inCase: nom + 'ში', from: nom + 'დან', of: nom + 'ის' };
+  }
+  function grammarFor(nominative) {
+    return countryGrammar[nominative] || kaGrammarFallback(nominative || '');
+  }
+
+
 
   const reportLangToggle = document.getElementById('reportLangToggle');
 
@@ -669,6 +717,9 @@
       // ── Capture PDF state ────────────────────────────────────────────
       pdfState.country = selectedCountry;
       pdfState.countryNameEn = countryNameEnMap[selectedCountry.value] || selectedCountry.displayLabel;
+      // Georgian declined forms (nom / withCase / inCase / from / of)
+      // — PDF builder uses `.from` for "from X" sentences.
+      pdfState.countryGrammar = grammarFor(selectedCountry.displayLabelKa || selectedCountry.displayLabel);
       pdfState.trade = {
         overview,
         prevYear, prevPrevYear, latestYear, latestMonth,
@@ -1691,13 +1742,14 @@
     }
     const b = (s) => `<strong>${escapeHtml(String(s))}</strong>`;
     const fmt = (n) => Number(n).toLocaleString();
-    const countryKa = selectedCountry.displayLabel;
-    const countryEn = countryNameEnMap[selectedCountry.value] || countryKa;
+    const countryKa = selectedCountry.displayLabelKa || selectedCountry.displayLabel;
+    const countryEn = countryNameEnMap[selectedCountry.value] || selectedCountry.displayLabel;
+    const grammar = grammarFor(countryKa);
     const lines = [];
 
     if (tourism.fiveYearSum > 0) {
       if (isKa) {
-        lines.push(`<p>${b(tourism.fiveYearStart + ' - ' + tourism.fiveYearEnd)} წლებში ${escapeHtml(kaCountryFrom(countryKa))} საქართველოში შემოვიდა ${b(fmt(tourism.fiveYearSum))} ვიზიტორი.</p>`);
+        lines.push(`<p>${b(tourism.fiveYearStart + ' - ' + tourism.fiveYearEnd)} წლებში ${escapeHtml(grammar.from)} საქართველოში შემოვიდა ${b(fmt(tourism.fiveYearSum))} ვიზიტორი.</p>`);
       } else {
         lines.push(`<p>Between ${b(tourism.fiveYearStart + '-' + tourism.fiveYearEnd)}, ${b(fmt(tourism.fiveYearSum))} visitors came to Georgia from ${escapeHtml(countryEn)}.</p>`);
       }
@@ -2048,9 +2100,9 @@
     if (!inv || !inv.hasData) { investmentsSummaryEl.classList.add('hidden'); return; }
     const b = (s) => `<strong>${escapeHtml(String(s))}</strong>`;
     const fmt = (n) => (Math.round(Math.abs(n) * 100) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    const countryKa = selectedCountry.displayLabel;
-    const countryEn = countryNameEnMap[selectedCountry.value] || countryKa;
-    const countryKaFrom = kaCountryFrom(countryKa);
+    const countryKa = selectedCountry.displayLabelKa || selectedCountry.displayLabel;
+    const countryEn = countryNameEnMap[selectedCountry.value] || selectedCountry.displayLabel;
+    const countryKaFrom = grammarFor(countryKa).from;
     const lines = [];
 
     function geP(r) {

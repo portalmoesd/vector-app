@@ -763,13 +763,15 @@
   }
 
   // ── Tourism summary (5-year total + latest-period rank) ─────────────
-  function buildTourismSummary(tourism, t, country, lang) {
+  function buildTourismSummary(tourism, t, country, lang, grammar) {
     if (!tourism || !tourism.hasData) return [];
     const isKa = lang === 'ka';
     const B = (s) => ({ text: s, bold: true });
     const paraStyle = { fontSize: 10, lineHeight: 1.3, alignment: 'justify', margin: [0, 0, 0, 4] };
     const fmt = (n) => Number(n).toLocaleString();
-    const kaFrom = (name) => name + 'დან';
+    // Prefer the Georgian ablative from the grammar sheet ("…იდან"), which
+    // handles cases like "ავსტრია → ავსტრიიდან" that naive "+დან" gets wrong.
+    const kaFrom = (name) => (grammar && grammar.from) || (name + 'დან');
 
     function formatPeriodKa(label) {
       const m = /^(\d{4})\s+([IVX]+)\s+კვ$/.exec(label || '');
@@ -816,7 +818,7 @@
   }
 
   // ── Tourism section ────────────────────────────────────────────────────
-  function buildTourismSection(tourism, charts, t, country, lang) {
+  function buildTourismSection(tourism, charts, t, country, lang, grammar) {
     if (!tourism) return [];
     const blocks = [];
     const title = sectionTitle(`${country} - ${t.internationalVisitors}`);
@@ -829,7 +831,7 @@
       return blocks;
     }
 
-    const summary = buildTourismSummary(tourism, t, country, lang);
+    const summary = buildTourismSummary(tourism, t, country, lang, grammar);
 
     const rows = [...(tourism.quarterlyRows || []), ...[...(tourism.annualRows || [])].reverse()];
     const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
@@ -889,13 +891,14 @@
 
   // ── Investments section ────────────────────────────────────────────────
   // ── Investments summary ─────────────────────────────────────────────
-  function buildInvestmentsSummary(inv, t, country, lang) {
+  function buildInvestmentsSummary(inv, t, country, lang, grammar) {
     if (!inv || !inv.hasData) return [];
     const isKa = lang === 'ka';
     const B = (s) => ({ text: s, bold: true });
     const paraStyle = { fontSize: 10, lineHeight: 1.3, alignment: 'justify', margin: [0, 0, 0, 4] };
     const fmt = (n) => (Math.round(Math.abs(n) * 100) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    const kaFrom = (name) => name + 'დან';
+    // Prefer the Georgian ablative from the grammar sheet ("…იდან").
+    const kaFrom = (name) => (grammar && grammar.from) || (name + 'დან');
     const countryFrom = isKa ? kaFrom(country) : country;
 
     const nodes = [];
@@ -1028,7 +1031,7 @@
     return [withTitle(heading, ...nodes)];
   }
 
-  function buildInvestmentsSection(inv, charts, t, country, lang) {
+  function buildInvestmentsSection(inv, charts, t, country, lang, grammar) {
     if (!inv) return [];
     const blocks = [];
     const title = sectionTitle(`${country} - ${t.fdi}`);
@@ -1041,7 +1044,7 @@
       return blocks;
     }
 
-    const summary = buildInvestmentsSummary(inv, t, country, lang);
+    const summary = buildInvestmentsSummary(inv, t, country, lang, grammar);
 
     const data = [...inv.tableData].reverse();
     const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
@@ -1333,11 +1336,11 @@
 
     const content = [];
     content.push(...buildTradeSection(state.trade, charts, t, country, lang));
-    content.push(...buildTourismSection(state.tourism, charts, t, country, lang));
+    content.push(...buildTourismSection(state.tourism, charts, t, country, lang, state.countryGrammar));
     const investmentsWithSectors = state.investments
       ? { ...state.investments, sectors: state.investmentsSectors || null }
       : state.investments;
-    content.push(...buildInvestmentsSection(investmentsWithSectors, charts, t, country, lang));
+    content.push(...buildInvestmentsSection(investmentsWithSectors, charts, t, country, lang, state.countryGrammar));
     content.push(...buildCompaniesSection(state.companies, t, country, lang, opts.countryNameEn));
     content.push(...buildAppendixSection(state.appendix, t, country, lang));
 
