@@ -13,6 +13,14 @@
   margin-bottom: 0;
 }
 
+/* The tabs live as the last child of the controls card. Zeroing the
+   card's bottom padding lets the tab strip sit flush against the
+   bottom edge so the active-tab underline lines up with the card
+   border. */
+.stat-sticky-header .stat-controls.card {
+  padding-bottom: 0;
+}
+
 /* Scroll padding so anchor-scrolled sections don't hide behind sticky header */
 html { scroll-padding-top: 160px; }
 
@@ -31,16 +39,20 @@ html { scroll-padding-top: 160px; }
 
 /* ─── Tabs ───────────────────────────────────────────────────────────────── */
 
-.stat-tabs {
+/* Tabs live at the bottom of the controls card, visually unifying the
+   dropdown + tab strip into one block. Horizontal negative margins let
+   the top divider and the card-bottom edge reach corner-to-corner
+   despite the card's 20px × 24px inner padding. */
+.stat-controls .stat-tabs {
   display: flex;
   gap: 4px;
-  margin-bottom: 0;
-  border-bottom: 2px solid var(--border-color);
-  padding-bottom: 0;
+  margin: 14px -24px 0;
+  padding: 0 24px;
+  border-top: 1px solid var(--border-color);
 }
 
 .stat-tab {
-  padding: 10px 20px;
+  padding: 12px 20px;
   border: none;
   background: none;
   font-size: 0.9rem;
@@ -48,7 +60,6 @@ html { scroll-padding-top: 160px; }
   color: var(--text-secondary);
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
   font-family: var(--font-primary);
   transition: color 0.15s, border-color 0.15s;
 }
