@@ -64,6 +64,7 @@
   const fdiSectorsTableEl = document.getElementById('fdiSectorsTable');
   const tourismTableEl = document.getElementById('tourismTable');
   const tourismChartHeader = document.getElementById('tourismChartHeader');
+  const tourismRowEl = document.getElementById('tourismRow');
   const tourismChartCanvas = document.getElementById('tourismChart');
   // Appendix tab
   const appendixLoadingEl = document.getElementById('appendixLoading');
@@ -1568,6 +1569,7 @@
     // Hide stale content so the spinner is the only thing visible while
     // the new country's data is being fetched (matches the Trade tab).
     if (tourismSummaryEl) tourismSummaryEl.classList.add('hidden');
+    if (tourismRowEl) tourismRowEl.classList.remove('hidden');
     tourismTableEl.innerHTML = '';
     tourismChartHeader.innerHTML = '';
     try { if (tourismChartInstance) { tourismChartInstance.destroy(); } } catch (_) {}
@@ -1583,9 +1585,19 @@
       const countryData = gntaName ? json.countries[gntaName] : null;
 
       if (!countryData) {
-        tourismTableEl.innerHTML = `<div class="empty-state"><p>${reportLocale === 'ka' ? 'აღნიშნული ქვეყნიდან ვიზიტორები საქართველოში არ ფიქსირდება.' : 'No visitor records from this country to Georgia.'}</p></div>`;
+        // Match the Companies / FDI no-data style: a single paragraph in
+        // the summary card with the table + chart row hidden entirely.
+        const msg = reportLocale === 'ka'
+          ? 'აღნიშნული ქვეყნიდან ვიზიტორები საქართველოში არ ფიქსირდება.'
+          : 'No visitor records from this country to Georgia.';
+        if (tourismSummaryEl) {
+          tourismSummaryEl.innerHTML = `<p>${escapeHtml(msg)}</p>`;
+          tourismSummaryEl.classList.remove('hidden');
+        }
+        tourismTableEl.innerHTML = '';
+        tourismChartHeader.innerHTML = '';
+        if (tourismRowEl) tourismRowEl.classList.add('hidden');
         pdfState.tourism = { hasData: false };
-        if (tourismSummaryEl) tourismSummaryEl.classList.add('hidden');
         tourismLoading.classList.add('hidden');
         return;
       }
