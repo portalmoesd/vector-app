@@ -464,6 +464,24 @@
   loadLinks();
   loadHierarchy();
 
+  // ── Country-name canonicalisation ────────────────────────────────────
+  // The companies registry uses raw Georgian country names that don't
+  // always match the Geostat classificatory (e.g. "ლიტვა" → "ლიეტუვა").
+  // Load the shared variant→canonical mapping used by tourism + FDI so
+  // the companies aggregation keys the buckets by the same canonical
+  // names the statistics page looks up at read time.
+  const countryNameMap = {};
+  try {
+    const csvRes = await fetch('/data/country-name-mapping.csv');
+    const csvText = await csvRes.text();
+    for (const line of csvText.split('\n').slice(1)) {
+      const match = line.match(/"([^"]*)","([^"]*)"/);
+      if (match) countryNameMap[match[1].trim()] = match[2].trim();
+    }
+  } catch (err) {
+    console.warn('Country name mapping load failed:', err);
+  }
+
   // ── Data Uploads tab ──────────────────────────────────────────────────
   // Generic upload-panel initialiser.
   // - Server-side mode (default): POST multipart to `${endpoint}/upload`.
@@ -589,6 +607,10 @@
       const cell = sheet[XLSX.utils.encode_cell({ r, c })];
       return cell && cell.v != null ? cell.v : null;
     }
+    // Map registry variants to the canonical Georgian name used by the
+    // Geostat classificatory. Georgia is kept unmapped — it's identified
+    // by literal string match for the "joint capital" bucketing below.
+    const canon = (name) => countryNameMap[name] || name;
 
     let activeCount = 0;
     for (let r = FIRST_DATA_ROW; r <= range.e.r; r++) {
@@ -598,7 +620,7 @@
 
       const raw = String(cellVal(r, COL_V) || '').trim();
       if (!raw) continue;
-      const list = raw.split('/').map((s) => s.trim()).filter(Boolean);
+      const list = raw.split('/').map((s) => canon(s.trim())).filter(Boolean);
       if (!list.length) continue;
 
       const hasGeorgia = list.indexOf(GEORGIA) !== -1;
