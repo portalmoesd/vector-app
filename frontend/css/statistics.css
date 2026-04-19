@@ -28,6 +28,11 @@ html { scroll-padding-top: 160px; }
 
 .stat-sections.hidden { display: none; }
 
+/* While any section is regenerating (country change, language toggle),
+   hide every section so the single top-level spinner is the only
+   thing visible — no stale content flashing between country switches. */
+.stat-sections.is-loading .stat-section { display: none; }
+
 .stat-section__heading {
   font-size: 18px;
   font-weight: 700;

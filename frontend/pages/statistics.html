@@ -58,6 +58,16 @@
       <!-- All sections render sequentially after Generate -->
       <div id="statSections" class="stat-sections hidden">
 
+        <!-- Unified top-level loader shown whenever any section is
+             regenerating (new country chosen, report language toggled).
+             While visible, the five sections below are hidden via the
+             .is-loading class on #statSections, so the page shows one
+             spinner instead of stale content beside an empty one. -->
+        <div id="globalReportLoading" class="stat-report__loading hidden">
+          <div class="stat-spinner"></div>
+          <span class="stat-loading-label">Loading...</span>
+        </div>
+
         <!-- Trade section -->
         <section id="section-trade" class="stat-section">
           <h2 class="stat-section__heading" data-stat-heading="trade">ვაჭრობა</h2>
