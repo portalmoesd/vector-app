@@ -861,7 +861,7 @@ router.get('/tourism', async (req, res) => {
 // XLSX file. No initial data is bundled — the endpoint returns {empty:true}
 // until the first upload.
 
-const { upload, adminOnly, saveParsedAndRaw, loadParsedFromDisk } = require('./admin-uploads');
+const { upload, adminOnly, saveParsedAndRaw, loadParsed } = require('./admin-uploads');
 
 let fdiSectorsCache = { data: null };
 
@@ -995,16 +995,16 @@ function parseFdiSectorsWorkbook(wb) {
   };
 }
 
-function loadFdiSectorsFromDisk() {
-  const parsed = loadParsedFromDisk('fdi-sectors');
+async function loadFdiSectorsFromDb() {
+  const parsed = await loadParsed('fdi-sectors');
   if (parsed) {
     fdiSectorsCache.data = parsed;
-    console.log(`fdi-sectors: loaded from disk (${Object.keys(parsed.countries || {}).length} countries, years ${parsed.years?.join(',')})`);
+    console.log(`fdi-sectors: loaded from DB (${Object.keys(parsed.countries || {}).length} countries, years ${parsed.years?.join(',')})`);
   }
 }
 
 // Init: load any previously uploaded data on module load.
-loadFdiSectorsFromDisk();
+loadFdiSectorsFromDb().catch((err) => console.warn('fdi-sectors load failed:', err.message));
 
 router.get('/fdi-sectors', (req, res) => {
   const data = fdiSectorsCache.data;
@@ -1022,14 +1022,14 @@ router.get('/fdi-sectors', (req, res) => {
   });
 });
 
-router.post('/fdi-sectors/upload', ...adminOnly, upload.single('file'), (req, res) => {
+router.post('/fdi-sectors/upload', ...adminOnly, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded (field name: "file")' });
     const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
     const parsed = parseFdiSectorsWorkbook(wb);
     const countryCount = Object.keys(parsed.countries).length;
     if (!countryCount) return res.status(400).json({ error: 'No country data found in file' });
-    saveParsedAndRaw('fdi-sectors', parsed, req.file.buffer);
+    await saveParsedAndRaw('fdi-sectors', parsed, req.file.buffer);
     fdiSectorsCache.data = parsed;
     console.log(`fdi-sectors: uploaded (${countryCount} countries, ${parsed.sectors.length} sectors, years ${parsed.years.join(',')})`);
     res.json({
@@ -1055,14 +1055,14 @@ router.post('/fdi-sectors/upload', ...adminOnly, upload.single('file'), (req, re
 
 let companiesCache = { data: null };
 
-function loadCompaniesFromDisk() {
-  const parsed = loadParsedFromDisk('companies');
+async function loadCompaniesFromDb() {
+  const parsed = await loadParsed('companies');
   if (parsed) {
     companiesCache.data = parsed;
-    console.log(`companies: loaded from disk (${Object.keys(parsed.countries || {}).length} countries, ${parsed.activeCount || 0} active)`);
+    console.log(`companies: loaded from DB (${Object.keys(parsed.countries || {}).length} countries, ${parsed.activeCount || 0} active)`);
   }
 }
-loadCompaniesFromDisk();
+loadCompaniesFromDb().catch((err) => console.warn('companies load failed:', err.message));
 
 router.get('/companies', (req, res) => {
   const data = companiesCache.data;
@@ -1085,7 +1085,7 @@ function sanitizeCounts(raw) {
   return out;
 }
 
-router.post('/companies/data', ...adminOnly, (req, res) => {
+router.post('/companies/data', ...adminOnly, async (req, res) => {
   try {
     const { countries, activeCount } = req.body || {};
     if (!countries || typeof countries !== 'object') {
@@ -1104,7 +1104,7 @@ router.post('/companies/data', ...adminOnly, (req, res) => {
       activeCount: Number.isFinite(Number(activeCount)) ? Math.round(Number(activeCount)) : 0,
       countries: clean,
     };
-    saveParsedAndRaw('companies', parsed);
+    await saveParsedAndRaw('companies', parsed);
     companiesCache.data = parsed;
     console.log(`companies: data saved (${Object.keys(clean).length} countries, ${parsed.activeCount} active)`);
     res.json({

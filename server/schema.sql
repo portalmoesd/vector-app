@@ -239,4 +239,15 @@ CREATE TABLE IF NOT EXISTS event_template_section_departments (
   PRIMARY KEY (template_section_id, department_id)
 );
 
+-- Admin-uploaded datasets (companies registry, FDI sectors, etc.).
+-- Rows are keyed by a short kind string; parsed_json holds the
+-- aggregated result the statistics page reads, raw_bytes keeps the
+-- original XLSX so the admin can re-download it after a deploy.
+CREATE TABLE IF NOT EXISTS admin_uploads (
+  kind         TEXT PRIMARY KEY,
+  parsed_json  JSONB NOT NULL,
+  raw_bytes    BYTEA,
+  uploaded_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 COMMIT;
