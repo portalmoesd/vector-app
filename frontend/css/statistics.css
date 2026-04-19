@@ -160,6 +160,20 @@ html { scroll-padding-top: 160px; }
 .stat-summary p:last-child {
   margin-bottom: 0;
 }
+
+/* When the summary lives inside the same card as the table + chart
+   (Tourism / Investments), it owns no padding of its own — the parent
+   card's 20px × 24px padding handles inset — and a thin divider sits
+   between the prose and the row header below. */
+.card > .stat-summary {
+  padding: 0 0 12px 0;
+}
+.card > .stat-summary + .stat-report__header {
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+  margin-top: 0;
+  margin-bottom: 12px;
+}
 .stat-summary__heading {
   font-size: 15px;
   font-weight: 700;

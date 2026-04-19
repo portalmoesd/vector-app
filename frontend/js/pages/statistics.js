@@ -46,9 +46,10 @@
   // Investments tab
   // investmentsArea removed — unified scroll layout
   const investmentsLoading = document.getElementById('investmentsLoading');
-  const fdiHeader = document.getElementById('fdiHeader');
   const fdiTable = document.getElementById('fdiTable');
   const fdiChartHeader = document.getElementById('fdiChartHeader');
+  // `tourismHeader` / `fdiHeader` were per-table headers above the table
+  // column; removed when we merged the summary + row into a single card.
   const fdiChartCanvas = document.getElementById('fdiChart');
   // Tourism tab
   // tourismArea removed — unified scroll layout
@@ -60,7 +61,6 @@
   const fdiSectorsCardEl = document.getElementById('fdiSectorsCard');
   const fdiSectorsHeaderEl = document.getElementById('fdiSectorsHeader');
   const fdiSectorsTableEl = document.getElementById('fdiSectorsTable');
-  const tourismHeader = document.getElementById('tourismHeader');
   const tourismTableEl = document.getElementById('tourismTable');
   const tourismChartHeader = document.getElementById('tourismChartHeader');
   const tourismChartCanvas = document.getElementById('tourismChart');
@@ -1417,7 +1417,6 @@
 
     tourismLoading.classList.remove('hidden');
     tourismTableEl.innerHTML = '';
-    tourismHeader.innerHTML = '';
     tourismChartHeader.innerHTML = '';
     try { if (tourismChartInstance) { tourismChartInstance.destroy(); } } catch (_) {}
     tourismChartInstance = null;
@@ -1602,8 +1601,6 @@
     const countryEn = countryNameEnMap[selectedCountry.value] || countryKa;
     const lines = [];
 
-    lines.push(`<h4 class="stat-summary__heading">${isKa ? 'ტურიზმი' : 'Tourism'}</h4>`);
-
     if (tourism.fiveYearSum > 0) {
       if (isKa) {
         lines.push(`<p>${b(tourism.fiveYearStart + ' - ' + tourism.fiveYearEnd)} წლებში ${escapeHtml(kaCountryFrom(countryKa))} საქართველოში შემოვიდა ${b(fmt(tourism.fiveYearSum))} ვიზიტორი.</p>`);
@@ -1748,7 +1745,6 @@
 
     investmentsLoading.classList.remove('hidden');
     fdiTable.innerHTML = '';
-    fdiHeader.innerHTML = '';
     fdiChartHeader.innerHTML = '';
     try { if (fdiChartInstance) { fdiChartInstance.destroy(); } } catch (_) {}
     fdiChartInstance = null;
@@ -1962,8 +1958,6 @@
     const countryEn = countryNameEnMap[selectedCountry.value] || countryKa;
     const countryKaFrom = kaCountryFrom(countryKa);
     const lines = [];
-
-    lines.push(`<h4 class="stat-summary__heading">${isKa ? 'ინვესტიციები' : 'Investments'}</h4>`);
 
     function geP(r) {
       if (r === 1) return 'პირველ';
