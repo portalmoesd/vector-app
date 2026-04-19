@@ -42,6 +42,7 @@
   const turnoverChartHeader = document.getElementById('turnoverChartHeader');
   const turnoverChartCanvas = document.getElementById('turnoverChart');
   const dynamicsChartHeader = document.getElementById('dynamicsChartHeader');
+  const tradeChartsRowEl = document.getElementById('tradeChartsRow');
   const dynamicsChartCanvas = document.getElementById('dynamicsChart');
   // Investments tab
   // investmentsArea removed — unified scroll layout
@@ -604,11 +605,27 @@
       renderOverview(overview, prevYear, prevPrevYear, latestYear, latestMonth, periodLabel, monthNames);
 
       // ── 2. Charts ──────────────────────────────────────────────────────
-      renderCharts(
-        chartYears, chartYearExports, chartYearImports,
-        monthsYTD, chartMonthExports, chartMonthImports,
-        latestYear, monthNames,
-      );
+      // Only render the turnover + dynamics charts if there's any trade
+      // at all across the 5 lookback years, the YTD months, or the full-
+      // year / YTD overviews. For countries with zero trade everywhere
+      // (e.g. Cabo Verde) the charts would be all-zero columns — hide
+      // the whole row instead.
+      const sum = (arr) => arr.reduce((s, v) => s + (v || 0), 0);
+      const hasAnyTrade =
+        sum(chartYearExports) > 0 || sum(chartYearImports) > 0 ||
+        sum(chartMonthExports) > 0 || sum(chartMonthImports) > 0 ||
+        overview.fullYear.export > 0 || overview.fullYear.import > 0 ||
+        overview.latestPeriod.export > 0 || overview.latestPeriod.import > 0;
+
+      if (tradeChartsRowEl) tradeChartsRowEl.classList.toggle('hidden', !hasAnyTrade);
+
+      if (hasAnyTrade) {
+        renderCharts(
+          chartYears, chartYearExports, chartYearImports,
+          monthsYTD, chartMonthExports, chartMonthImports,
+          latestYear, monthNames,
+        );
+      }
 
       // Check if there was any export/import in the latest period
       const hasExport = overview.latestPeriod.export > 0;

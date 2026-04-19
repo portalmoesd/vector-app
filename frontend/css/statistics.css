@@ -220,7 +220,8 @@ html { scroll-padding-top: 160px; }
 
 /* Beats the later `.stat-investments-row { display: flex }` rule so
    adding the `hidden` class actually hides the row. */
-.stat-investments-row.hidden {
+.stat-investments-row.hidden,
+.stat-charts-row.hidden {
   display: none;
 }
 .stat-summary__heading {
