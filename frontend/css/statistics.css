@@ -13,6 +13,14 @@
   margin-bottom: 0;
 }
 
+/* The tabs live as the last child of the controls card. Zeroing the
+   card's bottom padding lets the tab strip sit flush against the
+   bottom edge so the active-tab underline lines up with the card
+   border. */
+.stat-sticky-header .stat-controls.card {
+  padding-bottom: 0;
+}
+
 /* Scroll padding so anchor-scrolled sections don't hide behind sticky header */
 html { scroll-padding-top: 160px; }
 
@@ -31,16 +39,20 @@ html { scroll-padding-top: 160px; }
 
 /* ─── Tabs ───────────────────────────────────────────────────────────────── */
 
-.stat-tabs {
+/* Tabs live at the bottom of the controls card, visually unifying the
+   dropdown + tab strip into one block. Horizontal negative margins let
+   the top divider and the card-bottom edge reach corner-to-corner
+   despite the card's 20px × 24px inner padding. */
+.stat-controls .stat-tabs {
   display: flex;
   gap: 4px;
-  margin-bottom: 0;
-  border-bottom: 2px solid var(--border-color);
-  padding-bottom: 0;
+  margin: 14px -24px 0;
+  padding: 0 24px;
+  border-top: 1px solid var(--border-color);
 }
 
 .stat-tab {
-  padding: 10px 20px;
+  padding: 12px 20px;
   border: none;
   background: none;
   font-size: 0.9rem;
@@ -48,7 +60,6 @@ html { scroll-padding-top: 160px; }
   color: var(--text-secondary);
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
   font-family: var(--font-primary);
   transition: color 0.15s, border-color 0.15s;
 }
@@ -87,6 +98,40 @@ html { scroll-padding-top: 160px; }
 .stat-controls__buttons {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+
+/* Report-language toggle — independent from the global site locale. */
+.stat-lang-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--bg-secondary, #f8f9fa);
+}
+
+.stat-lang-toggle__btn {
+  border: none;
+  background: transparent;
+  padding: 5px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 999px;
+  font-family: var(--font-primary);
+  line-height: 1.2;
+  transition: background 0.15s, color 0.15s;
+}
+
+.stat-lang-toggle__btn:hover {
+  color: var(--text-primary);
+}
+
+.stat-lang-toggle__btn.active {
+  background: var(--bg-card, #fff);
+  color: var(--accent-blue);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 /* ─── PDF export menu ────────────────────────────────────────────────── */
@@ -148,6 +193,20 @@ html { scroll-padding-top: 160px; }
 }
 .stat-summary p:last-child {
   margin-bottom: 0;
+}
+
+/* When the summary lives inside the same card as the table + chart
+   (Tourism / Investments), it owns no padding of its own — the parent
+   card's 20px × 24px padding handles inset — and a thin divider sits
+   between the prose and the row header below. */
+.card > .stat-summary {
+  padding: 0 0 12px 0;
+}
+.card > .stat-summary + .stat-report__header {
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+  margin-top: 0;
+  margin-bottom: 12px;
 }
 .stat-summary__heading {
   font-size: 15px;
