@@ -194,6 +194,21 @@
     return `${EN_MONTHS[1]}-${EN_MONTHS[latestMonth]} ${year}`;
   }
 
+  // Widened "no trade" range — spans the 5-year lookback + latest
+  // period, e.g. "2021-2026 წლის იანვარ-თებერვლის" / "Jan-Feb 2021-2026".
+  function gePeriodGenRange(startYear, endYear, latestMonth) {
+    const years = `${startYear}-${endYear}`;
+    if (latestMonth === 12) return `${years} წლების`;
+    if (latestMonth === 1)  return `${years} წლის ${KA_MONTHS[1].gen}`;
+    return `${years} წლის ${KA_MONTHS[1].stem}\u2011${KA_MONTHS[latestMonth].gen}`;
+  }
+  function enPeriodRange(startYear, endYear, latestMonth) {
+    const years = `${startYear}-${endYear}`;
+    if (latestMonth === 12) return years;
+    if (latestMonth === 1) return `${EN_MONTHS[1]} ${years}`;
+    return `${EN_MONTHS[1]}-${EN_MONTHS[latestMonth]} ${years}`;
+  }
+
   function gePlace(rank) {
     if (rank === 1) return 'პირველ';
     if (rank >= 2 && rank <= 20) return `მე-${rank}`;
@@ -513,9 +528,18 @@
     // ── Turnover ─────────────────────────────────────────────────────────
     nodes.push(heading('სავაჭრო ბრუნვა', 'Trade Turnover'));
     if (curTurn < 0.01) {
+      // Widen the "no trade" period from the latest period alone to the
+      // full 5-year + latest window when there's zero trade everywhere.
+      const widen = trade.hasAnyTrade === false && trade.fiveYearStart;
+      const kaLabel = widen
+        ? gePeriodGenRange(trade.fiveYearStart, trade.latestYear, trade.latestMonth)
+        : periodGen;
+      const enLabel = widen
+        ? enPeriodRange(trade.fiveYearStart, trade.latestYear, trade.latestMonth)
+        : periodEn;
       nodes.push({ text: isKa
-        ? `${periodGen} მონაცემებით, ვაჭრობა არ განხორციელდა.`
-        : `For ${periodEn}, no trade was conducted.`, ...paraStyle });
+        ? `${kaLabel} მონაცემებით, ვაჭრობა არ განხორციელდა.`
+        : `For ${enLabel}, no trade was conducted.`, ...paraStyle });
       return nodes;
     }
     if (isKa) {

@@ -749,6 +749,13 @@
         exportChange: hasExport ? buildChangeLists(expHsCurrent, expHsPrev) : null,
         importChange: hasImport ? buildChangeLists(impHsCurrent, impHsPrev) : null,
         ranking,
+        // For countries with zero trade across the whole lookback window,
+        // the summary widens the "no trade" sentence from the latest
+        // period alone ("2026 Jan-Feb") to the full range ("2021-2026
+        // Jan-Feb"). Both flags are picked up by renderTradeSummary (web)
+        // and buildTradeSummary (PDF).
+        hasAnyTrade,
+        fiveYearStart: chartYears.length ? chartYears[0] : latestYear,
       };
 
       renderTradeSummary(pdfState.trade, ranking, selectedCountry.displayLabel);
@@ -880,6 +887,13 @@
       ? (lm === 12 ? `${year} წელს` : lm === 1 ? `${year} წლის ${KA_MONTH_LOC[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_LOC[lm]}`)
       : periodGen;
 
+    // Expanded "no trade" period label: 5-year lookback + latest period
+    // month range, e.g. "2021-2026 წლის იანვარ-თებერვლის".
+    const startYear = trade.fiveYearStart || year;
+    const periodGenRange = isKa
+      ? (lm === 12 ? `${startYear}-${year} წლების` : lm === 1 ? `${startYear}-${year} წლის ${KA_MONTH_GEN[1]}` : `${startYear}-${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_GEN[lm]}`)
+      : (lm === 12 ? `${startYear}-${year}` : lm === 1 ? `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)} ${startYear}-${year}` : `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)}-${(mn.find(m => m.value === lm)?.label || '').slice(0, 3)} ${startYear}-${year}`);
+
     function b(s) { return `<strong>${escapeHtml(s)}</strong>`; }
     function i(s) { return `<em>${escapeHtml(s)}</em>`; }
     function fmln(v) { return formatMln2(Math.abs(v)); }
@@ -922,7 +936,11 @@
     // Turnover
     lines.push(`<h4 class="stat-summary__heading">${isKa ? 'სავაჭრო ბრუნვა' : 'Trade Turnover'}</h4>`);
     if (curTurn < 0.01) {
-      lines.push(`<p>${isKa ? `${periodGen} მონაცემებით, ვაჭრობა არ განხორციელდა.` : `For ${escapeHtml(periodGen)}, no trade was conducted.`}</p>`);
+      // Zero trade in the latest period alone → single-period label.
+      // Zero trade across the whole 5-year + latest window → widened
+      // label that spans the full lookback.
+      const noTradeLabel = trade.hasAnyTrade === false ? periodGenRange : periodGen;
+      lines.push(`<p>${isKa ? `${noTradeLabel} მონაცემებით, ვაჭრობა არ განხორციელდა.` : `For ${escapeHtml(noTradeLabel)}, no trade was conducted.`}</p>`);
       tradeSummaryEl.innerHTML = lines.join('');
       tradeSummaryEl.classList.remove('hidden');
       return;
