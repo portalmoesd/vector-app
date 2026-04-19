@@ -1319,10 +1319,13 @@
       const changeSign = p.changePct > 0 ? '+' : '';
       const diffSign = p.diffMln > 0 ? '+' : '';
       const diffClass = p.diffMln > 0 ? 'stat-positive' : 'stat-negative';
+      // No trade happened for this product in the current period → show
+      // "-" rather than "0.00" so the absence reads clearly.
+      const valueCell = p.valueMln > 0 ? formatMln(p.valueMln) : '-';
       html += `
         <tr>
           <td class="stat-col-product">${escapeHtml(reportLocale !== 'ka' && p.nameEn ? p.nameEn : p.name)}</td>
-          <td class="stat-col-value">${formatMln(p.valueMln)}</td>
+          <td class="stat-col-value">${valueCell}</td>
           <td class="stat-col-change ${changeClass}">${changeSign}${formatChangePct(p.changePct)}</td>
           <td class="stat-col-diff ${diffClass}">${diffSign}${formatMln(Math.abs(p.diffMln))}</td>
         </tr>`;
