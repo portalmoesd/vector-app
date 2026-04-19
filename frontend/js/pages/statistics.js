@@ -354,7 +354,7 @@
 
     // Re-render the report if one has been generated
     if (regenerate && selectedCountry && pdfState.trade) {
-      generateBtn.click();
+      runFullGenerate();
     }
   }
 
@@ -463,11 +463,20 @@
 
   // ── Generate report ──────────────────────────────────────────────────────
 
-  generateBtn.addEventListener('click', async () => {
+  const globalReportLoading = document.getElementById('globalReportLoading');
+
+  // Unified generate — wipes state, shows a single top-level spinner,
+  // runs all five section generators in parallel, and reveals the
+  // sections only after every one has settled. Called from the
+  // Generate button and from the report-language toggle.
+  async function runFullGenerate() {
     if (!selectedCountry) return;
-    // Show all sections (unified scroll layout)
     statSections.classList.remove('hidden');
-    // Reset PDF state for new country/run
+    statSections.classList.add('is-loading');
+    if (globalReportLoading) globalReportLoading.classList.remove('hidden');
+
+    // Reset PDF state and wipe all stale UI so a following render
+    // can't flash old content at the user.
     pdfState.country = selectedCountry;
     pdfState.trade = null;
     pdfState.tourism = null;
@@ -475,19 +484,25 @@
     pdfState.companies = null;
     pdfState.appendix = null;
     renderAppendix(null, reportLocale === 'ka');
-    // Fire every section in parallel so all loading spinners appear at
-    // the same time — previously `await generateReport()` blocked the
-    // other four behind Trade's ~5s fetch, so only Trade flashed its
-    // spinner while the rest kept showing stale content until Trade
-    // finished. Each generate function is independent (only reads
-    // selectedCountry + classData) so there's no dependency to order.
+
     const latest = classData ? detectLatestPeriod(classData) : null;
-    generateReport();
-    generateTourism();
-    generateInvestments();
-    generateCompanies();
-    if (latest) generateAppendix(latest.year, latest.month);
-  });
+    const tasks = [
+      generateReport(),
+      generateTourism(),
+      generateInvestments(),
+      generateCompanies(),
+    ];
+    if (latest) tasks.push(generateAppendix(latest.year, latest.month));
+
+    try {
+      await Promise.allSettled(tasks);
+    } finally {
+      statSections.classList.remove('is-loading');
+      if (globalReportLoading) globalReportLoading.classList.add('hidden');
+    }
+  }
+
+  generateBtn.addEventListener('click', () => { runFullGenerate(); });
 
   async function generateReport() {
     if (!selectedCountry || !classData) return;
