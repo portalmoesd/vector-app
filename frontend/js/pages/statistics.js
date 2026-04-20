@@ -466,26 +466,51 @@
   // other fields keep their existing meaning for labels and YoY prev-year
   // comparisons.
   function detectLatestPeriod(cd) {
-    let year, month;
+    let year, month, selectedQuarter;
     if (cd && cd.selected) {
       year = cd.selected.year;
       month = cd.selected.month;
+      if (Number.isInteger(cd.selected.quarter)) selectedQuarter = cd.selected.quarter;
     } else {
       const years = (cd && cd.year || []).map(y => y.value).sort((a, b) => b - a);
       const months = (cd && cd.month || []).map(m => m.value).sort((a, b) => b - a);
       year = years[0];
       month = months[0];
     }
-    const hasQuarterList = Array.isArray(cd && cd.quarter) && cd.quarter.length > 0;
+
+    // Highest quarter visible for the latest year. Defensive against
+    // classificatory shape — items may be `{value, year}` or bare ints.
+    let maxQuarterForYear = 0;
+    const qList = Array.isArray(cd && cd.quarter) ? cd.quarter : [];
+    for (const q of qList) {
+      const v = (q && typeof q === 'object') ? q.value : q;
+      const y = (q && typeof q === 'object' && q.year != null) ? q.year : year;
+      if (y === year && Number.isInteger(v) && v >= 1 && v <= 4 && v > maxQuarterForYear) {
+        maxQuarterForYear = v;
+      }
+    }
+
     let mode = 'month';
     let quarter;
-    if (hasQuarterList && month === 12) {
+    // Prefer an explicit selected.quarter from Geostat if one is set.
+    if (selectedQuarter && selectedQuarter >= 1 && selectedQuarter <= 4) {
+      mode = selectedQuarter === 4 ? 'year' : 'quarter';
+      quarter = selectedQuarter;
+    } else if (maxQuarterForYear > 0 && maxQuarterForYear * 3 >= month) {
+      // Quarterly aggregate is available for the latest year and covers
+      // at least as much as the monthly latest. Switch to the quarter
+      // view since Geostat purges monthly detail once a quarter closes
+      // (months:[1..latestMonth] returns only the trailing month).
+      mode = maxQuarterForYear === 4 ? 'year' : 'quarter';
+      quarter = maxQuarterForYear;
+    } else if (month === 12) {
       mode = 'year';
       quarter = 4;
-    } else if (hasQuarterList && month % 3 === 0) {
-      mode = 'quarter';
-      quarter = month / 3;
     }
+
+    try {
+      console.log('[stats] detectLatestPeriod:', { year, month, quarter, mode, maxQuarterForYear, selectedQuarter });
+    } catch (_) {}
     return { year, month, quarter, mode };
   }
 
