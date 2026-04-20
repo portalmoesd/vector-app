@@ -235,7 +235,10 @@ async function fetchFlowRanking(tradeFlowCode, year, months, allCountryIds, quar
   });
 
   const stats = { withTrade: countryCount, totalMln: total, rawResponse };
-  console.log(`country-ranking [flow=${tradeFlowCode} ${year}/m${months.join(',')}]: ${countryCount} countries, total $${total.toFixed(1)}M`);
+  const periodStr = Array.isArray(quarters) && quarters.length
+    ? `q${quarters.join(',')}`
+    : `m${(months || []).join(',')}`;
+  console.log(`country-ranking [flow=${tradeFlowCode} ${year}/${periodStr}]: ${countryCount} countries, total $${total.toFixed(1)}M`);
   return { total, perCountry: map, stats };
 }
 
