@@ -450,15 +450,43 @@
   }, { rootMargin: '-160px 0px -60% 0px' });
   sectionEls.forEach(s => scrollSpy.observe(s));
 
-  // ── Determine latest available period ────────────────────────────────────
+  // ── Roman-numeral helper for quarter labels (I, II, III, IV) ──────────
+  const ROMAN = ['', 'I', 'II', 'III', 'IV'];
+  function toRoman(n) { return ROMAN[n] || String(n); }
 
+  // ── Determine latest available period ────────────────────────────────────
+  //
+  // Geostat publishes the current year in three stages:
+  //   month:   mid-quarter  — monthly data, filter `months:[1..latestMonth]`
+  //   quarter: quarter closed, monthly detail purged for that quarter —
+  //            filter `quarters:[N]`
+  //   year:    full year closed, only yearly aggregate — `quarters:[1..4]`
+  // We detect the current stage from the classificatory and the latest
+  // month. Callers use `mode` to pick the right `/get_data` filter; the
+  // other fields keep their existing meaning for labels and YoY prev-year
+  // comparisons.
   function detectLatestPeriod(cd) {
-    if (cd.selected) {
-      return { year: cd.selected.year, month: cd.selected.month };
+    let year, month;
+    if (cd && cd.selected) {
+      year = cd.selected.year;
+      month = cd.selected.month;
+    } else {
+      const years = (cd && cd.year || []).map(y => y.value).sort((a, b) => b - a);
+      const months = (cd && cd.month || []).map(m => m.value).sort((a, b) => b - a);
+      year = years[0];
+      month = months[0];
     }
-    const years = (cd.year || []).map(y => y.value).sort((a, b) => b - a);
-    const months = (cd.month || []).map(m => m.value).sort((a, b) => b - a);
-    return { year: years[0], month: months[0] };
+    const hasQuarterList = Array.isArray(cd && cd.quarter) && cd.quarter.length > 0;
+    let mode = 'month';
+    let quarter;
+    if (hasQuarterList && month === 12) {
+      mode = 'year';
+      quarter = 4;
+    } else if (hasQuarterList && month % 3 === 0) {
+      mode = 'quarter';
+      quarter = month / 3;
+    }
+    return { year, month, quarter, mode };
   }
 
   // ── Generate report ──────────────────────────────────────────────────────
@@ -492,7 +520,7 @@
       generateInvestments(),
       generateCompanies(),
     ];
-    if (latest) tasks.push(generateAppendix(latest.year, latest.month));
+    if (latest) tasks.push(generateAppendix(latest.year, latest.month, latest.mode, latest.quarter));
 
     try {
       await Promise.allSettled(tasks);
@@ -537,21 +565,43 @@
     try { const ec2 = Chart.getChart(dynamicsChartCanvas); if (ec2) ec2.destroy(); } catch (_) {}
 
     try {
-      const { year: latestYear, month: latestMonth } = detectLatestPeriod(classData);
+      const latest = detectLatestPeriod(classData);
+      const { year: latestYear, month: latestMonth, mode: periodMode, quarter: currentQuarter } = latest;
 
       const monthsYTD = [];
       for (let m = 1; m <= latestMonth; m++) monthsYTD.push(m);
 
+      // Period filter for "latest period" fetches. Geostat purges
+      // monthly detail when a quarter closes and quarterly detail when
+      // the year closes, so months:[1..latestMonth] returns only the
+      // current trailing bucket in those cases. See
+      // detectLatestPeriod + the plan file for the three modes.
+      const ytdMonths     = periodMode === 'month' ? monthsYTD : null;
+      const ytdQuarters   = periodMode === 'year'    ? [1, 2, 3, 4]
+                          : periodMode === 'quarter' ? [currentQuarter]
+                          : null;
+
+      // For historical full-year fetches: the same quarterly switch
+      // can apply to past years. When the current year reports as
+      // quarter/year we assume prior years also expose only the
+      // quarterly aggregates.
+      const fullYearMonths   = periodMode === 'month' ? [1,2,3,4,5,6,7,8,9,10,11,12] : null;
+      const fullYearQuarters = periodMode === 'month' ? null : [1, 2, 3, 4];
+
       const monthNames = classData.month || [];
       const firstMonthName = monthNames.find(m => m.value === 1)?.label || 'Jan';
       const lastMonthName = monthNames.find(m => m.value === latestMonth)?.label || `Month ${latestMonth}`;
-      const periodLabel = monthsYTD.length === 1
-        ? firstMonthName.slice(0, 3)
-        : `${firstMonthName.slice(0, 3)}-${lastMonthName.slice(0, 3)}`;
+      // periodLabel: still used as a short display token ("Jan-Feb",
+      // "Q1", "2026"). Section/title labels use the richer
+      // periodGen/periodEn variants rendered later.
+      let periodLabel;
+      if (periodMode === 'year') periodLabel = String(latestYear);
+      else if (periodMode === 'quarter') periodLabel = reportLocale === 'ka' ? `${toRoman(currentQuarter)} კვ` : `Q${currentQuarter}`;
+      else if (monthsYTD.length === 1) periodLabel = firstMonthName.slice(0, 3);
+      else periodLabel = `${firstMonthName.slice(0, 3)}-${lastMonthName.slice(0, 3)}`;
 
       const prevYear = latestYear - 1;
       const prevPrevYear = latestYear - 2;
-      const allMonths = [1,2,3,4,5,6,7,8,9,10,11,12];
       const countryId = selectedCountry.value;
 
       // Chart years: 5 previous full years
@@ -560,32 +610,29 @@
 
       // Build all fetch promises
       const fetchPromises = [
-        // Overview totals
-        fetchTradeTotal(10, [prevYear], allMonths, countryId),
-        fetchTradeTotal(10, [prevPrevYear], allMonths, countryId),
-        fetchTradeTotal(10, [latestYear], monthsYTD, countryId),
-        fetchTradeTotal(10, [prevYear], monthsYTD, countryId),
-        fetchTradeTotal(11, [prevYear], allMonths, countryId),
-        fetchTradeTotal(11, [prevPrevYear], allMonths, countryId),
-        fetchTradeTotal(11, [latestYear], monthsYTD, countryId),
-        fetchTradeTotal(11, [prevYear], monthsYTD, countryId),
-        // Product tables
-        fetchAllTradeData(10, [latestYear], monthsYTD, countryId),
-        fetchAllTradeData(10, [prevYear], monthsYTD, countryId),
-        fetchAllTradeData(13, [latestYear], monthsYTD, countryId),
-        fetchAllTradeData(11, [latestYear], monthsYTD, countryId),
-        fetchAllTradeData(11, [prevYear], monthsYTD, countryId),
+        // Overview totals — full-year buckets use the historical filter,
+        // YTD buckets use the current-period filter. prev-year YTD also
+        // uses the current-period filter so YoY compares like-for-like.
+        fetchTradeTotal(10, [prevYear],     fullYearMonths, countryId, fullYearQuarters),
+        fetchTradeTotal(10, [prevPrevYear], fullYearMonths, countryId, fullYearQuarters),
+        fetchTradeTotal(10, [latestYear],   ytdMonths,      countryId, ytdQuarters),
+        fetchTradeTotal(10, [prevYear],     ytdMonths,      countryId, ytdQuarters),
+        fetchTradeTotal(11, [prevYear],     fullYearMonths, countryId, fullYearQuarters),
+        fetchTradeTotal(11, [prevPrevYear], fullYearMonths, countryId, fullYearQuarters),
+        fetchTradeTotal(11, [latestYear],   ytdMonths,      countryId, ytdQuarters),
+        fetchTradeTotal(11, [prevYear],     ytdMonths,      countryId, ytdQuarters),
+        // Product tables — YTD only.
+        fetchAllTradeData(10, [latestYear], ytdMonths, countryId, ytdQuarters),
+        fetchAllTradeData(10, [prevYear],   ytdMonths, countryId, ytdQuarters),
+        fetchAllTradeData(13, [latestYear], ytdMonths, countryId, ytdQuarters),
+        fetchAllTradeData(11, [latestYear], ytdMonths, countryId, ytdQuarters),
+        fetchAllTradeData(11, [prevYear],   ytdMonths, countryId, ytdQuarters),
       ];
 
-      // Chart data: export & import for each of 5 years (full year)
+      // Chart data: export & import for each of 5 historical years.
       for (const y of chartYears) {
-        fetchPromises.push(fetchTradeTotal(10, [y], allMonths, countryId)); // export
-        fetchPromises.push(fetchTradeTotal(11, [y], allMonths, countryId)); // import
-      }
-      // Chart data: export & import for each month of current year
-      for (const m of monthsYTD) {
-        fetchPromises.push(fetchTradeTotal(10, [latestYear], [m], countryId));
-        fetchPromises.push(fetchTradeTotal(11, [latestYear], [m], countryId));
+        fetchPromises.push(fetchTradeTotal(10, [y], fullYearMonths, countryId, fullYearQuarters));
+        fetchPromises.push(fetchTradeTotal(11, [y], fullYearMonths, countryId, fullYearQuarters));
       }
 
       const results = await Promise.all(fetchPromises);
@@ -607,20 +654,19 @@
         chartYearImports.push(results[idx++] / 1000);
       }
 
-      // Unpack chart month results (next monthsYTD.length * 2)
-      const chartMonthExports = [];
-      const chartMonthImports = [];
-      for (let i = 0; i < monthsYTD.length; i++) {
-        chartMonthExports.push(results[idx++] / 1000);
-        chartMonthImports.push(results[idx++] / 1000);
-      }
+      // YTD bar for the dynamics/turnover charts — use the overview
+      // YTD totals directly (Thd → Mln) instead of re-fetching per
+      // month, which is both wasteful and incorrect in quarter/year
+      // mode where per-month data has been purged upstream.
+      const chartMonthExports = [expMonthCurr / 1000];
+      const chartMonthImports = [impMonthCurr / 1000];
 
       // ── 1. Trade overview table ──────────────────────────────────────
       const overview = buildOverviewData(
         { expFull: expFullCurr, expFullPrev: expFullPrev, impFull: impFullCurr, impFullPrev: impFullPrev },
         { expMonth: expMonthCurr, expMonthPrev: expMonthPrev, impMonth: impMonthCurr, impMonthPrev: impMonthPrev },
       );
-      renderOverview(overview, prevYear, prevPrevYear, latestYear, latestMonth, periodLabel, monthNames);
+      renderOverview(overview, prevYear, prevPrevYear, latestYear, latestMonth, periodLabel, monthNames, periodMode, currentQuarter);
 
       // ── 2. Charts ──────────────────────────────────────────────────────
       // Only render the turnover + dynamics charts if there's any trade
@@ -642,6 +688,7 @@
           chartYears, chartYearExports, chartYearImports,
           monthsYTD, chartMonthExports, chartMonthImports,
           latestYear, monthNames,
+          { mode: periodMode, quarter: currentQuarter },
         );
       }
 
@@ -726,11 +773,14 @@
       const ctrl = new AbortController();
       const rankTimer = setTimeout(() => ctrl.abort(), 60_000);
       try {
-        console.log('[ranking] fetching...', { year: latestYear, months: monthsYTD, countryId: selectedCountry.value });
+        const rankBody = { year: latestYear, countryId: selectedCountry.value };
+        if (ytdQuarters) rankBody.quarters = ytdQuarters;
+        else rankBody.months = monthsYTD;
+        console.log('[ranking] fetching...', rankBody);
         const rankRes = await fetch(`${PROXY_API}/country-ranking`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ year: latestYear, months: monthsYTD, countryId: selectedCountry.value }),
+          body: JSON.stringify(rankBody),
           signal: ctrl.signal,
         });
         console.log('[ranking] response status:', rankRes.status);
@@ -761,6 +811,11 @@
         overview,
         prevYear, prevPrevYear, latestYear, latestMonth,
         periodLabel, monthNames,
+        // Period mode ('month' | 'quarter' | 'year') + the closed
+        // quarter number when mode === 'quarter'. Consumed by the PDF
+        // builder to render "Q1 2026" / "2026 I კვ" labels and by
+        // renderTradeSummary's widened no-trade sentence.
+        periodMode, currentQuarter,
         hasExport, hasImport, exportGrowing, importGrowing,
         exportProducts: hasExport ? buildProductList(expHsCurrent, expHsPrev, reexHsCurrent) : null,
         importProducts: hasImport ? buildProductList(impHsCurrent, impHsPrev, null) : null,
@@ -788,19 +843,24 @@
   }
 
   // ── Fetch trade total (single value, no HS breakdown) ──────────────────
+  // `months` and `quarters` are mutually exclusive — pass one, leave the
+  // other null/undefined. Geostat's `/get_data` clears whichever isn't in
+  // the request. Quarter mode is used once a Q1/Q2/Q3 has closed (monthly
+  // detail purged); year mode passes quarters:[1,2,3,4] for a closed year.
 
-  async function fetchTradeTotal(tradeFlow, years, months, countryId) {
+  async function fetchTradeTotal(tradeFlow, years, months, countryId, quarters) {
     const filters = {
       tradeFlow,
       measurementUnits: [1],
       years,
-      months,
       countries: [countryId],
       locale: reportLocale,
       sum: true,
       page: 1,
       pageSize: 10,
     };
+    if (Array.isArray(quarters) && quarters.length) filters.quarters = quarters;
+    else filters.months = months;
 
     const json = await geostatPost('/get_data', filters);
     if (!json.success) return 0;
@@ -818,7 +878,7 @@
 
   // ── Fetch all trade data with HS breakdown (paginated) ─────────────────
 
-  async function fetchAllTradeData(tradeFlow, years, months, countryId) {
+  async function fetchAllTradeData(tradeFlow, years, months, countryId, quarters) {
     const allData = [];
     let page = 1;
     let total = Infinity;
@@ -829,7 +889,6 @@
         tradeFlow,
         measurementUnits: [1],
         years,
-        months,
         countries: [countryId],
         hs4: ['all'],
         locale: reportLocale,
@@ -837,6 +896,8 @@
         page,
         pageSize,
       };
+      if (Array.isArray(quarters) && quarters.length) filters.quarters = quarters;
+      else filters.months = months;
 
       const json = await geostatPost('/get_data', filters);
       if (!json.success) throw new Error('Trade data fetch failed');
@@ -898,19 +959,39 @@
     const rank = ranking && ranking.country ? ranking.country : null;
     const ov = trade.overview;
 
-    const periodGen = isKa
-      ? (lm === 12 ? `${year} წლის` : lm === 1 ? `${year} წლის ${KA_MONTH_GEN[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_GEN[lm]}`)
-      : (lm === 12 ? `${year}` : lm === 1 ? `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)} ${year}` : `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)}-${(mn.find(m => m.value === lm)?.label || '').slice(0, 3)} ${year}`);
-    const periodLoc = isKa
-      ? (lm === 12 ? `${year} წელს` : lm === 1 ? `${year} წლის ${KA_MONTH_LOC[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_LOC[lm]}`)
-      : periodGen;
-
-    // Expanded "no trade" period label: 5-year lookback + latest period
-    // month range, e.g. "2021-2026 წლის იანვარ-თებერვლის".
+    const mode = trade.periodMode || 'month';
+    const q = trade.currentQuarter; // 1..4 when mode === 'quarter'
     const startYear = trade.fiveYearStart || year;
-    const periodGenRange = isKa
-      ? (lm === 12 ? `${startYear}-${year} წლების` : lm === 1 ? `${startYear}-${year} წლის ${KA_MONTH_GEN[1]}` : `${startYear}-${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_GEN[lm]}`)
-      : (lm === 12 ? `${startYear}-${year}` : lm === 1 ? `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)} ${startYear}-${year}` : `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)}-${(mn.find(m => m.value === lm)?.label || '').slice(0, 3)} ${startYear}-${year}`);
+    // Period labels per mode:
+    //   month   — "Jan-Feb 2026"             / "2026 წლის იანვარ-თებერვლის"
+    //   quarter — "Q1 2026"                  / "2026 წლის I კვარტლის"
+    //   year    — "2026"                     / "2026 წლის"
+    let periodGen, periodLoc, periodGenRange;
+    if (mode === 'quarter') {
+      periodGen = isKa
+        ? `${year} წლის ${toRoman(q)} კვარტლის`
+        : `Q${q} ${year}`;
+      periodLoc = isKa
+        ? `${year} წლის ${toRoman(q)} კვარტალში`
+        : periodGen;
+      periodGenRange = isKa
+        ? `${startYear}-${year} წლების ${toRoman(q)} კვარტლის`
+        : `Q${q} ${startYear}-${year}`;
+    } else if (mode === 'year' || lm === 12) {
+      periodGen = isKa ? `${year} წლის` : `${year}`;
+      periodLoc = isKa ? `${year} წელს` : `${year}`;
+      periodGenRange = isKa ? `${startYear}-${year} წლების` : `${startYear}-${year}`;
+    } else {
+      periodGen = isKa
+        ? (lm === 1 ? `${year} წლის ${KA_MONTH_GEN[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_GEN[lm]}`)
+        : (lm === 1 ? `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)} ${year}` : `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)}-${(mn.find(m => m.value === lm)?.label || '').slice(0, 3)} ${year}`);
+      periodLoc = isKa
+        ? (lm === 1 ? `${year} წლის ${KA_MONTH_LOC[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_LOC[lm]}`)
+        : periodGen;
+      periodGenRange = isKa
+        ? (lm === 1 ? `${startYear}-${year} წლის ${KA_MONTH_GEN[1]}` : `${startYear}-${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_GEN[lm]}`)
+        : (lm === 1 ? `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)} ${startYear}-${year}` : `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)}-${(mn.find(m => m.value === lm)?.label || '').slice(0, 3)} ${startYear}-${year}`);
+    }
 
     function b(s) { return `<strong>${escapeHtml(s)}</strong>`; }
     function i(s) { return `<em>${escapeHtml(s)}</em>`; }
@@ -1042,12 +1123,19 @@
 
   // ── Render trade overview ──────────────────────────────────────────────
 
-  function renderOverview(data, prevYear, prevPrevYear, latestYear, latestMonth, periodLabel, monthNames) {
+  function renderOverview(data, prevYear, prevPrevYear, latestYear, latestMonth, periodLabel, monthNames, periodMode = 'month', currentQuarter) {
     const isKa = reportLocale === 'ka';
 
     const monthLabel = monthNames.find(m => m.value === latestMonth)?.label || `${latestMonth}`;
     const colFull = `${prevYear}`;
-    const colMonth = `${latestYear} .${String(latestMonth).padStart(2, '0')}`;
+    // Right-column header adapts to the period mode:
+    //   month   — "2026 .02"
+    //   quarter — "2026 Q1" / "2026 I კვ"
+    //   year    — "2026"
+    let colMonth;
+    if (periodMode === 'year') colMonth = `${latestYear}`;
+    else if (periodMode === 'quarter') colMonth = isKa ? `${latestYear} ${toRoman(currentQuarter)} კვ` : `${latestYear} Q${currentQuarter}`;
+    else colMonth = `${latestYear} .${String(latestMonth).padStart(2, '0')}`;
 
     overviewHeader.innerHTML = `<h3 class="stat-report__title">${escapeHtml(selectedCountry.displayLabel)} - ${isKa ? 'სავაჭრო მიმოხილვა' : 'Trade Overview'}</h3>`;
 
@@ -1144,10 +1232,11 @@
     chartYears, yearExports, yearImports,
     monthsYTD, monthExports, monthImports,
     latestYear, monthNames,
+    period = { mode: 'month' },
   ) {
     const isKa = reportLocale === 'ka';
 
-    // Build labels: "2021", "2022", ... "2025", "Jan-Feb'26"
+    // Build labels: "2021", "2022", ... "2025", "<YTD label>".
     const labels = chartYears.map(String);
     const shortYear = String(latestYear).slice(2);
 
@@ -1155,7 +1244,19 @@
     const ytdExport = monthExports.reduce((s, v) => s + v, 0);
     const ytdImport = monthImports.reduce((s, v) => s + v, 0);
 
-    if (monthsYTD.length === 1) {
+    // YTD bar label adapts to the period mode:
+    //   quarter → "Q1 '26" / "I კვ '26"
+    //   year    → no YTD bar (latestYear is already in chartYears)
+    //   month   → "Jan-Feb'26" / "იან-თებ'26"
+    if (period.mode === 'year') {
+      // Year mode: drop the extra YTD bar. chartYears already covers
+      // every closed year including the one just finished.
+      // (No label pushed.)
+    } else if (period.mode === 'quarter') {
+      const q = period.quarter;
+      const qLabel = isKa ? `${toRoman(q)} კვ` : `Q${q}`;
+      labels.push(`${qLabel}'${shortYear}`);
+    } else if (monthsYTD.length === 1) {
       const mName = monthNames.find(mn => mn.value === monthsYTD[0])?.label || `M${monthsYTD[0]}`;
       labels.push(`${mName.slice(0, 3)}'${shortYear}`);
     } else {
@@ -1164,11 +1265,11 @@
       labels.push(`${first.slice(0, 3)}-${last.slice(0, 3)}'${shortYear}`);
     }
 
-    // Turnover data = export + import
-    const turnoverData = [
-      ...yearExports.map((e, i) => e + yearImports[i]),
-      ytdExport + ytdImport,
-    ];
+    // Turnover data = export + import. Year mode already includes
+    // latestYear in chartYears (6 full years); other modes append the
+    // extra YTD aggregate bar.
+    const turnoverData = yearExports.map((e, i) => e + yearImports[i]);
+    if (period.mode !== 'year') turnoverData.push(ytdExport + ytdImport);
 
     // Common chart options
     const commonOptions = {
@@ -1237,8 +1338,14 @@
         </div>
       </div>`;
 
-    const expData = [...yearExports, ytdExport];
-    const impData = [...yearImports, ytdImport];
+    // Same YTD-bar handling as the turnover chart: skip in year mode,
+    // append otherwise.
+    const expData = [...yearExports];
+    const impData = [...yearImports];
+    if (period.mode !== 'year') {
+      expData.push(ytdExport);
+      impData.push(ytdImport);
+    }
 
     dynamicsChartInstance = new Chart(dynamicsChartCanvas, {
       type: 'bar',
@@ -2607,15 +2714,27 @@
   // Data source: POST /api/statistics/country-ranking (one call per column,
   // server-side cached).
 
-  function buildAppendixColumns(latestYear, latestMonth) {
+  function buildAppendixColumns(latestYear, latestMonth, periodMode, currentQuarter) {
+    const isKa = reportLocale === 'ka';
     const cols = [];
-    if (latestMonth >= 12) {
-      // Recent period is a full year → 6 full years, no YTD comparison
+    const mode = periodMode || 'month';
+    if (mode === 'year' || latestMonth >= 12) {
+      // Recent period is a full year → 6 full years, no YTD comparison.
+      // kind:'full' columns are fetched with the full-year filter
+      // (quarters:[1..4] when we've globally switched to quarterly).
       for (let y = latestYear - 5; y <= latestYear; y++) {
         cols.push({ kind: 'full', year: y, label: String(y) });
       }
+    } else if (mode === 'quarter') {
+      // 5 full years + two YTD quarter columns.
+      for (let y = latestYear - 5; y <= latestYear - 1; y++) {
+        cols.push({ kind: 'full', year: y, label: String(y) });
+      }
+      const qLabel = (y) => isKa ? `${y} ${toRoman(currentQuarter)} კვ` : `${y} Q${currentQuarter}`;
+      cols.push({ kind: 'quarter', year: latestYear - 1, quarter: currentQuarter, label: qLabel(latestYear - 1) });
+      cols.push({ kind: 'quarter', year: latestYear,     quarter: currentQuarter, label: qLabel(latestYear)     });
     } else {
-      // 5 full years + the recent YTD period and the same YTD of the prior year
+      // 5 full years + two YTD month-range columns.
       for (let y = latestYear - 5; y <= latestYear - 1; y++) {
         cols.push({ kind: 'full', year: y, label: String(y) });
       }
@@ -2628,17 +2747,28 @@
     return cols;
   }
 
-  async function fetchAppendixColumn(column, countryId) {
+  async function fetchAppendixColumn(column, countryId, periodMode) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 60_000);
-    const months = column.kind === 'full'
-      ? [1,2,3,4,5,6,7,8,9,10,11,12]
-      : column.months;
+    // Build the period filter:
+    //   kind:'full' + periodMode!==month → full-year quarter aggregate
+    //   kind:'quarter'                    → single-quarter aggregate
+    //   kind:'ytd' / kind:'full' monthly  → month range
+    let body = { year: column.year, countryId };
+    if (column.kind === 'quarter') {
+      body.quarters = [column.quarter];
+    } else if (column.kind === 'full' && periodMode && periodMode !== 'month') {
+      body.quarters = [1, 2, 3, 4];
+    } else if (column.kind === 'full') {
+      body.months = [1,2,3,4,5,6,7,8,9,10,11,12];
+    } else {
+      body.months = column.months;
+    }
     try {
       const res = await fetch(`${PROXY_API}/country-ranking`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ year: column.year, months, countryId }),
+        body: JSON.stringify(body),
         signal: ctrl.signal,
       });
       const j = await res.json().catch(() => null);
@@ -2663,10 +2793,10 @@
     }
   }
 
-  async function buildAppendix(latestYear, latestMonth, countryId) {
-    const columns = buildAppendixColumns(latestYear, latestMonth);
+  async function buildAppendix(latestYear, latestMonth, countryId, periodMode, currentQuarter) {
+    const columns = buildAppendixColumns(latestYear, latestMonth, periodMode, currentQuarter);
     const settled = await Promise.allSettled(
-      columns.map((c) => fetchAppendixColumn(c, countryId))
+      columns.map((c) => fetchAppendixColumn(c, countryId, periodMode))
     );
     const data = settled.map((s) => (s.status === 'fulfilled' ? s.value : null));
     const anyData = data.some((d) => d && d.totals);
@@ -2675,6 +2805,8 @@
       latestYear,
       latestMonth,
       ytdMode: latestMonth < 12,
+      periodMode,
+      currentQuarter,
       columns,
       data,
     };
@@ -2730,6 +2862,7 @@
       if (a.kind !== b.kind) return false;
       if (b.year - a.year !== 1) return false;
       if (b.kind === 'ytd' && a.months.length !== b.months.length) return false;
+      if (b.kind === 'quarter' && a.quarter !== b.quarter) return false;
       return true;
     }
 
@@ -2814,7 +2947,7 @@
     appendixTableEl.innerHTML = html;
   }
 
-  async function generateAppendix(latestYear, latestMonth) {
+  async function generateAppendix(latestYear, latestMonth, periodMode, currentQuarter) {
     if (!selectedCountry) return;
     if (appendixLoadingEl) appendixLoadingEl.classList.remove('hidden');
     // Clear stale content so the spinner is the only thing visible while
@@ -2822,7 +2955,7 @@
     if (appendixTableEl) appendixTableEl.innerHTML = '';
     if (appendixHeaderEl) appendixHeaderEl.innerHTML = '';
     try {
-      const appendix = await buildAppendix(latestYear, latestMonth, selectedCountry.value);
+      const appendix = await buildAppendix(latestYear, latestMonth, selectedCountry.value, periodMode, currentQuarter);
       pdfState.appendix = appendix;
       renderAppendix(appendix, reportLocale === 'ka');
     } catch (err) {
