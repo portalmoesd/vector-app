@@ -196,6 +196,58 @@
     console.error('Failed to load classificatory data:', err);
   }
 
+  // Probe-forward: Geostat sometimes publishes a new month's data before
+  // updating `selected.month` in the classificatory, which leaves the
+  // whole page pinned to the previous month. Verify `selected.month` by
+  // asking /get_data whether month+1 and month+2 already have rows for
+  // Georgia. Both probes run in parallel, so worst-case added latency is
+  // one Geostat round trip and happens only once on page init.
+  async function verifyLatestMonth() {
+    const primary = classDataEn || classDataKa;
+    if (!primary || !primary.selected) return;
+    const { year, month } = primary.selected;
+    if (!Number.isInteger(year) || !Number.isInteger(month) || month >= 12) return;
+
+    async function hasDataFor(m) {
+      try {
+        const json = await geostatPost('/get_data', {
+          tradeFlow: 10,
+          measurementUnits: [1],
+          years: [year],
+          months: [m],
+          sum: true,
+          page: 1,
+          pageSize: 1,
+        });
+        if (!json || !json.success || !Array.isArray(json.data)) return false;
+        for (const row of json.data) {
+          for (const k of Object.keys(row)) {
+            if (k.startsWith('usd1000_')) {
+              const v = parseFloat(row[k]);
+              if (!isNaN(v) && v > 0) return true;
+            }
+          }
+        }
+        return false;
+      } catch (_) { return false; }
+    }
+
+    const [p1, p2] = await Promise.all([
+      hasDataFor(month + 1),
+      month + 2 <= 12 ? hasDataFor(month + 2) : Promise.resolve(false),
+    ]);
+    let verified = month;
+    if (p1) verified = month + 1;
+    if (p2) verified = month + 2;
+    if (verified !== month) {
+      console.log(`[stats] probe-forward: classificatory selected month ${month} → verified ${verified}`);
+      if (classDataEn && classDataEn.selected) classDataEn.selected.month = verified;
+      if (classDataKa && classDataKa.selected) classDataKa.selected.month = verified;
+    }
+  }
+
+  try { await verifyLatestMonth(); } catch (_) { /* non-fatal */ }
+
   function applyReportLocaleToCountries() {
     const ka = reportLocale === 'ka';
     // Swap classData so month/year labels pick up the new locale.

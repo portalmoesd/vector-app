@@ -31,24 +31,26 @@ async function geostatFetch(path, options = {}) {
 
 // ── GET /api/statistics/classificatory ──────────────────────────────────────
 // Returns countries, trade types, years, months, HS codes, etc.
+// Strategy: fetch live every time, fall back to last-known-good only if
+// Geostat is unreachable. `selected.month` changes when Geostat publishes
+// a new month, so a stale cache can make the whole page display an old
+// period — don't gate freshness behind a TTL.
 
 let classCache = { en: null, ka: null, ts: 0 };
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 router.get('/classificatory', async (req, res) => {
+  const lang = req.query.lang === 'ka' ? 'ka' : 'en';
   try {
-    const lang = req.query.lang === 'ka' ? 'ka' : 'en';
-
-    if (classCache[lang] && Date.now() - classCache.ts < CACHE_TTL) {
-      return res.json(classCache[lang]);
-    }
-
     const data = await geostatFetch(`/classificatory?lang=${lang}`);
     classCache[lang] = data;
     classCache.ts = Date.now();
     res.json(data);
   } catch (err) {
     console.error('Statistics classificatory error:', err.message);
+    if (classCache[lang]) {
+      console.warn(`Serving stale classificatory (${lang}) from ${new Date(classCache.ts).toISOString()}`);
+      return res.json(classCache[lang]);
+    }
     res.status(502).json({ error: 'Failed to fetch classificatory data from Geostat' });
   }
 });
@@ -237,8 +239,11 @@ async function fetchFlowRanking(tradeFlowCode, year, months, allCountryIds) {
 }
 
 async function getAllCountryIds() {
-  // Reuse the classificatory cache so we don't hit Geostat again.
-  if (classCache.en && Date.now() - classCache.ts < CACHE_TTL) {
+  // Reuse whatever classificatory response we have in memory — countries
+  // don't change between months, so the "last-known-good" entry is always
+  // correct for ID extraction. Falls through to a live fetch only on a
+  // cold start.
+  if (classCache.en) {
     return (classCache.en.data?.countries || []).map((c) => c.value).filter((v) => v != null);
   }
   const data = await geostatFetch('/classificatory?lang=en');
