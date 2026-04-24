@@ -162,20 +162,14 @@
     12: { stem: 'დეკემბერ',   gen: 'დეკემბრის',   loc: 'დეკემბერში'  },
   };
 
-  const ROMAN_Q = ['', 'I', 'II', 'III', 'IV'];
-
-  // `mode` ∈ 'month' | 'quarter' | 'year' — see detectLatestPeriod.
-  // `quarter` is set when mode === 'quarter'.
-  function gePeriodGen(year, latestMonth, mode, quarter) {
-    if (mode === 'quarter') return `${year} წლის ${ROMAN_Q[quarter]} კვარტლის`;
-    if (mode === 'year' || latestMonth === 12) return `${year} წლის`;
+  function gePeriodGen(year, latestMonth) {
+    if (latestMonth === 12) return `${year} წლის`;
     if (latestMonth === 1)  return `${year} წლის ${KA_MONTHS[1].gen}`;
     return `${year} წლის ${KA_MONTHS[1].stem}\u2011${KA_MONTHS[latestMonth].gen}`;
   }
 
-  function gePeriodLoc(year, latestMonth, mode, quarter) {
-    if (mode === 'quarter') return `${year} წლის ${ROMAN_Q[quarter]} კვარტალში`;
-    if (mode === 'year' || latestMonth === 12) return `${year} წელს`;
+  function gePeriodLoc(year, latestMonth) {
+    if (latestMonth === 12) return `${year} წელს`;
     if (latestMonth === 1)  return `${year} წლის ${KA_MONTHS[1].loc}`;
     return `${year} წლის ${KA_MONTHS[1].stem}\u2011${KA_MONTHS[latestMonth].loc}`;
   }
@@ -184,36 +178,33 @@
 
   const KA_MONTHS_SHORT = { 1:'იან', 2:'თებ', 3:'მარ', 4:'აპრ', 5:'მაი', 6:'ივნ', 7:'ივლ', 8:'აგვ', 9:'სექ', 10:'ოქტ', 11:'ნოე', 12:'დეკ' };
 
-  // Derive the short period label ("Jan-Feb" / "იან-თებ" / "Q1" / "I კვ")
-  // from the current-period descriptor + the PDF's language.
-  function periodShortLabel(latestMonth, lang, mode, quarter) {
-    if (mode === 'quarter') return lang === 'ka' ? `${ROMAN_Q[quarter]} კვ` : `Q${quarter}`;
-    if (mode === 'year' || latestMonth === 12) return '';
+  // Derive the short period label ("Jan-Feb" / "იან-თებ") from latestMonth +
+  // the PDF's language. trade.periodLabel is baked from the page locale at
+  // fetch time, which is wrong when PDF language differs from page language.
+  function periodShortLabel(latestMonth, lang) {
     const months = lang === 'ka' ? KA_MONTHS_SHORT : EN_MONTHS;
+    if (latestMonth === 12) return '';
     if (latestMonth === 1) return months[1];
     return `${months[1]}-${months[latestMonth]}`;
   }
 
-  function enPeriod(year, latestMonth, mode, quarter) {
-    if (mode === 'quarter') return `Q${quarter} ${year}`;
-    if (mode === 'year' || latestMonth === 12) return String(year);
+  function enPeriod(year, latestMonth) {
+    if (latestMonth === 12) return String(year);
     if (latestMonth === 1) return `${EN_MONTHS[1]} ${year}`;
     return `${EN_MONTHS[1]}-${EN_MONTHS[latestMonth]} ${year}`;
   }
 
   // Widened "no trade" range — spans the 5-year lookback + latest
   // period, e.g. "2021-2026 წლის იანვარ-თებერვლის" / "Jan-Feb 2021-2026".
-  function gePeriodGenRange(startYear, endYear, latestMonth, mode, quarter) {
+  function gePeriodGenRange(startYear, endYear, latestMonth) {
     const years = `${startYear}-${endYear}`;
-    if (mode === 'quarter') return `${years} წლების ${ROMAN_Q[quarter]} კვარტლის`;
-    if (mode === 'year' || latestMonth === 12) return `${years} წლების`;
+    if (latestMonth === 12) return `${years} წლების`;
     if (latestMonth === 1)  return `${years} წლის ${KA_MONTHS[1].gen}`;
     return `${years} წლის ${KA_MONTHS[1].stem}\u2011${KA_MONTHS[latestMonth].gen}`;
   }
-  function enPeriodRange(startYear, endYear, latestMonth, mode, quarter) {
+  function enPeriodRange(startYear, endYear, latestMonth) {
     const years = `${startYear}-${endYear}`;
-    if (mode === 'quarter') return `Q${quarter} ${years}`;
-    if (mode === 'year' || latestMonth === 12) return years;
+    if (latestMonth === 12) return years;
     if (latestMonth === 1) return `${EN_MONTHS[1]} ${years}`;
     return `${EN_MONTHS[1]}-${EN_MONTHS[latestMonth]} ${years}`;
   }
@@ -340,9 +331,7 @@
     const latestYear = periodMeta.latestYear;
     const colFull = String(prevYear);
     const monthLbl = monthNames.find(m => m.value === latestMonth)?.label || '';
-    const colMonth = periodMeta.periodLabel
-      ? `${periodMeta.periodLabel} ${latestYear}`
-      : String(latestYear);
+    const colMonth = `${periodMeta.periodLabel} ${latestYear}`;
 
     const rows = [
       { key: 'turnover', label: t.turnover },
@@ -486,11 +475,9 @@
   // ── Trade summary paragraphs ───────────────────────────────────────────
   function buildTradeSummary(trade, t, country, lang) {
     const isKa = lang === 'ka';
-    const pMode = trade.periodMode || 'month';
-    const pQ = trade.currentQuarter;
-    const periodGen = isKa ? gePeriodGen(trade.latestYear, trade.latestMonth, pMode, pQ) : null;
-    const periodLoc = isKa ? gePeriodLoc(trade.latestYear, trade.latestMonth, pMode, pQ) : null;
-    const periodEn  = !isKa ? enPeriod(trade.latestYear, trade.latestMonth, pMode, pQ) : null;
+    const periodGen = isKa ? gePeriodGen(trade.latestYear, trade.latestMonth) : null;
+    const periodLoc = isKa ? gePeriodLoc(trade.latestYear, trade.latestMonth) : null;
+    const periodEn  = !isKa ? enPeriod(trade.latestYear, trade.latestMonth) : null;
     const rank = trade.ranking && trade.ranking.country ? trade.ranking.country : null;
 
     const B = (s) => ({ text: s, bold: true });
@@ -545,10 +532,10 @@
       // full 5-year + latest window when there's zero trade everywhere.
       const widen = trade.hasAnyTrade === false && trade.fiveYearStart;
       const kaLabel = widen
-        ? gePeriodGenRange(trade.fiveYearStart, trade.latestYear, trade.latestMonth, pMode, pQ)
+        ? gePeriodGenRange(trade.fiveYearStart, trade.latestYear, trade.latestMonth)
         : periodGen;
       const enLabel = widen
-        ? enPeriodRange(trade.fiveYearStart, trade.latestYear, trade.latestMonth, pMode, pQ)
+        ? enPeriodRange(trade.fiveYearStart, trade.latestYear, trade.latestMonth)
         : periodEn;
       nodes.push({ text: isKa
         ? `${kaLabel} მონაცემებით, ვაჭრობა არ განხორციელდა.`
@@ -698,16 +685,10 @@
     // Derive the period label in the PDF's language. trade.periodLabel was
     // baked from the page locale at fetch time, which is wrong when the
     // user exports an EN PDF from the KA page (or vice versa).
-    const periodLabel = periodShortLabel(trade.latestMonth, lang, trade.periodMode, trade.currentQuarter) || trade.periodLabel || '';
-    // For subtitles / titles that read "<label> <year>". Year mode
-    // returns '' as label, so collapse the leading whitespace so the
-    // title reads "Turkey - Trade Overview, 2026" not ", 2026".
-    const periodAndYear = periodLabel
-      ? `${periodAndYear}`
-      : String(trade.latestYear);
+    const periodLabel = periodShortLabel(trade.latestMonth, lang) || trade.periodLabel;
 
     const blocks = [];
-    const title = `${country} - ${t.tradeOverview}, ${periodAndYear}`;
+    const title = `${country} - ${t.tradeOverview}, ${periodLabel} ${trade.latestYear}`;
     const summary = buildTradeSummary(trade, t, country, lang);
     blocks.push(withTitle(
       sectionTitle(title),
@@ -755,7 +736,7 @@
     // Export products + changes
     if (trade.hasExport) {
       blocks.push(withTitle(
-        subTitle(`${t.mainExport}, ${periodAndYear}`),
+        subTitle(`${t.mainExport}, ${periodLabel} ${trade.latestYear}`),
         buildProductsTable(trade.exportProducts, t, periodLabel, trade.latestYear, true, lang),
       ));
 
@@ -766,13 +747,13 @@
 
       if (incProds && incProds.length) {
         blocks.push(withTitle(
-          subTitle(`${incLabel}, ${periodAndYear}`),
+          subTitle(`${incLabel}, ${periodLabel} ${trade.latestYear}`),
           buildChangeTable(incProds, t, periodLabel, trade.latestYear, lang),
         ));
       }
       if (dropProds && dropProds.length) {
         blocks.push(withTitle(
-          subTitle(`${dropLabel}, ${periodAndYear}`),
+          subTitle(`${dropLabel}, ${periodLabel} ${trade.latestYear}`),
           buildChangeTable(dropProds, t, periodLabel, trade.latestYear, lang),
         ));
       }
@@ -781,7 +762,7 @@
     // Import products + changes
     if (trade.hasImport) {
       blocks.push(withTitle(
-        subTitle(`${t.mainImport}, ${periodAndYear}`),
+        subTitle(`${t.mainImport}, ${periodLabel} ${trade.latestYear}`),
         buildProductsTable(trade.importProducts, t, periodLabel, trade.latestYear, false, lang),
       ));
 
@@ -792,13 +773,13 @@
 
       if (incProds && incProds.length) {
         blocks.push(withTitle(
-          subTitle(`${incLabel}, ${periodAndYear}`),
+          subTitle(`${incLabel}, ${periodLabel} ${trade.latestYear}`),
           buildChangeTable(incProds, t, periodLabel, trade.latestYear, lang),
         ));
       }
       if (dropProds && dropProds.length) {
         blocks.push(withTitle(
-          subTitle(`${dropLabel}, ${periodAndYear}`),
+          subTitle(`${dropLabel}, ${periodLabel} ${trade.latestYear}`),
           buildChangeTable(dropProds, t, periodLabel, trade.latestYear, lang),
         ));
       }
