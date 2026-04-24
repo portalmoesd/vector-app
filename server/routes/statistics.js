@@ -163,29 +163,26 @@ function extractRowCountryId(row) {
   return row.country ?? row.country_id ?? row.countryId ?? row.country_code ?? null;
 }
 
-async function fetchFlowRanking(tradeFlowCode, year, months, allCountryIds, quarters) {
-  // Single Geostat call: pass ALL country IDs + the period filter
-  // (months or quarters, mutually exclusive) + sum=true.
+async function fetchFlowRanking(tradeFlowCode, year, months, allCountryIds) {
+  // Single Geostat call: pass ALL country IDs + all months + sum=true.
 
   let rawResponse = null;
   const perCountry = {}; // String(countryId) -> valueThd
 
   try {
-    const payload = {
-      tradeFlow: tradeFlowCode,
-      measurementUnits: [1],
-      years: [year],
-      countries: allCountryIds,
-      sum: true,
-      locale: 'en',
-      page: 1,
-      pageSize: 500,
-    };
-    if (Array.isArray(quarters) && quarters.length) payload.quarters = quarters;
-    else payload.months = months;
     const json = await geostatFetch('/get_data', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        tradeFlow: tradeFlowCode,
+        measurementUnits: [1],
+        years: [year],
+        months,
+        countries: allCountryIds,
+        sum: true,
+        locale: 'en',
+        page: 1,
+        pageSize: 500,
+      }),
     });
     rawResponse = {
       success: json.success,
@@ -262,33 +259,20 @@ router.post('/country-ranking', async (req, res) => {
     countryFoundInFlows: null,
   };
   try {
-    const { year, months, quarters, countryId } = req.body || {};
+    const { year, months, countryId } = req.body || {};
     // Validation
     if (!Number.isInteger(year) || year < 1990 || year > 2100) {
       return res.status(400).json({ error: 'Invalid year', _debug: debug });
     }
-    const hasQuarters = Array.isArray(quarters) && quarters.length > 0;
-    if (hasQuarters) {
-      if (quarters.some((q) => !Number.isInteger(q) || q < 1 || q > 4)) {
-        return res.status(400).json({ error: 'Invalid quarters', _debug: debug });
-      }
-    } else {
-      if (!Array.isArray(months) || months.length === 0 || months.some((m) => !Number.isInteger(m) || m < 1 || m > 12)) {
-        return res.status(400).json({ error: 'Invalid months', _debug: debug });
-      }
+    if (!Array.isArray(months) || months.length === 0 || months.some((m) => !Number.isInteger(m) || m < 1 || m > 12)) {
+      return res.status(400).json({ error: 'Invalid months', _debug: debug });
     }
     if (countryId == null || countryId === '') {
       return res.status(400).json({ error: 'Invalid countryId', _debug: debug });
     }
 
-    const sortedMonths = hasQuarters ? null : [...months].sort((a, b) => a - b);
-    const sortedQuarters = hasQuarters ? [...quarters].sort((a, b) => a - b) : null;
-    // Prefix with q/m so month-based and quarter-based cache entries
-    // for the same year can't collide (a year-closed call's
-    // quarters:[1..4] is not the same as months:[1..12]).
-    const cacheKey = hasQuarters
-      ? `${year}:q${sortedQuarters.join(',')}`
-      : `${year}:m${sortedMonths.join(',')}`;
+    const sortedMonths = [...months].sort((a, b) => a - b);
+    const cacheKey = `${year}:${sortedMonths.join(',')}`;
     debug.cacheKey = cacheKey;
     debug.countryIdRequested = String(countryId);
     debug.countryIdType = typeof countryId;
@@ -300,15 +284,15 @@ router.post('/country-ranking', async (req, res) => {
       const t0 = Date.now();
       const allCountryIds = await getAllCountryIds();
       debug.classificatoryCountries = allCountryIds.length;
-      console.log(`country-ranking: computing for ${cacheKey}, ${allCountryIds.length} countries`);
+      console.log(`country-ranking: computing for ${year}/m${sortedMonths.join(',')}, ${allCountryIds.length} countries`);
 
       // 4 parallel Geostat calls: export + import + domestic export + re-export.
-      // Each passes ALL country IDs + the period filter + sum=true.
+      // Each passes ALL country IDs + full months array + sum=true.
       const [exp, imp, domExp, reExp] = await Promise.all([
-        fetchFlowRanking(10, year, sortedMonths, allCountryIds, sortedQuarters),
-        fetchFlowRanking(11, year, sortedMonths, allCountryIds, sortedQuarters),
-        fetchFlowRanking(12, year, sortedMonths, allCountryIds, sortedQuarters),
-        fetchFlowRanking(13, year, sortedMonths, allCountryIds, sortedQuarters),
+        fetchFlowRanking(10, year, sortedMonths, allCountryIds),
+        fetchFlowRanking(11, year, sortedMonths, allCountryIds),
+        fetchFlowRanking(12, year, sortedMonths, allCountryIds),
+        fetchFlowRanking(13, year, sortedMonths, allCountryIds),
       ]);
 
       // Compute turnover per country = export + import
