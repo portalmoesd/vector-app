@@ -489,15 +489,6 @@
         maxQuarterForYear = v;
       }
     }
-    // Geostat's classificatory often returns `cd.quarter` as generic
-    // labels (1..4) without year binding, so the loop above can inflate
-    // maxQuarterForYear to 4 even though only the current quarter is
-    // actually published. Cap it by the quarter that contains the latest
-    // month — a quarter beyond that can't exist for the current year.
-    if (month && maxQuarterForYear > 0) {
-      const quarterOfLatestMonth = Math.ceil(month / 3);
-      if (maxQuarterForYear > quarterOfLatestMonth) maxQuarterForYear = quarterOfLatestMonth;
-    }
 
     let mode = 'month';
     let quarter;
@@ -1494,9 +1485,8 @@
     }
 
     const isKa = reportLocale === 'ka';
-    const periodHeader = periodHeaderTitle(periodLabel, year);
     const hProduct = isKa ? 'პროდუქცია (HS 4-ნიშნა)' : 'Product (HS 4-digit)';
-    const hValue = isKa ? `${periodHeader}<br>მლნ. $` : `${periodHeader}<br>mln $`;
+    const hValue = isKa ? `${periodLabel} ${year}<br>მლნ. $` : `${periodLabel} ${year}<br>mln $`;
     const hChange = isKa ? 'ცვლილება<br>%' : 'Change<br>%';
     const hDiff = isKa ? 'სხვაობა<br>მლნ. $' : 'Difference<br>mln $';
 
@@ -1637,14 +1627,6 @@
 
   // ── Render section header ────────────────────────────────────────────────
 
-  // Year-mode `periodLabel` is already just the year, so appending `year`
-  // yields "2026 2026". Dedupe when they match.
-  function periodHeaderTitle(periodLabel, year) {
-    const y = String(year);
-    if (!periodLabel || periodLabel === y) return y;
-    return `${periodLabel} ${y}`;
-  }
-
   function renderSectionHeader(el, type, periodLabel, year) {
     const isKa = reportLocale === 'ka';
     const labels = {
@@ -1655,7 +1637,7 @@
       importIncrease: isKa ? 'იმპორტში ყველაზე მეტად გაზრდილი პროდუქცია' : 'Most Increased Import Products',
       importDrop: isKa ? 'იმპორტში ყველაზე მეტად შემცირებული პროდუქცია' : 'Most Decreased Import Products',
     };
-    const t = `${selectedCountry.displayLabel} - ${labels[type]}, ${periodHeaderTitle(periodLabel, year)}`;
+    const t = `${selectedCountry.displayLabel} - ${labels[type]}, ${periodLabel} ${year}`;
     el.innerHTML = `<h3 class="stat-report__title">${escapeHtml(t)}</h3>`;
   }
 
@@ -1668,9 +1650,8 @@
     }
 
     const isKa = reportLocale === 'ka';
-    const periodHeader = periodHeaderTitle(periodLabel, year);
     const hProduct = isKa ? 'პროდუქცია (HS 4-ნიშნა)' : 'Product (HS 4-digit)';
-    const hValue = isKa ? `${periodHeader}<br>მლნ. $` : `${periodHeader}<br>mln $`;
+    const hValue = isKa ? `${periodLabel} ${year}<br>მლნ. $` : `${periodLabel} ${year}<br>mln $`;
     const hChange = isKa ? 'ცვლილება<br>%' : 'Change<br>%';
     const hReexport = isKa ? 'რეექსპორტის წილი<br>%' : 'Re-export share<br>%';
 
