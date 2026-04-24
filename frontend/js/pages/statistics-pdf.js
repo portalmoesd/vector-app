@@ -703,7 +703,7 @@
     // returns '' as label, so collapse the leading whitespace so the
     // title reads "Turkey - Trade Overview, 2026" not ", 2026".
     const periodAndYear = periodLabel
-      ? `${periodLabel} ${trade.latestYear}`
+      ? `${periodAndYear}`
       : String(trade.latestYear);
 
     const blocks = [];
