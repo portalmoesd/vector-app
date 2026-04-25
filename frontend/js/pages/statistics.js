@@ -610,48 +610,82 @@
       const chartYears = [];
       for (let y = prevYear - 4; y <= prevYear; y++) chartYears.push(y);
 
-      // Build all fetch promises
-      const fetchPromises = [
-        // Overview totals
-        fetchTradeTotal(10, [prevYear], allMonths, countryId),
-        fetchTradeTotal(10, [prevPrevYear], allMonths, countryId),
-        fetchTradeTotal(10, [latestYear], monthsYTD, countryId),
-        fetchTradeTotal(10, [prevYear], monthsYTD, countryId),
-        fetchTradeTotal(11, [prevYear], allMonths, countryId),
-        fetchTradeTotal(11, [prevPrevYear], allMonths, countryId),
-        fetchTradeTotal(11, [latestYear], monthsYTD, countryId),
-        fetchTradeTotal(11, [prevYear], monthsYTD, countryId),
-        // Product tables
-        fetchAllTradeData(10, [latestYear], monthsYTD, countryId),
-        fetchAllTradeData(10, [prevYear], monthsYTD, countryId),
-        fetchAllTradeData(13, [latestYear], monthsYTD, countryId),
-        fetchAllTradeData(11, [latestYear], monthsYTD, countryId),
-        fetchAllTradeData(11, [prevYear], monthsYTD, countryId),
-      ];
+      // Try the server-side bundle first — single round trip, no
+      // browser 6-conn cap. Fall back to per-call fetches if the
+      // proxy is unavailable so the page still works in degraded
+      // environments.
+      let expFullCurr, expFullPrev, expMonthCurr, expMonthPrev,
+          impFullCurr, impFullPrev, impMonthCurr, impMonthPrev,
+          expHsCurrent, expHsPrev, reexHsCurrent,
+          impHsCurrent, impHsPrev,
+          chartYearExports, chartYearImports;
 
-      // Chart data: export & import for each of 5 years (full year)
-      for (const y of chartYears) {
-        fetchPromises.push(fetchTradeTotal(10, [y], allMonths, countryId)); // export
-        fetchPromises.push(fetchTradeTotal(11, [y], allMonths, countryId)); // import
+      let bundle = null;
+      try {
+        const res = await fetch(`${PROXY_API}/report-bundle`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            countryId,
+            latestYear, latestMonth,
+            prevYear, prevPrevYear,
+            chartYears, monthsYTD,
+            locale: reportLocale,
+          }),
+        });
+        if (res.ok) {
+          const j = await res.json().catch(() => null);
+          if (j && j.success) bundle = j;
+        }
+      } catch (err) {
+        console.warn('[stats] /report-bundle request failed, falling back to per-call', err && err.message);
       }
 
-      const results = await Promise.all(fetchPromises);
-
-      // Unpack overview & product table results (first 13)
-      const [
-        expFullCurr, expFullPrev, expMonthCurr, expMonthPrev,
-        impFullCurr, impFullPrev, impMonthCurr, impMonthPrev,
-        expHsCurrent, expHsPrev, reexHsCurrent,
-        impHsCurrent, impHsPrev,
-      ] = results;
-
-      // Unpack chart year results (next chartYears.length * 2)
-      let idx = 13;
-      const chartYearExports = [];
-      const chartYearImports = [];
-      for (let i = 0; i < chartYears.length; i++) {
-        chartYearExports.push(results[idx++] / 1000); // Thsd → Mln
-        chartYearImports.push(results[idx++] / 1000);
+      if (bundle) {
+        ({ expFullCurr, expFullPrev, expMonthCurr, expMonthPrev,
+           impFullCurr, impFullPrev, impMonthCurr, impMonthPrev } = bundle.overview);
+        ({ expHsCurrent, expHsPrev, reexHsCurrent, impHsCurrent, impHsPrev } = bundle.products);
+        // Chart year totals come back in thousands USD; convert to mln.
+        chartYearExports = (bundle.chart.yearExports || []).map((v) => (v || 0) / 1000);
+        chartYearImports = (bundle.chart.yearImports || []).map((v) => (v || 0) / 1000);
+        if (bundle.errors && bundle.errors.length) {
+          console.warn('[stats] /report-bundle returned with partial errors:', bundle.errors);
+        }
+      } else {
+        console.warn('[stats] /report-bundle unavailable — using per-call fallback');
+        const fetchPromises = [
+          fetchTradeTotal(10, [prevYear], allMonths, countryId),
+          fetchTradeTotal(10, [prevPrevYear], allMonths, countryId),
+          fetchTradeTotal(10, [latestYear], monthsYTD, countryId),
+          fetchTradeTotal(10, [prevYear], monthsYTD, countryId),
+          fetchTradeTotal(11, [prevYear], allMonths, countryId),
+          fetchTradeTotal(11, [prevPrevYear], allMonths, countryId),
+          fetchTradeTotal(11, [latestYear], monthsYTD, countryId),
+          fetchTradeTotal(11, [prevYear], monthsYTD, countryId),
+          fetchAllTradeData(10, [latestYear], monthsYTD, countryId),
+          fetchAllTradeData(10, [prevYear], monthsYTD, countryId),
+          fetchAllTradeData(13, [latestYear], monthsYTD, countryId),
+          fetchAllTradeData(11, [latestYear], monthsYTD, countryId),
+          fetchAllTradeData(11, [prevYear], monthsYTD, countryId),
+        ];
+        for (const y of chartYears) {
+          fetchPromises.push(fetchTradeTotal(10, [y], allMonths, countryId));
+          fetchPromises.push(fetchTradeTotal(11, [y], allMonths, countryId));
+        }
+        const results = await Promise.all(fetchPromises);
+        [
+          expFullCurr, expFullPrev, expMonthCurr, expMonthPrev,
+          impFullCurr, impFullPrev, impMonthCurr, impMonthPrev,
+          expHsCurrent, expHsPrev, reexHsCurrent,
+          impHsCurrent, impHsPrev,
+        ] = results;
+        let idx = 13;
+        chartYearExports = [];
+        chartYearImports = [];
+        for (let i = 0; i < chartYears.length; i++) {
+          chartYearExports.push(results[idx++] / 1000);
+          chartYearImports.push(results[idx++] / 1000);
+        }
       }
 
       // YTD bar for the chart — derive from the overview YTD totals we

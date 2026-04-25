@@ -504,6 +504,190 @@ router.post('/country-aggregate', async (req, res) => {
   }
 });
 
+// ── POST /api/statistics/report-bundle ──────────────────────────────────────
+// Single-shot trade fetch for `generateReport`. The frontend used to fan
+// out 18+ Geostat calls in one Promise.all, which the browser throttles to
+// ~6 parallel sockets per origin — so 14+ calls served as 3 client-side
+// waves. Doing them server-side instead lets us:
+//   - run them all truly parallel via Node's fetch (one shared keep-alive
+//     pool to Geostat, no 6-conn cap),
+//   - dedupe identical (flow, years, months) calls inside the bundle —
+//     `chartYears` always contains `prevYear` and `prevPrevYear`, so the
+//     overview's full-year fetches collide with the chart loop's,
+//   - reply with one response, sparing the client from a round trip per
+//     fetch.
+// Failure semantics: per-field rejections are collected into `errors[]`
+// and the field falls back to `0` / `[]`. The handler only 502s when
+// EVERY sub-fetch failed (i.e. Geostat is fully down).
+
+async function fetchSingleValue({ tradeFlow, years, months, countryId, locale }) {
+  const filters = {
+    tradeFlow,
+    measurementUnits: [1],
+    years,
+    months,
+    countries: [countryId],
+    locale,
+    sum: true,
+    page: 1,
+    pageSize: 10,
+  };
+  const json = await geostatFetch('/get_data', {
+    method: 'POST',
+    body: JSON.stringify(filters),
+  });
+  if (!json || !json.success || !Array.isArray(json.data)) return 0;
+  for (const row of json.data) {
+    if (row.isGroupSummary) return extractRowValue(row);
+  }
+  if (json.data.length > 0) return extractRowValue(json.data[0]);
+  return 0;
+}
+
+async function fetchAllPages({ tradeFlow, years, months, countryId, locale }) {
+  const allData = [];
+  let page = 1;
+  const pageSize = 200;
+  let total = Infinity;
+  while (allData.length < total && page < 100) {
+    const filters = {
+      tradeFlow,
+      measurementUnits: [1],
+      years,
+      months,
+      countries: [countryId],
+      locale,
+      page,
+      pageSize,
+    };
+    const json = await geostatFetch('/get_data', {
+      method: 'POST',
+      body: JSON.stringify(filters),
+    });
+    if (!json || !json.success) break;
+    total = json.total || 0;
+    if (Array.isArray(json.data)) allData.push(...json.data);
+    if (!json.data || json.data.length === 0) break;
+    page++;
+  }
+  return allData;
+}
+
+router.post('/report-bundle', async (req, res) => {
+  const t0 = Date.now();
+  try {
+    const body = req.body || {};
+    const { countryId, latestYear, latestMonth, prevYear, prevPrevYear,
+            chartYears, monthsYTD } = body;
+    const locale = body.locale === 'ka' ? 'ka' : 'en';
+
+    if (countryId == null || countryId === '') {
+      return res.status(400).json({ error: 'Invalid countryId' });
+    }
+    if (!Number.isInteger(latestYear) || !Number.isInteger(latestMonth) ||
+        !Number.isInteger(prevYear) || !Number.isInteger(prevPrevYear)) {
+      return res.status(400).json({ error: 'Invalid year/month' });
+    }
+    if (!Array.isArray(chartYears) || chartYears.length === 0 ||
+        !chartYears.every((y) => Number.isInteger(y))) {
+      return res.status(400).json({ error: 'Invalid chartYears' });
+    }
+    if (!Array.isArray(monthsYTD) || monthsYTD.length === 0 ||
+        !monthsYTD.every((m) => Number.isInteger(m) && m >= 1 && m <= 12)) {
+      return res.status(400).json({ error: 'Invalid monthsYTD' });
+    }
+
+    const allMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+    // Memoise calls by (kind, flow, years, months) so the chart-year loop
+    // re-uses the overview's prev/prevprev full-year fetches.
+    const memo = new Map();
+    function totalCall(flow, years, months) {
+      const k = `T|${flow}|${years.join(',')}|${months.join(',')}`;
+      if (!memo.has(k)) {
+        memo.set(k, fetchSingleValue({ tradeFlow: flow, years, months, countryId, locale }));
+      }
+      return memo.get(k);
+    }
+    function pagesCall(flow, years, months) {
+      const k = `P|${flow}|${years.join(',')}|${months.join(',')}`;
+      if (!memo.has(k)) {
+        memo.set(k, fetchAllPages({ tradeFlow: flow, years, months, countryId, locale }));
+      }
+      return memo.get(k);
+    }
+
+    // Build the promise graph (still one fetch each — the memo dedupes
+    // re-uses).
+    const overviewPromises = {
+      expFullCurr:  totalCall(10, [prevYear], allMonths),
+      expFullPrev:  totalCall(10, [prevPrevYear], allMonths),
+      expMonthCurr: totalCall(10, [latestYear], monthsYTD),
+      expMonthPrev: totalCall(10, [prevYear], monthsYTD),
+      impFullCurr:  totalCall(11, [prevYear], allMonths),
+      impFullPrev:  totalCall(11, [prevPrevYear], allMonths),
+      impMonthCurr: totalCall(11, [latestYear], monthsYTD),
+      impMonthPrev: totalCall(11, [prevYear], monthsYTD),
+    };
+    const productsPromises = {
+      expHsCurrent:  pagesCall(10, [latestYear], monthsYTD),
+      expHsPrev:     pagesCall(10, [prevYear], monthsYTD),
+      reexHsCurrent: pagesCall(13, [latestYear], monthsYTD),
+      impHsCurrent:  pagesCall(11, [latestYear], monthsYTD),
+      impHsPrev:     pagesCall(11, [prevYear], monthsYTD),
+    };
+    const chartExpPromises = chartYears.map((y) => totalCall(10, [y], allMonths));
+    const chartImpPromises = chartYears.map((y) => totalCall(11, [y], allMonths));
+
+    const errors = [];
+    async function settle(p, path, fallback) {
+      try { return await p; }
+      catch (err) {
+        errors.push(`${path}: ${err.message || 'unknown'}`);
+        return fallback;
+      }
+    }
+
+    const [
+      overview,
+      products,
+      chartExp,
+      chartImp,
+    ] = await Promise.all([
+      Promise.all(Object.entries(overviewPromises).map(async ([k, p]) => [k, await settle(p, `overview.${k}`, 0)]))
+        .then((entries) => Object.fromEntries(entries)),
+      Promise.all(Object.entries(productsPromises).map(async ([k, p]) => [k, await settle(p, `products.${k}`, [])]))
+        .then((entries) => Object.fromEntries(entries)),
+      Promise.all(chartExpPromises.map((p, i) => settle(p, `chart.export[${chartYears[i]}]`, 0))),
+      Promise.all(chartImpPromises.map((p, i) => settle(p, `chart.import[${chartYears[i]}]`, 0))),
+    ]);
+
+    // Total upper bound on calls (after dedupe is irrelevant for count).
+    const totalCalls = 8 /* overview */ + 5 /* products */ + chartYears.length * 2;
+    if (errors.length === totalCalls) {
+      return res.status(502).json({ error: 'All Geostat calls failed', errors });
+    }
+
+    const ms = Date.now() - t0;
+    console.log(`report-bundle: country=${countryId} year=${latestYear}/m${latestMonth} ${ms}ms (errors=${errors.length})`);
+
+    res.json({
+      success: true,
+      errors,
+      overview,
+      products,
+      chart: {
+        years: chartYears,
+        yearExports: chartExp,
+        yearImports: chartImp,
+      },
+    });
+  } catch (err) {
+    console.error('Statistics report-bundle error:', err.message);
+    res.status(502).json({ error: 'Failed to assemble report bundle', reason: err.message });
+  }
+});
+
 // ── GET /api/statistics/fdi ──────────────────────────────────────────────
 // Parses FDI by countries XLSX. Tries to download fresh from geostat.ge,
 // falls back to local bundled copy. Cached for 24 hours (updates quarterly).
