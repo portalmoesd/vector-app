@@ -634,11 +634,6 @@
         fetchPromises.push(fetchTradeTotal(10, [y], allMonths, countryId)); // export
         fetchPromises.push(fetchTradeTotal(11, [y], allMonths, countryId)); // import
       }
-      // Chart data: export & import for each month of current year
-      for (const m of monthsYTD) {
-        fetchPromises.push(fetchTradeTotal(10, [latestYear], [m], countryId));
-        fetchPromises.push(fetchTradeTotal(11, [latestYear], [m], countryId));
-      }
 
       const results = await Promise.all(fetchPromises);
 
@@ -659,13 +654,12 @@
         chartYearImports.push(results[idx++] / 1000);
       }
 
-      // Unpack chart month results (next monthsYTD.length * 2)
-      const chartMonthExports = [];
-      const chartMonthImports = [];
-      for (let i = 0; i < monthsYTD.length; i++) {
-        chartMonthExports.push(results[idx++] / 1000);
-        chartMonthImports.push(results[idx++] / 1000);
-      }
+      // YTD bar for the chart — derive from the overview YTD totals we
+      // already fetched (Thsd → Mln). Per-month chart fetches were
+      // redundant: renderCharts and hasAnyTrade only ever sum these, and
+      // expMonthCurr / impMonthCurr already are that sum.
+      const chartMonthExports = [expMonthCurr / 1000];
+      const chartMonthImports = [impMonthCurr / 1000];
 
       // ── 1. Trade overview table ──────────────────────────────────────
       const overview = buildOverviewData(
