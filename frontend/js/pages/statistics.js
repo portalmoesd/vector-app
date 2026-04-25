@@ -82,6 +82,15 @@
   let fdiChartInstance = null;
   let tourismChartInstance = null;
   let countryNameMap = {}; // variant → canonical GNTA name
+
+  // Per-(country, locale) cache of fully-rendered reports. When the user
+  // switches the report language to one we already generated for the
+  // selected country, we replay the cached state instead of refetching
+  // from Geostat. Shape: country.value → { en?: Snapshot, ka?: Snapshot }.
+  // Snapshot = { panels: {id: html}, rowHidden: {id: bool},
+  //              cardDisplay: {id: ''|'none'},
+  //              pdfState: deep-cloned subset }.
+  const reportCache = new Map();
   // activeTab removed — unified scroll layout with scroll-spy
 
   // ── Report locale ────────────────────────────────────────────────────────
@@ -517,12 +526,156 @@
 
   const globalReportLoading = document.getElementById('globalReportLoading');
 
+  // ── Per-(country, locale) report cache ──────────────────────────────
+  // Section panel IDs whose innerHTML we snapshot. Each is text/markup
+  // that the renderers populate; restoring innerHTML brings the panel
+  // back exactly. Chart canvases live in sibling elements not in this
+  // list, so they're untouched by the restore — Chart.js instances are
+  // destroyed and rebuilt explicitly in restoreReportSnapshot.
+  const SNAPSHOT_PANEL_IDS = [
+    'tradeSummary',
+    'overviewHeader', 'overviewTable',
+    'exportHeader', 'exportTable',
+    'exportIncreaseHeader', 'exportIncreaseTable',
+    'exportDropHeader', 'exportDropTable',
+    'importHeader', 'importTable',
+    'importIncreaseHeader', 'importIncreaseTable',
+    'importDropHeader', 'importDropTable',
+    'turnoverChartHeader', 'dynamicsChartHeader',
+    'tourismSummary', 'tourismTable', 'tourismChartHeader',
+    'investmentsSummary', 'fdiTable', 'fdiChartHeader',
+    'fdiSectorsHeader', 'fdiSectorsTable',
+    'companiesSummary',
+    'appendixHeader', 'appendixTable',
+  ];
+  // Container rows whose `hidden` class we snapshot.
+  const SNAPSHOT_ROW_IDS = [
+    'tradeChartsRow', 'tourismRow', 'fdiRow', 'fdiSectorsCard',
+  ];
+  // Card-style headers — each lives inside a `.card` whose
+  // `display` style is toggled by showCard / hideCard.
+  const SNAPSHOT_CARD_HEADER_IDS = [
+    'exportHeader', 'exportIncreaseHeader', 'exportDropHeader',
+    'importHeader', 'importIncreaseHeader', 'importDropHeader',
+  ];
+
+  function captureReportSnapshot() {
+    const panels = {};
+    for (const id of SNAPSHOT_PANEL_IDS) {
+      const el = document.getElementById(id);
+      if (el) panels[id] = el.innerHTML;
+    }
+    const rowHidden = {};
+    for (const id of SNAPSHOT_ROW_IDS) {
+      const el = document.getElementById(id);
+      if (el) rowHidden[id] = el.classList.contains('hidden');
+    }
+    const cardDisplay = {};
+    for (const id of SNAPSHOT_CARD_HEADER_IDS) {
+      const el = document.getElementById(id);
+      const card = el && el.closest('.card');
+      if (card) cardDisplay[id] = card.style.display || '';
+    }
+    // Deep-clone the data subtrees of pdfState that the renderers /
+    // PDF builder consume. country / countryGrammar / countryNameEn
+    // are rebound on restore from the live selectedCountry, so we
+    // don't include them.
+    const clone = (v) => v == null ? v : structuredClone(v);
+    return {
+      panels,
+      rowHidden,
+      cardDisplay,
+      pdfState: {
+        trade: clone(pdfState.trade),
+        tourism: clone(pdfState.tourism),
+        investments: clone(pdfState.investments),
+        investmentsSectors: clone(pdfState.investmentsSectors),
+        companies: clone(pdfState.companies),
+        appendix: clone(pdfState.appendix),
+      },
+    };
+  }
+
+  function restoreReportSnapshot(snap) {
+    // Tear down any live Chart.js instances bound to the canvases
+    // we're about to repopulate.
+    try { if (turnoverChartInstance) turnoverChartInstance.destroy(); } catch (_) {}
+    try { if (dynamicsChartInstance) dynamicsChartInstance.destroy(); } catch (_) {}
+    try { if (tourismChartInstance) tourismChartInstance.destroy(); } catch (_) {}
+    try { if (fdiChartInstance) fdiChartInstance.destroy(); } catch (_) {}
+    turnoverChartInstance = null;
+    dynamicsChartInstance = null;
+    tourismChartInstance = null;
+    fdiChartInstance = null;
+    try { const c = Chart.getChart(turnoverChartCanvas); if (c) c.destroy(); } catch (_) {}
+    try { const c = Chart.getChart(dynamicsChartCanvas); if (c) c.destroy(); } catch (_) {}
+    try { const c = Chart.getChart(tourismChartCanvas);  if (c) c.destroy(); } catch (_) {}
+    try { const c = Chart.getChart(fdiChartCanvas);      if (c) c.destroy(); } catch (_) {}
+
+    // Restore panel HTML.
+    for (const id of SNAPSHOT_PANEL_IDS) {
+      const el = document.getElementById(id);
+      if (el && snap.panels[id] !== undefined) el.innerHTML = snap.panels[id];
+    }
+    // Restore row visibility.
+    for (const id of SNAPSHOT_ROW_IDS) {
+      const el = document.getElementById(id);
+      if (el && snap.rowHidden[id] !== undefined) el.classList.toggle('hidden', !!snap.rowHidden[id]);
+    }
+    // Restore card display.
+    for (const id of SNAPSHOT_CARD_HEADER_IDS) {
+      const el = document.getElementById(id);
+      const card = el && el.closest('.card');
+      if (card && snap.cardDisplay[id] !== undefined) card.style.display = snap.cardDisplay[id];
+    }
+
+    // Rebind pdfState. country / countryNameEn / countryGrammar are
+    // re-derived from the live selectedCountry so toggles between
+    // languages pick up the right declension forms.
+    pdfState.country = selectedCountry;
+    pdfState.countryNameEn = selectedCountry
+      ? (countryNameEnMap[selectedCountry.value] || selectedCountry.displayLabel)
+      : null;
+    pdfState.countryGrammar = selectedCountry
+      ? grammarFor(selectedCountry.displayLabelKa || selectedCountry.displayLabel)
+      : null;
+    pdfState.trade = snap.pdfState.trade || null;
+    pdfState.tourism = snap.pdfState.tourism || null;
+    pdfState.investments = snap.pdfState.investments || null;
+    pdfState.investmentsSectors = snap.pdfState.investmentsSectors || null;
+    pdfState.companies = snap.pdfState.companies || null;
+    pdfState.appendix = snap.pdfState.appendix || null;
+
+    // Re-instantiate the four charts from cached args / pdfState data.
+    if (pdfState.trade && pdfState.trade.chartArgs) {
+      try { renderCharts(...pdfState.trade.chartArgs); } catch (e) { console.warn('[stats] trade chart replay failed', e); }
+    }
+    if (pdfState.tourism && pdfState.tourism.chartArgs) {
+      try { renderTourismChart(...pdfState.tourism.chartArgs, reportLocale === 'ka'); } catch (e) { console.warn('[stats] tourism chart replay failed', e); }
+    }
+    if (pdfState.investments && pdfState.investments.tableData) {
+      try { renderFdiChart(pdfState.investments.tableData, reportLocale === 'ka'); } catch (e) { console.warn('[stats] fdi chart replay failed', e); }
+    }
+  }
+
   // Unified generate — wipes state, shows a single top-level spinner,
   // runs all five section generators in parallel, and reveals the
   // sections only after every one has settled. Called from the
-  // Generate button and from the report-language toggle.
+  // Generate button and from the report-language toggle. Cached
+  // (country, locale) snapshots are replayed without refetching when
+  // the user toggles back to a language they've already generated.
   async function runFullGenerate() {
     if (!selectedCountry) return;
+
+    // Cache hit? Replay the snapshot, no fetch.
+    const cacheEntry = reportCache.get(selectedCountry.value);
+    const cached = cacheEntry && cacheEntry[reportLocale];
+    if (cached) {
+      statSections.classList.remove('hidden');
+      restoreReportSnapshot(cached);
+      return;
+    }
+
     statSections.classList.remove('hidden');
     statSections.classList.add('is-loading');
     if (globalReportLoading) globalReportLoading.classList.remove('hidden');
@@ -548,13 +701,27 @@
 
     try {
       await Promise.allSettled(tasks);
+      // Cache the rendered snapshot so a back-and-forth language swap
+      // is instant. Only cache if the trade section produced data —
+      // otherwise the snapshot is mostly empty error/loading states.
+      if (selectedCountry && pdfState.trade) {
+        const entry = reportCache.get(selectedCountry.value) || {};
+        entry[reportLocale] = captureReportSnapshot();
+        reportCache.set(selectedCountry.value, entry);
+      }
     } finally {
       statSections.classList.remove('is-loading');
       if (globalReportLoading) globalReportLoading.classList.add('hidden');
     }
   }
 
-  generateBtn.addEventListener('click', () => { runFullGenerate(); });
+  generateBtn.addEventListener('click', () => {
+    // Explicit Generate forces a fresh fetch — drop any cached
+    // snapshots for the selected country so the user always sees
+    // freshly-fetched data when they click the button.
+    if (selectedCountry) reportCache.delete(selectedCountry.value);
+    runFullGenerate();
+  });
 
   async function generateReport() {
     if (!selectedCountry || !classData) return;
@@ -689,13 +856,14 @@
 
       if (tradeChartsRowEl) tradeChartsRowEl.classList.toggle('hidden', !hasAnyTrade);
 
-      if (hasAnyTrade) {
-        renderCharts(
-          chartYears, chartYearExports, chartYearImports,
-          monthsYTD, chartMonthExports, chartMonthImports,
-          latestYear, monthNames,
-        );
-      }
+      // Stash for cache replay — language toggle re-runs renderCharts
+      // from these without refetching.
+      const tradeChartArgs = hasAnyTrade ? [
+        chartYears, chartYearExports, chartYearImports,
+        monthsYTD, chartMonthExports, chartMonthImports,
+        latestYear, monthNames,
+      ] : null;
+      if (tradeChartArgs) renderCharts(...tradeChartArgs);
 
       // Check if there was any export/import in the latest period
       const hasExport = overview.latestPeriod.export > 0;
@@ -826,6 +994,9 @@
         // and buildTradeSummary (PDF).
         hasAnyTrade,
         fiveYearStart: chartYears.length ? chartYears[0] : latestYear,
+        // Cached args for renderCharts so a language-toggle replay can
+        // rebuild the trade charts without re-fetching.
+        chartArgs: tradeChartArgs,
       };
 
       renderTradeSummary(pdfState.trade, ranking, selectedCountry.displayLabel);
@@ -1810,10 +1981,11 @@
       const currentRank = quarterlyRows.length > 0 ? quarterlyRows[0].rank : null;
 
       renderTourismTable(quarterlyRows, annualRows, isKa);
-      renderTourismChart(annualRows, json.currentPeriod && countryData.current !== null ? {
+      const tourismCurrentPeriod = json.currentPeriod && countryData.current !== null ? {
         label: json.currentPeriod.label,
         visitors: countryData.current || 0,
-      } : null, isKa);
+      } : null;
+      renderTourismChart(annualRows, tourismCurrentPeriod, isKa);
 
       pdfState.tourism = {
         hasData: true,
@@ -1824,6 +1996,9 @@
         fiveYearSum,
         currentRank,
         currentPeriodLabel: json.currentPeriod ? json.currentPeriod.label : null,
+        // Cached args for renderTourismChart on cache replay (locale is
+        // applied at replay time, so it's not stored here).
+        chartArgs: [annualRows, tourismCurrentPeriod],
       };
 
       renderTourismSummary(pdfState.tourism, selectedCountry, isKa);
