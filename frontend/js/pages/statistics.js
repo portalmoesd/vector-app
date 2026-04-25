@@ -610,90 +610,62 @@
       const chartYears = [];
       for (let y = prevYear - 4; y <= prevYear; y++) chartYears.push(y);
 
-      // Try the server-side bundle first — single round trip, no
-      // browser 6-conn cap. Fall back to per-call fetches if the
-      // proxy is unavailable so the page still works in degraded
-      // environments.
-      let expFullCurr, expFullPrev, expMonthCurr, expMonthPrev,
-          impFullCurr, impFullPrev, impMonthCurr, impMonthPrev,
-          expHsCurrent, expHsPrev, reexHsCurrent,
-          impHsCurrent, impHsPrev,
-          chartYearExports, chartYearImports;
+      // Build all fetch promises
+      const fetchPromises = [
+        // Overview totals
+        fetchTradeTotal(10, [prevYear], allMonths, countryId),
+        fetchTradeTotal(10, [prevPrevYear], allMonths, countryId),
+        fetchTradeTotal(10, [latestYear], monthsYTD, countryId),
+        fetchTradeTotal(10, [prevYear], monthsYTD, countryId),
+        fetchTradeTotal(11, [prevYear], allMonths, countryId),
+        fetchTradeTotal(11, [prevPrevYear], allMonths, countryId),
+        fetchTradeTotal(11, [latestYear], monthsYTD, countryId),
+        fetchTradeTotal(11, [prevYear], monthsYTD, countryId),
+        // Product tables
+        fetchAllTradeData(10, [latestYear], monthsYTD, countryId),
+        fetchAllTradeData(10, [prevYear], monthsYTD, countryId),
+        fetchAllTradeData(13, [latestYear], monthsYTD, countryId),
+        fetchAllTradeData(11, [latestYear], monthsYTD, countryId),
+        fetchAllTradeData(11, [prevYear], monthsYTD, countryId),
+      ];
 
-      let bundle = null;
-      try {
-        const res = await fetch(`${PROXY_API}/report-bundle`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            countryId,
-            latestYear, latestMonth,
-            prevYear, prevPrevYear,
-            chartYears, monthsYTD,
-            locale: reportLocale,
-          }),
-        });
-        if (res.ok) {
-          const j = await res.json().catch(() => null);
-          if (j && j.success) bundle = j;
-        }
-      } catch (err) {
-        console.warn('[stats] /report-bundle request failed, falling back to per-call', err && err.message);
+      // Chart data: export & import for each of 5 years (full year)
+      for (const y of chartYears) {
+        fetchPromises.push(fetchTradeTotal(10, [y], allMonths, countryId)); // export
+        fetchPromises.push(fetchTradeTotal(11, [y], allMonths, countryId)); // import
+      }
+      // Chart data: export & import for each month of current year
+      for (const m of monthsYTD) {
+        fetchPromises.push(fetchTradeTotal(10, [latestYear], [m], countryId));
+        fetchPromises.push(fetchTradeTotal(11, [latestYear], [m], countryId));
       }
 
-      if (bundle) {
-        ({ expFullCurr, expFullPrev, expMonthCurr, expMonthPrev,
-           impFullCurr, impFullPrev, impMonthCurr, impMonthPrev } = bundle.overview);
-        ({ expHsCurrent, expHsPrev, reexHsCurrent, impHsCurrent, impHsPrev } = bundle.products);
-        // Chart year totals come back in thousands USD; convert to mln.
-        chartYearExports = (bundle.chart.yearExports || []).map((v) => (v || 0) / 1000);
-        chartYearImports = (bundle.chart.yearImports || []).map((v) => (v || 0) / 1000);
-        if (bundle.errors && bundle.errors.length) {
-          console.warn('[stats] /report-bundle returned with partial errors:', bundle.errors);
-        }
-      } else {
-        console.warn('[stats] /report-bundle unavailable — using per-call fallback');
-        const fetchPromises = [
-          fetchTradeTotal(10, [prevYear], allMonths, countryId),
-          fetchTradeTotal(10, [prevPrevYear], allMonths, countryId),
-          fetchTradeTotal(10, [latestYear], monthsYTD, countryId),
-          fetchTradeTotal(10, [prevYear], monthsYTD, countryId),
-          fetchTradeTotal(11, [prevYear], allMonths, countryId),
-          fetchTradeTotal(11, [prevPrevYear], allMonths, countryId),
-          fetchTradeTotal(11, [latestYear], monthsYTD, countryId),
-          fetchTradeTotal(11, [prevYear], monthsYTD, countryId),
-          fetchAllTradeData(10, [latestYear], monthsYTD, countryId),
-          fetchAllTradeData(10, [prevYear], monthsYTD, countryId),
-          fetchAllTradeData(13, [latestYear], monthsYTD, countryId),
-          fetchAllTradeData(11, [latestYear], monthsYTD, countryId),
-          fetchAllTradeData(11, [prevYear], monthsYTD, countryId),
-        ];
-        for (const y of chartYears) {
-          fetchPromises.push(fetchTradeTotal(10, [y], allMonths, countryId));
-          fetchPromises.push(fetchTradeTotal(11, [y], allMonths, countryId));
-        }
-        const results = await Promise.all(fetchPromises);
-        [
-          expFullCurr, expFullPrev, expMonthCurr, expMonthPrev,
-          impFullCurr, impFullPrev, impMonthCurr, impMonthPrev,
-          expHsCurrent, expHsPrev, reexHsCurrent,
-          impHsCurrent, impHsPrev,
-        ] = results;
-        let idx = 13;
-        chartYearExports = [];
-        chartYearImports = [];
-        for (let i = 0; i < chartYears.length; i++) {
-          chartYearExports.push(results[idx++] / 1000);
-          chartYearImports.push(results[idx++] / 1000);
-        }
+      const results = await Promise.all(fetchPromises);
+
+      // Unpack overview & product table results (first 13)
+      const [
+        expFullCurr, expFullPrev, expMonthCurr, expMonthPrev,
+        impFullCurr, impFullPrev, impMonthCurr, impMonthPrev,
+        expHsCurrent, expHsPrev, reexHsCurrent,
+        impHsCurrent, impHsPrev,
+      ] = results;
+
+      // Unpack chart year results (next chartYears.length * 2)
+      let idx = 13;
+      const chartYearExports = [];
+      const chartYearImports = [];
+      for (let i = 0; i < chartYears.length; i++) {
+        chartYearExports.push(results[idx++] / 1000); // Thsd → Mln
+        chartYearImports.push(results[idx++] / 1000);
       }
 
-      // YTD bar for the chart — derive from the overview YTD totals we
-      // already fetched (Thsd → Mln). Per-month chart fetches were
-      // redundant: renderCharts and hasAnyTrade only ever sum these, and
-      // expMonthCurr / impMonthCurr already are that sum.
-      const chartMonthExports = [expMonthCurr / 1000];
-      const chartMonthImports = [impMonthCurr / 1000];
+      // Unpack chart month results (next monthsYTD.length * 2)
+      const chartMonthExports = [];
+      const chartMonthImports = [];
+      for (let i = 0; i < monthsYTD.length; i++) {
+        chartMonthExports.push(results[idx++] / 1000);
+        chartMonthImports.push(results[idx++] / 1000);
+      }
 
       // ── 1. Trade overview table ──────────────────────────────────────
       const overview = buildOverviewData(
@@ -2715,12 +2687,7 @@
       ? [1,2,3,4,5,6,7,8,9,10,11,12]
       : column.months;
     try {
-      // /country-aggregate is the slim cousin of /country-ranking — it
-      // skips the dom-export + re-export fetches and the rank sort the
-      // appendix never reads. Response shape: country.{export,import,
-      // turnover} are flat numbers (not {valueMln,rank,sharePct} like
-      // /country-ranking).
-      const res = await fetch(`${PROXY_API}/country-aggregate`, {
+      const res = await fetch(`${PROXY_API}/country-ranking`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ year: column.year, months, countryId }),
@@ -2728,9 +2695,19 @@
       });
       const j = await res.json().catch(() => null);
       if (!res.ok || !j || !j.success) return null;
-      // Server already returns null when the country has no data for the
-      // period, so `j.country` is the appendix's "country absent" signal.
-      return { totals: j.totals, country: j.country || null };
+      // j.country is always an object, but individual flow entries are null
+      // when the country had no data for that flow. Treat "all flows null"
+      // as "country absent" so the column renders as "-" instead of 0.00.
+      const c = j.country || {};
+      const hasAny = !!(c.turnover || c.export || c.import);
+      const country = hasAny
+        ? {
+            turnover: c.turnover ? c.turnover.valueMln : 0,
+            export:   c.export   ? c.export.valueMln   : 0,
+            import:   c.import   ? c.import.valueMln   : 0,
+          }
+        : null;
+      return { totals: j.totals, country };
     } catch (_) {
       return null;
     } finally {
