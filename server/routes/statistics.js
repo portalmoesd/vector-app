@@ -408,6 +408,102 @@ router.post('/country-ranking/debug', async (req, res) => {
   }
 });
 
+// ── POST /api/statistics/country-aggregate ──────────────────────────────────
+// Lightweight cousin of /country-ranking for the appendix path. Returns
+// only export + import totals (Georgia + the requested country) and the
+// derived turnover. Skips the dom-export and re-export Geostat calls and
+// the rank sort that /country-ranking does — the appendix never reads
+// rank/share data, so paying for them was pure overhead. Per-period
+// (Georgia totals) cache is shared across countries; an in-flight
+// promise map keeps concurrent first-callers from stampeding Geostat.
+
+const AGGREGATE_TTL = 60 * 60 * 1000; // 1 hour
+const AGGREGATE_CACHE_MAX = 64;
+const aggregateCache = new Map(); // key -> { data, ts }
+const aggregateInflight = new Map(); // key -> Promise<{ totals, flows }>
+
+function aggregateCacheGet(key) {
+  const entry = aggregateCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > AGGREGATE_TTL) { aggregateCache.delete(key); return null; }
+  return entry.data;
+}
+
+function aggregateCacheSet(key, data) {
+  if (aggregateCache.size >= AGGREGATE_CACHE_MAX) {
+    const oldestKey = aggregateCache.keys().next().value;
+    if (oldestKey !== undefined) aggregateCache.delete(oldestKey);
+  }
+  aggregateCache.set(key, { data, ts: Date.now() });
+}
+
+async function computeAggregate(year, sortedMonths) {
+  const key = `${year}:${sortedMonths.join(',')}`;
+  const cached = aggregateCacheGet(key);
+  if (cached) return cached;
+  if (aggregateInflight.has(key)) return aggregateInflight.get(key);
+
+  const promise = (async () => {
+    const allCountryIds = await getAllCountryIds();
+    const [exp, imp] = await Promise.all([
+      fetchFlowRanking(10, year, sortedMonths, allCountryIds),
+      fetchFlowRanking(11, year, sortedMonths, allCountryIds),
+    ]);
+    const data = {
+      totals: {
+        export: exp.total,
+        import: imp.total,
+        turnover: exp.total + imp.total,
+      },
+      flows: {
+        export: exp.perCountry, // { cid: { valueMln, rank, sharePct } }
+        import: imp.perCountry,
+      },
+    };
+    if (exp.stats.withTrade > 0 || imp.stats.withTrade > 0) {
+      aggregateCacheSet(key, data);
+    }
+    return data;
+  })();
+
+  aggregateInflight.set(key, promise);
+  try { return await promise; }
+  finally { aggregateInflight.delete(key); }
+}
+
+router.post('/country-aggregate', async (req, res) => {
+  try {
+    const { year, months, countryId } = req.body || {};
+    if (!Number.isInteger(year) || year < 1990 || year > 2100) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+    if (!Array.isArray(months) || months.length === 0 ||
+        months.some((m) => !Number.isInteger(m) || m < 1 || m > 12)) {
+      return res.status(400).json({ error: 'Invalid months' });
+    }
+    if (countryId == null || countryId === '') {
+      return res.status(400).json({ error: 'Invalid countryId' });
+    }
+
+    const sortedMonths = [...months].sort((a, b) => a - b);
+    const data = await computeAggregate(year, sortedMonths);
+
+    const idKey = String(countryId);
+    const expEntry = data.flows.export[idKey];
+    const impEntry = data.flows.import[idKey];
+    const expVal = expEntry ? expEntry.valueMln : 0;
+    const impVal = impEntry ? impEntry.valueMln : 0;
+    const country = (expVal > 0 || impVal > 0)
+      ? { export: expVal, import: impVal, turnover: expVal + impVal }
+      : null;
+
+    res.json({ success: true, totals: data.totals, country });
+  } catch (err) {
+    console.error('Statistics country-aggregate error:', err.message);
+    res.status(502).json({ error: 'Failed to fetch country aggregate', reason: err.message });
+  }
+});
+
 // ── GET /api/statistics/fdi ──────────────────────────────────────────────
 // Parses FDI by countries XLSX. Tries to download fresh from geostat.ge,
 // falls back to local bundled copy. Cached for 24 hours (updates quarterly).
