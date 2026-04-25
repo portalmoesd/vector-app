@@ -2681,7 +2681,12 @@
       ? [1,2,3,4,5,6,7,8,9,10,11,12]
       : column.months;
     try {
-      const res = await fetch(`${PROXY_API}/country-ranking`, {
+      // /country-aggregate is the slim cousin of /country-ranking — it
+      // skips the dom-export + re-export fetches and the rank sort the
+      // appendix never reads. Response shape: country.{export,import,
+      // turnover} are flat numbers (not {valueMln,rank,sharePct} like
+      // /country-ranking).
+      const res = await fetch(`${PROXY_API}/country-aggregate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ year: column.year, months, countryId }),
@@ -2689,19 +2694,9 @@
       });
       const j = await res.json().catch(() => null);
       if (!res.ok || !j || !j.success) return null;
-      // j.country is always an object, but individual flow entries are null
-      // when the country had no data for that flow. Treat "all flows null"
-      // as "country absent" so the column renders as "-" instead of 0.00.
-      const c = j.country || {};
-      const hasAny = !!(c.turnover || c.export || c.import);
-      const country = hasAny
-        ? {
-            turnover: c.turnover ? c.turnover.valueMln : 0,
-            export:   c.export   ? c.export.valueMln   : 0,
-            import:   c.import   ? c.import.valueMln   : 0,
-          }
-        : null;
-      return { totals: j.totals, country };
+      // Server already returns null when the country has no data for the
+      // period, so `j.country` is the appendix's "country absent" signal.
+      return { totals: j.totals, country: j.country || null };
     } catch (_) {
       return null;
     } finally {
