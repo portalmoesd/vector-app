@@ -2593,10 +2593,10 @@
       <thead>
         <tr>
           <th>${hYear}</th>
+          <th class="stat-col-change">${hRank}</th>
           <th class="stat-col-value">${hValue}</th>
           <th class="stat-col-change">${hChange}</th>
           <th class="stat-col-change">${hShare}</th>
-          <th class="stat-col-change">${hRank}</th>
         </tr>
       </thead>
       <tbody>`;
@@ -2618,10 +2618,10 @@
       html += `
         <tr>
           <td>${r.year}</td>
+          <td class="stat-col-change">${rankCell}</td>
           <td class="stat-col-value">${valueCell}</td>
           <td class="stat-col-change ${changeClass}">${changeCell}</td>
           <td class="stat-col-change">${shareCell}</td>
-          <td class="stat-col-change">${rankCell}</td>
         </tr>`;
     }
 

@@ -1076,7 +1076,7 @@
     const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
     const shareHeader = lang === 'ka' ? 'წილი, %' : 'Share, %';
     const body = [
-      [th(t.year), thRight(t.volumeHeader), thRight(t.changeHeader), thRight(shareHeader), thRight(rankHeader)],
+      [th(t.year), thRight(rankHeader), thRight(t.volumeHeader), thRight(t.changeHeader), thRight(shareHeader)],
     ];
     for (const r of data) {
       const isCurNeg = !(r.valueMln > 0);
@@ -1097,17 +1097,17 @@
         : tdNum('-');
       body.push([
         tdText(String(r.year)),
+        rankCell,
         valueCell,
         changeCell,
         shareCell,
-        rankCell,
       ]);
     }
 
     const tableBlock = {
       table: {
         dontBreakRows: true,
-        widths: ['auto', '*', 'auto', 'auto', 'auto'],
+        widths: ['auto', 'auto', '*', 'auto', 'auto'],
         body,
       },
       layout: tableLayout,
