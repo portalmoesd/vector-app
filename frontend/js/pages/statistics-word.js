@@ -447,6 +447,123 @@
     });
   }
 
+  // ── Tourism section ────────────────────────────────────────────────────
+  // Mirrors statistics-pdf.js buildTourismSection / buildTourismSummary.
+  function formatTourismPeriodKa(label) {
+    const m = /^(\d{4})\s+([IVX]+)\s+კვ$/.exec(label || '');
+    if (!m) return label || '';
+    return `${m[1]} წლის ${m[2]} კვარტლის`;
+  }
+  function formatTourismPeriodEn(label) {
+    const m = /^(\d{4})\s+([IVX]+)\s+კვ$/.exec(label || '');
+    if (!m) return label || '';
+    const roman = { I: 1, II: 2, III: 3, IV: 4 };
+    return `Q${roman[m[2]] || m[2]} ${m[1]}`;
+  }
+
+  function buildTourismSummary(D, tourism, t, country, lang, grammar) {
+    if (!tourism || !tourism.hasData) return [];
+    const isKa = lang === 'ka';
+    const B = (s) => ({ text: s, bold: true });
+    const fmt = (n) => Number(n).toLocaleString();
+    const kaFrom = (name) => (grammar && grammar.from) || (name + 'დან');
+
+    const out = [];
+    if (tourism.fiveYearSum > 0) {
+      if (isKa) {
+        out.push(summaryProseParagraph(D, [
+          B(`${tourism.fiveYearStart} - ${tourism.fiveYearEnd}`),
+          ` წლებში ${kaFrom(country)} საქართველოში შემოვიდა `,
+          B(fmt(tourism.fiveYearSum)), ` ვიზიტორი.`,
+        ]));
+      } else {
+        out.push(summaryProseParagraph(D, [
+          `Between `, B(`${tourism.fiveYearStart}-${tourism.fiveYearEnd}`),
+          `, `, B(fmt(tourism.fiveYearSum)), ` visitors came to Georgia from ${country}.`,
+        ]));
+      }
+    }
+    if (tourism.currentRank && tourism.currentPeriodLabel) {
+      if (isKa) {
+        out.push(summaryProseParagraph(D, [
+          B(formatTourismPeriodKa(tourism.currentPeriodLabel)),
+          ` მონაცემებით ვიზიტორების რაოდენობის მიხედვით ${country} არის `,
+          B(`${gePlace(tourism.currentRank)} ადგილზე`), `.`,
+        ]));
+      } else {
+        out.push(summaryProseParagraph(D, [
+          `By visitor count in `, B(formatTourismPeriodEn(tourism.currentPeriodLabel)),
+          `, ${country} ranks `, B(enOrdinal(tourism.currentRank)), `.`,
+        ]));
+      }
+    }
+    return out;
+  }
+
+  function buildTourismTable(D, tourism, t, lang) {
+    const rows = [...(tourism.quarterlyRows || []), ...[...(tourism.annualRows || [])].reverse()];
+    if (rows.length === 0) return emptyTablePlaceholder(D, t);
+    const totalRows = 1 + rows.length;
+    const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
+    const shareHeader = lang === 'ka' ? 'წილი, %' : 'Share, %';
+
+    const headerCells = [
+      headerCell(D, t.period),
+      headerCell(D, rankHeader,         { align: 'right' }),
+      headerCell(D, t.visitors,         { align: 'right' }),
+      headerCell(D, t.changeHeader,     { align: 'right' }),
+      headerCell(D, shareHeader,        { align: 'right' }),
+    ];
+    const tableRows = [new D.TableRow({ tableHeader: true, children: headerCells })];
+
+    rows.forEach((r, idx) => {
+      const rowIdx = idx + 1;
+      const isLast = rowIdx === totalRows - 1;
+      let changeColor = COLOR.text;
+      let changeText = '-';
+      if (r.changePct !== null && r.changePct !== undefined) {
+        changeColor = r.changePct > 0 ? COLOR.positive : (r.changePct < 0 ? COLOR.negative : COLOR.headerText);
+        const sign = r.changePct > 0 ? '+' : '';
+        changeText = `${sign}${formatPct(r.changePct)}`;
+      }
+      const rankText = r.rank ? String(r.rank) : '-';
+      const shareText = r.share != null ? `${(Math.round(r.share * 10) / 10).toFixed(1)}%` : '-';
+      tableRows.push(new D.TableRow({
+        cantSplit: true,
+        children: [
+          dataCell(D, r.label, { bold: !!r.isCurrent, rowIdx, isLastRow: isLast }),
+          dataCell(D, rankText, { align: 'right', rowIdx, isLastRow: isLast }),
+          dataCell(D, r.visitors.toLocaleString(), { align: 'right', rowIdx, isLastRow: isLast }),
+          dataCell(D, changeText, { align: 'right', color: changeColor, rowIdx, isLastRow: isLast }),
+          dataCell(D, shareText, { align: 'right', rowIdx, isLastRow: isLast }),
+        ],
+      }));
+    });
+
+    return new D.Table({
+      width: { size: 100, type: D.WidthType.PERCENTAGE },
+      rows: tableRows,
+    });
+  }
+
+  function buildTourismSection(D, tourism, charts, t, country, lang, grammar) {
+    if (!tourism) return [];
+    const blocks = [];
+    blocks.push(sectionTitleP(D, `${country} - ${t.internationalVisitors}`, { pageBreakBefore: true }));
+    if (!tourism.hasData) {
+      blocks.push(emptyTablePlaceholder(D, t));
+      return blocks;
+    }
+    blocks.push(...buildTourismSummary(D, tourism, t, country, lang, grammar));
+    blocks.push(buildTourismTable(D, tourism, t, lang));
+    if (charts && charts.tourism) {
+      blocks.push(captionP(D, t.internationalVisitors));
+      const img = chartImageP(D, charts.tourism);
+      if (img) blocks.push(img);
+    }
+    return blocks;
+  }
+
   // ── Section builder placeholders (filled in by subsequent commits) ────
   // Keeps the document structurally valid while the per-section
   // content gets translated from the PDF builders.
@@ -1023,9 +1140,10 @@
     // Section content — Trade is fully wired (overview + chart embeds);
     // the rest are placeholders until subsequent commits.
     const tradeCharts = (opts && opts.charts) || {};
+    const grammar = state && state.countryGrammar;
     const children = [
       ...buildTradeSection(D, state && state.trade, tradeCharts, t, country, lang),
-      ...placeholderSection(D, t, 'tourismSection'),
+      ...buildTourismSection(D, state && state.tourism, tradeCharts, t, country, lang, grammar),
       ...placeholderSection(D, t, 'investmentsSection'),
       ...placeholderSection(D, t, 'appendixSection'),
     ];
