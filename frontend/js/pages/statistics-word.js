@@ -816,6 +816,103 @@
     return out;
   }
 
+  // ── Trade products + change tables ─────────────────────────────────────
+  // Both tables share the "row of HS code + value + change %" structure
+  // with optional extra columns. Mirrors statistics-pdf.js
+  // buildProductsTable / buildChangeTable.
+
+  function emptyTablePlaceholder(D, t) {
+    return new D.Paragraph({
+      spacing: { before: pt(4), after: pt(8) },
+      children: [new D.TextRun({
+        text: t.noData, italics: true,
+        font: 'FiraGO', size: hp(9), color: '94A3B8',
+      })],
+    });
+  }
+
+  function buildProductsTable(D, products, t, lang) {
+    if (!products || products.length === 0) return emptyTablePlaceholder(D, t);
+    const showReexport = products.some(p => p.reexportShare !== undefined);
+    const totalRows = 1 + products.length;
+
+    const headerCells = [
+      headerCell(D, t.hsProduct),
+      headerCell(D, t.volumeHeader, { align: 'right' }),
+      headerCell(D, t.changeHeader, { align: 'right' }),
+    ];
+    if (showReexport) headerCells.push(headerCell(D, t.reexportShareShort, { align: 'right' }));
+    const rows = [new D.TableRow({ tableHeader: true, children: headerCells })];
+
+    products.forEach((p, idx) => {
+      const change = p.change;
+      const changeColor = change > 0 ? COLOR.positive : (change < 0 ? COLOR.negative : COLOR.headerText);
+      const sign = change > 0 ? '+' : '';
+      const rowIdx = idx + 1;
+      const isLast = rowIdx === totalRows - 1;
+      const cells = [
+        dataCell(D, lang === 'en' && p.nameEn ? p.nameEn : p.name, { rowIdx, isLastRow: isLast }),
+        dataCell(D, formatMln(p.valueMln), { align: 'right', rowIdx, isLastRow: isLast }),
+        dataCell(D, `${sign}${formatPct(change)}`, { align: 'right', color: changeColor, rowIdx, isLastRow: isLast }),
+      ];
+      if (showReexport) {
+        cells.push(dataCell(D,
+          p.reexportShare === 0 || p.reexportShare == null ? '-' : formatPct(p.reexportShare),
+          { align: 'right', rowIdx, isLastRow: isLast },
+        ));
+      }
+      rows.push(new D.TableRow({ cantSplit: true, children: cells }));
+    });
+
+    // Column widths (twips). Matches the PDF widths roughly:
+    //   product name fills, value 80pt, change 62pt, reexport 80pt.
+    const cols = showReexport
+      ? [{ size: '*' }, { size: pt(80) }, { size: pt(62) }, { size: pt(80) }]
+      : [{ size: '*' }, { size: pt(80) }, { size: pt(70) }];
+    return new D.Table({
+      width: { size: 100, type: D.WidthType.PERCENTAGE },
+      columnWidths: cols.map(c => c.size === '*' ? pt(280) : c.size),
+      rows,
+    });
+  }
+
+  function buildChangeTable(D, products, t, lang) {
+    if (!products || products.length === 0) return emptyTablePlaceholder(D, t);
+    const totalRows = 1 + products.length;
+    const headerCells = [
+      headerCell(D, t.hsProduct),
+      headerCell(D, t.volumeHeader, { align: 'right' }),
+      headerCell(D, t.changeHeader, { align: 'right' }),
+      headerCell(D, t.differenceHeader, { align: 'right' }),
+    ];
+    const rows = [new D.TableRow({ tableHeader: true, children: headerCells })];
+
+    products.forEach((p, idx) => {
+      const changeColor = p.changePct > 0 ? COLOR.positive : COLOR.negative;
+      const diffColor = p.diffMln > 0 ? COLOR.positive : COLOR.negative;
+      const changeSign = p.changePct > 0 ? '+' : '';
+      const diffSign = p.diffMln > 0 ? '+' : '';
+      const valueText = p.valueMln > 0 ? formatMln(p.valueMln) : '-';
+      const rowIdx = idx + 1;
+      const isLast = rowIdx === totalRows - 1;
+      rows.push(new D.TableRow({
+        cantSplit: true,
+        children: [
+          dataCell(D, lang === 'en' && p.nameEn ? p.nameEn : p.name, { rowIdx, isLastRow: isLast }),
+          dataCell(D, valueText, { align: 'right', rowIdx, isLastRow: isLast }),
+          dataCell(D, `${changeSign}${formatPct(p.changePct)}`, { align: 'right', color: changeColor, rowIdx, isLastRow: isLast }),
+          dataCell(D, `${diffSign}${formatMln(Math.abs(p.diffMln))}`, { align: 'right', color: diffColor, rowIdx, isLastRow: isLast }),
+        ],
+      }));
+    });
+
+    return new D.Table({
+      width: { size: 100, type: D.WidthType.PERCENTAGE },
+      columnWidths: [pt(280), pt(80), pt(62), pt(80)],
+      rows,
+    });
+  }
+
   // ── Trade section ──────────────────────────────────────────────────────
   // Mirrors statistics-pdf.js buildTradeSection but emits docx blocks.
   // Step 3a only: section title + summary placeholder + overview table +
@@ -854,6 +951,47 @@
       const img = chartImageP(D, charts.dynamics);
       if (img) blocks.push(img);
     }
+
+    // ── Export products + most-increased / -decreased ────────────────
+    if (trade.hasExport) {
+      blocks.push(subTitleP(D, `${t.mainExport}, ${periodLabel} ${trade.latestYear}`));
+      blocks.push(buildProductsTable(D, trade.exportProducts, t, lang));
+
+      const incLabel = trade.exportGrowing ? t.exportIncrease : t.exportDrop;
+      const dropLabel = trade.exportGrowing ? t.exportDrop : t.exportIncrease;
+      const incProds = trade.exportGrowing ? trade.exportChange.increase : trade.exportChange.drop;
+      const dropProds = trade.exportGrowing ? trade.exportChange.drop : trade.exportChange.increase;
+
+      if (incProds && incProds.length) {
+        blocks.push(subTitleP(D, `${incLabel}, ${periodLabel} ${trade.latestYear}`));
+        blocks.push(buildChangeTable(D, incProds, t, lang));
+      }
+      if (dropProds && dropProds.length) {
+        blocks.push(subTitleP(D, `${dropLabel}, ${periodLabel} ${trade.latestYear}`));
+        blocks.push(buildChangeTable(D, dropProds, t, lang));
+      }
+    }
+
+    // ── Import products + most-increased / -decreased ────────────────
+    if (trade.hasImport) {
+      blocks.push(subTitleP(D, `${t.mainImport}, ${periodLabel} ${trade.latestYear}`));
+      blocks.push(buildProductsTable(D, trade.importProducts, t, lang));
+
+      const incLabel = trade.importGrowing ? t.importIncrease : t.importDrop;
+      const dropLabel = trade.importGrowing ? t.importDrop : t.importIncrease;
+      const incProds = trade.importGrowing ? trade.importChange.increase : trade.importChange.drop;
+      const dropProds = trade.importGrowing ? trade.importChange.drop : trade.importChange.increase;
+
+      if (incProds && incProds.length) {
+        blocks.push(subTitleP(D, `${incLabel}, ${periodLabel} ${trade.latestYear}`));
+        blocks.push(buildChangeTable(D, incProds, t, lang));
+      }
+      if (dropProds && dropProds.length) {
+        blocks.push(subTitleP(D, `${dropLabel}, ${periodLabel} ${trade.latestYear}`));
+        blocks.push(buildChangeTable(D, dropProds, t, lang));
+      }
+    }
+
     return blocks;
   }
 
