@@ -524,7 +524,7 @@
       headerCell(D, t.changeHeader,     { align: 'right' }),
       headerCell(D, shareHeader,        { align: 'right' }),
     ];
-    const tableRows = [new D.TableRow({ tableHeader: true, children: headerCells })];
+    const tableRows = [new D.TableRow({ children: headerCells })];
 
     rows.forEach((r, idx) => {
       const rowIdx = idx + 1;
@@ -559,7 +559,7 @@
   function buildTourismSection(D, tourism, charts, t, country, lang, grammar) {
     if (!tourism) return [];
     const blocks = [];
-    blocks.push(sectionTitleP(D, `${country} - ${t.internationalVisitors}`, { pageBreakBefore: true }));
+    blocks.push(sectionTitleP(D, `${country} - ${t.internationalVisitors}`));
     if (!tourism.hasData) {
       blocks.push(emptyTablePlaceholder(D, t));
       return blocks;
@@ -681,7 +681,7 @@
       headerCell(D, t.changeHeader, { align: 'right' }),
       headerCell(D, shareHeader,    { align: 'right' }),
     ];
-    const rows = [new D.TableRow({ tableHeader: true, children: headerCells })];
+    const rows = [new D.TableRow({ children: headerCells })];
 
     data.forEach((r, idx) => {
       const rowIdx = idx + 1;
@@ -755,7 +755,7 @@
       headerCell(D, sectorHeader),
       ...years.map(y => headerCell(D, String(y), { align: 'right' })),
     ];
-    const rows = [new D.TableRow({ tableHeader: true, children: headerCells })];
+    const rows = [new D.TableRow({ children: headerCells })];
 
     // Totals row
     const totalCells = [dataCell(D, totalLabel, { bold: true, shading: COLOR.groupFill, rowIdx: 1, isLastRow: false })];
@@ -801,7 +801,7 @@
   function buildInvestmentsSection(D, inv, charts, t, country, lang, grammar) {
     if (!inv) return [];
     const blocks = [];
-    blocks.push(sectionTitleP(D, `${country} - ${t.fdi}`, { pageBreakBefore: true }));
+    blocks.push(sectionTitleP(D, `${country} - ${t.fdi}`));
     if (!inv.hasData) {
       blocks.push(emptyTablePlaceholder(D, t));
       return blocks;
@@ -835,7 +835,7 @@
     const title = isKa ? 'კომპანიები' : 'Companies';
 
     const out = [];
-    out.push(sectionTitleP(D, title, { pageBreakBefore: true }));
+    out.push(sectionTitleP(D, title));
 
     if (isKa) {
       out.push(summaryProseParagraph(D, [
@@ -976,7 +976,6 @@
     const totalRows = 1 + 4 * 3 + 1;
 
     const headerRow = new D.TableRow({
-      tableHeader: true,
       children: [appHeaderCell('', { align: 'left' })]
         .concat(cols.map(c => appHeaderCell(c.label))),
     });
@@ -1070,7 +1069,7 @@
     rows.push(new D.TableRow({ cantSplit: true, children: balCells }));
 
     return [
-      sectionTitleP(D, `${country} - ${t.appendixSection}`, { pageBreakBefore: true }),
+      sectionTitleP(D, `${country} - ${t.appendixSection}`),
       new D.Table({
         width: { size: 100, type: D.WidthType.PERCENTAGE },
         rows,
@@ -1154,11 +1153,7 @@
     }
 
     const totalRows = rows.length + 1; // header + data
-    // tableHeader: true makes Word repeat this row at the top of every
-    // continuation page when the table breaks (matches how the PDF
-    // appendix uses pdfmake's headerRows: 1).
     const headerRow = new D.TableRow({
-      tableHeader: true,
       children: [
         headerCell(D, ''),
         headerCell(D, colFull,  { align: 'center' }),
@@ -1468,7 +1463,7 @@
       headerCell(D, t.changeHeader, { align: 'right' }),
     ];
     if (showReexport) headerCells.push(headerCell(D, t.reexportShareShort, { align: 'right' }));
-    const rows = [new D.TableRow({ tableHeader: true, children: headerCells })];
+    const rows = [new D.TableRow({ children: headerCells })];
 
     products.forEach((p, idx) => {
       const change = p.change;
@@ -1511,7 +1506,7 @@
       headerCell(D, t.changeHeader, { align: 'right' }),
       headerCell(D, t.differenceHeader, { align: 'right' }),
     ];
-    const rows = [new D.TableRow({ tableHeader: true, children: headerCells })];
+    const rows = [new D.TableRow({ children: headerCells })];
 
     products.forEach((p, idx) => {
       const changeColor = p.changePct > 0 ? COLOR.positive : COLOR.negative;

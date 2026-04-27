@@ -385,7 +385,6 @@
 
     return {
       table: {
-        headerRows: 1,
         dontBreakRows: true,
         widths: ['auto', '*', '*'],
         body,
@@ -426,7 +425,6 @@
     const widths = showReexport ? ['*', 80, 62, 80] : ['*', 80, 70];
     return {
       table: {
-        headerRows: 1,
         dontBreakRows: true,
         widths,
         body,
@@ -465,7 +463,6 @@
     }
     return {
       table: {
-        headerRows: 1,
         dontBreakRows: true,
         widths: ['*', 80, 62, 80],
         body,
@@ -892,7 +889,6 @@
 
     const tableBlock = {
       table: {
-        headerRows: 1,
         dontBreakRows: true,
         widths: ['*', 'auto', 'auto', 'auto', 'auto'],
         body,
@@ -1110,7 +1106,6 @@
 
     const tableBlock = {
       table: {
-        headerRows: 1,
         dontBreakRows: true,
         widths: ['auto', 'auto', '*', 'auto', 'auto'],
         body,
@@ -1207,7 +1202,7 @@
       stack: [
         { text: titleText, fontSize: 11, bold: true, color: '#0f172a', margin: [0, 12, 0, 2] },
         { text: subtitleText, fontSize: 8.5, color: '#64748b', margin: [0, 0, 0, 4] },
-        { table: { headerRows: 1, dontBreakRows: true, widths, body }, layout: tableLayout },
+        { table: { dontBreakRows: true, widths, body }, layout: tableLayout },
       ],
     };
   }
@@ -1350,7 +1345,7 @@
     return [
       title,
       {
-        table: { headerRows: 1, dontBreakRows: true, widths, body },
+        table: { dontBreakRows: true, widths, body },
         layout: appendixLayout,
         margin: [0, 4, 0, 6],
       },
