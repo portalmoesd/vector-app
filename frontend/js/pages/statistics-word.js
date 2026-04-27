@@ -457,6 +457,153 @@
     ];
   }
 
+  // ── Multi-run data cell ────────────────────────────────────────────────
+  // Some trade-overview cells need two coloured runs in the same cell,
+  // e.g. "1,234.56 mln $, increase 12%" where the value is black and the
+  // change is green or red. dataCell takes a single string; this variant
+  // takes an array of `{ text, color, bold }` descriptors.
+  function dataCellRuns(D, runDescs, opts = {}) {
+    const align = opts.align || 'left';
+    const runs = runDescs.map(r => new D.TextRun({
+      text: String(r.text || ''),
+      font: 'FiraGO',
+      size: hp(r.size || 9),
+      color: r.color || COLOR.text,
+      bold: !!r.bold,
+      italics: !!r.italics,
+    }));
+    return makeCell(D, {
+      children: [new D.Paragraph({
+        alignment: align === 'right' ? D.AlignmentType.RIGHT
+                 : align === 'center' ? D.AlignmentType.CENTER
+                 : D.AlignmentType.LEFT,
+        children: runs,
+      })],
+      rowIdx: opts.rowIdx,
+      isLastRow: opts.isLastRow,
+      shading: opts.shading,
+      width: opts.width,
+    });
+  }
+
+  // ── Trade overview table ──────────────────────────────────────────────
+  // Mirrors statistics-pdf.js buildOverviewTable: 5 rows × 3 columns.
+  // Header: blank, colFull (prevYear), colMonth ("Jan-Feb 2026").
+  // Each subsequent row: bold label, fullYear cell, latestPeriod cell.
+  // Cells encode either the standard "value, increase X%" two-run format,
+  // a "positive/negative balance" line, or a centred grey "no trade"
+  // sentinel.
+  function buildOverviewTable(D, trade, t, periodLabel, lang) {
+    const data = trade.overview;
+    const colFull  = String(trade.prevYear);
+    const colMonth = `${periodLabel} ${trade.latestYear}`;
+
+    const rows = [
+      { key: 'turnover', label: t.turnover },
+      { key: 'export',   label: t.export   },
+      { key: 'import',   label: t.import   },
+      { key: 'balance',  label: t.balance  },
+    ];
+    const zeroMsg = { turnover: t.noTrade, export: t.noExports, import: t.noImports };
+
+    function buildCell(value, prev, isBalance, key, periodData, rowIdx, isLastRow) {
+      // "-" when balance shown for a no-trade period.
+      if (isBalance && periodData.turnover === 0) {
+        return dataCellRuns(D, [{ text: '-' }], { align: 'center', rowIdx, isLastRow });
+      }
+      // Centered grey sentinel for zero export/import/turnover.
+      if (value === 0 && !isBalance && zeroMsg[key]) {
+        return dataCellRuns(D, [{ text: zeroMsg[key], color: '94A3B8', size: 8.5 }], { align: 'center', rowIdx, isLastRow });
+      }
+      if (isBalance) {
+        const sign  = value < 0 ? t.negative : t.positive;
+        const color = value < 0 ? COLOR.negative : COLOR.positive;
+        return dataCellRuns(D, [{
+          text: `${sign} ${formatMln2(Math.abs(value))} ${t.mln}`, color,
+        }], { align: 'center', rowIdx, isLastRow });
+      }
+      const pct = calcChange(value, prev);
+      const dir = pct >= 0 ? t.increase : t.decrease;
+      const changeColor = pct >= 0 ? COLOR.positive : COLOR.negative;
+      return dataCellRuns(D, [
+        { text: `${formatMln2(value)} ${t.mln}`, color: COLOR.titleDark },
+        { text: `, ${dir} ${formatPct(pct)}`, color: changeColor },
+      ], { align: 'center', rowIdx, isLastRow });
+    }
+
+    const totalRows = rows.length + 1; // header + data
+    const headerRow = new D.TableRow({
+      children: [
+        headerCell(D, ''),
+        headerCell(D, colFull,  { align: 'center' }),
+        headerCell(D, colMonth, { align: 'center' }),
+      ],
+    });
+    const bodyRows = rows.map((r, idx) => {
+      const isBalance = r.key === 'balance';
+      const fullVal = data.fullYear[r.key];
+      const fullPrev = data.fullYear[r.key + 'Prev'];
+      const monthVal = data.latestPeriod[r.key];
+      const monthPrev = data.latestPeriod[r.key + 'Prev'];
+      const rowIdx = idx + 1; // +1 for header
+      const isLast = rowIdx === totalRows - 1;
+      return new D.TableRow({
+        cantSplit: true,
+        children: [
+          dataCell(D, r.label, { bold: true, rowIdx, isLastRow: isLast }),
+          buildCell(fullVal,  fullPrev,  isBalance, r.key, data.fullYear,     rowIdx, isLast),
+          buildCell(monthVal, monthPrev, isBalance, r.key, data.latestPeriod, rowIdx, isLast),
+        ],
+      });
+    });
+
+    return new D.Table({
+      width: { size: 100, type: D.WidthType.PERCENTAGE },
+      rows: [headerRow, ...bodyRows],
+    });
+  }
+
+  // ── Trade section ──────────────────────────────────────────────────────
+  // Mirrors statistics-pdf.js buildTradeSection but emits docx blocks.
+  // Step 3a only: section title + summary placeholder + overview table +
+  // the two chart images. Product/change tables and the prose summary
+  // land in subsequent commits.
+  function buildTradeSection(D, trade, charts, t, country, lang) {
+    if (!trade) return [];
+    const periodLabel = periodShortLabel(trade.latestMonth, lang) || trade.periodLabel;
+    const title = `${country} - ${t.tradeOverview}, ${periodLabel} ${trade.latestYear}`;
+
+    const blocks = [];
+    blocks.push(sectionTitleP(D, title));
+    // Summary placeholder — replaced in step 3b.
+    blocks.push(paragraph(D, italicRun(D, '[summary paragraphs will be inserted here]', { color: COLOR.textMuted })));
+    blocks.push(buildOverviewTable(D, trade, t, periodLabel, lang));
+
+    // Chart caption + image pair, mirroring the PDF.
+    if (charts && charts.turnover) {
+      blocks.push(captionP(D, t.turnover));
+      const img = chartImageP(D, charts.turnover);
+      if (img) blocks.push(img);
+    }
+    if (charts && charts.dynamics) {
+      blocks.push(captionP(D, t.dynamics));
+      // Tiny inline legend mirroring the PDF (green = export, red = import).
+      blocks.push(new D.Paragraph({
+        alignment: D.AlignmentType.CENTER,
+        spacing: { after: pt(2) },
+        children: [
+          new D.TextRun({ text: '■ ', font: 'FiraGO', size: hp(8), color: COLOR.positive }),
+          new D.TextRun({ text: `${t.export}    `, font: 'FiraGO', size: hp(8), color: COLOR.text }),
+          new D.TextRun({ text: '■ ', font: 'FiraGO', size: hp(8), color: COLOR.negative }),
+          new D.TextRun({ text: t.import, font: 'FiraGO', size: hp(8), color: COLOR.text }),
+        ],
+      }));
+      const img = chartImageP(D, charts.dynamics);
+      if (img) blocks.push(img);
+    }
+    return blocks;
+  }
+
   // ── Public API ─────────────────────────────────────────────────────────
   function filenameFor(country, lang) {
     const safeCountry = (country || 'report').replace(/[^a-zA-Z0-9Ⴀ-ჿ]/g, '_');
@@ -482,11 +629,11 @@
     const t = T[lang] || T.en;
     const country = lang === 'en' && opts && opts.countryNameEn ? opts.countryNameEn : (opts && opts.country) || 'Country';
 
-    // Section content — five placeholder blocks for now. The real
-    // builders (buildTradeSection, buildTourismSection, …) land in the
-    // next commits and replace these calls one at a time.
+    // Section content — Trade is fully wired (overview + chart embeds);
+    // the rest are placeholders until subsequent commits.
+    const tradeCharts = (opts && opts.charts) || {};
     const children = [
-      ...placeholderSection(D, t, 'tradeSection'),
+      ...buildTradeSection(D, state && state.trade, tradeCharts, t, country, lang),
       ...placeholderSection(D, t, 'tourismSection'),
       ...placeholderSection(D, t, 'investmentsSection'),
       ...placeholderSection(D, t, 'appendixSection'),
