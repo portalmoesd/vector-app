@@ -810,6 +810,76 @@
     return blocks;
   }
 
+  // ── Companies section ──────────────────────────────────────────────────
+  // Mirrors statistics-pdf.js buildCompaniesSection. Bullet list of
+  // company-count breakdowns by capital origin.
+  function buildCompaniesSection(D, state, t, country, lang, countryNameEn) {
+    if (!state || !state.hasData) return [];
+    const isKa = lang === 'ka';
+    const displayCountry = isKa
+      ? (state.countryKa || country)
+      : (state.countryEn || countryNameEn || country);
+    const c = state.counts || {};
+    const B = (s) => ({ text: s, bold: true });
+    const fmt = (n) => Number(n || 0).toLocaleString();
+    const title = isKa ? 'კომპანიები' : 'Companies';
+
+    const out = [];
+    out.push(sectionTitleP(D, title, { pageBreakBefore: true }));
+
+    if (isKa) {
+      out.push(summaryProseParagraph(D, [
+        `${displayCountry}-ის კაპიტალის მონაწილეობით დარეგისტრირებული მოქმედი კომპანიები:`,
+      ]));
+      out.push(summaryProseParagraph(D, [
+        B(fmt(c.total)), ` მოქმედი კომპანია ${displayCountry}-ის კაპიტალის მონაწილეობით.`,
+      ]));
+    } else {
+      out.push(summaryProseParagraph(D, [
+        `Active companies with capital originating from ${displayCountry}:`,
+      ]));
+      out.push(summaryProseParagraph(D, [
+        B(fmt(c.total)), ` active companies with capital originating from ${displayCountry}.`,
+      ]));
+    }
+
+    // Bulleted list — docx bullets via numbering. Use a built-in
+    // bullet style instead of declaring our own. Each bullet is one
+    // Paragraph with bullet: { level: 0 }.
+    const bullet = (parts) => new D.Paragraph({
+      bullet: { level: 0 },
+      spacing: { after: pt(2), line: 312, lineRule: 'auto' },
+      children: parts.map(p => {
+        if (p == null) return null;
+        if (typeof p === 'string') {
+          return new D.TextRun({ text: p, font: 'FiraGO', size: hp(10), color: COLOR.text });
+        }
+        return new D.TextRun({
+          text: String(p.text || ''),
+          font: 'FiraGO',
+          size: hp(10),
+          color: p.color || COLOR.text,
+          bold: !!p.bold,
+          italics: !!p.italics,
+        });
+      }).filter(Boolean),
+    });
+
+    if (isKa) {
+      out.push(bullet([B(fmt(c.solo)), ` კომპანია - ${displayCountry}-ის კაპიტალით შექმნილი;`]));
+      out.push(bullet([B(fmt(c.withGeorgia)), ` კომპანია - ${displayCountry} - საქართველოს წილობრივი კაპიტალით შექმნილი;`]));
+      out.push(bullet([B(fmt(c.withGeorgiaAndThird)), ` კომპანია - ${displayCountry}, საქართველოსა და მესამე ქვეყნის კაპიტალით შექმნილი;`]));
+      out.push(bullet([B(fmt(c.withThirdOnly)), ` კომპანია - ${displayCountry}-ის და მესამე ქვეყნების წილობრივი კაპიტალით შექმნილი.`]));
+    } else {
+      out.push(bullet([B(fmt(c.solo)), ` companies - established with capital from only ${displayCountry};`]));
+      out.push(bullet([B(fmt(c.withGeorgia)), ` companies - established with joint capital from ${displayCountry} and Georgia;`]));
+      out.push(bullet([B(fmt(c.withGeorgiaAndThird)), ` companies - established with joint capital from ${displayCountry}, Georgia and the third country;`]));
+      out.push(bullet([B(fmt(c.withThirdOnly)), ` companies - established with joint capital from ${displayCountry} and third countries.`]));
+    }
+
+    return out;
+  }
+
   // ── Section builder placeholders (filled in by subsequent commits) ────
   // Keeps the document structurally valid while the per-section
   // content gets translated from the PDF builders.
@@ -1394,6 +1464,7 @@
       ...buildTradeSection(D, state && state.trade, tradeCharts, t, country, lang),
       ...buildTourismSection(D, state && state.tourism, tradeCharts, t, country, lang, grammar),
       ...buildInvestmentsSection(D, investmentsState, tradeCharts, t, country, lang, grammar),
+      ...buildCompaniesSection(D, state && state.companies, t, country, lang, opts && opts.countryNameEn),
       ...placeholderSection(D, t, 'appendixSection'),
     ];
 
