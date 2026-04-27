@@ -880,6 +880,194 @@
     return out;
   }
 
+  // ── Appendix section ──────────────────────────────────────────────────
+  // Multi-year trade matrix mirroring statistics-pdf.js
+  // buildAppendixSection. Each metric block (turnover/export/import)
+  // contributes 4 rows: group totals, country values, change %, share %.
+  // The final balance row uses the same group styling. Starts on a new
+  // page because the table is too wide to share a page with other
+  // content.
+  function buildAppendixSection(D, appendix, t, country, lang) {
+    if (!appendix || !Array.isArray(appendix.columns) || !appendix.columns.length) return [];
+    const hasAny = (appendix.data || []).some(d => d && d.totals);
+    if (!hasAny) return [];
+
+    const cols = appendix.columns;
+    const N = cols.length;
+    const countryAbbr = (country || '').slice(0, 3);
+
+    function canCompareChange(i) {
+      if (i === 0) return false;
+      const a = cols[i - 1], b = cols[i];
+      if (a.kind !== b.kind) return false;
+      if (b.year - a.year !== 1) return false;
+      if (b.kind === 'ytd' && a.months.length !== b.months.length) return false;
+      return true;
+    }
+    const getCountry = (i, flow) => {
+      const d = appendix.data[i];
+      return d && d.country ? d.country[flow] : null;
+    };
+    const getTotal = (i, flow) => {
+      const d = appendix.data[i];
+      return d && d.totals ? d.totals[flow] : null;
+    };
+
+    function formatNumOr(v) { return v == null || !isFinite(v) ? '-' : formatMln2(v); }
+    function pctColored(v, signed) {
+      if (v == null || !isFinite(v)) return { text: '-', color: COLOR.text };
+      const color = v > 0 ? COLOR.positive : (v < 0 ? COLOR.negative : COLOR.headerText);
+      const sign = signed && v > 0 ? '+' : '';
+      return { text: `${sign}${formatPct(v)}`, color };
+    }
+    function pctPlain(v) {
+      if (v == null || !isFinite(v)) return { text: '-' };
+      return { text: formatPct(v) };
+    }
+
+    // Tiny appendix-only cell helpers — 7pt body / 7.5pt header. The
+    // global dataCell defaults are 9pt so we override in opts.
+    const APP_BODY = 7;
+    const APP_HDR  = 7.5;
+    function appCell(text, opts) {
+      const { rowIdx, isLastRow, align, color, bold, shading } = opts || {};
+      const al = align === 'right' ? D.AlignmentType.RIGHT
+               : align === 'center' ? D.AlignmentType.CENTER
+               : D.AlignmentType.LEFT;
+      return makeCell(D, {
+        children: [new D.Paragraph({
+          alignment: al,
+          children: [new D.TextRun({
+            text: String(text), font: 'FiraGO',
+            size: hp(opts && opts.size ? opts.size : APP_BODY),
+            color: color || COLOR.text, bold: !!bold,
+          })],
+        })],
+        rowIdx,
+        isLastRow,
+        shading,
+      });
+    }
+    function appHeaderCell(text, opts) {
+      return makeCell(D, {
+        children: [new D.Paragraph({
+          alignment: opts && opts.align === 'left' ? D.AlignmentType.LEFT : D.AlignmentType.RIGHT,
+          children: [new D.TextRun({
+            text: String(text), font: 'FiraGO',
+            size: hp(APP_HDR), color: COLOR.headerText, bold: true,
+          })],
+        })],
+        rowIdx: 0,
+        shading: COLOR.headerFill,
+      });
+    }
+
+    // 1 + 4×3 + 1 = 14 rows total (header + turnover/export/import × 4 + balance)
+    const totalRows = 1 + 4 * 3 + 1;
+
+    const headerRow = new D.TableRow({
+      tableHeader: true,
+      children: [appHeaderCell('', { align: 'left' })]
+        .concat(cols.map(c => appHeaderCell(c.label))),
+    });
+    const rows = [headerRow];
+
+    // groupRow: bold totals row that doubles as a section break.
+    function pushGroupRow(grpLabel, flow, rowIdx) {
+      const isLast = rowIdx === totalRows - 1;
+      const cells = [appCell(grpLabel, {
+        rowIdx, isLastRow: isLast, bold: true, size: APP_HDR,
+        shading: COLOR.groupFill, color: COLOR.titleDark,
+      })];
+      cols.forEach((_, i) => {
+        const v = getTotal(i, flow);
+        cells.push(appCell(formatNumOr(v), {
+          rowIdx, isLastRow: isLast, align: 'right', bold: true, size: APP_HDR,
+          shading: COLOR.groupFill, color: COLOR.titleDark,
+        }));
+      });
+      rows.push(new D.TableRow({ cantSplit: true, children: cells }));
+    }
+    function pushValueRow(label, flow, rowIdx) {
+      const isLast = rowIdx === totalRows - 1;
+      const cells = [appCell(label, { rowIdx, isLastRow: isLast, color: COLOR.headerText })];
+      cols.forEach((_, i) => {
+        cells.push(appCell(formatNumOr(getCountry(i, flow)), { rowIdx, isLastRow: isLast, align: 'right' }));
+      });
+      rows.push(new D.TableRow({ cantSplit: true, children: cells }));
+    }
+    function pushChangeRow(flow, rowIdx) {
+      const isLast = rowIdx === totalRows - 1;
+      const cells = [appCell(t.appChange, { rowIdx, isLastRow: isLast, color: COLOR.headerText })];
+      cols.forEach((_, i) => {
+        let cell;
+        if (!canCompareChange(i)) cell = { text: '-', color: COLOR.text };
+        else {
+          const cur = getCountry(i, flow);
+          const prev = getCountry(i - 1, flow);
+          if (cur == null || prev == null || prev === 0) cell = { text: '-', color: COLOR.text };
+          else cell = pctColored(((cur - prev) / prev) * 100, true);
+        }
+        cells.push(appCell(cell.text, { rowIdx, isLastRow: isLast, align: 'right', color: cell.color }));
+      });
+      rows.push(new D.TableRow({ cantSplit: true, children: cells }));
+    }
+    function pushShareRow(flow, rowIdx) {
+      const isLast = rowIdx === totalRows - 1;
+      const cells = [appCell(t.appShare, { rowIdx, isLastRow: isLast, color: COLOR.headerText })];
+      cols.forEach((_, i) => {
+        const cur = getCountry(i, flow);
+        const tot = getTotal(i, flow);
+        let cell;
+        if (cur == null || !tot) cell = { text: '-' };
+        else cell = pctPlain((cur / tot) * 100);
+        cells.push(appCell(cell.text, { rowIdx, isLastRow: isLast, align: 'right' }));
+      });
+      rows.push(new D.TableRow({ cantSplit: true, children: cells }));
+    }
+    function pushFlowBlock(grpLabel, flow, startRowIdx) {
+      pushGroupRow(grpLabel, flow, startRowIdx);
+      pushValueRow(`${grpLabel}-${countryAbbr}`, flow, startRowIdx + 1);
+      pushChangeRow(flow, startRowIdx + 2);
+      pushShareRow(flow, startRowIdx + 3);
+    }
+
+    pushFlowBlock(t.appTurnoverGrp, 'turnover', 1);
+    pushFlowBlock(t.appExportGrp,   'export',   5);
+    pushFlowBlock(t.appImportGrp,   'import',   9);
+
+    // Balance row (last)
+    const balRowIdx = totalRows - 1;
+    const balCells = [appCell(t.appBalanceGrp, {
+      rowIdx: balRowIdx, isLastRow: true, bold: true, size: APP_HDR,
+      shading: COLOR.groupFill, color: COLOR.titleDark,
+    })];
+    cols.forEach((_, i) => {
+      const c = appendix.data[i] && appendix.data[i].country;
+      let text = '-';
+      let color = COLOR.titleDark;
+      if (c) {
+        const bal = (c.export || 0) - (c.import || 0);
+        color = bal > 0 ? COLOR.positive : (bal < 0 ? COLOR.negative : COLOR.titleDark);
+        const sign = bal < 0 ? '-' : '';
+        text = `${sign}${formatMln2(Math.abs(bal))}`;
+      }
+      balCells.push(appCell(text, {
+        rowIdx: balRowIdx, isLastRow: true, align: 'right', bold: true, size: APP_HDR,
+        shading: COLOR.groupFill, color,
+      }));
+    });
+    rows.push(new D.TableRow({ cantSplit: true, children: balCells }));
+
+    return [
+      sectionTitleP(D, `${country} - ${t.appendixSection}`, { pageBreakBefore: true }),
+      new D.Table({
+        width: { size: 100, type: D.WidthType.PERCENTAGE },
+        rows,
+      }),
+    ];
+  }
+
   // ── Section builder placeholders (filled in by subsequent commits) ────
   // Keeps the document structurally valid while the per-section
   // content gets translated from the PDF builders.
@@ -1465,7 +1653,7 @@
       ...buildTourismSection(D, state && state.tourism, tradeCharts, t, country, lang, grammar),
       ...buildInvestmentsSection(D, investmentsState, tradeCharts, t, country, lang, grammar),
       ...buildCompaniesSection(D, state && state.companies, t, country, lang, opts && opts.countryNameEn),
-      ...placeholderSection(D, t, 'appendixSection'),
+      ...buildAppendixSection(D, state && state.appendix, t, country, lang),
     ];
 
     const doc = buildDocxDocument(D, children, {
