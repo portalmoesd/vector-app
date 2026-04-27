@@ -1068,15 +1068,6 @@
     ];
   }
 
-  // ── Section builder placeholders (filled in by subsequent commits) ────
-  // Keeps the document structurally valid while the per-section
-  // content gets translated from the PDF builders.
-  function placeholderSection(D, t, key) {
-    return [
-      sectionTitleP(D, t[key], { pageBreakBefore: key !== 'tradeSection' }),
-      paragraph(D, italicRun(D, t.noData, { color: COLOR.textMuted })),
-    ];
-  }
 
   // ── Multi-run data cell ────────────────────────────────────────────────
   // Some trade-overview cells need two coloured runs in the same cell,
@@ -1666,22 +1657,5 @@
     triggerDownload(blob, filenameFor(country, lang));
   }
 
-  // Expose helpers internally too, so future per-section code added by
-  // subsequent commits can reuse them without re-declaring.
-  window.StatisticsWord = {
-    build,
-    // private helpers exposed for the builder modules added later
-    _internals: {
-      T, KA_MONTHS, EN_MONTHS, KA_MONTHS_SHORT, COLOR,
-      pt, hp, px,
-      gePeriodGen, gePeriodLoc, periodShortLabel, enPeriod,
-      gePeriodGenRange, enPeriodRange, gePlace, enOrdinal,
-      formatMln, formatMln2, formatPct, calcChange, formatDate,
-      paragraph, run, boldRun, italicRun,
-      sectionTitleP, subTitleP, captionP,
-      chartImageP, dataUrlToBytes,
-      headerCell, dataCell, makeCell, cellBorders, cellMargins,
-      buildDocxDocument,
-    },
-  };
+  window.StatisticsWord = { build };
 })();
