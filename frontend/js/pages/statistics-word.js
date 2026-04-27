@@ -564,6 +564,252 @@
     return blocks;
   }
 
+  // ── Investments section ────────────────────────────────────────────────
+  // Mirrors statistics-pdf.js buildInvestmentsSection /
+  // buildInvestmentsSummary / buildFdiSectorsTable.
+
+  function buildInvestmentsSummary(D, inv, t, country, lang, grammar) {
+    if (!inv || !inv.hasData) return [];
+    const isKa = lang === 'ka';
+    const B = (s) => ({ text: s, bold: true });
+    const fmt = (n) => (Math.round(Math.abs(n) * 100) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const kaFrom = (name) => (grammar && grammar.from) || (name + 'დან');
+    const countryFrom = isKa ? kaFrom(country) : country;
+    const out = [];
+
+    // Sentence 1: first year + total + total rank
+    if (inv.firstYear && inv.totalSum > 0) {
+      if (isKa) {
+        const parts = [
+          `${countryFrom} საქართველოში პირდაპირი უცხოური ინვესტიცია პირველად `,
+          B(`${inv.firstYear}`), ` წელს განხორციელდა. ჯამური განხორციელებული პირდაპირი უცხოური ინვესტიცია შეადგენს `,
+          B(`${fmt(inv.totalSum)} მლნ. აშშ დოლარს`), `.`,
+        ];
+        if (inv.totalRank) {
+          parts.push(` ${country} იკავებს `, B(`${gePlace(inv.totalRank)} ადგილს`),
+            ` ჯამური განხორციელებული ინვესტიციის მოცულობით საქართველოში.`);
+        }
+        out.push(summaryProseParagraph(D, parts));
+      } else {
+        const parts = [
+          `Foreign direct investment from ${country} to Georgia was first made in `,
+          B(`${inv.firstYear}`), `. Total FDI amounts to `,
+          B(`${fmt(inv.totalSum)} mln USD`), `.`,
+        ];
+        if (inv.totalRank) {
+          parts.push(` ${country} ranks `, B(enOrdinal(inv.totalRank)), ` by total FDI volume in Georgia.`);
+        }
+        out.push(summaryProseParagraph(D, parts));
+      }
+    }
+
+    // Sentence 2: 5-year sum
+    if (inv.fiveYearSum > 0) {
+      if (isKa) {
+        out.push(summaryProseParagraph(D, [
+          B(`${inv.fiveYearStart} - ${inv.fiveYearEnd}`),
+          ` წლებში ${countryFrom} საქართველოში შემოსული ინვესტიციების მოცულობამ შეადგინა `,
+          B(`${fmt(inv.fiveYearSum)} მლნ. აშშ დოლარი`), `.`,
+        ]));
+      } else {
+        out.push(summaryProseParagraph(D, [
+          `Between `, B(`${inv.fiveYearStart}-${inv.fiveYearEnd}`),
+          `, investments from ${country} to Georgia amounted to `,
+          B(`${fmt(inv.fiveYearSum)} mln USD`), `.`,
+        ]));
+      }
+    }
+
+    // Per-year sentences (latest + previous)
+    const yearSentence = (year, value, rank) => {
+      if (!(value > 0) || !year) return null;
+      if (isKa) {
+        const parts = [
+          B(`${year} წელს`), ` ${countryFrom} საქართველოში განხორციელდა `,
+          B(`${fmt(value)} მლნ. აშშ დოლარის`), ` პირდაპირი უცხოური ინვესტიცია.`,
+        ];
+        if (rank) {
+          parts.push(` ${country} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით `,
+            `${year} წელს `, B(`${gePlace(rank)} ადგილს`), ` იკავებს.`);
+        }
+        return summaryProseParagraph(D, parts);
+      }
+      const parts = [
+        `In `, B(`${year}`), `, `, B(`${fmt(value)} mln USD`),
+        ` of foreign direct investment came to Georgia from ${country}.`,
+      ];
+      if (rank) parts.push(` ${country} ranked `, B(enOrdinal(rank)), ` by FDI volume in ${year}.`);
+      return summaryProseParagraph(D, parts);
+    };
+    const noInv = (year) => isKa
+      ? summaryProseParagraph(D, [B(`${year} წელს`), ` ${countryFrom} ინვესტიცია არ განხორციელდა.`])
+      : summaryProseParagraph(D, [`In `, B(`${year}`), `, no investment was conducted from ${country}.`]);
+
+    if (inv.latestYear) {
+      const s = yearSentence(inv.latestYear, inv.latestYearValue, inv.latestYearRank);
+      out.push(s || noInv(inv.latestYear));
+    }
+    if (inv.prevYear) {
+      const s = yearSentence(inv.prevYear, inv.prevYearValue, inv.prevYearRank);
+      out.push(s || noInv(inv.prevYear));
+    }
+
+    return out;
+  }
+
+  function buildFdiTable(D, inv, t, lang) {
+    const data = [...(inv.tableData || [])].reverse();
+    if (data.length === 0) return emptyTablePlaceholder(D, t);
+    const totalRows = 1 + data.length;
+    const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
+    const shareHeader = lang === 'ka' ? 'წილი, %' : 'Share, %';
+
+    const headerCells = [
+      headerCell(D, t.year),
+      headerCell(D, rankHeader,     { align: 'right' }),
+      headerCell(D, t.volumeHeader, { align: 'right' }),
+      headerCell(D, t.changeHeader, { align: 'right' }),
+      headerCell(D, shareHeader,    { align: 'right' }),
+    ];
+    const rows = [new D.TableRow({ tableHeader: true, children: headerCells })];
+
+    data.forEach((r, idx) => {
+      const rowIdx = idx + 1;
+      const isLast = rowIdx === totalRows - 1;
+      const isCurNeg = !(r.valueMln > 0);
+      const isPrevNeg = !(r.prevMln > 0);
+      const valueText = isCurNeg ? '-' : formatMln(r.valueMln);
+      let changeText = '-';
+      let changeColor = COLOR.text;
+      if (!(isCurNeg || isPrevNeg)) {
+        const pct = ((r.valueMln - r.prevMln) / r.prevMln) * 100;
+        changeColor = pct > 0 ? COLOR.positive : (pct < 0 ? COLOR.negative : COLOR.headerText);
+        const sign = pct > 0 ? '+' : '';
+        changeText = `${sign}${formatPct(pct)}`;
+      }
+      const rankText = (!isCurNeg && r.rank) ? String(r.rank) : '-';
+      const shareText = (!isCurNeg && r.share != null) ? `${(Math.round(r.share * 10) / 10).toFixed(1)}%` : '-';
+      rows.push(new D.TableRow({
+        cantSplit: true,
+        children: [
+          dataCell(D, String(r.year), { rowIdx, isLastRow: isLast }),
+          dataCell(D, rankText,  { align: 'right', rowIdx, isLastRow: isLast }),
+          dataCell(D, valueText, { align: 'right', rowIdx, isLastRow: isLast }),
+          dataCell(D, changeText, { align: 'right', color: changeColor, rowIdx, isLastRow: isLast }),
+          dataCell(D, shareText, { align: 'right', rowIdx, isLastRow: isLast }),
+        ],
+      }));
+    });
+
+    return new D.Table({
+      width: { size: 100, type: D.WidthType.PERCENTAGE },
+      rows,
+    });
+  }
+
+  function buildFdiSectorsTable(D, sectors, country, lang) {
+    if (!sectors || !sectors.data) return null;
+    const isKa = lang === 'ka';
+    const { years, data } = sectors;
+    const yrRange = years.length > 1 ? `${years[0]}-${years[years.length - 1]}` : String(years[0]);
+    const titleText = isKa
+      ? `${country} - პირდაპირი უცხოური ინვესტიციები სექტორების მიხედვით, ${yrRange}`
+      : `${country} - Foreign Direct Investment by Sector, ${yrRange}`;
+    const subtitleText = isKa ? 'მლნ. აშშ დოლარი' : 'mln USD';
+    const totalLabel = isKa ? 'სულ' : 'Total';
+    const sectorHeader = isKa ? 'სექტორი' : 'Sector';
+
+    function fmt(v) {
+      if (v === null || v === undefined || v === 0) return '-';
+      const sign = v < 0 ? '-' : '';
+      const abs = Math.abs(v);
+      const str = abs >= 100 ? abs.toFixed(1) : abs.toFixed(2);
+      return sign + str.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+    function colorOf(v) {
+      if (v === null || v === undefined || v === 0) return COLOR.headerText;
+      return v < 0 ? COLOR.negative : COLOR.titleDark;
+    }
+
+    const sectorNames = Object.keys(data.sectors || {});
+    const sortYear = years[years.length - 1];
+    sectorNames.sort((a, b) => {
+      const va = (data.sectors[a] && data.sectors[a][sortYear]) || 0;
+      const vb = (data.sectors[b] && data.sectors[b][sortYear]) || 0;
+      return vb - va;
+    });
+    const nameMap = sectors.sectorNameMap || {};
+
+    const totalRows = 1 + 1 + sectorNames.length; // header + totals + sector rows
+    const headerCells = [
+      headerCell(D, sectorHeader),
+      ...years.map(y => headerCell(D, String(y), { align: 'right' })),
+    ];
+    const rows = [new D.TableRow({ tableHeader: true, children: headerCells })];
+
+    // Totals row
+    const totalCells = [dataCell(D, totalLabel, { bold: true, shading: COLOR.groupFill, rowIdx: 1, isLastRow: false })];
+    for (const y of years) {
+      const v = data.totals ? data.totals[y] : null;
+      totalCells.push(dataCell(D, fmt(v), {
+        align: 'right', bold: true, color: colorOf(v),
+        shading: COLOR.groupFill, rowIdx: 1, isLastRow: false,
+      }));
+    }
+    rows.push(new D.TableRow({ cantSplit: true, children: totalCells }));
+
+    // Sector rows
+    sectorNames.forEach((sector, sIdx) => {
+      const rowIdx = 2 + sIdx;
+      const isLast = rowIdx === totalRows - 1;
+      const displayName = isKa ? sector : (nameMap[sector] || sector);
+      const cells = [dataCell(D, displayName, { rowIdx, isLastRow: isLast })];
+      const vals = data.sectors[sector] || {};
+      for (const y of years) {
+        const v = vals[y];
+        cells.push(dataCell(D, fmt(v), { align: 'right', color: colorOf(v), rowIdx, isLastRow: isLast }));
+      }
+      rows.push(new D.TableRow({ cantSplit: true, children: cells }));
+    });
+
+    return [
+      new D.Paragraph({
+        spacing: { before: pt(12), after: pt(2) },
+        children: [new D.TextRun({ text: titleText, bold: true, font: 'FiraGO', size: hp(11), color: COLOR.titleDark })],
+      }),
+      new D.Paragraph({
+        spacing: { after: pt(4) },
+        children: [new D.TextRun({ text: subtitleText, font: 'FiraGO', size: hp(8.5), color: '64748B' })],
+      }),
+      new D.Table({
+        width: { size: 100, type: D.WidthType.PERCENTAGE },
+        rows,
+      }),
+    ];
+  }
+
+  function buildInvestmentsSection(D, inv, charts, t, country, lang, grammar) {
+    if (!inv) return [];
+    const blocks = [];
+    blocks.push(sectionTitleP(D, `${country} - ${t.fdi}`, { pageBreakBefore: true }));
+    if (!inv.hasData) {
+      blocks.push(emptyTablePlaceholder(D, t));
+      return blocks;
+    }
+    blocks.push(...buildInvestmentsSummary(D, inv, t, country, lang, grammar));
+    blocks.push(buildFdiTable(D, inv, t, lang));
+    if (charts && charts.fdi) {
+      blocks.push(captionP(D, t.fdiShort));
+      const img = chartImageP(D, charts.fdi);
+      if (img) blocks.push(img);
+    }
+    if (inv.sectors) {
+      const sectorsBlocks = buildFdiSectorsTable(D, inv.sectors, country, lang);
+      if (sectorsBlocks) blocks.push(...sectorsBlocks);
+    }
+    return blocks;
+  }
+
   // ── Section builder placeholders (filled in by subsequent commits) ────
   // Keeps the document structurally valid while the per-section
   // content gets translated from the PDF builders.
@@ -1141,10 +1387,13 @@
     // the rest are placeholders until subsequent commits.
     const tradeCharts = (opts && opts.charts) || {};
     const grammar = state && state.countryGrammar;
+    const investmentsState = state && state.investments
+      ? Object.assign({}, state.investments, { sectors: state.investmentsSectors || null })
+      : state && state.investments;
     const children = [
       ...buildTradeSection(D, state && state.trade, tradeCharts, t, country, lang),
       ...buildTourismSection(D, state && state.tourism, tradeCharts, t, country, lang, grammar),
-      ...placeholderSection(D, t, 'investmentsSection'),
+      ...buildInvestmentsSection(D, investmentsState, tradeCharts, t, country, lang, grammar),
       ...placeholderSection(D, t, 'appendixSection'),
     ];
 
