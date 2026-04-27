@@ -22,6 +22,7 @@
   const countryValue = document.getElementById('countryValue');
   const generateBtn = document.getElementById('generateBtn');
   const exportPdfBtn = document.getElementById('exportPdfBtn');
+  const exportWordBtn = document.getElementById('exportWordBtn');
   const statSections = document.getElementById('statSections');
   const reportLoading = document.getElementById('reportLoading');
   const tradeSummaryEl = document.getElementById('tradeSummary');
@@ -1007,6 +1008,7 @@
     } finally {
       reportLoading.classList.add('hidden');
       exportPdfBtn.disabled = false;
+      if (exportWordBtn) exportWordBtn.disabled = false;
     }
   }
 
@@ -2010,6 +2012,7 @@
     } finally {
       tourismLoading.classList.add('hidden');
       exportPdfBtn.disabled = false;
+      if (exportWordBtn) exportWordBtn.disabled = false;
     }
   }
 
@@ -2340,6 +2343,7 @@
     } finally {
       investmentsLoading.classList.add('hidden');
       exportPdfBtn.disabled = false;
+      if (exportWordBtn) exportWordBtn.disabled = false;
     }
   }
 
@@ -2689,6 +2693,34 @@
     exportPdf(reportLocale);
   });
 
+  if (exportWordBtn) {
+    exportWordBtn.addEventListener('click', () => {
+      if (exportWordBtn.disabled) return;
+      exportWord(reportLocale);
+    });
+  }
+
+  // Lazy-load the docx library only when the user actually clicks
+  // "Word" — keeps the initial page weight down (the library is
+  // ~600 KB and most visitors never export). The load promise is
+  // memoised so subsequent clicks reuse the same script tag.
+  let _docxLoadPromise = null;
+  function ensureDocxLib() {
+    if (typeof window.docx !== 'undefined') return Promise.resolve();
+    if (_docxLoadPromise) return _docxLoadPromise;
+    _docxLoadPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js';
+      s.onload = () => resolve();
+      s.onerror = () => {
+        _docxLoadPromise = null;
+        reject(new Error('Failed to load docx library'));
+      };
+      document.head.appendChild(s);
+    });
+    return _docxLoadPromise;
+  }
+
   // Capture a Chart.js canvas as a PNG data URL at an explicit size.
   //
   // Trick: we render the chart at its FINAL display size (matching the PDF
@@ -2822,6 +2854,54 @@
         .forEach(c => { if (c) { try { c.resize(); } catch (_) {} } });
       exportPdfBtn.disabled = false;
       exportPdfBtn.textContent = origBtnText;
+    }
+  }
+
+  // Mirror of exportPdf for Word output. Lazy-loads the docx library
+  // on first click, snapshots the same chart PNGs that the PDF path
+  // uses, and hands the same `pdfState` to StatisticsWord.build.
+  async function exportWord(wordLang) {
+    if (!exportWordBtn) return;
+    if (!pdfState.trade || !pdfState.country) {
+      alert(reportLocale === 'ka' ? 'ჯერ დააგენერირეთ მონაცემები' : 'Please generate data first.');
+      return;
+    }
+
+    const origBtnText = exportWordBtn.textContent;
+    exportWordBtn.disabled = true;
+    exportWordBtn.textContent = '...';
+
+    document.body.classList.add('stat-exporting');
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    try {
+      await ensureDocxLib();
+      if (typeof StatisticsWord === 'undefined') {
+        throw new Error('Word builder not loaded');
+      }
+
+      const charts = {
+        turnover: snapshotChart(turnoverChartInstance),
+        dynamics: snapshotChart(dynamicsChartInstance),
+        tourism:  snapshotChart(tourismChartInstance),
+        fdi:      snapshotChart(fdiChartInstance),
+      };
+
+      await StatisticsWord.build(pdfState, {
+        lang: wordLang || 'en',
+        country: pdfState.country.displayLabel,
+        countryNameEn: pdfState.countryNameEn,
+        charts,
+      });
+    } catch (err) {
+      console.error('Word export error:', err);
+      alert('Failed to export Word: ' + (err.message || err));
+    } finally {
+      document.body.classList.remove('stat-exporting');
+      [turnoverChartInstance, dynamicsChartInstance, tourismChartInstance, fdiChartInstance]
+        .forEach(c => { if (c) { try { c.resize(); } catch (_) {} } });
+      exportWordBtn.disabled = false;
+      exportWordBtn.textContent = origBtnText;
     }
   }
 
