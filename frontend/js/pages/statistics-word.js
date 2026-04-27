@@ -321,10 +321,40 @@
     return new D.Paragraph({
       alignment: D.AlignmentType.CENTER,
       spacing: { before: pt(2), after: pt(8) },
+      // Image-only paragraph still gets keepLines so the image isn't
+      // split mid-page; keepNext keeps the next block (sub-title /
+      // table) attached too.
+      keepLines: true,
       children: [new D.ImageRun({
         data: bytes,
         transformation: { width: px(widthPt), height: px(heightPt) },
       })],
+    });
+  }
+  // Combined caption + chart image as one paragraph. Using a single
+  // paragraph + keepLines + keepNext is the most reliable way to keep
+  // a chart caption glued to its image across page breaks — the prior
+  // two-paragraph version still let Word push the image to the next
+  // page on its own when it didn't fit alongside the caption.
+  function captionedChartP(D, captionText, dataUrl, widthPt = 500, heightPt = 153) {
+    const bytes = dataUrlToBytes(dataUrl);
+    if (!bytes) return null;
+    return new D.Paragraph({
+      alignment: D.AlignmentType.CENTER,
+      spacing: { before: pt(2), after: pt(8) },
+      keepLines: true,
+      keepNext: true,
+      children: [
+        new D.TextRun({
+          text: captionText, bold: true, font: 'FiraGO',
+          size: hp(9.5), color: COLOR.text,
+        }),
+        new D.TextRun({ text: '', break: 1 }),
+        new D.ImageRun({
+          data: bytes,
+          transformation: { width: px(widthPt), height: px(heightPt) },
+        }),
+      ],
     });
   }
 
@@ -362,12 +392,19 @@
       width,
     });
   }
+  // `opts.keepWithNext` → docx keepNext on the cell's inner paragraph.
+  // Used by tables that must not split across pages (Tourism, FDI,
+  // Appendix). When the helpers are called for non-last rows of those
+  // tables, every cell's inner paragraph gets keepNext: true, which
+  // chains the rows together so Word treats the whole table as one
+  // unbreakable block.
   function headerCell(D, text, opts = {}) {
     return makeCell(D, {
       children: [new D.Paragraph({
         alignment: opts.align === 'right' ? D.AlignmentType.RIGHT
                  : opts.align === 'center' ? D.AlignmentType.CENTER
                  : D.AlignmentType.LEFT,
+        keepNext: !!opts.keepWithNext,
         children: [new D.TextRun({
           text, bold: true, font: 'FiraGO',
           size: hp(8), color: COLOR.headerText,
@@ -387,6 +424,7 @@
         alignment: align === 'right' ? D.AlignmentType.RIGHT
                  : align === 'center' ? D.AlignmentType.CENTER
                  : D.AlignmentType.LEFT,
+        keepNext: !!opts.keepWithNext,
         children: [new D.TextRun({
           text: String(text), font: 'FiraGO',
           size: hp(9), color, bold: !!opts.bold,
@@ -517,18 +555,22 @@
     const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
     const shareHeader = lang === 'ka' ? 'წილი, %' : 'Share, %';
 
+    // Tourism table must not cut across pages → every cell paragraph
+    // in non-last rows gets keepNext:true so Word treats the whole
+    // table as a single block.
     const headerCells = [
-      headerCell(D, t.period),
-      headerCell(D, rankHeader,         { align: 'right' }),
-      headerCell(D, t.visitors,         { align: 'right' }),
-      headerCell(D, t.changeHeader,     { align: 'right' }),
-      headerCell(D, shareHeader,        { align: 'right' }),
+      headerCell(D, t.period,           { keepWithNext: true }),
+      headerCell(D, rankHeader,         { align: 'right', keepWithNext: true }),
+      headerCell(D, t.visitors,         { align: 'right', keepWithNext: true }),
+      headerCell(D, t.changeHeader,     { align: 'right', keepWithNext: true }),
+      headerCell(D, shareHeader,        { align: 'right', keepWithNext: true }),
     ];
     const tableRows = [new D.TableRow({ children: headerCells })];
 
     rows.forEach((r, idx) => {
       const rowIdx = idx + 1;
       const isLast = rowIdx === totalRows - 1;
+      const keep = !isLast;
       let changeColor = COLOR.text;
       let changeText = '-';
       if (r.changePct !== null && r.changePct !== undefined) {
@@ -541,11 +583,11 @@
       tableRows.push(new D.TableRow({
         cantSplit: true,
         children: [
-          dataCell(D, r.label, { bold: !!r.isCurrent, rowIdx, isLastRow: isLast }),
-          dataCell(D, rankText, { align: 'right', rowIdx, isLastRow: isLast }),
-          dataCell(D, r.visitors.toLocaleString(), { align: 'right', rowIdx, isLastRow: isLast }),
-          dataCell(D, changeText, { align: 'right', color: changeColor, rowIdx, isLastRow: isLast }),
-          dataCell(D, shareText, { align: 'right', rowIdx, isLastRow: isLast }),
+          dataCell(D, r.label, { bold: !!r.isCurrent, rowIdx, isLastRow: isLast, keepWithNext: keep }),
+          dataCell(D, rankText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
+          dataCell(D, r.visitors.toLocaleString(), { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
+          dataCell(D, changeText, { align: 'right', color: changeColor, rowIdx, isLastRow: isLast, keepWithNext: keep }),
+          dataCell(D, shareText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
         ],
       }));
     });
@@ -567,9 +609,8 @@
     blocks.push(...buildTourismSummary(D, tourism, t, country, lang, grammar));
     blocks.push(buildTourismTable(D, tourism, t, lang));
     if (charts && charts.tourism) {
-      blocks.push(captionP(D, t.internationalVisitors));
-      const img = chartImageP(D, charts.tourism);
-      if (img) blocks.push(img);
+      const block = captionedChartP(D, t.internationalVisitors, charts.tourism);
+      if (block) blocks.push(block);
     }
     return blocks;
   }
@@ -674,18 +715,20 @@
     const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
     const shareHeader = lang === 'ka' ? 'წილი, %' : 'Share, %';
 
+    // FDI table must not cut across pages (same approach as Tourism).
     const headerCells = [
-      headerCell(D, t.year),
-      headerCell(D, rankHeader,     { align: 'right' }),
-      headerCell(D, t.volumeHeader, { align: 'right' }),
-      headerCell(D, t.changeHeader, { align: 'right' }),
-      headerCell(D, shareHeader,    { align: 'right' }),
+      headerCell(D, t.year,         { keepWithNext: true }),
+      headerCell(D, rankHeader,     { align: 'right', keepWithNext: true }),
+      headerCell(D, t.volumeHeader, { align: 'right', keepWithNext: true }),
+      headerCell(D, t.changeHeader, { align: 'right', keepWithNext: true }),
+      headerCell(D, shareHeader,    { align: 'right', keepWithNext: true }),
     ];
     const rows = [new D.TableRow({ children: headerCells })];
 
     data.forEach((r, idx) => {
       const rowIdx = idx + 1;
       const isLast = rowIdx === totalRows - 1;
+      const keep = !isLast;
       const isCurNeg = !(r.valueMln > 0);
       const isPrevNeg = !(r.prevMln > 0);
       const valueText = isCurNeg ? '-' : formatMln(r.valueMln);
@@ -702,11 +745,11 @@
       rows.push(new D.TableRow({
         cantSplit: true,
         children: [
-          dataCell(D, String(r.year), { rowIdx, isLastRow: isLast }),
-          dataCell(D, rankText,  { align: 'right', rowIdx, isLastRow: isLast }),
-          dataCell(D, valueText, { align: 'right', rowIdx, isLastRow: isLast }),
-          dataCell(D, changeText, { align: 'right', color: changeColor, rowIdx, isLastRow: isLast }),
-          dataCell(D, shareText, { align: 'right', rowIdx, isLastRow: isLast }),
+          dataCell(D, String(r.year), { rowIdx, isLastRow: isLast, keepWithNext: keep }),
+          dataCell(D, rankText,  { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
+          dataCell(D, valueText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
+          dataCell(D, changeText, { align: 'right', color: changeColor, rowIdx, isLastRow: isLast, keepWithNext: keep }),
+          dataCell(D, shareText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
         ],
       }));
     });
@@ -809,9 +852,8 @@
     blocks.push(...buildInvestmentsSummary(D, inv, t, country, lang, grammar));
     blocks.push(buildFdiTable(D, inv, t, lang));
     if (charts && charts.fdi) {
-      blocks.push(captionP(D, t.fdiShort));
-      const img = chartImageP(D, charts.fdi);
-      if (img) blocks.push(img);
+      const block = captionedChartP(D, t.fdiShort, charts.fdi);
+      if (block) blocks.push(block);
     }
     if (inv.sectors) {
       const sectorsBlocks = buildFdiSectorsTable(D, inv.sectors, country, lang);
@@ -940,13 +982,14 @@
     const APP_BODY = 7;
     const APP_HDR  = 7.5;
     function appCell(text, opts) {
-      const { rowIdx, isLastRow, align, color, bold, shading } = opts || {};
+      const { rowIdx, isLastRow, align, color, bold, shading, keepWithNext } = opts || {};
       const al = align === 'right' ? D.AlignmentType.RIGHT
                : align === 'center' ? D.AlignmentType.CENTER
                : D.AlignmentType.LEFT;
       return makeCell(D, {
         children: [new D.Paragraph({
           alignment: al,
+          keepNext: !!keepWithNext,
           children: [new D.TextRun({
             text: String(text), font: 'FiraGO',
             size: hp(opts && opts.size ? opts.size : APP_BODY),
@@ -962,6 +1005,7 @@
       return makeCell(D, {
         children: [new D.Paragraph({
           alignment: opts && opts.align === 'left' ? D.AlignmentType.LEFT : D.AlignmentType.RIGHT,
+          keepNext: !!(opts && opts.keepWithNext),
           children: [new D.TextRun({
             text: String(text), font: 'FiraGO',
             size: hp(APP_HDR), color: COLOR.headerText, bold: true,
@@ -975,39 +1019,47 @@
     // 1 + 4×3 + 1 = 14 rows total (header + turnover/export/import × 4 + balance)
     const totalRows = 1 + 4 * 3 + 1;
 
+    // Appendix table must not cut. Every cell paragraph in non-last
+    // rows gets keepNext: true so Word treats the whole table as a
+    // single block.
     const headerRow = new D.TableRow({
-      children: [appHeaderCell('', { align: 'left' })]
-        .concat(cols.map(c => appHeaderCell(c.label))),
+      children: [appHeaderCell('', { align: 'left', keepWithNext: true })]
+        .concat(cols.map(c => appHeaderCell(c.label, { keepWithNext: true }))),
     });
     const rows = [headerRow];
 
     // groupRow: bold totals row that doubles as a section break.
     function pushGroupRow(grpLabel, flow, rowIdx) {
       const isLast = rowIdx === totalRows - 1;
+      const keep = !isLast;
       const cells = [appCell(grpLabel, {
         rowIdx, isLastRow: isLast, bold: true, size: APP_HDR,
-        shading: COLOR.groupFill, color: COLOR.titleDark,
+        shading: COLOR.groupFill, color: COLOR.titleDark, keepWithNext: keep,
       })];
       cols.forEach((_, i) => {
         const v = getTotal(i, flow);
         cells.push(appCell(formatNumOr(v), {
           rowIdx, isLastRow: isLast, align: 'right', bold: true, size: APP_HDR,
-          shading: COLOR.groupFill, color: COLOR.titleDark,
+          shading: COLOR.groupFill, color: COLOR.titleDark, keepWithNext: keep,
         }));
       });
       rows.push(new D.TableRow({ cantSplit: true, children: cells }));
     }
     function pushValueRow(label, flow, rowIdx) {
       const isLast = rowIdx === totalRows - 1;
-      const cells = [appCell(label, { rowIdx, isLastRow: isLast, color: COLOR.headerText })];
+      const keep = !isLast;
+      const cells = [appCell(label, { rowIdx, isLastRow: isLast, color: COLOR.headerText, keepWithNext: keep })];
       cols.forEach((_, i) => {
-        cells.push(appCell(formatNumOr(getCountry(i, flow)), { rowIdx, isLastRow: isLast, align: 'right' }));
+        cells.push(appCell(formatNumOr(getCountry(i, flow)), {
+          rowIdx, isLastRow: isLast, align: 'right', keepWithNext: keep,
+        }));
       });
       rows.push(new D.TableRow({ cantSplit: true, children: cells }));
     }
     function pushChangeRow(flow, rowIdx) {
       const isLast = rowIdx === totalRows - 1;
-      const cells = [appCell(t.appChange, { rowIdx, isLastRow: isLast, color: COLOR.headerText })];
+      const keep = !isLast;
+      const cells = [appCell(t.appChange, { rowIdx, isLastRow: isLast, color: COLOR.headerText, keepWithNext: keep })];
       cols.forEach((_, i) => {
         let cell;
         if (!canCompareChange(i)) cell = { text: '-', color: COLOR.text };
@@ -1017,20 +1069,25 @@
           if (cur == null || prev == null || prev === 0) cell = { text: '-', color: COLOR.text };
           else cell = pctColored(((cur - prev) / prev) * 100, true);
         }
-        cells.push(appCell(cell.text, { rowIdx, isLastRow: isLast, align: 'right', color: cell.color }));
+        cells.push(appCell(cell.text, {
+          rowIdx, isLastRow: isLast, align: 'right', color: cell.color, keepWithNext: keep,
+        }));
       });
       rows.push(new D.TableRow({ cantSplit: true, children: cells }));
     }
     function pushShareRow(flow, rowIdx) {
       const isLast = rowIdx === totalRows - 1;
-      const cells = [appCell(t.appShare, { rowIdx, isLastRow: isLast, color: COLOR.headerText })];
+      const keep = !isLast;
+      const cells = [appCell(t.appShare, { rowIdx, isLastRow: isLast, color: COLOR.headerText, keepWithNext: keep })];
       cols.forEach((_, i) => {
         const cur = getCountry(i, flow);
         const tot = getTotal(i, flow);
         let cell;
         if (cur == null || !tot) cell = { text: '-' };
         else cell = pctPlain((cur / tot) * 100);
-        cells.push(appCell(cell.text, { rowIdx, isLastRow: isLast, align: 'right' }));
+        cells.push(appCell(cell.text, {
+          rowIdx, isLastRow: isLast, align: 'right', keepWithNext: keep,
+        }));
       });
       rows.push(new D.TableRow({ cantSplit: true, children: cells }));
     }
@@ -1098,6 +1155,7 @@
         alignment: align === 'right' ? D.AlignmentType.RIGHT
                  : align === 'center' ? D.AlignmentType.CENTER
                  : D.AlignmentType.LEFT,
+        keepNext: !!opts.keepWithNext,
         children: runs,
       })],
       rowIdx: opts.rowIdx,
@@ -1550,27 +1608,38 @@
     blocks.push(...buildTradeSummary(D, trade, t, country, lang));
     blocks.push(buildOverviewTable(D, trade, t, periodLabel, lang));
 
-    // Chart caption + image pair, mirroring the PDF.
+    // Chart caption + image as a single paragraph so Word can't drop
+    // the caption on one page and the image on the next.
     if (charts && charts.turnover) {
-      blocks.push(captionP(D, t.turnover));
-      const img = chartImageP(D, charts.turnover);
-      if (img) blocks.push(img);
+      const block = captionedChartP(D, t.turnover, charts.turnover);
+      if (block) blocks.push(block);
     }
     if (charts && charts.dynamics) {
-      blocks.push(captionP(D, t.dynamics));
-      // Tiny inline legend mirroring the PDF (green = export, red = import).
-      blocks.push(new D.Paragraph({
-        alignment: D.AlignmentType.CENTER,
-        spacing: { after: pt(2) },
-        children: [
-          new D.TextRun({ text: '■ ', font: 'FiraGO', size: hp(8), color: COLOR.positive }),
-          new D.TextRun({ text: `${t.export}    `, font: 'FiraGO', size: hp(8), color: COLOR.text }),
-          new D.TextRun({ text: '■ ', font: 'FiraGO', size: hp(8), color: COLOR.negative }),
-          new D.TextRun({ text: t.import, font: 'FiraGO', size: hp(8), color: COLOR.text }),
-        ],
-      }));
-      const img = chartImageP(D, charts.dynamics);
-      if (img) blocks.push(img);
+      // Same one-paragraph approach, but with an inline legend on the
+      // line between caption and image. Three TextRun groups joined by
+      // line breaks, all wrapped in keepLines: true.
+      const bytes = dataUrlToBytes(charts.dynamics);
+      if (bytes) {
+        blocks.push(new D.Paragraph({
+          alignment: D.AlignmentType.CENTER,
+          spacing: { before: pt(2), after: pt(8) },
+          keepLines: true,
+          keepNext: true,
+          children: [
+            new D.TextRun({ text: t.dynamics, bold: true, font: 'FiraGO', size: hp(9.5), color: COLOR.text }),
+            new D.TextRun({ text: '', break: 1 }),
+            new D.TextRun({ text: '■ ', font: 'FiraGO', size: hp(8), color: COLOR.positive }),
+            new D.TextRun({ text: `${t.export}    `, font: 'FiraGO', size: hp(8), color: COLOR.text }),
+            new D.TextRun({ text: '■ ', font: 'FiraGO', size: hp(8), color: COLOR.negative }),
+            new D.TextRun({ text: t.import, font: 'FiraGO', size: hp(8), color: COLOR.text }),
+            new D.TextRun({ text: '', break: 1 }),
+            new D.ImageRun({
+              data: bytes,
+              transformation: { width: px(500), height: px(153) },
+            }),
+          ],
+        }));
+      }
     }
 
     // ── Export products + most-increased / -decreased ────────────────
