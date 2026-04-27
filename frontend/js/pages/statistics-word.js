@@ -268,6 +268,11 @@
   function sectionTitleP(D, text, opts = {}) {
     return new D.Paragraph({
       spacing: { before: pt(10), after: pt(6) },
+      // Keep the title attached to whatever follows so Word doesn't
+      // dump it alone at the bottom of a page when the next block
+      // (table or chart) doesn't fit.
+      keepNext: true,
+      keepLines: true,
       children: [new D.TextRun({
         text, bold: true, font: 'FiraGO',
         size: hp(13), color: COLOR.titleDark,
@@ -278,6 +283,8 @@
   function subTitleP(D, text, opts = {}) {
     return new D.Paragraph({
       spacing: { before: pt(8), after: pt(4) },
+      keepNext: true,
+      keepLines: true,
       children: [new D.TextRun({
         text, bold: true, font: 'FiraGO',
         size: hp(10.5), color: COLOR.text,
@@ -288,6 +295,9 @@
   function captionP(D, text) {
     return new D.Paragraph({
       spacing: { after: pt(4) },
+      // Chart captions stay attached to the chart image that follows.
+      keepNext: true,
+      keepLines: true,
       children: [new D.TextRun({
         text, bold: true, font: 'FiraGO',
         size: hp(9.5), color: COLOR.text,
@@ -1144,7 +1154,11 @@
     }
 
     const totalRows = rows.length + 1; // header + data
+    // tableHeader: true makes Word repeat this row at the top of every
+    // continuation page when the table breaks (matches how the PDF
+    // appendix uses pdfmake's headerRows: 1).
     const headerRow = new D.TableRow({
+      tableHeader: true,
       children: [
         headerCell(D, ''),
         headerCell(D, colFull,  { align: 'center' }),
