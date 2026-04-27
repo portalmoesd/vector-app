@@ -563,6 +563,259 @@
     });
   }
 
+  // ── Trade summary paragraphs ───────────────────────────────────────────
+  // Mirrors statistics-pdf.js buildTradeSummary. Returns an array of
+  // Paragraph blocks (heading + body paragraphs separated by faint
+  // dividers). The text mixes plain runs with bold and italic spans —
+  // each run is a TextRun in docx terms.
+  //
+  // `parts` is an array of either plain strings or { text, bold,
+  // italics, color } descriptors. `prose(parts)` returns one Paragraph.
+  function summaryProseParagraph(D, parts, opts = {}) {
+    const runs = parts.map(p => {
+      if (p == null) return null;
+      if (typeof p === 'string') {
+        return new D.TextRun({ text: p, font: 'FiraGO', size: hp(10), color: COLOR.text });
+      }
+      return new D.TextRun({
+        text: String(p.text || ''),
+        font: 'FiraGO',
+        size: hp(10),
+        color: p.color || COLOR.text,
+        bold: !!p.bold,
+        italics: !!p.italics,
+      });
+    }).filter(Boolean);
+    return new D.Paragraph({
+      alignment: D.AlignmentType.JUSTIFIED,
+      spacing: { after: pt(4), line: 312, lineRule: 'auto' },
+      children: runs,
+      ...opts,
+    });
+  }
+  function summaryHeadingParagraph(D, text) {
+    return new D.Paragraph({
+      spacing: { before: pt(2), after: pt(4) },
+      children: [new D.TextRun({
+        text, bold: true, font: 'FiraGO',
+        size: hp(11), color: COLOR.titleDark,
+      })],
+    });
+  }
+  function summaryDividerParagraph(D) {
+    // pdfmake draws a 0.5pt grey rule; in docx the closest analogue
+    // without a real <hr> is a paragraph with a bottom border.
+    return new D.Paragraph({
+      spacing: { before: pt(6), after: pt(6) },
+      border: {
+        bottom: { color: 'D1D5DB', space: 1, style: 'single', size: 4 },
+      },
+      children: [new D.TextRun({ text: '', font: 'FiraGO', size: hp(2) })],
+    });
+  }
+
+  function buildTradeSummary(D, trade, t, country, lang) {
+    if (!trade) return [];
+    const isKa = lang === 'ka';
+    const periodGen = isKa ? gePeriodGen(trade.latestYear, trade.latestMonth) : null;
+    const periodLoc = isKa ? gePeriodLoc(trade.latestYear, trade.latestMonth) : null;
+    const periodEn  = !isKa ? enPeriod(trade.latestYear, trade.latestMonth)  : null;
+    const rank = trade.ranking && trade.ranking.country ? trade.ranking.country : null;
+
+    const B = (s) => ({ text: s, bold: true });
+    const I = (s) => ({ text: s, italics: true });
+    const pctInt = (x) => Math.round(Math.abs(x));
+    const pctOne = (x) => (Math.round(x * 10) / 10).toFixed(1);
+
+    function changeVerbParts(current, prev) {
+      const c = calcChange(current, prev);
+      const abs = pctInt(c);
+      if (isKa) {
+        const verb = c >= 0 ? 'გაიზარდა' : 'შემცირდა';
+        return B(`${verb} ${abs}%-ით`);
+      }
+      const verb = c >= 0 ? 'increased' : 'decreased';
+      return B(`${verb} by ${abs}%`);
+    }
+
+    function productListParts(products) {
+      if (!products || !products.length) return [];
+      const parts = [];
+      const items = products.slice(0, 10);
+      const unit = isKa ? 'მლნ. $' : 'mln $';
+      items.forEach((p, i) => {
+        const sign = p.change > 0 ? '+' : '';
+        const name = isKa ? p.name : (p.nameEn || p.name);
+        parts.push(name + ' ');
+        parts.push(I(`(${formatMln(p.valueMln)} ${unit}, ${sign}${formatPct(p.change)})`));
+        parts.push(i < items.length - 1 ? ', ' : '.');
+      });
+      return parts;
+    }
+
+    const out = [];
+
+    const curTurn  = trade.overview.latestPeriod.turnover;
+    const prevTurn = trade.overview.latestPeriod.turnoverPrev;
+    const curExp   = trade.overview.latestPeriod.export;
+    const prevExp  = trade.overview.latestPeriod.exportPrev;
+    const curImp   = trade.overview.latestPeriod.import;
+    const prevImp  = trade.overview.latestPeriod.importPrev;
+
+    // ── Turnover ──────────────────────────────────────────────────────
+    out.push(summaryHeadingParagraph(D, isKa ? 'სავაჭრო ბრუნვა' : 'Trade Turnover'));
+    if (curTurn < 0.01) {
+      const widen = trade.hasAnyTrade === false && trade.fiveYearStart;
+      const kaLabel = widen
+        ? gePeriodGenRange(trade.fiveYearStart, trade.latestYear, trade.latestMonth)
+        : periodGen;
+      const enLabel = widen
+        ? enPeriodRange(trade.fiveYearStart, trade.latestYear, trade.latestMonth)
+        : periodEn;
+      out.push(summaryProseParagraph(D, [
+        isKa
+          ? `${kaLabel} მონაცემებით, ვაჭრობა არ განხორციელდა.`
+          : `For ${enLabel}, no trade was conducted.`,
+      ]));
+      return out;
+    }
+    if (isKa) {
+      out.push(summaryProseParagraph(D, [
+        `${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიურ პერიოდთან შედარებით, `,
+        changeVerbParts(curTurn, prevTurn),
+        ` და `, B(`${formatMln(curTurn)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
+      ]));
+      if (rank && rank.turnover) {
+        out.push(summaryProseParagraph(D, [
+          `${country} აღნიშნულ პერიოდში სავაჭრო ბრუნვის მოცულობის მიხედვით არის `,
+          B(`${gePlace(rank.turnover.rank)} ადგილზე`), `, წილი `, B(`${pctOne(rank.turnover.sharePct)}%`), `.`,
+        ]));
+      }
+    } else {
+      out.push(summaryProseParagraph(D, [
+        `For ${periodEn}, trade turnover `,
+        changeVerbParts(curTurn, prevTurn),
+        ` compared to the same period last year, amounting to `, B(`${formatMln(curTurn)} mln USD`), `.`,
+      ]));
+      if (rank && rank.turnover) {
+        out.push(summaryProseParagraph(D, [
+          `${country} ranks `, B(enOrdinal(rank.turnover.rank)),
+          ` by trade turnover with a `, B(`${pctOne(rank.turnover.sharePct)}%`), ` share.`,
+        ]));
+      }
+    }
+
+    // ── Export ────────────────────────────────────────────────────────
+    out.push(summaryDividerParagraph(D));
+    out.push(summaryHeadingParagraph(D, isKa ? 'ექსპორტი' : 'Export'));
+    if (!trade.hasExport || curExp < 0.01) {
+      out.push(summaryProseParagraph(D, [
+        isKa ? `ექსპორტი ${periodLoc} არ განხორციელდა.` : `No exports were conducted in ${periodEn}.`,
+      ]));
+    } else {
+      if (isKa) {
+        out.push(summaryProseParagraph(D, [
+          `ექსპორტი ${periodLoc} `,
+          changeVerbParts(curExp, prevExp),
+          ` და `, B(`${formatMln(curExp)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
+          ...(rank && rank.export ? [
+            ` საქართველოსთვის ექსპორტის მიხედვით ${country} არის `,
+            B(`${gePlace(rank.export.rank)} ადგილზე`),
+            ` საქართველოს სავაჭრო პარტნიორებს შორის, წილი `,
+            B(`${pctOne(rank.export.sharePct)}%`), `.`,
+          ] : []),
+        ]));
+      } else {
+        out.push(summaryProseParagraph(D, [
+          `Exports in ${periodEn} `,
+          changeVerbParts(curExp, prevExp),
+          `, amounting to `, B(`${formatMln(curExp)} mln USD`), `.`,
+          ...(rank && rank.export ? [
+            ` ${country} ranks `, B(enOrdinal(rank.export.rank)),
+            ` by export volume with a `, B(`${pctOne(rank.export.sharePct)}%`), ` share.`,
+          ] : []),
+        ]));
+      }
+      if (rank && rank.domesticExport && curExp > 0) {
+        const domVal = rank.domesticExport.valueMln;
+        const domPct = (100 * domVal / curExp).toFixed(0);
+        const reVal = rank.reExport ? rank.reExport.valueMln : (curExp - domVal);
+        const rePct = (100 * reVal / curExp).toFixed(0);
+        if (isKa) {
+          out.push(summaryProseParagraph(D, [
+            `${periodGen} პერიოდში განხორციელდა `,
+            B(`${formatMln(domVal)} მლნ. აშშ დოლარის`),
+            ` `, B('ადგილობრივი ექსპორტი'), `, რაც შეადგენს `, B(`${domPct}%-ს`), ` სრული ექსპორტის. `,
+            `ადგილობრივი ექსპორტით ${country} იკავებს `,
+            B(`${gePlace(rank.domesticExport.rank)} ადგილს`),
+            ` საქართველოს სავაჭრო პარტნიორებს შორის. `,
+            `რე-ექსპორტმა იმავე პერიოდში შეადგინა `,
+            B(`${formatMln(reVal)} მლნ. აშშ დოლარი`), ` `, I(`(წილი ${rePct}%)`), `.`,
+          ]));
+        } else {
+          out.push(summaryProseParagraph(D, [
+            `In the given period, domestic exports amounted to `,
+            B(`${formatMln(domVal)} mln USD`),
+            `, comprising `, B(`${domPct}%`), ` of total exports. `,
+            `By domestic exports, ${country} ranks `, B(enOrdinal(rank.domesticExport.rank)),
+            ` among Georgia's trading partners. `,
+            `Re-exports in the same period amounted to `,
+            B(`${formatMln(reVal)} mln USD`), ` `, I(`(${rePct}% share)`), `.`,
+          ]));
+        }
+      }
+      const expParts = productListParts(trade.exportProducts);
+      if (expParts.length) {
+        out.push(summaryProseParagraph(D, [
+          B(isKa ? 'ძირითადი საექსპორტო პროდუქცია: ' : 'Main export products: '),
+          ...expParts,
+        ]));
+      }
+    }
+
+    // ── Import ────────────────────────────────────────────────────────
+    out.push(summaryDividerParagraph(D));
+    out.push(summaryHeadingParagraph(D, isKa ? 'იმპორტი' : 'Import'));
+    if (!trade.hasImport || curImp < 0.01) {
+      out.push(summaryProseParagraph(D, [
+        isKa ? `იმპორტი ${periodLoc} არ განხორციელდა.` : `No imports were conducted in ${periodEn}.`,
+      ]));
+    } else {
+      if (isKa) {
+        out.push(summaryProseParagraph(D, [
+          `იმპორტი ${periodLoc} `,
+          changeVerbParts(curImp, prevImp),
+          ` და `, B(`${formatMln(curImp)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
+          ...(rank && rank.import ? [
+            ` იმპორტის მიხედვით ${country} არის `,
+            B(`${gePlace(rank.import.rank)} ადგილზე`),
+            ` საქართველოს სავაჭრო პარტნიორებს შორის, წილი `,
+            B(`${pctOne(rank.import.sharePct)}%`), `.`,
+          ] : []),
+        ]));
+      } else {
+        out.push(summaryProseParagraph(D, [
+          `Imports in ${periodEn} `,
+          changeVerbParts(curImp, prevImp),
+          `, amounting to `, B(`${formatMln(curImp)} mln USD`), `.`,
+          ...(rank && rank.import ? [
+            ` ${country} ranks `, B(enOrdinal(rank.import.rank)),
+            ` by import volume with a `, B(`${pctOne(rank.import.sharePct)}%`), ` share.`,
+          ] : []),
+        ]));
+      }
+      const impParts = productListParts(trade.importProducts);
+      if (impParts.length) {
+        out.push(summaryProseParagraph(D, [
+          B(isKa ? 'ძირითადი საიმპორტო პროდუქცია: ' : 'Main import products: '),
+          ...impParts,
+        ]));
+      }
+    }
+
+    return out;
+  }
+
   // ── Trade section ──────────────────────────────────────────────────────
   // Mirrors statistics-pdf.js buildTradeSection but emits docx blocks.
   // Step 3a only: section title + summary placeholder + overview table +
@@ -575,8 +828,8 @@
 
     const blocks = [];
     blocks.push(sectionTitleP(D, title));
-    // Summary placeholder — replaced in step 3b.
-    blocks.push(paragraph(D, italicRun(D, '[summary paragraphs will be inserted here]', { color: COLOR.textMuted })));
+    // Real summary paragraphs (step 3b).
+    blocks.push(...buildTradeSummary(D, trade, t, country, lang));
     blocks.push(buildOverviewTable(D, trade, t, periodLabel, lang));
 
     // Chart caption + image pair, mirroring the PDF.
