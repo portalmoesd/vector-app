@@ -605,7 +605,14 @@ router.post('/push-section', requireAuth, async (req, res) => {
     }
 
     const fromStatus = ctx.sectionStatus;
-    const toStatus = submittedToStatus('RECEIVING_SUPER_COLLABORATOR');
+    // Advanced mode pushes to RECEIVING_SUPER_COLLABORATOR (cross-dept
+    // expedite); simple mode pushes straight to the final approval state
+    // for the chain (since there's no Department A receiving chain).
+    const isSimplePush = ctx.workflowType === 'simple';
+    const finalChainRole = ctx.chain[ctx.chain.length - 1];
+    const toStatus = isSimplePush
+      ? approvedByStatus(finalChainRole)
+      : submittedToStatus('RECEIVING_SUPER_COLLABORATOR');
     const origRole = ctx.originalSubmitterRole || userRole;
 
     await db.query(
@@ -634,6 +641,12 @@ router.post('/push-section', requireAuth, async (req, res) => {
       'DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2',
       [eventId, sectionId]
     );
+
+    // Simple-mode push lands on approved_by_*, so trigger the same
+    // auto-completion check as a final approval.
+    if (isSimplePush) {
+      await checkEventCompletion(eventId);
+    }
 
     res.json({ success: true, newStatus: toStatus });
   } catch (err) {
