@@ -197,18 +197,28 @@
       const container = sectionsCardEl || legacyContainer;
 
       const isDS = grid.documentSubmitterId === user.id;
-      const isDeputy = user.role === 'DEPUTY';
+      // The event's responsible Deputy (advanced mode) sees every
+      // section. Other Deputies — i.e. curator-deputies who oversee
+      // only specific departments — should see only the sections they
+      // actually curate, not the whole document.
+      const isResponsibleDeputy = grid.deputyId && grid.deputyId === user.id;
 
-      // Filter sections: DS and Deputies see all sections.
-      // Other users see sections assigned to their department,
-      // OR sections where they have a RECEIVING_ role in the approval chain
-      // (i.e. they belong to the DS home department reviewing cross-dept sections).
-      const visibleSections = (isDS || isDeputy)
+      // Filter sections:
+      //  - DS or responsible Deputy: every section.
+      //  - Section department member: sections their department is on.
+      //  - RECEIVING_* chain step: sections whose chain includes their
+      //    receiving role.
+      //  - Curator deputy: sections where their effective role is
+      //    CURATOR (server resolves this per-section from
+      //    deputy_department_links + section_departments).
+      const visibleSections = (isDS || isResponsibleDeputy)
         ? (grid.sections || [])
-        : (grid.sections || []).filter(s =>
-            (s.departmentIds && s.departmentIds.includes(user.departmentId)) ||
-            (s.userEffectiveRole && s.userEffectiveRole.startsWith('RECEIVING_') && s.chain && s.chain.includes(s.userEffectiveRole))
-          );
+        : (grid.sections || []).filter(s => {
+            if (s.departmentIds && s.departmentIds.includes(user.departmentId)) return true;
+            if (s.userEffectiveRole && s.userEffectiveRole.startsWith('RECEIVING_') && s.chain && s.chain.includes(s.userEffectiveRole)) return true;
+            if (s.userEffectiveRole === 'CURATOR') return true;
+            return false;
+          });
 
       if (visibleSections.length === 0) {
         if (container) {
