@@ -98,6 +98,10 @@
             <span class="icon" style="--icon-url: url(/assets/files-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:16px;height:16px;display:inline-block;background:currentColor;"></span>
             Files
           </button>
+          ${d.documentSubmitterId === user.id ? `
+            <button class="btn btn-outline" onclick="reopenDoc(${d.id})" title="Reopen this document for editing — it will leave the Library until you re-publish.">
+              Edit
+            </button>` : ''}
         </div>
       </div>
     `).join('');
@@ -306,6 +310,24 @@
       document.body.appendChild(overlay);
     } catch (e) {
       toast.error('Failed to load files: ' + e.message);
+    }
+  };
+
+  // Reopen a published event for editing. DS-only — the Edit button is
+  // already DS-gated in the card render, but the server enforces it
+  // again on the endpoint.
+  window.reopenDoc = async function(eventId) {
+    const ok = window.confirm(
+      'Reopen this document for editing? It will leave the Library until you re-publish.'
+    );
+    if (!ok) return;
+    try {
+      await Api.post(`/api/library/${eventId}/reopen`, {});
+      // The event re-appears under "active" on the calendar/dashboards.
+      // Send the DS straight there so they can pull a section to amend.
+      window.location.href = `/pages/calendar.html?event_id=${eventId}`;
+    } catch (e) {
+      toast.error('Failed to reopen: ' + (e.message || 'Unknown error'));
     }
   };
 

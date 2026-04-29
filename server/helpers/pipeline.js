@@ -282,9 +282,21 @@ function canPullSection(userRole, chain, holderRole, opts) {
   // already submitted_to_<dsRole> (DS holds it), the pull button is
   // meaningless — block it so the DS dashboard doesn't show "Pull"
   // for a section the DS is already holding.
+  //
+  // Special case: when the event was published and then reopened
+  // (events.status flipped back from COMPLETED → IN_PROGRESS via the
+  // library "Edit" button), the section statuses stay approved_by_*
+  // but the DS legitimately needs to pull them to make corrections.
+  // Allow pull on approved_by_* iff the event has been reopened.
   if (o.workflowType === 'simple' && o.isDS) {
-    if (!o.status || o.status.startsWith('approved_by_')) return false;
+    if (!o.status) return false;
     if (holderRole && userRole === holderRole) return false;
+    if (o.status.startsWith('approved_by_')) {
+      // Reopened event → DS can pull approved sections to amend them.
+      // Otherwise (event still in progress, sections normally finalised)
+      // there's nothing to pull.
+      return o.eventStatus === 'IN_PROGRESS';
+    }
     return true;
   }
 

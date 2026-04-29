@@ -684,6 +684,7 @@ router.post('/pull-section', requireAuth, async (req, res) => {
       workflowType: ctx.workflowType,
       isDS,
       status: ctx.sectionStatus,
+      eventStatus: ctx.event.event_status,
     })) {
       return res.status(400).json({ error: 'Pull is not available for this section' });
     }
@@ -735,7 +736,8 @@ router.get('/status-grid', requireAuth, async (req, res) => {
 
     const { rows: [event] } = await db.query(
       `SELECT id, document_submitter_role, document_submitter_id,
-              deputy_id, supervisor_id, curator_required, workflow_type, country_id
+              deputy_id, supervisor_id, curator_required, workflow_type, country_id,
+              status AS event_status
        FROM events WHERE id = $1`,
       [eventId]
     );
@@ -913,6 +915,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
           workflowType: eventWorkflowType,
           isDS: req.user.id === event.document_submitter_id,
           status: s.status,
+          eventStatus: event.event_status,
         }),
         returnRequest,
         returnInfo,
