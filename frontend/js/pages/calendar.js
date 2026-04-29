@@ -569,7 +569,12 @@
         createSectionRow(sectionRowsContainer, sec.title, sec.departmentIds);
       }
 
-      document.getElementById('newCurator').value = tpl.curatorRequired ? 'yes' : 'no';
+      // Templates only seed sections — they don't override the user's
+      // explicit Curator Required choice. Earlier the line below was
+      // `document.getElementById('newCurator').value = tpl.curatorRequired ? 'yes' : 'no';`
+      // which silently flipped a deliberately-chosen Yes back to No
+      // whenever a template was picked after the user changed the
+      // dropdown. Curator stays whatever the user set on the form.
     });
 
     // Load supervisors for selected deputy
