@@ -96,12 +96,22 @@ function returnedByStatus(role) {
  * RECEIVING_ prefixed steps belong to the DS's home department and are
  * distinct from same-named steps in the section's department chain.
  *
+ * In **simple** workflow mode, every section uses the same fixed
+ * three-step chain regardless of dsRole / curator / cross-dept status.
+ * The DS isn't part of the per-section chain — they sit outside it and
+ * use pull-section to override on demand (handled in canPullSection).
+ *
  * @param {string} dsRole - Document Submitter role (DEPUTY, SUPERVISOR, SUPER_COLLABORATOR)
  * @param {boolean} curatorRequired - Whether curator review is required
  * @param {boolean} isCrossDept - Whether this section has cross-department assignments
+ * @param {string} [workflowType='advanced'] - 'advanced' (default) or 'simple'
  * @returns {string[]} Ordered list of step labels
  */
-function buildChain(dsRole, curatorRequired, isCrossDept) {
+function buildChain(dsRole, curatorRequired, isCrossDept, workflowType) {
+  if (workflowType === 'simple') {
+    return [ROLES.COLLABORATOR, ROLES.SUPER_COLLABORATOR, ROLES.SUPERVISOR];
+  }
+
   const chain = [ROLES.COLLABORATOR];
 
   if (dsRole === 'SUPER_COLLABORATOR') {
@@ -195,7 +205,9 @@ function firstEditorRole(chain) {
  * @param {boolean}  [isLastActor=false] - Whether this user was the last to update the section
  * @returns {boolean}
  */
-function canPushSection(userRole, chain, isCrossDept, holderRole, isLastActor) {
+function canPushSection(userRole, chain, isCrossDept, holderRole, isLastActor, workflowType) {
+  // Simple mode has no cross-dept routing; push-to-RECEIVING is meaningless.
+  if (workflowType === 'simple') return false;
   if (!isCrossDept || !chain || !chain.includes('RECEIVING_SUPER_COLLABORATOR')) return false;
 
   const pushableRoles = [ROLES.COLLABORATOR, ROLES.SUPER_COLLABORATOR, ROLES.SUPERVISOR];
@@ -231,12 +243,31 @@ function canPushSection(userRole, chain, isCrossDept, holderRole, isLastActor) {
  *  - Both user and holder must be on the same side of the RECEIVING_ boundary
  *    (Department A cannot pull from Department B)
  *
+ * In **simple** workflow mode, the Document Submitter sits outside the
+ * per-section chain and gets a special override: they can pull any
+ * not-yet-finalised section regardless of position. The opts.isDS +
+ * opts.workflowType flags drive that branch.
+ *
  * @param {string}   userRole   - The user's effective role
  * @param {string[]} chain      - The pipeline chain for this section
  * @param {string}   holderRole - Current holder role
+ * @param {object}   [opts]
+ * @param {string}   [opts.workflowType='advanced'] - 'advanced' or 'simple'
+ * @param {boolean}  [opts.isDS=false]              - Is the user the event's DS?
+ * @param {string}   [opts.status]                  - Section status (used only for the simple/DS branch)
  * @returns {boolean}
  */
-function canPullSection(userRole, chain, holderRole) {
+function canPullSection(userRole, chain, holderRole, opts) {
+  const o = opts || {};
+
+  // Simple-mode DS override: pull any section that hasn't already been
+  // finalised. DS isn't in the chain in simple mode, so the standard
+  // index check below would reject them.
+  if (o.workflowType === 'simple' && o.isDS) {
+    if (!o.status || !o.status.startsWith('approved_by_')) return true;
+    return false;
+  }
+
   if (!chain || chain.length < 2 || !holderRole) return false;
 
   const userIdx = chain.indexOf(userRole);

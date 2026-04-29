@@ -407,6 +407,28 @@
           </select>
         </div>
         <div class="form-group">
+          <label class="form-label">Workflow *</label>
+          <div class="workflow-radio-group" style="display:flex;gap:12px;align-items:flex-start;">
+            <label style="flex:1;cursor:pointer;display:block;">
+              <input type="radio" name="newWorkflowType" value="advanced" checked />
+              <strong>Advanced</strong>
+              <div style="font-size:11px;color:#64748b;margin-top:2px;">
+                Sections route through Department B and back to the responsible
+                Department A (Document Submitter's department) for final approval.
+              </div>
+            </label>
+            <label style="flex:1;cursor:pointer;display:block;">
+              <input type="radio" name="newWorkflowType" value="simple" />
+              <strong>Simple</strong>
+              <div style="font-size:11px;color:#64748b;margin-top:2px;">
+                Every department contributes its own section independently. The
+                document is finished as soon as all sections are approved
+                inside their own departments.
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
           <label class="form-label">Document Submitter Role *</label>
           <select class="form-select" id="newDSRole">
             <option value="DEPUTY">Deputy</option>
@@ -478,6 +500,8 @@
       const title = document.getElementById('newTitle').value.trim();
       const countryId = parseInt(document.getElementById('newCountry').value);
       const dsRole = document.getElementById('newDSRole').value;
+      const workflowTypeEl = document.querySelector('input[name="newWorkflowType"]:checked');
+      const workflowType = workflowTypeEl ? workflowTypeEl.value : 'advanced';
       const deputyId = document.getElementById('newDeputy').value ? parseInt(document.getElementById('newDeputy').value) : null;
       let supervisorId = document.getElementById('newSupervisor').value ? parseInt(document.getElementById('newSupervisor').value) : null;
       const language = document.getElementById('newLanguage').value;
@@ -520,6 +544,7 @@
           deputyId,
           supervisorId,
           curatorRequired,
+          workflowType,
           language, deadlineDate, occasion,
           sections,
         });
@@ -585,17 +610,43 @@
       loadSupervisors(deputyId);
     });
 
+    // Hide curator-required + responsible-supervisor fields in simple
+    // mode — neither concept applies when every department is just
+    // doing its own section. The curator <select> stays in the DOM at
+    // 'no' so the form-submit reads it correctly even when hidden.
+    function applyWorkflowTypeVisibility() {
+      const wfEl = document.querySelector('input[name="newWorkflowType"]:checked');
+      const isSimple = wfEl && wfEl.value === 'simple';
+      const curatorGroup = document.getElementById('newCurator')?.closest('.form-group');
+      if (curatorGroup) curatorGroup.style.display = isSimple ? 'none' : '';
+      if (isSimple) {
+        const c = document.getElementById('newCurator');
+        if (c) c.value = 'no';
+      }
+      const dsRole = document.getElementById('newDSRole').value;
+      // Responsible-Supervisor only matters when DS = DEPUTY in advanced mode.
+      const supGroup = document.getElementById('supervisorGroup');
+      if (supGroup) {
+        supGroup.style.display = (!isSimple && dsRole === 'DEPUTY') ? '' : 'none';
+      }
+    }
+    document.querySelectorAll('input[name="newWorkflowType"]').forEach(r => {
+      r.addEventListener('change', applyWorkflowTypeVisibility);
+    });
+    applyWorkflowTypeVisibility();
+
     // Show/hide groups based on DS role
     document.getElementById('newDSRole').addEventListener('change', async () => {
       const dsRole = document.getElementById('newDSRole').value;
       document.getElementById('deputyGroup').style.display =
         dsRole === 'DEPUTY' ? '' : 'none';
-      document.getElementById('supervisorGroup').style.display =
-        dsRole === 'DEPUTY' ? '' : 'none';
+      // supervisorGroup visibility is set by applyWorkflowTypeVisibility
+      // (it depends on both DS role and workflow type).
       document.getElementById('dsSupervisorGroup').style.display =
         dsRole === 'SUPERVISOR' ? '' : 'none';
       document.getElementById('dsSCGroup').style.display =
         dsRole === 'SUPER_COLLABORATOR' ? '' : 'none';
+      applyWorkflowTypeVisibility();
 
       if (dsRole !== 'DEPUTY') {
         document.getElementById('newSupervisor').innerHTML = '<option value="">— Select Supervisor —</option>';

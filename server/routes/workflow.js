@@ -37,7 +37,8 @@ async function resolveUser(jwtUser) {
 async function loadSectionContext(eventId, sectionId) {
   const { rows: [event] } = await db.query(
     `SELECT id, document_submitter_role, document_submitter_id, deputy_id,
-            supervisor_id, curator_required, country_id, status AS event_status
+            supervisor_id, curator_required, workflow_type, country_id,
+            status AS event_status
      FROM events WHERE id = $1`,
     [eventId]
   );
@@ -71,7 +72,8 @@ async function loadSectionContext(eventId, sectionId) {
   const sectionDeptIds = deptRows.map(r => r.department_id);
   const isCrossDept = sectionDeptIds.some(d => d !== dsDeptId);
 
-  const chain = buildChain(event.document_submitter_role, event.curator_required, isCrossDept);
+  const workflowType = event.workflow_type || 'advanced';
+  const chain = buildChain(event.document_submitter_role, event.curator_required, isCrossDept, workflowType);
 
   return {
     event,
@@ -83,6 +85,7 @@ async function loadSectionContext(eventId, sectionId) {
     isCrossDept,
     dsDeptId,
     sectionDeptIds,
+    workflowType,
   };
 }
 
@@ -225,14 +228,27 @@ router.post('/submit', requireAuth, async (req, res) => {
       return res.status(400).json({ error: `Cannot submit — section status is ${ctx.sectionStatus}` });
     }
 
-    // Find the next role in the chain
+    // Find the next role in the chain.
+    // Simple-mode short-circuit: in simple workflow, the section's
+    // department supervisor IS the final approver, so their "submit"
+    // collapses into the final approval (no separate Approve click).
     const nextRole = nextInChain(userRole, ctx.chain);
+    let toStatus;
+    let historyAction = 'submitted';
+    let didFinalApprove = false;
     if (!nextRole) {
-      return res.status(400).json({ error: 'No next step in chain — use approve if you are the final approver' });
+      if (ctx.workflowType === 'simple' && isFinalApprover(userRole, ctx.chain)) {
+        toStatus = approvedByStatus(userRole);
+        historyAction = 'approved';
+        didFinalApprove = true;
+      } else {
+        return res.status(400).json({ error: 'No next step in chain — use approve if you are the final approver' });
+      }
+    } else {
+      toStatus = submittedToStatus(nextRole);
     }
 
     const fromStatus = ctx.sectionStatus;
-    const toStatus = submittedToStatus(nextRole);
 
     // Set original_submitter_role on first submit from draft
     const origRole = ctx.originalSubmitterRole || userRole;
@@ -254,8 +270,8 @@ router.post('/submit', requireAuth, async (req, res) => {
     // Record history
     await db.query(
       `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role)
-       VALUES ($1, $2, 'submitted', $3, $4, $5, $6, $7)`,
-      [eventId, sectionId, fromStatus, toStatus, req.user.id, resolvedUser.full_name, userRole]
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [eventId, sectionId, historyAction, fromStatus, toStatus, req.user.id, resolvedUser.full_name, userRole]
     );
 
     // Clear any pending return requests for this section
@@ -263,6 +279,12 @@ router.post('/submit', requireAuth, async (req, res) => {
       'DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2',
       [eventId, sectionId]
     );
+
+    // Auto-complete the event if the simple-mode short-circuit just
+    // fired and every section is now approved.
+    if (didFinalApprove) {
+      await checkEventCompletion(eventId);
+    }
 
     res.json({ success: true, newStatus: toStatus });
   } catch (err) {
@@ -305,15 +327,21 @@ router.post('/approve', requireAuth, async (req, res) => {
     }
 
     const fromStatus = ctx.sectionStatus;
+    const isSimpleDsOverride = ctx.workflowType === 'simple'
+      && req.user.id === ctx.event.document_submitter_id;
     let toStatus;
+    let isFinal;
 
-    if (isFinalApprover(userRole, ctx.chain)) {
-      // Final approval — mark as approved by DS
+    if (isFinalApprover(userRole, ctx.chain) || isSimpleDsOverride) {
+      // Final approval — DS in simple mode gets the same shortcut as a
+      // chain-final approver. Marks the section approved_by_<userRole>.
       toStatus = approvedByStatus(userRole);
+      isFinal = true;
     } else {
       // Mid-chain approval — submit to the next role in the chain
       const nextRole = nextInChain(userRole, ctx.chain);
       toStatus = submittedToStatus(nextRole);
+      isFinal = false;
     }
 
     await db.query(
@@ -340,7 +368,7 @@ router.post('/approve', requireAuth, async (req, res) => {
     );
 
     // If this was the final approval, check if all sections are approved → complete event
-    if (isFinalApprover(userRole, ctx.chain)) {
+    if (isFinal) {
       await checkEventCompletion(eventId);
     }
 
@@ -572,7 +600,7 @@ router.post('/push-section', requireAuth, async (req, res) => {
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
     const isLastActor = ctx.lastUpdatedByUserId != null && ctx.lastUpdatedByUserId == req.user.id;
 
-    if (!canPushSection(userRole, ctx.chain, ctx.isCrossDept, holder, isLastActor)) {
+    if (!canPushSection(userRole, ctx.chain, ctx.isCrossDept, holder, isLastActor, ctx.workflowType)) {
       return res.status(400).json({ error: 'Push is not available for this section' });
     }
 
@@ -630,13 +658,25 @@ router.post('/pull-section', requireAuth, async (req, res) => {
 
     const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
+    const isDS = req.user.id === ctx.event.document_submitter_id;
 
-    if (!canPullSection(userRole, ctx.chain, holder)) {
+    // Simple-mode DS pulls use the user's actual role (e.g. DEPUTY)
+    // even though it isn't in the chain — that's the override that
+    // canPullSection allows.
+    const pullingRole = (ctx.workflowType === 'simple' && isDS)
+      ? req.user.role
+      : userRole;
+
+    if (!canPullSection(pullingRole, ctx.chain, holder, {
+      workflowType: ctx.workflowType,
+      isDS,
+      status: ctx.sectionStatus,
+    })) {
       return res.status(400).json({ error: 'Pull is not available for this section' });
     }
 
     const fromStatus = ctx.sectionStatus;
-    const toStatus = submittedToStatus(userRole);
+    const toStatus = submittedToStatus(pullingRole);
     const origRole = ctx.originalSubmitterRole || ctx.chain[0];
 
     await db.query(
@@ -657,7 +697,7 @@ router.post('/pull-section', requireAuth, async (req, res) => {
     await db.query(
       `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role)
        VALUES ($1, $2, 'pulled', $3, $4, $5, $6, $7)`,
-      [eventId, sectionId, fromStatus, toStatus, req.user.id, resolvedUser.full_name, userRole]
+      [eventId, sectionId, fromStatus, toStatus, req.user.id, resolvedUser.full_name, pullingRole]
     );
 
     // Clear any pending return requests
@@ -682,11 +722,12 @@ router.get('/status-grid', requireAuth, async (req, res) => {
 
     const { rows: [event] } = await db.query(
       `SELECT id, document_submitter_role, document_submitter_id,
-              deputy_id, supervisor_id, curator_required, country_id
+              deputy_id, supervisor_id, curator_required, workflow_type, country_id
        FROM events WHERE id = $1`,
       [eventId]
     );
     if (!event) return res.status(404).json({ error: 'Event not found' });
+    const eventWorkflowType = event.workflow_type || 'advanced';
 
     // Get "home department" for the receiving chain.
     // For Deputy DS, use the Responsible Supervisor's department since
@@ -755,7 +796,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
       const sectionDeptIds = deptRows.map(r => r.department_id);
       const sectionDeptNames = deptRows.map(r => r.department_name).filter(Boolean);
       const isCrossDept = sectionDeptIds.some(d => d !== dsDeptId);
-      const chain = buildChain(event.document_submitter_role, event.curator_required, isCrossDept);
+      const chain = buildChain(event.document_submitter_role, event.curator_required, isCrossDept, eventWorkflowType);
 
       // Resolve actor names for each step in the chain
       const steps = [];
@@ -854,8 +895,12 @@ router.get('/status-grid', requireAuth, async (req, res) => {
         isCrossDept,
         chain,
         steps,
-        canPush: canPushSection(userEffRole, chain, isCrossDept, holderRole, s.last_updated_by_user_id != null && s.last_updated_by_user_id == req.user.id),
-        canPull: canPullSection(userEffRole, chain, holderRole),
+        canPush: canPushSection(userEffRole, chain, isCrossDept, holderRole, s.last_updated_by_user_id != null && s.last_updated_by_user_id == req.user.id, eventWorkflowType),
+        canPull: canPullSection(userEffRole, chain, holderRole, {
+          workflowType: eventWorkflowType,
+          isDS: req.user.id === event.document_submitter_id,
+          status: s.status,
+        }),
         returnRequest,
         returnInfo,
       });
@@ -867,6 +912,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
       documentSubmitterId: event.document_submitter_id,
       deputyId: event.deputy_id,
       curatorRequired: event.curator_required,
+      workflowType: eventWorkflowType,
       homeDepartmentId: dsDeptId,
       sections: enrichedSections,
     });
@@ -887,11 +933,12 @@ router.get('/stage-users', requireAuth, async (req, res) => {
 
     const { rows: [event] } = await db.query(
       `SELECT id, document_submitter_role, document_submitter_id,
-              supervisor_id, curator_required, country_id
+              supervisor_id, curator_required, workflow_type, country_id
        FROM events WHERE id = $1`,
       [event_id]
     );
     if (!event) return res.status(404).json({ error: 'Event not found' });
+    const stageWorkflowType = event.workflow_type || 'advanced';
 
     // Resolve home department (same logic as status-grid)
     let dsDeptId = null;
@@ -914,7 +961,7 @@ router.get('/stage-users', requireAuth, async (req, res) => {
     );
     const sectionDeptIds = deptRows.map(r => r.department_id);
     const isCrossDept = sectionDeptIds.some(d => d !== dsDeptId);
-    const chain = buildChain(event.document_submitter_role, event.curator_required, isCrossDept);
+    const chain = buildChain(event.document_submitter_role, event.curator_required, isCrossDept, stageWorkflowType);
 
     if (!chain.includes(role)) {
       return res.status(400).json({ error: 'Role is not in the approval chain for this section' });
@@ -1024,15 +1071,30 @@ router.get('/section-content', requireAuth, async (req, res) => {
 // ─── Helper: check event completion ───────────────────────────────────────────
 
 async function checkEventCompletion(eventId) {
+  // Auto-completion is only enabled in 'simple' workflow mode. Advanced
+  // mode keeps the manual "Send to library" gate (the DS clicks it once
+  // they're satisfied with the final approved sections).
+  const { rows: [event] } = await db.query(
+    'SELECT workflow_type, status FROM events WHERE id = $1', [eventId]
+  );
+  if (!event) return;
+  const workflowType = event.workflow_type || 'advanced';
+  if (workflowType !== 'simple') return;
+  if (event.status === 'COMPLETED') return;
+
   const { rows: sections } = await db.query(
     'SELECT status FROM section_content WHERE event_id = $1', [eventId]
   );
-  // Check if all sections have been approved by the final role
-  const allApproved = sections.length > 0 && sections.every(s =>
-    s.status && s.status.startsWith('approved_by_')
+  if (sections.length === 0) return;
+  const allApproved = sections.every(s => s.status && s.status.startsWith('approved_by_'));
+  if (!allApproved) return;
+
+  await db.query(
+    `UPDATE events
+     SET status = 'COMPLETED', is_active = false, ended_at = now(), updated_at = now()
+     WHERE id = $1 AND status <> 'COMPLETED'`,
+    [eventId]
   );
-  // Don't auto-complete — DS must explicitly send to library
-  // But we can update a flag or leave it for the frontend to enable the button
 }
 
 module.exports = router;

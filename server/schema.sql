@@ -11,6 +11,7 @@ DO $$ BEGIN ALTER TYPE event_language ADD VALUE IF NOT EXISTS 'KA'; EXCEPTION WH
 DO $$ BEGIN CREATE TYPE event_status AS ENUM ('DRAFT','IN_PROGRESS','COMPLETED','ARCHIVED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE workflow_step_status AS ENUM ('PENDING','IN_PROGRESS','APPROVED','RETURNED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE history_action AS ENUM ('saved','submitted','returned','approved','asked_to_return','pushed'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE event_workflow_type AS ENUM ('advanced','simple'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN ALTER TYPE history_action ADD VALUE IF NOT EXISTS 'pushed'; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN ALTER TYPE history_action ADD VALUE IF NOT EXISTS 'pulled'; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
@@ -88,6 +89,7 @@ CREATE TABLE IF NOT EXISTS events (
   deputy_id                 INT REFERENCES users(id),
   supervisor_id             INT REFERENCES users(id),
   curator_required          BOOLEAN NOT NULL DEFAULT false,
+  workflow_type             event_workflow_type NOT NULL DEFAULT 'advanced',
   language                  event_language NOT NULL DEFAULT 'EN',
   deadline_date             DATE,
   occasion                  TEXT,
@@ -98,6 +100,9 @@ CREATE TABLE IF NOT EXISTS events (
   created_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at                TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Backfill for databases predating the workflow_type column. Idempotent:
+-- ADD COLUMN IF NOT EXISTS is a no-op once the column has been added.
+ALTER TABLE events ADD COLUMN IF NOT EXISTS workflow_type event_workflow_type NOT NULL DEFAULT 'advanced';
 
 -- ─── Sections ───────────────────────────────────────────────────────────────
 
