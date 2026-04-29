@@ -51,6 +51,7 @@ router.get('/', requireAuth, async (req, res) => {
     const { rows } = await db.query(
       `SELECT e.id, e.title, e.country_id, e.document_submitter_role,
               e.document_submitter_id, e.deputy_id, e.supervisor_id, e.curator_required,
+              e.workflow_type,
               e.language, e.deadline_date, e.occasion, e.is_active,
               e.ended_at, e.status, e.created_at,
               c.name_en AS country_name, c.code AS country_code,
@@ -77,6 +78,7 @@ router.get('/', requireAuth, async (req, res) => {
       supervisorId: r.supervisor_id,
       supervisorName: r.supervisor_name,
       curatorRequired: r.curator_required,
+      workflowType: r.workflow_type,
       language: r.language,
       deadlineDate: r.deadline_date,
       occasion: r.occasion,
@@ -100,8 +102,16 @@ router.post('/', requireAuth, async (req, res) => {
 
     const {
       title, countryId, documentSubmitterRole, documentSubmitterId,
-      deputyId, supervisorId, curatorRequired, language, deadlineDate, occasion, sections
+      deputyId, supervisorId, curatorRequired, language, deadlineDate, occasion, sections,
+      workflowType: rawWorkflowType,
     } = req.body;
+    // Normalise workflow type. Default 'advanced' preserves the existing
+    // role-chain behaviour for clients that don't send the field. In
+    // 'simple' mode, curator/responsible-supervisor inputs are ignored:
+    // the simple chain doesn't use them.
+    const workflowType = rawWorkflowType === 'simple' ? 'simple' : 'advanced';
+    const effectiveCuratorRequired = workflowType === 'simple' ? false : (curatorRequired || false);
+    const effectiveSupervisorId = workflowType === 'simple' ? null : (supervisorId || null);
 
     if (!title || !countryId || !documentSubmitterRole || !documentSubmitterId) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -180,12 +190,13 @@ router.post('/', requireAuth, async (req, res) => {
 
       const { rows: [event] } = await client.query(
         `INSERT INTO events (title, country_id, document_submitter_role, document_submitter_id,
-                             deputy_id, supervisor_id, curator_required, language, deadline_date, occasion, created_by_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                             deputy_id, supervisor_id, curator_required, workflow_type, language,
+                             deadline_date, occasion, created_by_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          RETURNING id`,
         [title, countryId, documentSubmitterRole, documentSubmitterId,
-         deputyId || null, supervisorId || null, curatorRequired || false, language || 'EN',
-         deadlineDate || null, occasion || null, req.user.id]
+         deputyId || null, effectiveSupervisorId, effectiveCuratorRequired, workflowType,
+         language || 'EN', deadlineDate || null, occasion || null, req.user.id]
       );
 
       if (sections && sections.length > 0) {
@@ -233,6 +244,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     const { rows: [event] } = await db.query(
       `SELECT e.id, e.title, e.description, e.country_id, e.document_submitter_role,
               e.document_submitter_id, e.deputy_id, e.supervisor_id, e.curator_required,
+              e.workflow_type,
               e.language, e.deadline_date, e.occasion, e.is_active,
               e.ended_at, e.status, e.created_at,
               c.name_en AS country_name, c.code AS country_code,
@@ -275,6 +287,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       supervisorId: event.supervisor_id,
       supervisorName: event.supervisor_name,
       curatorRequired: event.curator_required,
+      workflowType: event.workflow_type,
       language: event.language,
       deadlineDate: event.deadline_date,
       occasion: event.occasion,
