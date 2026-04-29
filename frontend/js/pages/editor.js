@@ -153,10 +153,13 @@
           <span class="icon" style="--icon-url: url(/assets/approve-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
           Approve
         </button>`);
-        rightBtns.push(`<button id="btnReturn" class="tb-outline tb-outline--red">
-          <span class="icon" style="--icon-url: url(/assets/return-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
-          Return
-        </button>`);
+        // Skip Return for amendments — no chain step to return to.
+        if (status !== 'submitted_to_amending_ds') {
+          rightBtns.push(`<button id="btnReturn" class="tb-outline tb-outline--red">
+            <span class="icon" style="--icon-url: url(/assets/return-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
+            Return
+          </button>`);
+        }
       }
     }
 
