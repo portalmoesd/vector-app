@@ -912,6 +912,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
       documentSubmitterId: event.document_submitter_id,
       deputyId: event.deputy_id,
       curatorRequired: event.curator_required,
+      workflowType: eventWorkflowType,
       homeDepartmentId: dsDeptId,
       sections: enrichedSections,
     });

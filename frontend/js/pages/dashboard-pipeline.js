@@ -74,6 +74,7 @@
           <span class="dp-upcoming-event__pill">${escapeHtml(e.countryName)}</span>
           ${e.deadlineDate ? `<span class="dp-upcoming-event__pill">Deadline: ${formatDate(e.deadlineDate)}</span>` : ''}
           <span class="dp-upcoming-event__pill dp-upcoming-event__pill--lang">${languageLabel(e.language || 'EN')}</span>
+          ${e.workflowType === 'simple' ? `<span class="dp-upcoming-event__pill" title="Simple workflow: every department contributes its own section, no responsible department.">Simple</span>` : ''}
         </div>
         ${e.occasion ? `<div class="dp-upcoming-event__desc">${e.occasion}</div>` : ''}
       </div>
@@ -233,7 +234,11 @@
       if (sectionsToApprove.length > 1) {
         headerActions += `<button class="btn dp-approve-all-btn" id="approveAllBtn">Approve all sections</button>`;
       }
-      if (isDS && allApproved) {
+      // In simple mode the event auto-completes once every section is
+      // approved, so the manual "Send to Library" button is redundant
+      // (and the event row has typically vanished from the dashboard
+      // already because it's now COMPLETED).
+      if (isDS && allApproved && grid.workflowType !== 'simple') {
         headerActions += `<button class="btn btn-primary" id="sendToLibraryBtn">Send to Library</button>`;
       }
 
