@@ -11,7 +11,8 @@ router.get('/', requireAuth, async (req, res) => {
     const { rows } = await db.query(
       `SELECT DISTINCT e.id, e.title, e.language, e.ended_at,
               c.name_en AS country_name, c.code AS country_code,
-              ds.full_name AS document_submitter_name
+              ds.full_name AS document_submitter_name,
+              e.document_submitter_id
        FROM events e
        JOIN countries c ON c.id = e.country_id
        JOIN users ds ON ds.id = e.document_submitter_id
@@ -35,6 +36,7 @@ router.get('/', requireAuth, async (req, res) => {
       countryName: r.country_name,
       countryCode: r.country_code,
       documentSubmitterName: r.document_submitter_name,
+      documentSubmitterId: r.document_submitter_id,
     })));
   } catch (err) {
     console.error('Library list error:', err);
@@ -99,6 +101,44 @@ router.get('/:eventId/files', requireAuth, async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error('Library files error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/library/:eventId/reopen — DS-only. Flip a published event
+// back to IN_PROGRESS so the Document Submitter can pull sections, edit,
+// and re-publish. Mirrors workflow.js's /send-to-library guards but in
+// reverse: requires status === 'COMPLETED' and only the DS may invoke.
+router.post('/:eventId/reopen', requireAuth, async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+
+    const { rows: [event] } = await db.query(
+      'SELECT document_submitter_id, status FROM events WHERE id = $1',
+      [eventId]
+    );
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+
+    if (event.document_submitter_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the Document Submitter can reopen a published event' });
+    }
+    if (event.status !== 'COMPLETED') {
+      return res.status(400).json({
+        error: `Event is ${event.status}, not COMPLETED — nothing to reopen`,
+      });
+    }
+
+    await db.query(
+      `UPDATE events
+       SET status = 'IN_PROGRESS', is_active = true, ended_at = NULL, updated_at = now()
+       WHERE id = $1`,
+      [eventId]
+    );
+
+    console.log(`[library.reopen] event=${eventId} dsUser=${req.user.id}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Library reopen error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
