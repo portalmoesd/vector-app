@@ -109,7 +109,12 @@ function returnedByStatus(role) {
  */
 function buildChain(dsRole, curatorRequired, isCrossDept, workflowType) {
   if (workflowType === 'simple') {
-    return [ROLES.COLLABORATOR, ROLES.SUPER_COLLABORATOR, ROLES.SUPERVISOR];
+    const simple = [ROLES.COLLABORATOR, ROLES.SUPER_COLLABORATOR, ROLES.SUPERVISOR];
+    // Curator is opt-in and acts as the final approver when present —
+    // a deputy who oversees the section's department signs off after
+    // the section's own supervisor.
+    if (curatorRequired) simple.push('CURATOR');
+    return simple;
   }
 
   const chain = [ROLES.COLLABORATOR];

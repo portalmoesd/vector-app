@@ -107,10 +107,12 @@ router.post('/', requireAuth, async (req, res) => {
     } = req.body;
     // Normalise workflow type. Default 'advanced' preserves the existing
     // role-chain behaviour for clients that don't send the field. In
-    // 'simple' mode, curator/responsible-supervisor inputs are ignored:
-    // the simple chain doesn't use them.
+    // 'simple' mode the responsible-supervisor concept doesn't apply
+    // (no Department A vs B), so supervisorId is forced to null. The
+    // curator flag, however, is opt-in for both modes — when set in
+    // simple mode the chain gets a CURATOR step at the end.
     const workflowType = rawWorkflowType === 'simple' ? 'simple' : 'advanced';
-    const effectiveCuratorRequired = workflowType === 'simple' ? false : (curatorRequired || false);
+    const effectiveCuratorRequired = curatorRequired || false;
     const effectiveSupervisorId = workflowType === 'simple' ? null : (supervisorId || null);
 
     if (!title || !countryId || !documentSubmitterRole || !documentSubmitterId) {
