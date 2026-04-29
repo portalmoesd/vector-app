@@ -211,8 +211,19 @@ function firstEditorRole(chain) {
  * @returns {boolean}
  */
 function canPushSection(userRole, chain, isCrossDept, holderRole, isLastActor, workflowType) {
-  // Simple mode has no cross-dept routing; push-to-RECEIVING is meaningless.
-  if (workflowType === 'simple') return false;
+  // Simple-mode push: every chain member except the last can push the
+  // section to its final approved state, as long as the section is
+  // currently in the normal chain flow (i.e. the holder is one of the
+  // chain roles — a section the DS has pulled is held by the DS, not
+  // by a chain role, and shouldn't be pushable from underneath).
+  if (workflowType === 'simple') {
+    if (!chain || chain.length < 2) return false;
+    const userIdx = chain.indexOf(userRole);
+    if (userIdx === -1 || userIdx >= chain.length - 1) return false;
+    if (!holderRole || !chain.includes(holderRole)) return false;
+    return true;
+  }
+
   if (!isCrossDept || !chain || !chain.includes('RECEIVING_SUPER_COLLABORATOR')) return false;
 
   const pushableRoles = [ROLES.COLLABORATOR, ROLES.SUPER_COLLABORATOR, ROLES.SUPERVISOR];
@@ -267,10 +278,14 @@ function canPullSection(userRole, chain, holderRole, opts) {
 
   // Simple-mode DS override: pull any section that hasn't already been
   // finalised. DS isn't in the chain in simple mode, so the standard
-  // index check below would reject them.
+  // index check below would reject them. But: if the section is
+  // already submitted_to_<dsRole> (DS holds it), the pull button is
+  // meaningless — block it so the DS dashboard doesn't show "Pull"
+  // for a section the DS is already holding.
   if (o.workflowType === 'simple' && o.isDS) {
-    if (!o.status || !o.status.startsWith('approved_by_')) return true;
-    return false;
+    if (!o.status || o.status.startsWith('approved_by_')) return false;
+    if (holderRole && userRole === holderRole) return false;
+    return true;
   }
 
   if (!chain || chain.length < 2 || !holderRole) return false;

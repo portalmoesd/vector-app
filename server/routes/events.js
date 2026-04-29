@@ -37,13 +37,30 @@ router.get('/', requireAuth, async (req, res) => {
       )`;
       params = [userId];
     } else {
-      // Supervisor/Deputy: country assignment OR direct assignment
+      // Supervisor / Deputy: country assignment OR direct assignment OR
+      // their department has any section in the event OR (for deputies)
+      // they oversee any of the section departments via
+      // deputy_department_links (which is what makes them the curator).
+      // Without this, a supervisor / deputy without a country_assignment
+      // never sees the event even though their department is on it.
       whereClause = `WHERE (
         e.country_id IN (SELECT country_id FROM country_assignments WHERE user_id = $1)
         OR e.document_submitter_id = $1
         OR e.deputy_id = $1
         OR e.supervisor_id = $1
         OR e.created_by_id = $1
+        OR EXISTS (
+          SELECT 1 FROM sections s
+          JOIN section_departments sd ON sd.section_id = s.id
+          WHERE s.event_id = e.id
+            AND sd.department_id = (SELECT department_id FROM users WHERE id = $1)
+        )
+        OR EXISTS (
+          SELECT 1 FROM sections s
+          JOIN section_departments sd ON sd.section_id = s.id
+          JOIN deputy_department_links ddl ON ddl.department_id = sd.department_id
+          WHERE s.event_id = e.id AND ddl.deputy_id = $1
+        )
       )`;
       params = [userId];
     }
