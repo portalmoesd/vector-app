@@ -129,8 +129,13 @@ router.post('/', requireAuth, async (req, res) => {
     // curator flag, however, is opt-in for both modes — when set in
     // simple mode the chain gets a CURATOR step at the end.
     const workflowType = rawWorkflowType === 'simple' ? 'simple' : 'advanced';
-    const effectiveCuratorRequired = curatorRequired || false;
+    // Accept boolean true OR string 'yes' / 'true' for forgiving
+    // intake from any caller that might serialise differently.
+    const effectiveCuratorRequired = curatorRequired === true
+      || curatorRequired === 'true'
+      || curatorRequired === 'yes';
     const effectiveSupervisorId = workflowType === 'simple' ? null : (supervisorId || null);
+    console.log(`[events.create] workflow=${workflowType} curator_required=${effectiveCuratorRequired} (raw=${JSON.stringify(curatorRequired)})`);
 
     if (!title || !countryId || !documentSubmitterRole || !documentSubmitterId) {
       return res.status(400).json({ error: 'Missing required fields' });
