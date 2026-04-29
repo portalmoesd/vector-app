@@ -287,9 +287,16 @@ function canPullSection(userRole, chain, holderRole, opts) {
   // (events.status flipped back from COMPLETED → IN_PROGRESS via the
   // library "Edit" button), the section statuses stay approved_by_*
   // but the DS legitimately needs to pull them to make corrections.
-  // Allow pull on approved_by_* iff the event has been reopened.
+  // Allow pull on approved_by_* iff the event has been reopened. The
+  // pull lands on a dedicated 'submitted_to_amending_ds' state — see
+  // pull-section / approve handlers in routes/workflow.js.
+  //
+  // While an amendment is in progress (status starts with
+  // submitted_to_amending_ds) the DS already holds the section, so
+  // pull is a no-op.
   if (o.workflowType === 'simple' && o.isDS) {
     if (!o.status) return false;
+    if (o.status === 'submitted_to_amending_ds') return false;
     if (holderRole && userRole === holderRole) return false;
     if (o.status.startsWith('approved_by_')) {
       // Reopened event → DS can pull approved sections to amend them.

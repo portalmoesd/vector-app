@@ -45,6 +45,9 @@ function statusLabel(status) {
     submitted_to_receiving_supervisor: 'At Supervisor (Review)',
     returned_by_receiving_supervisor: 'Returned by Supervisor (Review)',
     approved_by_receiving_supervisor: 'Approved (Supervisor Review)',
+    // Reopen-amendment state: section was previously approved + fully
+    // published; the DS pulled it back from the Library to amend.
+    submitted_to_amending_ds: 'Amendment in progress (DS)',
   };
   return map[status] || status;
 }

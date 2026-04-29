@@ -361,7 +361,18 @@
       `;
     }).join('');
 
+    // While the section is in amendment, surface a separate banner so
+    // the chain bar (showing the original approval history) doesn't get
+    // hijacked into showing the DS as a chain role.
+    const amendmentBanner = currentStatus === 'submitted_to_amending_ds'
+      ? `<div class="dp-amendment-banner" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;padding:6px 10px;margin:0 0 8px;font-size:12px;">
+           <strong>Amendment in progress</strong>
+           — the Document Submitter is editing this section. The chain below shows the previous approval history.
+         </div>`
+      : '';
+
     return `
+      ${amendmentBanner}
       <div class="dp-pipeline" style="position:relative;">
         <div class="dp-pipeline__bar">
           <div class="dp-pipeline__bar-fill" style="width:${fillPct}%"></div>
@@ -396,10 +407,16 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
           APPROVE
         </button>`);
-        links.push(`<button class="dp-action-link dp-action-link--return" data-action="return" data-event="${eventId}" data-section="${section.sectionId}">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-          RETURN
-        </button>`);
+        // Return doesn't apply to a DS amendment — the section was
+        // already approved before the reopen, so there's nowhere to
+        // return it to. DS either approves their changes or leaves
+        // the amendment open.
+        if (status !== 'submitted_to_amending_ds') {
+          links.push(`<button class="dp-action-link dp-action-link--return" data-action="return" data-event="${eventId}" data-section="${section.sectionId}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            RETURN
+          </button>`);
+        }
       }
     } else if (!isHolder && status !== 'draft' && status) {
       // Only show Ask Return if the user is in the chain and the section
@@ -513,6 +530,13 @@
     const chain = section.chain || [];
     const roleIdx = chain.indexOf(role);
     if (roleIdx === -1) return 'todo';
+
+    // While the DS is amending a previously-published section, the
+    // chain doesn't progress — it lives outside the chain. Show every
+    // chain step as already done (which it was, before the reopen).
+    if (status === 'submitted_to_amending_ds') {
+      return 'done';
+    }
 
     if (status === 'draft') {
       return roleIdx === 0 ? 'active' : 'todo';

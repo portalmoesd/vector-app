@@ -310,6 +310,42 @@ router.post('/approve', requireAuth, async (req, res) => {
 
     const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
+    const isDS = req.user.id === ctx.event.document_submitter_id;
+
+    // ── Amendment-approval branch ────────────────────────────────────
+    // Reopened-event DS pull lands the section on
+    // 'submitted_to_amending_ds'. Only the DS may approve from this
+    // state, and the approval finalises the section under the DS's
+    // own role (so it slots back into the existing approved_by_*
+    // semantics that checkEventCompletion looks for).
+    if (ctx.sectionStatus === 'submitted_to_amending_ds') {
+      if (!isDS) {
+        return res.status(403).json({ error: 'Only the Document Submitter can approve an amendment' });
+      }
+      const fromStatus = ctx.sectionStatus;
+      const toStatus = approvedByStatus(req.user.role);
+
+      await db.query(
+        `UPDATE section_content
+         SET status = $1, status_comment = $2,
+             last_updated_by_user_id = $3, last_updated_at = now(),
+             return_target_role = NULL
+         WHERE event_id = $4 AND section_id = $5`,
+        [toStatus, comment || null, req.user.id, eventId, sectionId]
+      );
+      await db.query(
+        `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role, note)
+         VALUES ($1, $2, 'approved', $3, $4, $5, $6, $7, $8)`,
+        [eventId, sectionId, fromStatus, toStatus, req.user.id,
+         resolvedUser.full_name, req.user.role, comment || null]
+      );
+      await db.query(
+        'DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2',
+        [eventId, sectionId]
+      );
+      await checkEventCompletion(eventId);
+      return res.json({ success: true, newStatus: toStatus });
+    }
 
     // Must be submitted to this role
     if (userRole !== holder) {
@@ -327,8 +363,7 @@ router.post('/approve', requireAuth, async (req, res) => {
     }
 
     const fromStatus = ctx.sectionStatus;
-    const isSimpleDsOverride = ctx.workflowType === 'simple'
-      && req.user.id === ctx.event.document_submitter_id;
+    const isSimpleDsOverride = ctx.workflowType === 'simple' && isDS;
     let toStatus;
     let isFinal;
 
@@ -690,7 +725,17 @@ router.post('/pull-section', requireAuth, async (req, res) => {
     }
 
     const fromStatus = ctx.sectionStatus;
-    const toStatus = submittedToStatus(pullingRole);
+    // Reopened-event DS pull lands on a dedicated 'amendment' state
+    // that lives outside the chain. The chain bar keeps showing the
+    // original approval history; only a separate "Amendment in
+    // progress" indicator appears. Approve from this state finalises
+    // the section as approved_by_<dsRole> — see /approve.
+    const isAmendmentPull = ctx.workflowType === 'simple'
+      && isDS
+      && ctx.sectionStatus.startsWith('approved_by_');
+    const toStatus = isAmendmentPull
+      ? 'submitted_to_amending_ds'
+      : submittedToStatus(pullingRole);
     const origRole = ctx.originalSubmitterRole || ctx.chain[0];
 
     await db.query(
@@ -890,8 +935,17 @@ router.get('/status-grid', requireAuth, async (req, res) => {
         }
       }
 
-      // Compute the requesting user's effective role for this section
-      const userEffRole = await effectiveRole(req.user, event, sectionDeptIds, chain);
+      // Compute the requesting user's effective role for this section.
+      // While the section is under DS amendment (after a Library
+      // reopen), the DS holds the section under the synthetic
+      // 'AMENDING_DS' role so the existing
+      // "approve when status === submitted_to_<userRole>" pathway
+      // matches without further special-casing on the frontend.
+      const isAmendmentDS = status === 'submitted_to_amending_ds'
+        && req.user.id === event.document_submitter_id;
+      const userEffRole = isAmendmentDS
+        ? 'AMENDING_DS'
+        : await effectiveRole(req.user, event, sectionDeptIds, chain);
 
 
       enrichedSections.push({
