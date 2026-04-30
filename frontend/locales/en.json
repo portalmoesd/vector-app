@@ -34,7 +34,11 @@
     "descCollab": "Select an event to view your assigned sections and submit your work.",
     "descDeputy": "Choose an event to review and finalize before sending to the library.",
     "descSupervisor": "Choose an event to review super-collaborator submissions before they move to the deputy stage.",
-    "descSuperCollab": "Choose an event to review collaborator submissions before they move to the supervisor stage."
+    "descSuperCollab": "Choose an event to review collaborator submissions before they move to the supervisor stage.",
+    "approveAll": "Approve all",
+    "confirmApproveAll": "Approve all {n} sections",
+    "sendToLibrary": "Send to library",
+    "sentToLibrary": "Document sent to library successfully."
   },
   "status": {
     "draft": "Draft",
@@ -90,7 +94,15 @@
     "tourismTab": "Tourism",
     "investmentsTab": "Investments",
     "companiesTab": "Companies",
-    "appendixTab": "Appendix"
+    "appendixTab": "Appendix",
+    "exportPdf": "PDF",
+    "exportWord": "Word",
+    "reportLang": "Report language",
+    "noResults": "No results",
+    "reportFailed": "Failed to generate report:",
+    "pdfLibMissing": "PDF library not loaded. Please refresh the page.",
+    "pdfExportFailed": "Failed to export PDF:",
+    "wordExportFailed": "Failed to export Word:"
   },
   "common": {
     "save": "Save",
@@ -133,8 +145,13 @@
       "title": "My Templates",
       "create": "+ New Template",
       "empty": "No templates yet",
-      "modalCreate": "Create Template"
+      "modalCreate": "Create Template",
+      "confirmDelete": "Delete this template?",
+      "nameLabel": "Template Name *",
+      "namePlaceholder": "e.g. My Custom Template",
+      "warnName": "Template name is required"
     },
+    "confirmEnd": "End this event? This action cannot be undone.",
     "modal": {
       "createTitle": "Create Event",
       "editTitle": "Edit Event",
@@ -335,6 +352,164 @@
       "confirm": "Reopen this document for editing? It will leave the Library until you re-publish.",
       "fail": "Failed to reopen:",
       "unknownError": "Unknown error"
+    }
+  },
+  "editor": {
+    "pageTitle": "Section Editor",
+    "allTitle": "All Sections",
+    "saveAll": "Save All",
+    "backToDashboard": "Back to Dashboard",
+    "errMissingIds": "Missing event_id or section_id",
+    "errSectionNotFound": "Section not found in event",
+    "statusLabel": "Status:",
+    "lastEditedBy": "Last edited by:",
+    "askReturn": "Ask to Return",
+    "pushSection": "Push Section",
+    "pullSection": "Pull Section",
+    "saved": "Saved successfully",
+    "saveFailed": "Save failed:",
+    "submitted": "Submitted successfully",
+    "submitFailed": "Submit failed:",
+    "approved": "Approved successfully",
+    "approveFailed": "Approve failed:",
+    "returned": "Returned successfully",
+    "returnFailed": "Return failed:",
+    "requestSent": "Return request sent",
+    "requestFailed": "Request failed:",
+    "pushed": "Section pushed successfully",
+    "pushFailed": "Push failed:",
+    "pulled": "Section pulled successfully",
+    "pullFailed": "Pull failed:",
+    "confirmSubmit": "Submit section",
+    "confirmApprove": "Approve section",
+    "confirmPush": "Push section",
+    "confirmPull": "Pull section",
+    "returnTitle": "Return section",
+    "returnPlaceholder": "Add a comment...",
+    "returnPlaceholderOptional": "Add a comment (optional)...",
+    "askReturnTitle": "Request return",
+    "askReturnPlaceholder": "Reason for return request...",
+    "sendRequest": "Send request",
+    "comment": {
+      "addTitle": "Add comment",
+      "placeholder": "Enter your comment...",
+      "failed": "Failed:",
+      "replyFailed": "Reply failed:"
+    },
+    "files": {
+      "title": "Files",
+      "empty": "No files uploaded yet",
+      "loadFailed": "Could not load files",
+      "uploaded": "Files uploaded",
+      "uploadFailed": "Upload failed",
+      "deleted": "File deleted",
+      "deleteFailed": "Delete failed:",
+      "confirmDelete": "Delete this file?",
+      "download": "Download",
+      "dropHere": "Drop files here or ",
+      "browse": "browse",
+      "countOne": "file",
+      "countMany": "files"
+    },
+    "history": {
+      "title": "History",
+      "empty": "No history yet",
+      "noComment": "No comment provided",
+      "unknownUser": "Unknown",
+      "stage": {
+        "scReview": "Super-Collaborator (Review)",
+        "svReview": "Supervisor (Review)"
+      },
+      "action": {
+        "saved": "Edited",
+        "submitted": "Submitted",
+        "approved": "Approved",
+        "returned": "Returned",
+        "askedToReturn": "Asked to Return",
+        "pushed": "Pushed",
+        "pulled": "Pulled"
+      }
+    },
+    "saveAll": {
+      "noneEditable": "No editable sections to save",
+      "inProgress": "Saving…",
+      "allSaved": "All sections saved"
+    },
+    "status": {
+      "saved": "Saved",
+      "sectionOf": "Section {n} of {total}",
+      "sectionsCount": "{total} sections",
+      "words": "{n} words"
+    },
+    "action": {
+      "openInEditor": "Open in Editor",
+      "updated": "Updated:",
+      "by": "by"
+    },
+    "toolbar": {
+      "group": {
+        "font": "Font",
+        "format": "Format",
+        "paragraph": "Paragraph",
+        "insert": "Insert",
+        "review": "Review"
+      }
+    },
+    "tool": {
+      "bold": "Bold (Ctrl+B)",
+      "italic": "Italic (Ctrl+I)",
+      "underline": "Underline (Ctrl+U)",
+      "superscript": "Superscript",
+      "subscript": "Subscript",
+      "h2": "Heading 2",
+      "h3": "Heading 3",
+      "insertUnorderedList": "Bullet list",
+      "insertOrderedList": "Numbered list",
+      "justifyLeft": "Align left",
+      "justifyCenter": "Center",
+      "justifyRight": "Align right",
+      "justifyFull": "Justify",
+      "removeFormat": "Clear formatting"
+    },
+    "color": {
+      "font": "Font colour",
+      "highlight": "Highlight / background colour",
+      "custom": "Custom colour…"
+    },
+    "table": {
+      "insert": "Insert table",
+      "size": "{r} × {c} table"
+    },
+    "tc": {
+      "label": "Changes",
+      "toggleTitle": "Show / Hide Changes",
+      "toggleAria": "Show or hide tracked changes",
+      "acceptAll": "Accept All",
+      "rejectAll": "Reject All"
+    },
+    "comments": {
+      "toggleTitle": "Comments",
+      "toggleAria": "Toggle comments panel"
+    },
+    "fullscreen": {
+      "title": "Fullscreen (Esc to exit)",
+      "aria": "Toggle fullscreen"
+    },
+    "balloon": {
+      "showMore": "Show more",
+      "showLess": "Show less",
+      "accept": "Accept",
+      "reject": "Reject",
+      "formatted": "Formatted",
+      "changesCount": "{n} changes"
+    },
+    "find": {
+      "findPlaceholder": "Find...",
+      "replacePlaceholder": "Replace...",
+      "replace": "Replace",
+      "replaceAll": "Replace All",
+      "prev": "Previous",
+      "next": "Next"
     }
   }
 }

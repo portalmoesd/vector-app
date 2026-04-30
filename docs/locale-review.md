@@ -45,8 +45,12 @@ Side-by-side draft of every UI string. Use the Notes column to flag corrections;
 | `dashboard.noUpcoming` | No upcoming events | მომავალი ღონისძიებები არ არის |  |
 | `dashboard.descCollab` | Select an event to view your assigned sections and submit your work. | აირჩიეთ ღონისძიება, რათა ნახოთ თქვენთვის მინიჭებული სექციები და წარადგინოთ თქვენი ნამუშევარი. |  |
 | `dashboard.descDeputy` | Choose an event to review and finalize before sending to the library. | აირჩიეთ ღონისძიება განსახილველად და დასასრულებლად ბიბლიოთეკაში გაგზავნამდე. |  |
-| `dashboard.descSupervisor` | Choose an event to review super-collaborator submissions before they move to the deputy stage. | აირჩიეთ ღონისძიება სუპერ-კოლაბორატორის შემოტანების განსახილველად მოადგილის ეტაპზე გადასვლამდე. |  |
-| `dashboard.descSuperCollab` | Choose an event to review collaborator submissions before they move to the supervisor stage. | აირჩიეთ ღონისძიება კოლაბორატორის შემოტანების განსახილველად ზედამხედველის ეტაპზე გადასვლამდე. |  |
+| `dashboard.descSupervisor` | Choose an event to review super-collaborator submissions before they move to the deputy stage. | აირჩიეთ ღონისძიება სუპერ-კოლაბორატორის ნამუშევრის განსახილველად მოადგილის ეტაპზე გადასვლამდე. |  |
+| `dashboard.descSuperCollab` | Choose an event to review collaborator submissions before they move to the supervisor stage. | აირჩიეთ ღონისძიება კოლაბორატორის ნამუშევრის განსახილველად ზედამხედველის ეტაპზე გადასვლამდე. |  |
+| `dashboard.approveAll` | Approve all | ყველას დადასტურება |  |
+| `dashboard.confirmApproveAll` | Approve all {n} sections | {n} სექციის დადასტურება |  |
+| `dashboard.sendToLibrary` | Send to library | ბიბლიოთეკაში გაგზავნა |  |
+| `dashboard.sentToLibrary` | Document sent to library successfully. | დოკუმენტი წარმატებით გაიგზავნა ბიბლიოთეკაში. |  |
 
 ## Calendar (Events)
 
@@ -63,6 +67,11 @@ Side-by-side draft of every UI string. Use the Notes column to flag corrections;
 | `calendar.templates.create` | + New Template | + ახალი შაბლონი |  |
 | `calendar.templates.empty` | No templates yet | შაბლონები ჯერ არ არის |  |
 | `calendar.templates.modalCreate` | Create Template | შაბლონის შექმნა |  |
+| `calendar.templates.confirmDelete` | Delete this template? | წავშალოთ ეს შაბლონი? |  |
+| `calendar.templates.nameLabel` | Template Name * | შაბლონის სახელი * |  |
+| `calendar.templates.namePlaceholder` | e.g. My Custom Template | მაგ. ჩემი შაბლონი |  |
+| `calendar.templates.warnName` | Template name is required | შაბლონის სახელი სავალდებულოა |  |
+| `calendar.confirmEnd` | End this event? This action cannot be undone. | დასრულდეს ეს ღონისძიება? მოქმედება შეუქცევადია. |  |
 | `calendar.modal.createTitle` | Create Event | ღონისძიების შექმნა |  |
 | `calendar.modal.editTitle` | Edit Event | ღონისძიების რედაქტირება |  |
 | `calendar.modal.detailsTitle` | Event Details | ღონისძიების დეტალები |  |
@@ -190,6 +199,14 @@ Side-by-side draft of every UI string. Use the Notes column to flag corrections;
 | `statistics.investmentsTab` | Investments | ინვესტიციები |  |
 | `statistics.companiesTab` | Companies | კომპანიები |  |
 | `statistics.appendixTab` | Appendix | დანართი |  |
+| `statistics.exportPdf` | PDF | PDF |  |
+| `statistics.exportWord` | Word | Word |  |
+| `statistics.reportLang` | Report language | ანგარიშის ენა |  |
+| `statistics.noResults` | No results | შედეგები ვერ მოიძებნა |  |
+| `statistics.reportFailed` | Failed to generate report: | ანგარიშის გენერირება ვერ მოხერხდა: |  |
+| `statistics.pdfLibMissing` | PDF library not loaded. Please refresh the page. | PDF ბიბლიოთეკა ვერ ჩაიტვირთა. გთხოვთ განაახლოთ გვერდი. |  |
+| `statistics.pdfExportFailed` | Failed to export PDF: | PDF ექსპორტი ვერ მოხერხდა: |  |
+| `statistics.wordExportFailed` | Failed to export Word: | Word ექსპორტი ვერ მოხერხდა: |  |
 
 ## Admin Panel
 
@@ -302,9 +319,133 @@ Side-by-side draft of every UI string. Use the Notes column to flag corrections;
 | `library.files.col.file` | File | ფაილი |  |
 | `library.files.col.section` | Section | სექცია |  |
 | `library.files.col.uploaded` | Uploaded | ატვირთული |  |
-| `library.files.col.by` | By | ვისი მიერ |  |
+| `library.files.col.by` | By | ვის მიერ |  |
 | `library.files.col.size` | Size | ზომა |  |
 | `library.files.failLoad` | Failed to load files: | ფაილები ვერ ჩაიტვირთა: |  |
-| `library.reopen.confirm` | Reopen this document for editing? It will leave the Library until you re-publish. | გავხსნათ ეს დოკუმენტი რედაქტირებისთვის? ბიბლიოთეკიდან ის ამოვა, ვიდრე თავიდან არ გამოაქვეყნებთ. |  |
+| `library.reopen.confirm` | Reopen this document for editing? It will leave the Library until you re-publish. | გავხსნათ ეს დოკუმენტი რედაქტირებისთვის? ბიბლიოთეკიდან დოკუმენტი გაქრება, სანამ თავიდან არ გამოაქვეყნებთ. |  |
 | `library.reopen.fail` | Failed to reopen: | გახსნა ვერ მოხერხდა: |  |
 | `library.reopen.unknownError` | Unknown error | უცნობი შეცდომა |  |
+
+## Section Editor
+
+| Key | English | Georgian | Notes |
+| --- | --- | --- | --- |
+| `editor.pageTitle` | Section Editor | სექციის რედაქტორი |  |
+| `editor.allTitle` | All Sections | ყველა სექცია |  |
+| `editor.saveAll.noneEditable` | No editable sections to save | შესანახი სექციები არ არის |  |
+| `editor.saveAll.inProgress` | Saving… | ინახება… |  |
+| `editor.saveAll.allSaved` | All sections saved | ყველა სექცია შეინახა |  |
+| `editor.backToDashboard` | Back to Dashboard | მთავარზე დაბრუნება |  |
+| `editor.errMissingIds` | Missing event_id or section_id | event_id ან section_id აკლია |  |
+| `editor.errSectionNotFound` | Section not found in event | სექცია ღონისძიებაში ვერ მოიძებნა |  |
+| `editor.statusLabel` | Status: | სტატუსი: |  |
+| `editor.lastEditedBy` | Last edited by: | ბოლო რედაქტორი: |  |
+| `editor.askReturn` | Ask to Return | დაბრუნების მოთხოვნა |  |
+| `editor.pushSection` | Push Section | სექციის გადაცემა |  |
+| `editor.pullSection` | Pull Section | სექციის დაბრუნება |  |
+| `editor.saved` | Saved successfully | წარმატებით შეინახა |  |
+| `editor.saveFailed` | Save failed: | შენახვა ვერ მოხერხდა: |  |
+| `editor.submitted` | Submitted successfully | წარმატებით გაიგზავნა |  |
+| `editor.submitFailed` | Submit failed: | გაგზავნა ვერ მოხერხდა: |  |
+| `editor.approved` | Approved successfully | წარმატებით დადასტურდა |  |
+| `editor.approveFailed` | Approve failed: | დადასტურება ვერ მოხერხდა: |  |
+| `editor.returned` | Returned successfully | წარმატებით დაბრუნდა |  |
+| `editor.returnFailed` | Return failed: | დაბრუნება ვერ მოხერხდა: |  |
+| `editor.requestSent` | Return request sent | დაბრუნების მოთხოვნა გაიგზავნა |  |
+| `editor.requestFailed` | Request failed: | მოთხოვნა ვერ გაიგზავნა: |  |
+| `editor.pushed` | Section pushed successfully | სექცია წარმატებით გადაეცა |  |
+| `editor.pushFailed` | Push failed: | გადაცემა ვერ მოხერხდა: |  |
+| `editor.pulled` | Section pulled successfully | სექცია წარმატებით დაბრუნდა |  |
+| `editor.pullFailed` | Pull failed: | დაბრუნება ვერ მოხერხდა: |  |
+| `editor.confirmSubmit` | Submit section | სექციის გაგზავნა |  |
+| `editor.confirmApprove` | Approve section | სექციის დადასტურება |  |
+| `editor.confirmPush` | Push section | სექციის გადაცემა |  |
+| `editor.confirmPull` | Pull section | სექციის დაბრუნება |  |
+| `editor.returnTitle` | Return section | სექციის დაბრუნება |  |
+| `editor.returnPlaceholder` | Add a comment... | დაამატეთ კომენტარი... |  |
+| `editor.returnPlaceholderOptional` | Add a comment (optional)... | დაამატეთ კომენტარი (არასავალდებულო)... |  |
+| `editor.askReturnTitle` | Request return | დაბრუნების მოთხოვნა |  |
+| `editor.askReturnPlaceholder` | Reason for return request... | დაბრუნების მოთხოვნის მიზეზი... |  |
+| `editor.sendRequest` | Send request | მოთხოვნის გაგზავნა |  |
+| `editor.comment.addTitle` | Add comment | კომენტარის დამატება |  |
+| `editor.comment.placeholder` | Enter your comment... | შეიყვანეთ თქვენი კომენტარი... |  |
+| `editor.comment.failed` | Failed: | ვერ შესრულდა: |  |
+| `editor.comment.replyFailed` | Reply failed: | პასუხი ვერ გაიგზავნა: |  |
+| `editor.files.title` | Files | ფაილები |  |
+| `editor.files.empty` | No files uploaded yet | ფაილები ჯერ არ არის ატვირთული |  |
+| `editor.files.loadFailed` | Could not load files | ფაილების ჩატვირთვა ვერ მოხერხდა |  |
+| `editor.files.uploaded` | Files uploaded | ფაილები აიტვირთა |  |
+| `editor.files.uploadFailed` | Upload failed | ატვირთვა ვერ მოხერხდა |  |
+| `editor.files.deleted` | File deleted | ფაილი წაიშალა |  |
+| `editor.files.deleteFailed` | Delete failed: | წაშლა ვერ მოხერხდა: |  |
+| `editor.files.confirmDelete` | Delete this file? | წავშალოთ ეს ფაილი? |  |
+| `editor.files.download` | Download | ჩამოტვირთვა |  |
+| `editor.files.dropHere` | Drop files here or  | გადმოაგდეთ ფაილები აქ ან  |  |
+| `editor.files.browse` | browse | აირჩიეთ |  |
+| `editor.files.countOne` | file | ფაილი |  |
+| `editor.files.countMany` | files | ფაილი |  |
+| `editor.history.title` | History | ისტორია |  |
+| `editor.history.empty` | No history yet | ისტორია ჯერ არ არის |  |
+| `editor.history.noComment` | No comment provided | კომენტარი არ არის მითითებული |  |
+| `editor.history.unknownUser` | Unknown | უცნობი |  |
+| `editor.history.stage.scReview` | Super-Collaborator (Review) | სუპერ-კოლაბორატორი (განხილვა) |  |
+| `editor.history.stage.svReview` | Supervisor (Review) | ზედამხედველი (განხილვა) |  |
+| `editor.history.action.saved` | Edited | რედაქტირებული |  |
+| `editor.history.action.submitted` | Submitted | გაგზავნილი |  |
+| `editor.history.action.approved` | Approved | დადასტურებული |  |
+| `editor.history.action.returned` | Returned | დაბრუნებული |  |
+| `editor.history.action.askedToReturn` | Asked to Return | დაბრუნების მოთხოვნა |  |
+| `editor.history.action.pushed` | Pushed | გადაცემული |  |
+| `editor.history.action.pulled` | Pulled | დაბრუნებული |  |
+| `editor.status.saved` | Saved | შენახულია |  |
+| `editor.status.sectionOf` | Section {n} of {total} | სექცია {n} / {total} |  |
+| `editor.status.sectionsCount` | {total} sections | {total} სექცია |  |
+| `editor.status.words` | {n} words | {n} სიტყვა |  |
+| `editor.action.openInEditor` | Open in Editor | რედაქტორში გახსნა |  |
+| `editor.action.updated` | Updated: | განახლდა: |  |
+| `editor.action.by` | by | მიერ |  |
+| `editor.toolbar.group.font` | Font | შრიფტი |  |
+| `editor.toolbar.group.format` | Format | ფორმატი |  |
+| `editor.toolbar.group.paragraph` | Paragraph | აბზაცი |  |
+| `editor.toolbar.group.insert` | Insert | ჩასმა |  |
+| `editor.toolbar.group.review` | Review | განხილვა |  |
+| `editor.tool.bold` | Bold (Ctrl+B) | მუქი (Ctrl+B) |  |
+| `editor.tool.italic` | Italic (Ctrl+I) | კურსივი (Ctrl+I) |  |
+| `editor.tool.underline` | Underline (Ctrl+U) | ხაზგასმული (Ctrl+U) |  |
+| `editor.tool.superscript` | Superscript | ზედა ინდექსი |  |
+| `editor.tool.subscript` | Subscript | ქვედა ინდექსი |  |
+| `editor.tool.h2` | Heading 2 | სათაური 2 |  |
+| `editor.tool.h3` | Heading 3 | სათაური 3 |  |
+| `editor.tool.insertUnorderedList` | Bullet list | სია |  |
+| `editor.tool.insertOrderedList` | Numbered list | დანომრილი სია |  |
+| `editor.tool.justifyLeft` | Align left | მარცხნივ |  |
+| `editor.tool.justifyCenter` | Center | ცენტრში |  |
+| `editor.tool.justifyRight` | Align right | მარჯვნივ |  |
+| `editor.tool.justifyFull` | Justify | გასწორება |  |
+| `editor.tool.removeFormat` | Clear formatting | ფორმატის გაუქმება |  |
+| `editor.color.font` | Font colour | შრიფტის ფერი |  |
+| `editor.color.highlight` | Highlight / background colour | გამოყოფა / ფონის ფერი |  |
+| `editor.color.custom` | Custom colour… | სხვა ფერი… |  |
+| `editor.table.insert` | Insert table | ცხრილის ჩასმა |  |
+| `editor.table.size` | {r} × {c} table | {r} × {c} ცხრილი |  |
+| `editor.tc.label` | Changes | ცვლილებები |  |
+| `editor.tc.toggleTitle` | Show / Hide Changes | ცვლილებების ჩვენება / დამალვა |  |
+| `editor.tc.toggleAria` | Show or hide tracked changes | ცვლილებების ჩვენება ან დამალვა |  |
+| `editor.tc.acceptAll` | Accept All | ყველას მიღება |  |
+| `editor.tc.rejectAll` | Reject All | ყველას უარყოფა |  |
+| `editor.comments.toggleTitle` | Comments | კომენტარები |  |
+| `editor.comments.toggleAria` | Toggle comments panel | კომენტარების პანელი |  |
+| `editor.fullscreen.title` | Fullscreen (Esc to exit) | სრულ ეკრანზე (Esc — გასვლა) |  |
+| `editor.fullscreen.aria` | Toggle fullscreen | სრული ეკრანი |  |
+| `editor.balloon.showMore` | Show more | მეტი |  |
+| `editor.balloon.showLess` | Show less | ნაკლები |  |
+| `editor.balloon.accept` | Accept | მიღება |  |
+| `editor.balloon.reject` | Reject | უარყოფა |  |
+| `editor.balloon.formatted` | Formatted | ფორმატირებული |  |
+| `editor.balloon.changesCount` | {n} changes | {n} ცვლილება |  |
+| `editor.find.findPlaceholder` | Find... | ძებნა... |  |
+| `editor.find.replacePlaceholder` | Replace... | ჩანაცვლება... |  |
+| `editor.find.replace` | Replace | ჩანაცვლება |  |
+| `editor.find.replaceAll` | Replace All | ყველას ჩანაცვლება |  |
+| `editor.find.prev` | Previous | წინა |  |
+| `editor.find.next` | Next | შემდეგი |  |

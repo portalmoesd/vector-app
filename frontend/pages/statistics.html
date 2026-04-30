@@ -27,7 +27,7 @@
             <div class="form-group stat-controls__country">
               <label class="form-label" data-i18n="statistics.country">Country</label>
               <div class="stat-search-wrap">
-                <input type="text" id="countrySearch" class="form-input" placeholder="Search country..." autocomplete="off" />
+                <input type="text" id="countrySearch" class="form-input" data-i18n-placeholder="statistics.searchCountry" placeholder="Search country..." autocomplete="off" />
                 <div id="countryDropdown" class="stat-dropdown hidden"></div>
               </div>
               <input type="hidden" id="countryValue" />
@@ -35,23 +35,23 @@
             <div class="form-group stat-controls__btn-wrap">
               <label class="form-label">&nbsp;</label>
               <div class="stat-controls__buttons">
-                <div class="stat-lang-toggle" id="reportLangToggle" role="radiogroup" aria-label="Report language">
+                <div class="stat-lang-toggle" id="reportLangToggle" role="radiogroup" data-i18n-aria-label="statistics.reportLang" aria-label="Report language">
                   <button type="button" class="stat-lang-toggle__btn" data-report-lang="ka">ქართ</button>
                   <button type="button" class="stat-lang-toggle__btn" data-report-lang="en">EN</button>
                 </div>
                 <button class="btn btn-primary" id="generateBtn" disabled data-i18n="statistics.generate">Generate</button>
-                <button class="btn btn-outline" id="exportPdfBtn" disabled>PDF</button>
-                <button class="btn btn-outline" id="exportWordBtn" disabled>Word</button>
+                <button class="btn btn-outline" id="exportPdfBtn" disabled data-i18n="statistics.exportPdf">PDF</button>
+                <button class="btn btn-outline" id="exportWordBtn" disabled data-i18n="statistics.exportWord">Word</button>
               </div>
             </div>
           </div>
 
           <div class="stat-tabs">
-            <button class="stat-tab active" data-tab="trade">ვაჭრობა</button>
-            <button class="stat-tab" data-tab="tourism">ტურიზმი</button>
-            <button class="stat-tab" data-tab="investments">ინვესტიციები</button>
-            <button class="stat-tab" data-tab="companies">კომპანიები</button>
-            <button class="stat-tab" data-tab="appendix">დანართი</button>
+            <button class="stat-tab active" data-tab="trade" data-i18n="statistics.tradeTab">ვაჭრობა</button>
+            <button class="stat-tab" data-tab="tourism" data-i18n="statistics.tourismTab">ტურიზმი</button>
+            <button class="stat-tab" data-tab="investments" data-i18n="statistics.investmentsTab">ინვესტიციები</button>
+            <button class="stat-tab" data-tab="companies" data-i18n="statistics.companiesTab">კომპანიები</button>
+            <button class="stat-tab" data-tab="appendix" data-i18n="statistics.appendixTab">დანართი</button>
           </div>
         </div>
       </div>
@@ -66,7 +66,7 @@
              spinner instead of stale content beside an empty one. -->
         <div id="globalReportLoading" class="stat-report__loading hidden">
           <div class="stat-spinner"></div>
-          <span class="stat-loading-label">Loading...</span>
+          <span class="stat-loading-label" data-i18n="common.loading">Loading...</span>
         </div>
 
         <!-- Trade section -->
@@ -74,7 +74,7 @@
           <h2 class="stat-section__heading" data-stat-heading="trade">ვაჭრობა</h2>
           <div id="reportLoading" class="stat-report__loading hidden">
             <div class="stat-spinner"></div>
-            <span class="stat-loading-label">Loading...</span>
+            <span class="stat-loading-label" data-i18n="common.loading">Loading...</span>
           </div>
           <div id="tradeSummary" class="card stat-summary hidden"></div>
           <div class="card">
@@ -126,7 +126,7 @@
           <h2 class="stat-section__heading" data-stat-heading="tourism">ტურიზმი</h2>
           <div id="tourismLoading" class="stat-report__loading hidden">
             <div class="stat-spinner"></div>
-            <span class="stat-loading-label">Loading...</span>
+            <span class="stat-loading-label" data-i18n="common.loading">Loading...</span>
           </div>
           <div class="card">
             <div id="tourismSummary" class="stat-summary hidden"></div>
@@ -147,7 +147,7 @@
           <h2 class="stat-section__heading" data-stat-heading="investments">ინვესტიციები</h2>
           <div id="investmentsLoading" class="stat-report__loading hidden">
             <div class="stat-spinner"></div>
-            <span class="stat-loading-label">Loading...</span>
+            <span class="stat-loading-label" data-i18n="common.loading">Loading...</span>
           </div>
           <div class="card">
             <div id="investmentsSummary" class="stat-summary hidden"></div>
@@ -172,7 +172,7 @@
           <h2 class="stat-section__heading" data-stat-heading="companies">კომპანიები</h2>
           <div id="companiesLoading" class="stat-report__loading hidden">
             <div class="stat-spinner"></div>
-            <span class="stat-loading-label">Loading...</span>
+            <span class="stat-loading-label" data-i18n="common.loading">Loading...</span>
           </div>
           <div id="companiesSummary" class="card stat-summary hidden"></div>
         </section>
@@ -182,7 +182,7 @@
           <h2 class="stat-section__heading" data-stat-heading="appendix">დანართი</h2>
           <div id="appendixLoading" class="stat-report__loading hidden">
             <div class="stat-spinner"></div>
-            <span class="stat-loading-label">Loading...</span>
+            <span class="stat-loading-label" data-i18n="common.loading">Loading...</span>
           </div>
           <div id="appendixHeader" class="stat-report__header"></div>
           <div id="appendixTable" class="stat-appendix-wrap"></div>
