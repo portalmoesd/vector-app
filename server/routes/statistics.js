@@ -12,21 +12,46 @@ const GEOSTAT_BASE = 'https://ex-trade-api.geostat.ge/api/trade';
 
 async function geostatFetch(path, options = {}) {
   const url = `${GEOSTAT_BASE}${path}`;
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'User-Agent': 'VectorPortal/1.0',
-      ...(options.headers || {}),
-    },
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Geostat API ${res.status}: ${text.slice(0, 200)}`);
+  const retries = options.retries ?? 3;
+  const baseDelay = options.baseDelay ?? 500;
+  let lastErr = null;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'VectorPortal/1.0',
+          ...(options.headers || {}),
+        },
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (res.status >= 500 && attempt < retries) {
+        console.warn(`[geostatFetch] ${path} returned ${res.status}, retrying (${attempt + 1}/${retries})`);
+        await new Promise((r) => setTimeout(r, baseDelay * Math.pow(2, attempt)));
+        continue;
+      }
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`Geostat API ${res.status}: ${text.slice(0, 200)}`);
+      }
+      return res.json();
+    } catch (err) {
+      lastErr = err;
+      const causeMsg = err?.cause?.code || err?.cause?.message || '';
+      const detail = causeMsg ? ` (cause: ${causeMsg})` : '';
+      if (attempt === retries) {
+        // Surface the underlying network cause — bare "fetch failed" hides
+        // whether it's DNS, connection-refused, TLS, or something else.
+        if (causeMsg) err.message = `${err.message}${detail}`;
+        throw err;
+      }
+      console.warn(`[geostatFetch] ${path} threw ${err.message}${detail}, retrying (${attempt + 1}/${retries})`);
+      await new Promise((r) => setTimeout(r, baseDelay * Math.pow(2, attempt)));
+    }
   }
-  return res.json();
+  throw lastErr || new Error('geostatFetch: exhausted retries');
 }
 
 // ── GET /api/statistics/classificatory ──────────────────────────────────────
