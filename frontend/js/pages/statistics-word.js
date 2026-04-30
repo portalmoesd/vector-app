@@ -51,6 +51,8 @@
       decrease: 'decrease',
       generated: 'Generated',
       noData: 'No data available',
+      noTourismData: 'No visitor records from this country to Georgia.',
+      noFdiData: 'No foreign direct investment records from this country to Georgia.',
       page: 'page',
       of: 'of',
       tradeSection: 'Foreign Trade',
@@ -98,6 +100,8 @@
       decrease: 'კლება',
       generated: 'თარიღი',
       noData: 'მონაცემები ვერ მოიძებნა',
+      noTourismData: 'აღნიშნული ქვეყნიდან ვიზიტორები საქართველოში არ ფიქსირდება.',
+      noFdiData: 'აღნიშნული ქვეყნიდან საქართველოში პირდაპირი უცხოური ინვესტიცია არ ფიქსირდება.',
       page: 'გვ.',
       of: '/',
       tradeSection: 'საგარეო ვაჭრობა',
@@ -683,7 +687,7 @@
     const blocks = [];
     blocks.push(sectionTitleP(D, `${country} - ${t.internationalVisitors}`));
     if (!tourism.hasData) {
-      blocks.push(emptyTablePlaceholder(D, t));
+      blocks.push(emptyTablePlaceholder(D, t, t.noTourismData));
       return blocks;
     }
     blocks.push(...buildTourismSummary(D, tourism, t, country, lang, grammar));
@@ -930,7 +934,7 @@
     const blocks = [];
     blocks.push(sectionTitleP(D, `${country} - ${t.fdi}`));
     if (!inv.hasData) {
-      blocks.push(emptyTablePlaceholder(D, t));
+      blocks.push(emptyTablePlaceholder(D, t, t.noFdiData));
       return blocks;
     }
     blocks.push(...buildInvestmentsSummary(D, inv, t, country, lang, grammar));
@@ -1592,11 +1596,11 @@
   // with optional extra columns. Mirrors statistics-pdf.js
   // buildProductsTable / buildChangeTable.
 
-  function emptyTablePlaceholder(D, t) {
+  function emptyTablePlaceholder(D, t, customText) {
     return new D.Paragraph({
       spacing: { before: pt(4), after: pt(8) },
       children: tr(D, {
-        text: t.noData, italics: true,
+        text: customText || t.noData, italics: true,
         size: hp(9), color: '94A3B8',
       }),
     });

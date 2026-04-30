@@ -156,6 +156,8 @@
       decrease: 'decrease',
       generated: 'Generated',
       noData: 'No data available',
+      noTourismData: 'No visitor records from this country to Georgia.',
+      noFdiData: 'No foreign direct investment records from this country to Georgia.',
       page: 'page',
       of: 'of',
       tradeSection: 'Foreign Trade',
@@ -203,6 +205,8 @@
       decrease: 'კლება',
       generated: 'თარიღი',
       noData: 'მონაცემები ვერ მოიძებნა',
+      noTourismData: 'აღნიშნული ქვეყნიდან ვიზიტორები საქართველოში არ ფიქსირდება.',
+      noFdiData: 'აღნიშნული ქვეყნიდან საქართველოში პირდაპირი უცხოური ინვესტიცია არ ფიქსირდება.',
       page: 'გვ.',
       of: '/',
       tradeSection: 'საგარეო ვაჭრობა',
@@ -936,7 +940,7 @@
     if (!tourism.hasData) {
       blocks.push(withTitle(
         title,
-        { text: t.noData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] },
+        { text: t.noTourismData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] },
       ));
       return blocks;
     }
@@ -1156,7 +1160,7 @@
     if (!inv.hasData) {
       blocks.push(withTitle(
         title,
-        { text: t.noData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] },
+        { text: t.noFdiData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] },
       ));
       return blocks;
     }
