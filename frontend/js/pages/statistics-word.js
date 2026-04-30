@@ -225,6 +225,32 @@
   function hp(n) { return Math.round(n * 2); }      // pt → half-points
   function px(n) { return Math.round(n * 96 / 72); } // pt → CSS pixels (chart sizes)
 
+  // ── Font embedding ─────────────────────────────────────────────────────
+  // Arial covers Latin/digits/Cyrillic universally but has zero Georgian
+  // glyphs; Sylfaen is Microsoft's classic Georgian companion. We embed
+  // both into the .docx via Document({fonts: [...]}) so recipients on
+  // any OS see identical output regardless of what's installed locally.
+  // Sylfaen Bold isn't bundled — we declare Sylfaen Regular and accept
+  // that bold Georgian renders at regular weight (same precedent as the
+  // previous FiraGO setup which mapped italics to Regular).
+  let fontsPromise = null;
+  async function ensureFontBytes() {
+    if (fontsPromise) return fontsPromise;
+    fontsPromise = (async () => {
+      const [arialReg, arialBold, sylfaen] = await Promise.all([
+        fetch('/fonts/Arial-Regular.ttf').then(r => r.arrayBuffer()),
+        fetch('/fonts/Arial-Bold.ttf').then(r => r.arrayBuffer()),
+        fetch('/fonts/Sylfaen.ttf').then(r => r.arrayBuffer()),
+      ]);
+      return {
+        arialReg: new Uint8Array(arialReg),
+        arialBold: new Uint8Array(arialBold),
+        sylfaen: new Uint8Array(sylfaen),
+      };
+    })();
+    return fontsPromise;
+  }
+
   // ── Color palette (matches PDF) ────────────────────────────────────────
   const COLOR = {
     text:       '1F2937',
@@ -249,10 +275,28 @@
       ...opts,
     });
   }
+  // tr() — TextRun factory that splits the text by script and returns an
+  // array of TextRuns: Latin/digit segments use Arial, Georgian segments
+  // use Sylfaen. Caller-provided `font` is intentionally ignored; the
+  // per-segment font always wins. Children-only runs (page-number markers,
+  // breaks) bypass splitting and return a single-element array.
+  function tr(D, opts) {
+    const o = opts || {};
+    if (o.text == null && o.children) {
+      const { font: _f, ...rest } = o;
+      return [new D.TextRun({ font: 'Arial', ...rest })];
+    }
+    const text = o.text == null ? '' : String(o.text);
+    const { text: _t, font: _f, ...rest } = o;
+    if (text === '' || !window.FontUtils.hasGeorgian(text)) {
+      return [new D.TextRun({ ...rest, text, font: 'Arial' })];
+    }
+    return window.FontUtils.splitByScript(text).map(seg =>
+      new D.TextRun({ ...rest, text: seg.text, font: seg.font }));
+  }
   function run(D, text, opts = {}) {
-    return new D.TextRun({
+    return tr(D, {
       text: String(text),
-      font: 'FiraGO',
       size: hp(9.5),
       color: COLOR.text,
       ...opts,
@@ -273,10 +317,10 @@
       // (table or chart) doesn't fit.
       keepNext: true,
       keepLines: true,
-      children: [new D.TextRun({
-        text, bold: true, font: 'FiraGO',
+      children: tr(D, {
+        text, bold: true,
         size: hp(13), color: COLOR.titleDark,
-      })],
+      }),
       ...opts,
     });
   }
@@ -285,10 +329,10 @@
       spacing: { before: pt(8), after: pt(4) },
       keepNext: true,
       keepLines: true,
-      children: [new D.TextRun({
-        text, bold: true, font: 'FiraGO',
+      children: tr(D, {
+        text, bold: true,
         size: hp(10.5), color: COLOR.text,
-      })],
+      }),
       ...opts,
     });
   }
@@ -298,10 +342,10 @@
       // Chart captions stay attached to the chart image that follows.
       keepNext: true,
       keepLines: true,
-      children: [new D.TextRun({
-        text, bold: true, font: 'FiraGO',
+      children: tr(D, {
+        text, bold: true,
         size: hp(9.5), color: COLOR.text,
-      })],
+      }),
     });
   }
 
@@ -345,8 +389,8 @@
       keepLines: true,
       keepNext: true,
       children: [
-        new D.TextRun({
-          text: captionText, bold: true, font: 'FiraGO',
+        ...tr(D, {
+          text: captionText, bold: true,
           size: hp(9.5), color: COLOR.text,
         }),
         new D.TextRun({ text: '', break: 1 }),
@@ -405,10 +449,10 @@
                  : opts.align === 'center' ? D.AlignmentType.CENTER
                  : D.AlignmentType.LEFT,
         keepNext: !!opts.keepWithNext,
-        children: [new D.TextRun({
-          text, bold: true, font: 'FiraGO',
+        children: tr(D, {
+          text, bold: true,
           size: hp(8), color: COLOR.headerText,
-        })],
+        }),
       })],
       rowIdx: 0,
       shading: COLOR.headerFill,
@@ -425,10 +469,10 @@
                  : align === 'center' ? D.AlignmentType.CENTER
                  : D.AlignmentType.LEFT,
         keepNext: !!opts.keepWithNext,
-        children: [new D.TextRun({
-          text: String(text), font: 'FiraGO',
+        children: tr(D, {
+          text: String(text),
           size: hp(9), color, bold: !!opts.bold,
-        })],
+        }),
       })],
       rowIdx: opts.rowIdx,
       isLastRow: opts.isLastRow,
@@ -440,42 +484,54 @@
 
   // ── Document factory ──────────────────────────────────────────────────
   // Builds the docx Document with A4 portrait, the same margins as the
-  // PDF (32 / 46 / 32 / 40 pt → twips), default font FiraGO at 9.5pt,
-  // and a single section with country-name + generated-date header and
-  // a "page X / N" footer. Per-section content is supplied as the
-  // `children` array.
+  // PDF (32 / 46 / 32 / 40 pt → twips), Arial as the base font with
+  // Sylfaen embedded for Georgian, and a single section with country-
+  // name + generated-date header and a "page X / N" footer. Per-section
+  // content is supplied as the `children` array; embedded font binaries
+  // are supplied as `opts.fontBytes`.
   function buildDocxDocument(D, children, opts) {
     const lang = opts.lang || 'en';
     const t = T[lang] || T.en;
     const country = lang === 'en' && opts.countryNameEn ? opts.countryNameEn : (opts.country || '');
     const dateStr = formatDate();
+    const fontBytes = opts.fontBytes || {};
 
     const headerP = new D.Paragraph({
       tabStops: [{ type: D.TabStopType.RIGHT, position: pt(531) }],
       children: [
-        new D.TextRun({ text: country, font: 'FiraGO', size: hp(8.5), color: COLOR.textMuted }),
-        new D.TextRun({ text: '\t', font: 'FiraGO', size: hp(8.5) }),
-        new D.TextRun({ text: `${t.generated}: ${dateStr}`, font: 'FiraGO', size: hp(8.5), color: COLOR.textMuted }),
+        ...tr(D, { text: country, size: hp(8.5), color: COLOR.textMuted }),
+        new D.TextRun({ text: '\t', font: 'Arial', size: hp(8.5) }),
+        ...tr(D, { text: `${t.generated}: ${dateStr}`, size: hp(8.5), color: COLOR.textMuted }),
       ],
     });
 
     const footerP = new D.Paragraph({
       alignment: D.AlignmentType.CENTER,
       children: [
-        new D.TextRun({ text: `${t.page} `, font: 'FiraGO', size: hp(8), color: COLOR.textMuted }),
-        new D.TextRun({ children: [D.PageNumber.CURRENT], font: 'FiraGO', size: hp(8), color: COLOR.textMuted }),
-        new D.TextRun({ text: ` ${t.of} `, font: 'FiraGO', size: hp(8), color: COLOR.textMuted }),
-        new D.TextRun({ children: [D.PageNumber.TOTAL_PAGES], font: 'FiraGO', size: hp(8), color: COLOR.textMuted }),
+        ...tr(D, { text: `${t.page} `, size: hp(8), color: COLOR.textMuted }),
+        ...tr(D, { children: [D.PageNumber.CURRENT], size: hp(8), color: COLOR.textMuted }),
+        ...tr(D, { text: ` ${t.of} `, size: hp(8), color: COLOR.textMuted }),
+        ...tr(D, { children: [D.PageNumber.TOTAL_PAGES], size: hp(8), color: COLOR.textMuted }),
       ],
     });
+
+    // docx 8.5.0 reads `fonts: [{name, data}]` and packages each as an
+    // obfuscated .odttf inside word/fonts/ with a fontTable.xml entry.
+    // Recipients on Word/Win, Word/Mac, and modern LibreOffice render the
+    // embedded fonts; older readers fall back to system installs.
+    const fonts = [];
+    if (fontBytes.arialReg)  fonts.push({ name: 'Arial',   data: fontBytes.arialReg });
+    if (fontBytes.arialBold) fonts.push({ name: 'Arial',   data: fontBytes.arialBold });
+    if (fontBytes.sylfaen)   fonts.push({ name: 'Sylfaen', data: fontBytes.sylfaen });
 
     return new D.Document({
       creator: 'Vector Portal',
       title: `${country} statistics`,
+      fonts,
       styles: {
         default: {
           document: {
-            run: { font: 'FiraGO', size: hp(9.5), color: COLOR.text },
+            run: { font: 'Arial', size: hp(9.5), color: COLOR.text },
             paragraph: { spacing: { line: 300, lineRule: 'auto' } },
           },
         },
@@ -828,11 +884,11 @@
     return [
       new D.Paragraph({
         spacing: { before: pt(12), after: pt(2) },
-        children: [new D.TextRun({ text: titleText, bold: true, font: 'FiraGO', size: hp(11), color: COLOR.titleDark })],
+        children: tr(D, { text: titleText, bold: true, size: hp(11), color: COLOR.titleDark }),
       }),
       new D.Paragraph({
         spacing: { after: pt(4) },
-        children: [new D.TextRun({ text: subtitleText, font: 'FiraGO', size: hp(8.5), color: '64748B' })],
+        children: tr(D, { text: subtitleText, size: hp(8.5), color: '64748B' }),
       }),
       new D.Table({
         width: { size: 100, type: D.WidthType.PERCENTAGE },
@@ -901,20 +957,19 @@
     const bullet = (parts) => new D.Paragraph({
       bullet: { level: 0 },
       spacing: { after: pt(2), line: 312, lineRule: 'auto' },
-      children: parts.map(p => {
-        if (p == null) return null;
+      children: parts.flatMap(p => {
+        if (p == null) return [];
         if (typeof p === 'string') {
-          return new D.TextRun({ text: p, font: 'FiraGO', size: hp(10), color: COLOR.text });
+          return tr(D, { text: p, size: hp(10), color: COLOR.text });
         }
-        return new D.TextRun({
+        return tr(D, {
           text: String(p.text || ''),
-          font: 'FiraGO',
           size: hp(10),
           color: p.color || COLOR.text,
           bold: !!p.bold,
           italics: !!p.italics,
         });
-      }).filter(Boolean),
+      }),
     });
 
     if (isKa) {
@@ -990,11 +1045,11 @@
         children: [new D.Paragraph({
           alignment: al,
           keepNext: !!keepWithNext,
-          children: [new D.TextRun({
-            text: String(text), font: 'FiraGO',
+          children: tr(D, {
+            text: String(text),
             size: hp(opts && opts.size ? opts.size : APP_BODY),
             color: color || COLOR.text, bold: !!bold,
-          })],
+          }),
         })],
         rowIdx,
         isLastRow,
@@ -1006,10 +1061,10 @@
         children: [new D.Paragraph({
           alignment: opts && opts.align === 'left' ? D.AlignmentType.LEFT : D.AlignmentType.RIGHT,
           keepNext: !!(opts && opts.keepWithNext),
-          children: [new D.TextRun({
-            text: String(text), font: 'FiraGO',
+          children: tr(D, {
+            text: String(text),
             size: hp(APP_HDR), color: COLOR.headerText, bold: true,
-          })],
+          }),
         })],
         rowIdx: 0,
         shading: COLOR.headerFill,
@@ -1142,9 +1197,8 @@
   // takes an array of `{ text, color, bold }` descriptors.
   function dataCellRuns(D, runDescs, opts = {}) {
     const align = opts.align || 'left';
-    const runs = runDescs.map(r => new D.TextRun({
+    const runs = runDescs.flatMap(r => tr(D, {
       text: String(r.text || ''),
-      font: 'FiraGO',
       size: hp(r.size || 9),
       color: r.color || COLOR.text,
       bold: !!r.bold,
@@ -1251,20 +1305,19 @@
   // `parts` is an array of either plain strings or { text, bold,
   // italics, color } descriptors. `prose(parts)` returns one Paragraph.
   function summaryProseParagraph(D, parts, opts = {}) {
-    const runs = parts.map(p => {
-      if (p == null) return null;
+    const runs = parts.flatMap(p => {
+      if (p == null) return [];
       if (typeof p === 'string') {
-        return new D.TextRun({ text: p, font: 'FiraGO', size: hp(10), color: COLOR.text });
+        return tr(D, { text: p, size: hp(10), color: COLOR.text });
       }
-      return new D.TextRun({
+      return tr(D, {
         text: String(p.text || ''),
-        font: 'FiraGO',
         size: hp(10),
         color: p.color || COLOR.text,
         bold: !!p.bold,
         italics: !!p.italics,
       });
-    }).filter(Boolean);
+    });
     return new D.Paragraph({
       alignment: D.AlignmentType.JUSTIFIED,
       spacing: { after: pt(4), line: 312, lineRule: 'auto' },
@@ -1275,10 +1328,10 @@
   function summaryHeadingParagraph(D, text) {
     return new D.Paragraph({
       spacing: { before: pt(2), after: pt(4) },
-      children: [new D.TextRun({
-        text, bold: true, font: 'FiraGO',
+      children: tr(D, {
+        text, bold: true,
         size: hp(11), color: COLOR.titleDark,
-      })],
+      }),
     });
   }
   function summaryDividerParagraph(D) {
@@ -1289,7 +1342,7 @@
       border: {
         bottom: { color: 'D1D5DB', space: 1, style: 'single', size: 4 },
       },
-      children: [new D.TextRun({ text: '', font: 'FiraGO', size: hp(2) })],
+      children: [new D.TextRun({ text: '', font: 'Arial', size: hp(2) })],
     });
   }
 
@@ -1503,10 +1556,10 @@
   function emptyTablePlaceholder(D, t) {
     return new D.Paragraph({
       spacing: { before: pt(4), after: pt(8) },
-      children: [new D.TextRun({
+      children: tr(D, {
         text: t.noData, italics: true,
-        font: 'FiraGO', size: hp(9), color: '94A3B8',
-      })],
+        size: hp(9), color: '94A3B8',
+      }),
     });
   }
 
@@ -1626,12 +1679,12 @@
           keepLines: true,
           keepNext: true,
           children: [
-            new D.TextRun({ text: t.dynamics, bold: true, font: 'FiraGO', size: hp(9.5), color: COLOR.text }),
+            ...tr(D, { text: t.dynamics, bold: true, size: hp(9.5), color: COLOR.text }),
             new D.TextRun({ text: '', break: 1 }),
-            new D.TextRun({ text: '■ ', font: 'FiraGO', size: hp(8), color: COLOR.positive }),
-            new D.TextRun({ text: `${t.export}    `, font: 'FiraGO', size: hp(8), color: COLOR.text }),
-            new D.TextRun({ text: '■ ', font: 'FiraGO', size: hp(8), color: COLOR.negative }),
-            new D.TextRun({ text: t.import, font: 'FiraGO', size: hp(8), color: COLOR.text }),
+            ...tr(D, { text: '■ ', size: hp(8), color: COLOR.positive }),
+            ...tr(D, { text: `${t.export}    `, size: hp(8), color: COLOR.text }),
+            ...tr(D, { text: '■ ', size: hp(8), color: COLOR.negative }),
+            ...tr(D, { text: t.import, size: hp(8), color: COLOR.text }),
             new D.TextRun({ text: '', break: 1 }),
             new D.ImageRun({
               data: bytes,
@@ -1706,6 +1759,7 @@
       throw new Error('docx library not loaded');
     }
     const D = window.docx;
+    const fontBytes = await ensureFontBytes();
     const lang = (opts && opts.lang) || 'en';
     const t = T[lang] || T.en;
     const country = lang === 'en' && opts && opts.countryNameEn ? opts.countryNameEn : (opts && opts.country) || 'Country';
@@ -1729,6 +1783,7 @@
       lang,
       country,
       countryNameEn: opts && opts.countryNameEn,
+      fontBytes,
     });
 
     const blob = await D.Packer.toBlob(doc);
