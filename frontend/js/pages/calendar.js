@@ -409,8 +409,8 @@
         <div class="form-group">
           <label class="form-label">Workflow *</label>
           <select class="form-select" id="newWorkflowType">
-            <option value="advanced" selected>Advanced — Department B routes back to responsible Department A</option>
-            <option value="simple">Simple — every department contributes its own section, auto-publish on full approval</option>
+            <option value="simple" selected>Simple</option>
+            <option value="advanced">Advanced</option>
           </select>
         </div>
         <div class="form-group">
@@ -559,10 +559,23 @@
     // When template is selected → auto-fill sections
     templateSelect.addEventListener('change', () => {
       const tplId = templateSelect.value ? parseInt(templateSelect.value) : null;
-      if (!tplId) return;
+
+      // User picked "Select template" (the empty option). Clear the
+      // previously-seeded section rows so the form goes back to a
+      // blank slate instead of keeping stale rows from the prior
+      // template selection.
+      if (!tplId) {
+        sectionRowsContainer.innerHTML = '';
+        return;
+      }
 
       const tpl = templates.find(t => t.id === tplId);
-      if (!tpl || !tpl.sections || tpl.sections.length === 0) return;
+      if (!tpl || !tpl.sections || tpl.sections.length === 0) {
+        // Selected template has no sections — still clear what was
+        // there, so the user starts fresh.
+        sectionRowsContainer.innerHTML = '';
+        return;
+      }
 
       sectionRowsContainer.innerHTML = '';
       for (const sec of tpl.sections) {
