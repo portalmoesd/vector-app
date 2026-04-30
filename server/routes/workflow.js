@@ -323,7 +323,12 @@ router.post('/approve', requireAuth, async (req, res) => {
         return res.status(403).json({ error: 'Only the Document Submitter can approve an amendment' });
       }
       const fromStatus = ctx.sectionStatus;
-      const toStatus = approvedByStatus(req.user.role);
+      // Use a dedicated final state so the chain bar's per-role actor
+      // lookup never matches the DS into a chain slot. Still passes
+      // checkEventCompletion's `startsWith('approved_by_')` test, so
+      // simple-mode auto-publish kicks in once every section reaches
+      // any approved_by_* state.
+      const toStatus = 'approved_by_ds_amendment';
 
       await db.query(
         `UPDATE section_content
@@ -333,11 +338,14 @@ router.post('/approve', requireAuth, async (req, res) => {
          WHERE event_id = $4 AND section_id = $5`,
         [toStatus, comment || null, req.user.id, eventId, sectionId]
       );
+      // History row carries the synthetic role 'AMENDING_DS' instead
+      // of the DS's JWT role. Same reasoning as the pull-section
+      // history row above — keeps the chain bar's actor map clean.
       await db.query(
         `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role, note)
          VALUES ($1, $2, 'approved', $3, $4, $5, $6, $7, $8)`,
         [eventId, sectionId, fromStatus, toStatus, req.user.id,
-         resolvedUser.full_name, req.user.role, comment || null]
+         resolvedUser.full_name, 'AMENDING_DS', comment || null]
       );
       await db.query(
         'DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2',
@@ -752,11 +760,17 @@ router.post('/pull-section', requireAuth, async (req, res) => {
       await db.query("UPDATE events SET status = 'IN_PROGRESS', updated_at = now() WHERE id = $1", [eventId]);
     }
 
-    // Record history
+    // Record history. For amendment pulls, label the row with the
+    // synthetic 'AMENDING_DS' role so the per-section chain-actor
+    // lookup (status-grid) doesn't latch the DS into the SUPERVISOR /
+    // SUPER_COLLABORATOR / etc. slot just because the DS happens to
+    // have one of those JWT roles. Audit log keeps the user_id +
+    // user_name so there's no loss of traceability.
+    const historyRole = isAmendmentPull ? 'AMENDING_DS' : pullingRole;
     await db.query(
       `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role)
        VALUES ($1, $2, 'pulled', $3, $4, $5, $6, $7)`,
-      [eventId, sectionId, fromStatus, toStatus, req.user.id, resolvedUser.full_name, pullingRole]
+      [eventId, sectionId, fromStatus, toStatus, req.user.id, resolvedUser.full_name, historyRole]
     );
 
     // Clear any pending return requests
