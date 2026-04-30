@@ -17,12 +17,24 @@
   },
   "dashboard": {
     "title": "Dashboard",
+    "deputyTitle": "Deputy Dashboard",
+    "supervisorTitle": "Supervisor Dashboard",
+    "superCollabTitle": "Super-collaborator Dashboard",
     "selectEvent": "Select event",
+    "selectEventPlaceholder": "Select event...",
     "noEvents": "No events available",
     "sections": "Required Sections",
     "status": "Status",
     "lastUpdated": "Last Updated",
-    "actions": "Actions"
+    "actions": "Actions",
+    "eventTitle": "Event",
+    "preview": "PREVIEW",
+    "upcomingEvents": "Upcoming events",
+    "noUpcoming": "No upcoming events",
+    "descCollab": "Select an event to view your assigned sections and submit your work.",
+    "descDeputy": "Choose an event to review and finalize before sending to the library.",
+    "descSupervisor": "Choose an event to review super-collaborator submissions before they move to the deputy stage.",
+    "descSuperCollab": "Choose an event to review collaborator submissions before they move to the supervisor stage."
   },
   "status": {
     "draft": "Draft",
@@ -107,6 +119,66 @@
     "actions": "Actions",
     "submit": "Submit",
     "approve": "Approve",
-    "return": "Return"
+    "return": "Return",
+    "prev": "Prev",
+    "next": "Next"
+  },
+  "calendar": {
+    "pageTitle": "Events",
+    "createEvent": "+ Create Event",
+    "tabs": {
+      "upcoming": "Upcoming",
+      "completed": "Completed Events",
+      "archived": "Archived Events"
+    },
+    "filter": {
+      "keywordPlaceholder": "Title or occasion...",
+      "allCountries": "All countries"
+    },
+    "templates": {
+      "title": "My Templates",
+      "create": "+ New Template",
+      "empty": "No templates yet",
+      "modalCreate": "Create Template"
+    },
+    "modal": {
+      "createTitle": "Create Event",
+      "editTitle": "Edit Event",
+      "detailsTitle": "Event Details"
+    },
+    "form": {
+      "title": "Title *",
+      "titleNoStar": "Title",
+      "country": "Country *",
+      "workflow": "Workflow *",
+      "workflowSimple": "Simple",
+      "workflowAdvanced": "Advanced",
+      "dsRole": "Document Submitter Role *",
+      "deputy": "Deputy *",
+      "responsibleSupervisor": "Responsible Supervisor *",
+      "supervisor": "Supervisor *",
+      "superCollaborator": "Super-Collaborator *",
+      "language": "Language",
+      "deadline": "Deadline",
+      "curatorRequired": "Curator Required",
+      "task": "Task",
+      "template": "Template",
+      "sections": "Sections",
+      "addSection": "+ Add Section",
+      "selectPlaceholder": "— Select —",
+      "selectDeputy": "— Select Deputy —",
+      "selectSupervisor": "— Select Supervisor —",
+      "selectSuperCollaborator": "— Select Super-Collaborator —",
+      "selectTemplate": "— Select Template —",
+      "sectionTitlePlaceholder": "Section title"
+    },
+    "warn": {
+      "missingRequired": "Title, Country, and DS Role are required",
+      "missingSection": "Add at least one section"
+    },
+    "action": {
+      "view": "View",
+      "end": "End"
+    }
   }
 }
