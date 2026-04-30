@@ -531,13 +531,10 @@
     const roleIdx = chain.indexOf(role);
     if (roleIdx === -1) return 'todo';
 
-    // The DS amendment lives outside the chain. While it's in
-    // progress (submitted_to_amending_ds) and once the DS has
-    // approved it (approved_by_ds_amendment), every chain step
-    // shows as already done — which is the truth before the reopen
-    // and after the amendment finalises. The DS doesn't appear in
-    // any chain slot at all.
-    if (status === 'submitted_to_amending_ds' || status === 'approved_by_ds_amendment') {
+    // While the DS is amending a previously-published section, the
+    // chain doesn't progress — it lives outside the chain. Show every
+    // chain step as already done (which it was, before the reopen).
+    if (status === 'submitted_to_amending_ds') {
       return 'done';
     }
 
@@ -574,24 +571,24 @@
 
         try {
           if (action === 'submit') {
-            if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmSubmit'), { confirmLabel: I18n.tr('common.submit'), confirmColor: '#3b82f6' })) return;
+            if (!await GCP.ActionDialog.confirm('Submit section', { confirmLabel: 'Submit', confirmColor: '#3b82f6' })) return;
             await Api.post('/api/workflow/submit', { eventId: evId, sectionId });
           } else if (action === 'approve') {
-            if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmApprove'), { confirmLabel: I18n.tr('common.approve'), confirmColor: '#16a34a' })) return;
+            if (!await GCP.ActionDialog.confirm('Approve section', { confirmLabel: 'Approve', confirmColor: '#16a34a' })) return;
             await Api.post('/api/workflow/approve', { eventId: evId, sectionId });
           } else if (action === 'return') {
-            const comment = await GCP.ActionDialog.popoverPrompt(btn, I18n.tr('editor.returnTitle'), { placeholder: I18n.tr('editor.returnPlaceholderOptional'), confirmLabel: I18n.tr('common.return'), confirmColor: '#6d28d9' });
+            const comment = await GCP.ActionDialog.popoverPrompt(btn, 'Return section', { placeholder: 'Add a comment (optional)...', confirmLabel: 'Return', confirmColor: '#6d28d9' });
             if (comment === null) return;
             await Api.post('/api/workflow/return', { eventId: evId, sectionId, comment: comment || undefined });
           } else if (action === 'ask-to-return') {
-            const note = await GCP.ActionDialog.popoverPrompt(btn, I18n.tr('editor.askReturnTitle'), { placeholder: I18n.tr('editor.askReturnPlaceholder'), confirmLabel: I18n.tr('editor.sendRequest'), confirmColor: '#a16207' });
+            const note = await GCP.ActionDialog.popoverPrompt(btn, 'Request return', { placeholder: 'Reason for return request...', confirmLabel: 'Send request', confirmColor: '#a16207' });
             if (note === null) return;
             await Api.post('/api/workflow/ask-to-return', { eventId: evId, sectionId, note: note || undefined });
           } else if (action === 'push-section') {
-            if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPush'), { confirmLabel: I18n.tr('editor.pushSection'), confirmColor: '#6d28d9' })) return;
+            if (!await GCP.ActionDialog.confirm('Push section', { confirmLabel: 'Push section', confirmColor: '#6d28d9' })) return;
             await Api.post('/api/workflow/push-section', { eventId: evId, sectionId });
           } else if (action === 'pull-section') {
-            if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPull'), { confirmLabel: I18n.tr('editor.pullSection'), confirmColor: '#7c3aed' })) return;
+            if (!await GCP.ActionDialog.confirm('Pull section', { confirmLabel: 'Pull section', confirmColor: '#7c3aed' })) return;
             await Api.post('/api/workflow/pull-section', { eventId: evId, sectionId });
           }
           loadSections(evId);
@@ -606,7 +603,7 @@
     const btn = document.getElementById('approveAllBtn');
     if (!btn) return;
     btn.addEventListener('click', async () => {
-      if (!await GCP.ActionDialog.confirm(I18n.tr('dashboard.confirmApproveAll').replace('{n}', sectionsToApprove.length), { confirmLabel: I18n.tr('dashboard.approveAll'), confirmColor: '#16a34a' })) return;
+      if (!await GCP.ActionDialog.confirm(`Approve all ${sectionsToApprove.length} sections`, { confirmLabel: 'Approve all', confirmColor: '#16a34a' })) return;
       try {
         for (const s of sectionsToApprove) {
           await Api.post('/api/workflow/approve', { eventId: parseInt(eventId), sectionId: s.sectionId });
@@ -763,10 +760,10 @@
     const btn = document.getElementById('sendToLibraryBtn');
     if (!btn) return;
     btn.addEventListener('click', async () => {
-      if (!await GCP.ActionDialog.confirm(I18n.tr('dashboard.sendToLibrary'), { confirmLabel: I18n.tr('dashboard.sendToLibrary'), confirmColor: '#3b82f6' })) return;
+      if (!await GCP.ActionDialog.confirm('Send to library', { confirmLabel: 'Send to library', confirmColor: '#3b82f6' })) return;
       try {
         await Api.post('/api/workflow/send-to-library', { eventId: parseInt(eventId) });
-        toast.success(I18n.tr('dashboard.sentToLibrary'));
+        toast.success('Document sent to library successfully.');
         setTimeout(() => window.location.reload(), 1200);
       } catch (err) {
         toast.error(err.message);

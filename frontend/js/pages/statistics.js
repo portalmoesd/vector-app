@@ -16,31 +16,6 @@
   const GEOSTAT_API = 'https://ex-trade-api.geostat.ge/api/trade';
   const PROXY_API = `${API_BASE}/api/statistics`;
 
-  // Some proxy endpoints (notably /country-ranking and /country-aggregate)
-  // see transient 502/503 from the Render host on cold-start or when the
-  // upstream Geostat service hiccups. Retry 5xx + network failures with
-  // exponential backoff (≈ 500 ms, 1 s, 2 s) before giving up. Honors the
-  // caller's AbortSignal so a deliberate cancel doesn't keep retrying.
-  async function fetchWithRetry(url, init, opts = {}) {
-    const retries = opts.retries ?? 3;
-    const baseDelay = opts.baseDelay ?? 500;
-    let lastErr = null;
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        const res = await fetch(url, init);
-        if (res.status < 500 || attempt === retries) return res;
-        console.warn(`[fetchWithRetry] ${url} returned ${res.status}, retrying (attempt ${attempt + 1}/${retries})`);
-      } catch (err) {
-        lastErr = err;
-        if (err.name === 'AbortError' || attempt === retries) throw err;
-        console.warn(`[fetchWithRetry] ${url} threw ${err.message}, retrying (attempt ${attempt + 1}/${retries})`);
-      }
-      await new Promise(r => setTimeout(r, baseDelay * Math.pow(2, attempt)));
-    }
-    if (lastErr) throw lastErr;
-    throw new Error('fetchWithRetry: exhausted retries');
-  }
-
   // ── DOM refs ─────────────────────────────────────────────────────────────
   const searchInput = document.getElementById('countrySearch');
   const dropdown = document.getElementById('countryDropdown');
@@ -484,7 +459,7 @@
     const shown = filtered.slice(0, 50);
 
     if (shown.length === 0) {
-      dropdown.innerHTML = `<div class="stat-dropdown__empty">${escapeHtml(I18n.tr('statistics.noResults'))}</div>`;
+      dropdown.innerHTML = '<div class="stat-dropdown__empty">No results</div>';
     } else {
       dropdown.innerHTML = shown.map(c =>
         `<div class="stat-dropdown__item${selectedCountry && selectedCountry.value === c.value ? ' selected' : ''}" data-value="${c.value}">${escapeHtml(c.displayLabel)}</div>`
@@ -973,7 +948,7 @@
       const rankTimer = setTimeout(() => ctrl.abort(), 60_000);
       try {
         console.log('[ranking] fetching...', { year: latestYear, months: monthsYTD, countryId: selectedCountry.value });
-        const rankRes = await fetchWithRetry(`${PROXY_API}/country-ranking`, {
+        const rankRes = await fetch(`${PROXY_API}/country-ranking`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ year: latestYear, months: monthsYTD, countryId: selectedCountry.value }),
@@ -1029,7 +1004,7 @@
 
     } catch (err) {
       console.error('Report generation error:', err);
-      overviewTable.innerHTML = `<div class="msg msg-error">${escapeHtml(I18n.tr('statistics.reportFailed'))} ${escapeHtml(err.message)}</div>`;
+      overviewTable.innerHTML = `<div class="msg msg-error">Failed to generate report: ${escapeHtml(err.message)}</div>`;
     } finally {
       reportLoading.classList.add('hidden');
       exportPdfBtn.disabled = false;
@@ -1149,17 +1124,17 @@
     const ov = trade.overview;
 
     const periodGen = isKa
-      ? (lm === 12 ? `${year} წლის` : lm === 1 ? `${year} წლის ${KA_MONTH_GEN[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_GEN[lm]}`)
+      ? (lm === 12 ? `${year} წლის` : lm === 1 ? `${year} წლის ${KA_MONTH_GEN[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_GEN[lm]}`)
       : (lm === 12 ? `${year}` : lm === 1 ? `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)} ${year}` : `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)}-${(mn.find(m => m.value === lm)?.label || '').slice(0, 3)} ${year}`);
     const periodLoc = isKa
-      ? (lm === 12 ? `${year} წელს` : lm === 1 ? `${year} წლის ${KA_MONTH_LOC[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_LOC[lm]}`)
+      ? (lm === 12 ? `${year} წელს` : lm === 1 ? `${year} წლის ${KA_MONTH_LOC[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_LOC[lm]}`)
       : periodGen;
 
     // Expanded "no trade" period label: 5-year lookback + latest period
     // month range, e.g. "2021-2026 წლის იანვარ-თებერვლის".
     const startYear = trade.fiveYearStart || year;
     const periodGenRange = isKa
-      ? (lm === 12 ? `${startYear}-${year} წლების` : lm === 1 ? `${startYear}-${year} წლის ${KA_MONTH_GEN[1]}` : `${startYear}-${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_GEN[lm]}`)
+      ? (lm === 12 ? `${startYear}-${year} წლების` : lm === 1 ? `${startYear}-${year} წლის ${KA_MONTH_GEN[1]}` : `${startYear}-${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_GEN[lm]}`)
       : (lm === 12 ? `${startYear}-${year}` : lm === 1 ? `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)} ${startYear}-${year}` : `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)}-${(mn.find(m => m.value === lm)?.label || '').slice(0, 3)} ${startYear}-${year}`);
 
     function b(s) { return `<strong>${escapeHtml(s)}</strong>`; }
@@ -2733,38 +2708,6 @@
   function ensureDocxLib() {
     if (typeof window.docx !== 'undefined') return Promise.resolve();
     if (_docxLoadPromise) return _docxLoadPromise;
-    // docx 8.5.0's font obfuscator + the bundled JSZip both call Node's
-    // Buffer API directly (Buffer.concat / Buffer.isBuffer / Buffer.from /
-    // Buffer.alloc), which the browser doesn't have. Provide a polyfill
-    // that satisfies each method using Uint8Array; JSZip accepts Uint8Array
-    // wherever it accepts a Buffer. We deliberately leave `typeof Buffer`
-    // as 'object' (not 'function') so JSZip's "are we in Node?" guards
-    // (`typeof Buffer === 'function'`) still fail and use Uint8Array paths
-    // for everything else.
-    if (typeof window.Buffer === 'undefined') {
-      window.Buffer = {
-        concat(arrays) {
-          let total = 0;
-          for (const arr of arrays) total += arr.length;
-          const out = new Uint8Array(total);
-          let offset = 0;
-          for (const arr of arrays) { out.set(arr, offset); offset += arr.length; }
-          return out;
-        },
-        isBuffer() { return false; },
-        from(data, encoding) {
-          if (typeof data === 'string') {
-            // Limited string support; the obfuscate path only needs binary.
-            return new TextEncoder().encode(data);
-          }
-          if (data instanceof ArrayBuffer) return new Uint8Array(data);
-          if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-          if (Array.isArray(data)) return new Uint8Array(data);
-          return new Uint8Array(data || 0);
-        },
-        alloc(size) { return new Uint8Array(size); },
-      };
-    }
     _docxLoadPromise = new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = 'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js';
@@ -2865,7 +2808,7 @@
 
   async function exportPdf(pdfLang) {
     if (typeof pdfMake === 'undefined' || typeof StatisticsPdf === 'undefined') {
-      alert(I18n.tr('statistics.pdfLibMissing'));
+      alert('PDF library not loaded. Please refresh the page.');
       return;
     }
     if (!pdfState.trade || !pdfState.country) {
@@ -2903,7 +2846,7 @@
       });
     } catch (err) {
       console.error('PDF export error:', err);
-      alert(I18n.tr('statistics.pdfExportFailed') + ' ' + (err.message || err));
+      alert('Failed to export PDF: ' + (err.message || err));
     } finally {
       document.body.classList.remove('stat-exporting');
       // Restore chart sizes to fit their actual visible containers
@@ -2952,7 +2895,7 @@
       });
     } catch (err) {
       console.error('Word export error:', err);
-      alert(I18n.tr('statistics.wordExportFailed') + ' ' + (err.message || err));
+      alert('Failed to export Word: ' + (err.message || err));
     } finally {
       document.body.classList.remove('stat-exporting');
       [turnoverChartInstance, dynamicsChartInstance, tourismChartInstance, fdiChartInstance]
@@ -3004,7 +2947,7 @@
       // appendix never reads. Response shape: country.{export,import,
       // turnover} are flat numbers (not {valueMln,rank,sharePct} like
       // /country-ranking).
-      const res = await fetchWithRetry(`${PROXY_API}/country-aggregate`, {
+      const res = await fetch(`${PROXY_API}/country-aggregate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ year: column.year, months, countryId }),

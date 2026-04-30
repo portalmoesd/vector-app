@@ -316,7 +316,7 @@
   }
 
   window.deleteTemplate = async function(id) {
-    if (!confirm(I18n.tr('calendar.templates.confirmDelete'))) return;
+    if (!confirm('Delete this template?')) return;
     try {
       await Api.delete(`/api/templates/${id}`);
       templates = templates.filter(t => t.id !== id);
@@ -329,8 +329,7 @@
   function showTemplateModal(title, bodyHtml, saveLabel, saveFn) {
     modalTitle.textContent = title;
     modalBody.innerHTML = bodyHtml;
-    modalSave.textContent = saveLabel || I18n.tr('common.save');
-    if (typeof I18n !== 'undefined' && I18n.translateRoot) I18n.translateRoot(modal);
+    modalSave.textContent = saveLabel || 'Save';
     onModalSave = saveFn;
     modal.style.display = 'flex';
   }
@@ -343,19 +342,19 @@
   /* ── Create Template ──────────────────────────────────────────────────── */
 
   createBtn.addEventListener('click', () => {
-    showTemplateModal(I18n.tr('calendar.templates.modalCreate'), `
+    showTemplateModal('Create Template', `
       <div class="form-group">
-        <label class="form-label">${escapeHtml(I18n.tr('calendar.templates.nameLabel'))}</label>
-        <input class="form-input" id="tplName" placeholder="${escapeHtml(I18n.tr('calendar.templates.namePlaceholder'))}" />
+        <label class="form-label">Template Name *</label>
+        <input class="form-input" id="tplName" placeholder="e.g. My Custom Template" />
       </div>
       <div class="form-group">
-        <label class="form-label" style="font-weight:700;">${escapeHtml(I18n.tr('calendar.form.sections'))}</label>
+        <label class="form-label" style="font-weight:700;">Sections</label>
         <div id="tplSectionRows"></div>
-        <button class="btn btn-outline" type="button" id="tplAddSection" style="margin-top:8px;">${escapeHtml(I18n.tr('calendar.form.addSection'))}</button>
+        <button class="btn btn-outline" type="button" id="tplAddSection" style="margin-top:8px;">+ Add Section</button>
       </div>
-    `, I18n.tr('common.create'), async () => {
+    `, 'Create', async () => {
       const name = document.getElementById('tplName').value.trim();
-      if (!name) { toast.warn(I18n.tr('calendar.templates.warnName')); return; }
+      if (!name) { toast.warn('Template name is required'); return; }
 
       const sections = [];
       document.querySelectorAll('#tplSectionRows .tpl-section-row').forEach((row, i) => {
@@ -365,7 +364,7 @@
         if (title) sections.push({ title, sortOrder: i, departmentIds: deptIds });
       });
 
-      if (sections.length === 0) { toast.warn(I18n.tr('calendar.warn.missingSection')); return; }
+      if (sections.length === 0) { toast.warn('Add at least one section'); return; }
 
       try {
         await Api.post('/api/templates', { name, sections });

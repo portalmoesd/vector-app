@@ -7,49 +7,24 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// Pick the locale tag for Intl.DateTimeFormat based on the user's
-// current i18n locale. Falls back to en-GB when I18n hasn't loaded
-// (e.g. the login page renders dates before init has finished).
-function _dateLocale() {
-  try {
-    const l = (typeof I18n !== 'undefined' && I18n.getLocale) ? I18n.getLocale() : null;
-    return l === 'ka' ? 'ka-GE' : 'en-GB';
-  } catch (_) {
-    return 'en-GB';
-  }
-}
-
 function formatDate(dateStr) {
   if (!dateStr) return '—';
   const d = new Date(dateStr);
-  return d.toLocaleDateString(_dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return d.toLocaleDateString('ka-GE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 function formatDateTime(dateStr) {
   if (!dateStr) return '—';
   const d = new Date(dateStr);
-  return d.toLocaleString(_dateLocale(), {
+  return d.toLocaleString('ka-GE', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
 }
 
-// Look up an i18n key, returning a fallback when the key is missing
-// or I18n isn't initialised yet (e.g. early in the login flow before
-// I18n.init() has resolved).
-function _i18n(key, fallback) {
-  try {
-    if (typeof I18n !== 'undefined' && I18n.t) {
-      const v = I18n.t(key);
-      if (v && v !== key) return v;
-    }
-  } catch (_) {}
-  return fallback;
-}
-
 function statusLabel(status) {
-  if (!status) return _i18n('status.draft', 'Draft');
-  const fallback = {
+  if (!status) return 'Draft';
+  const map = {
     draft: 'Draft',
     submitted_to_super_collaborator: 'At Super-Collaborator',
     returned_by_super_collaborator: 'Returned by Super-Collaborator',
@@ -63,16 +38,18 @@ function statusLabel(status) {
     submitted_to_deputy: 'At Deputy',
     returned_by_deputy: 'Returned by Deputy',
     approved_by_deputy: 'Approved (Deputy)',
+    // Receiving chain (DS home department review)
     submitted_to_receiving_super_collaborator: 'At Super-Collaborator (Review)',
     returned_by_receiving_super_collaborator: 'Returned by Super-Collaborator (Review)',
     approved_by_receiving_super_collaborator: 'Approved (Super-Collaborator Review)',
     submitted_to_receiving_supervisor: 'At Supervisor (Review)',
     returned_by_receiving_supervisor: 'Returned by Supervisor (Review)',
     approved_by_receiving_supervisor: 'Approved (Supervisor Review)',
+    // Reopen-amendment state: section was previously approved + fully
+    // published; the DS pulled it back from the Library to amend.
     submitted_to_amending_ds: 'Amendment in progress (DS)',
-    approved_by_ds_amendment: 'Amended (DS)',
-  }[status];
-  return _i18n(`status.${status}`, fallback || status);
+  };
+  return map[status] || status;
 }
 
 function statusClass(status) {
@@ -84,10 +61,11 @@ function statusClass(status) {
 }
 
 function languageLabel(code) {
-  const fallback = {
-    EN: 'English', RU: 'Русский', KA: 'ქართული',
-  }[code];
-  return _i18n(`lang.${code || ''}`, fallback || code);
+  const map = {
+    EN: 'English', FR: 'Français', AR: 'العربية', ES: 'Español',
+    RU: 'Русский', ZH: '中文', PT: 'Português', DE: 'Deutsch', KA: 'ქართული',
+  };
+  return map[code] || code;
 }
 
 /**
@@ -192,7 +170,7 @@ const toast = (() => {
 })();
 
 function roleLabel(role) {
-  const fallback = {
+  const map = {
     ADMIN: 'Admin',
     PROTOCOL: 'Protocol',
     DEPUTY: 'Deputy',
@@ -204,8 +182,8 @@ function roleLabel(role) {
     // shown underneath distinguishes them from the section dept's roles
     RECEIVING_SUPER_COLLABORATOR: 'Super-Collaborator',
     RECEIVING_SUPERVISOR: 'Supervisor',
-  }[role];
-  return _i18n(`roles.${role || ''}`, fallback || role);
+  };
+  return map[role] || role;
 }
 
 /** Get the dashboard URL for a given role */

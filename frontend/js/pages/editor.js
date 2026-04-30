@@ -15,7 +15,7 @@
 
   if (!eventId || !sectionId) {
     document.getElementById('richEditorContainer').innerHTML =
-      `<div class="msg msg-error" style="margin:24px;">${escapeHtml(I18n.tr('editor.errMissingIds'))}</div>`;
+      '<div class="msg msg-error" style="margin:24px;">Missing event_id or section_id</div>';
     return;
   }
 
@@ -39,7 +39,7 @@
   sectionInfo = grid.sections.find(s => s.sectionId === sectionId);
   if (!sectionInfo) {
     document.getElementById('richEditorContainer').innerHTML =
-      `<div class="msg msg-error" style="margin:24px;">${escapeHtml(I18n.tr('editor.errSectionNotFound'))}</div>`;
+      '<div class="msg msg-error" style="margin:24px;">Section not found in event</div>';
     return;
   }
 
@@ -52,8 +52,8 @@
   const isHolder = sectionInfo.currentHolderRole === effectiveRole;
 
   sectionMeta.innerHTML = `
-    <span class="status-pill ${statusClass(status)}">${escapeHtml(I18n.tr('editor.statusLabel'))} ${statusLabel(status)}</span>
-    ${content.lastEditedBy ? `<span>${escapeHtml(I18n.tr('editor.lastEditedBy'))} ${escapeHtml(content.lastEditedBy)}</span>` : ''}
+    <span class="status-pill ${statusClass(status)}">Status: ${statusLabel(status)}</span>
+    ${content.lastEditedBy ? `<span>Last edited by: ${escapeHtml(content.lastEditedBy)}</span>` : ''}
   `;
 
   // Enable editing if the user is the current holder of the section
@@ -72,12 +72,12 @@
       if (anchorId) {
         const anchorSpan = document.querySelector(`.gcp-cmt-anchor[data-cmt-anchor-id="${anchorId}"]`);
         const popAnchor = anchorSpan || document.getElementById('addCmtBtn') || document.body;
-        const text = await GCP.ActionDialog.popoverPrompt(popAnchor, I18n.tr('editor.comment.addTitle'), { placeholder: I18n.tr('editor.comment.placeholder'), required: true, confirmLabel: I18n.tr('common.add'), confirmColor: '#3b82f6', fixed: true });
+        const text = await GCP.ActionDialog.popoverPrompt(popAnchor, 'Add comment', { placeholder: 'Enter your comment...', required: true, confirmLabel: 'Add', confirmColor: '#3b82f6', fixed: true });
         if (text && text.trim()) {
           Api.post('/api/workflow/comments', {
             eventId, sectionId, content: text.trim(), anchorId,
             htmlContent: richEditor.getHtml(),
-          }).then(() => loadComments()).catch(e => toast.error(I18n.tr('editor.comment.failed') + ' ' + e.message));
+          }).then(() => loadComments()).catch(e => toast.error('Failed: ' + e.message));
         } else {
           // Cancel — remove the anchor
           richEditor.removeCommentAnchor(anchorId);
@@ -104,7 +104,7 @@
           eventId, sectionId, content: text, parentId,
         });
         loadComments();
-      } catch (e) { toast.error(I18n.tr('editor.comment.replyFailed') + ' ' + e.message); }
+      } catch (e) { toast.error('Reply failed: ' + e.message); }
     },
   });
 
@@ -120,21 +120,21 @@
     const rightBtns = [];
 
     // Left side: Back to Dashboard
-    leftBtns.push(`<button id="btnBack" class="tb-outline">${escapeHtml(I18n.tr('editor.backToDashboard'))}</button>`);
+    leftBtns.push(`<button id="btnBack" class="tb-outline">Back to Dashboard</button>`);
 
     // Right side: action buttons
 
     // File upload button
     rightBtns.push(`<button id="btnUpload" class="tb-outline">
       <span class="icon" style="--icon-url: url(/assets/upload-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
-      ${escapeHtml(I18n.tr('editor.files.title'))}
+      Files
     </button>`);
 
     // Save (if can edit)
     if (canEdit) {
       rightBtns.push(`<button id="btnSave" class="tb-outline tb-outline--blue">
         <span class="icon" style="--icon-url: url(/assets/save-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
-        ${escapeHtml(I18n.tr('common.save'))}
+        Save
       </button>`);
     }
 
@@ -143,7 +143,7 @@
       if (status === 'draft' || status.startsWith('returned_')) {
         rightBtns.push(`<button id="btnSubmit" class="tb-outline tb-outline--blue">
           <span class="icon" style="--icon-url: url(/assets/submit-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
-          ${escapeHtml(I18n.tr('common.submit'))}
+          Submit
         </button>`);
       }
 
@@ -151,13 +151,13 @@
       if (status === `submitted_to_${role.toLowerCase()}`) {
         rightBtns.push(`<button id="btnApprove" class="tb-outline tb-outline--green">
           <span class="icon" style="--icon-url: url(/assets/approve-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
-          ${escapeHtml(I18n.tr('common.approve'))}
+          Approve
         </button>`);
         // Skip Return for amendments — no chain step to return to.
         if (status !== 'submitted_to_amending_ds') {
           rightBtns.push(`<button id="btnReturn" class="tb-outline tb-outline--red">
             <span class="icon" style="--icon-url: url(/assets/return-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
-            ${escapeHtml(I18n.tr('common.return'))}
+            Return
           </button>`);
         }
       }
@@ -171,7 +171,7 @@
       if (userIdx !== -1 && holderIdx > userIdx) {
         rightBtns.push(`<button id="btnAskReturn" class="tb-outline tb-outline--orange">
           <span class="icon" style="--icon-url: url(/assets/ask_to_return_icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:14px;height:14px;display:inline-block;background:currentColor;"></span>
-          ${escapeHtml(I18n.tr('editor.askReturn'))}
+          Ask to Return
         </button>`);
       }
     }
@@ -180,7 +180,7 @@
     if (sectionInfo.canPush) {
       rightBtns.push(`<button id="btnPushSection" class="tb-outline tb-outline--orange">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-        ${escapeHtml(I18n.tr('editor.pushSection'))}
+        Push Section
       </button>`);
     }
 
@@ -188,7 +188,7 @@
     if (sectionInfo.canPull) {
       rightBtns.push(`<button id="btnPullSection" class="tb-outline tb-outline--purple">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-        ${escapeHtml(I18n.tr('editor.pullSection'))}
+        Pull Section
       </button>`);
     }
 
@@ -226,82 +226,82 @@
         eventId, sectionId,
         htmlContent: richEditor.getHtml(),
       });
-      showNotification(I18n.tr('editor.saved'));
+      showNotification('Saved successfully');
     } catch (e) {
-      toast.error(I18n.tr('editor.saveFailed') + ' ' + e.message);
+      toast.error('Save failed: ' + e.message);
     }
   }
 
   async function handleSubmit() {
-    if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmSubmit'), { confirmLabel: I18n.tr('common.submit'), confirmColor: '#3b82f6' })) return;
+    if (!await GCP.ActionDialog.confirm('Submit section', { confirmLabel: 'Submit', confirmColor: '#3b82f6' })) return;
     try {
       await Api.post('/api/workflow/save', {
         eventId, sectionId,
         htmlContent: richEditor.getHtml(),
       });
       await Api.post('/api/workflow/submit', { eventId, sectionId });
-      showNotification(I18n.tr('editor.submitted'));
+      showNotification('Submitted successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      toast.error(I18n.tr('editor.submitFailed') + ' ' + e.message);
+      toast.error('Submit failed: ' + e.message);
     }
   }
 
   async function handleApprove() {
-    if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmApprove'), { confirmLabel: I18n.tr('common.approve'), confirmColor: '#16a34a' })) return;
+    if (!await GCP.ActionDialog.confirm('Approve section', { confirmLabel: 'Approve', confirmColor: '#16a34a' })) return;
     try {
       await Api.post('/api/workflow/approve', { eventId, sectionId });
-      showNotification(I18n.tr('editor.approved'));
+      showNotification('Approved successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      toast.error(I18n.tr('editor.approveFailed') + ' ' + e.message);
+      toast.error('Approve failed: ' + e.message);
     }
   }
 
   async function handleReturn() {
     const btn = document.getElementById('btnReturn');
-    const comment = await GCP.ActionDialog.popoverPrompt(btn, I18n.tr('editor.returnTitle'), { placeholder: I18n.tr('editor.returnPlaceholder'), required: true, confirmLabel: I18n.tr('common.return'), confirmColor: '#6d28d9' });
+    const comment = await GCP.ActionDialog.popoverPrompt(btn, 'Return section', { placeholder: 'Add a comment...', required: true, confirmLabel: 'Return', confirmColor: '#6d28d9' });
     if (!comment) return;
     try {
       await Api.post('/api/workflow/return', { eventId, sectionId, comment });
-      showNotification(I18n.tr('editor.returned'));
+      showNotification('Returned successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      toast.error(I18n.tr('editor.returnFailed') + ' ' + e.message);
+      toast.error('Return failed: ' + e.message);
     }
   }
 
   async function handleAskReturn() {
     const btn = document.getElementById('btnAskReturn');
-    const note = await GCP.ActionDialog.popoverPrompt(btn, I18n.tr('editor.askReturnTitle'), { placeholder: I18n.tr('editor.askReturnPlaceholder'), required: true, confirmLabel: I18n.tr('editor.sendRequest'), confirmColor: '#a16207' });
+    const note = await GCP.ActionDialog.popoverPrompt(btn, 'Request return', { placeholder: 'Reason for return request...', required: true, confirmLabel: 'Send request', confirmColor: '#a16207' });
     if (!note) return;
     try {
       await Api.post('/api/workflow/ask-to-return', { eventId, sectionId, note });
-      showNotification(I18n.tr('editor.requestSent'));
+      showNotification('Return request sent');
     } catch (e) {
-      toast.error(I18n.tr('editor.requestFailed') + ' ' + e.message);
+      toast.error('Request failed: ' + e.message);
     }
   }
 
   async function handlePushSection() {
-    if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPush'), { confirmLabel: I18n.tr('editor.pushSection'), confirmColor: '#6d28d9' })) return;
+    if (!await GCP.ActionDialog.confirm('Push section', { confirmLabel: 'Push section', confirmColor: '#6d28d9' })) return;
     try {
       await Api.post('/api/workflow/push-section', { eventId, sectionId });
-      showNotification(I18n.tr('editor.pushed'));
+      showNotification('Section pushed successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      toast.error(I18n.tr('editor.pushFailed') + ' ' + e.message);
+      toast.error('Push failed: ' + e.message);
     }
   }
 
   async function handlePullSection() {
-    if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPull'), { confirmLabel: I18n.tr('editor.pullSection'), confirmColor: '#7c3aed' })) return;
+    if (!await GCP.ActionDialog.confirm('Pull section', { confirmLabel: 'Pull section', confirmColor: '#7c3aed' })) return;
     try {
       await Api.post('/api/workflow/pull-section', { eventId, sectionId });
-      showNotification(I18n.tr('editor.pulled'));
+      showNotification('Section pulled successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      toast.error(I18n.tr('editor.pullFailed') + ' ' + e.message);
+      toast.error('Pull failed: ' + e.message);
     }
   }
 
@@ -363,21 +363,16 @@
     const countEl = document.getElementById('filesCount');
     try {
       const files = await Api.get(`/api/workflow/files/list?eventId=${eventId}&sectionId=${sectionId}`);
-      if (countEl) {
-        countEl.textContent = files && files.length
-          ? `${files.length} ${I18n.tr(files.length === 1 ? 'editor.files.countOne' : 'editor.files.countMany')}`
-          : '';
-      }
+      if (countEl) countEl.textContent = files && files.length ? `${files.length} file${files.length !== 1 ? 's' : ''}` : '';
       if (!files || files.length === 0) {
-        list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">${escapeHtml(I18n.tr('editor.files.empty'))}</p>`;
+        list.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No files uploaded yet</p>';
         return;
       }
-      const dateLocale = (typeof I18n !== 'undefined' && I18n.getLocale && I18n.getLocale() === 'ka') ? 'ka-GE' : 'en-GB';
       list.innerHTML = files.map(f => {
         const name = escapeHtml(f.original_name);
         const size = formatFileSize(f.size || 0);
         const by = escapeHtml(f.uploaded_by_name || '');
-        const date = f.created_at ? new Date(f.created_at).toLocaleDateString(dateLocale, { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+        const date = f.created_at ? new Date(f.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
         const canDelete = f.uploaded_by_id === user.id || user.role === 'ADMIN';
         return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);">
           ${fileIcon(f.original_name)}
@@ -386,17 +381,17 @@
             <div style="font-size:11px;color:var(--text-muted);">${size}${by ? ' · ' + by : ''}${date ? ' · ' + date : ''}</div>
           </div>
           <div style="display:flex;gap:4px;flex-shrink:0;">
-            <a href="#" onclick="downloadFileAuth(${f.id}, '${escapeHtml(f.original_name).replace(/'/g, "\\\\'")}'); return false;" style="padding:4px 10px;font-size:12px;border:1px solid var(--border-color);border-radius:6px;color:var(--text-muted);text-decoration:none;cursor:pointer;" title="${escapeHtml(I18n.tr('editor.files.download'))}">
+            <a href="#" onclick="downloadFileAuth(${f.id}, '${escapeHtml(f.original_name).replace(/'/g, "\\\\'")}'); return false;" style="padding:4px 10px;font-size:12px;border:1px solid var(--border-color);border-radius:6px;color:var(--text-muted);text-decoration:none;cursor:pointer;" title="Download">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </a>
-            ${canDelete ? `<button onclick="deleteFile(${f.id})" style="padding:4px 8px;font-size:12px;border:1px solid #fecaca;border-radius:6px;background:none;color:#dc2626;cursor:pointer;" title="${escapeHtml(I18n.tr('common.delete'))}">
+            ${canDelete ? `<button onclick="deleteFile(${f.id})" style="padding:4px 8px;font-size:12px;border:1px solid #fecaca;border-radius:6px;background:none;color:#dc2626;cursor:pointer;" title="Delete">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
             </button>` : ''}
           </div>
         </div>`;
       }).join('');
     } catch (e) {
-      list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">${escapeHtml(I18n.tr('editor.files.loadFailed'))}</p>`;
+      list.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">Could not load files</p>';
     }
   }
 
@@ -420,24 +415,24 @@
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || I18n.tr('editor.files.uploadFailed'));
+        throw new Error(data.error || 'Upload failed');
       }
-      showNotification(I18n.tr('editor.files.uploaded'));
+      showNotification('Files uploaded');
       loadFiles();
     } catch (err) {
-      toast.error(I18n.tr('editor.files.uploadFailed') + ' ' + err.message);
+      toast.error('Upload failed: ' + err.message);
     }
   }
 
   // Delete file
   window.deleteFile = async function(id) {
-    if (!confirm(I18n.tr('editor.files.confirmDelete'))) return;
+    if (!confirm('Delete this file?')) return;
     try {
       await Api.post('/api/workflow/files/delete', { id });
-      showNotification(I18n.tr('editor.files.deleted'));
+      showNotification('File deleted');
       loadFiles();
     } catch (e) {
-      toast.error(I18n.tr('editor.files.deleteFailed') + ' ' + e.message);
+      toast.error('Delete failed: ' + e.message);
     }
   };
 
@@ -493,41 +488,33 @@
   // ─── History ─────────────────────────────────────────────────────────────────
 
   const HISTORY_STAGES = [
-    { role: 'COLLABORATOR' },
-    { role: 'SUPER_COLLABORATOR' },
-    { role: 'CURATOR' },
-    { role: 'SUPERVISOR' },
-    { role: 'DEPUTY' },
-    { role: 'RECEIVING_SUPER_COLLABORATOR', labelKey: 'editor.history.stage.scReview' },
-    { role: 'RECEIVING_SUPERVISOR', labelKey: 'editor.history.stage.svReview' },
+    { role: 'COLLABORATOR', label: 'Collaborator' },
+    { role: 'SUPER_COLLABORATOR', label: 'Super-Collaborator' },
+    { role: 'CURATOR', label: 'Curator' },
+    { role: 'SUPERVISOR', label: 'Supervisor' },
+    { role: 'DEPUTY', label: 'Deputy' },
+    { role: 'RECEIVING_SUPER_COLLABORATOR', label: 'Super-Collaborator (Review)' },
+    { role: 'RECEIVING_SUPERVISOR', label: 'Supervisor (Review)' },
   ];
-
-  function stageLabel(stage) {
-    if (stage.labelKey) return I18n.tr(stage.labelKey);
-    return roleLabel(stage.role);
-  }
 
   function formatHistoryDate(dateStr) {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
-    const locale = (typeof I18n !== 'undefined' && I18n.getLocale && I18n.getLocale() === 'ka') ? 'ka-GE' : 'en-GB';
-    return d.toLocaleString(locale, {
+    return d.toLocaleString('en-GB', {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
     });
   }
 
-  function actionColors() {
-    return {
-      saved:           { bg: '#ede9fe', color: '#5b21b6', label: I18n.tr('editor.history.action.saved') },
-      submitted:       { bg: '#dbeafe', color: '#1d4ed8', label: I18n.tr('editor.history.action.submitted') },
-      approved:        { bg: '#dcfce7', color: '#15803d', label: I18n.tr('editor.history.action.approved') },
-      returned:        { bg: '#fee2e2', color: '#b91c1c', label: I18n.tr('editor.history.action.returned') },
-      asked_to_return: { bg: '#fef3c7', color: '#92400e', label: I18n.tr('editor.history.action.askedToReturn') },
-      pushed:          { bg: '#e0e7ff', color: '#4338ca', label: I18n.tr('editor.history.action.pushed') },
-      pulled:          { bg: '#e0e7ff', color: '#4338ca', label: I18n.tr('editor.history.action.pulled') },
-    };
-  }
+  const ACTION_COLORS = {
+    saved:           { bg: '#ede9fe', color: '#5b21b6', label: 'Edited' },
+    submitted:       { bg: '#dbeafe', color: '#1d4ed8', label: 'Submitted' },
+    approved:        { bg: '#dcfce7', color: '#15803d', label: 'Approved' },
+    returned:        { bg: '#fee2e2', color: '#b91c1c', label: 'Returned' },
+    asked_to_return: { bg: '#fef3c7', color: '#92400e', label: 'Asked to Return' },
+    pushed:          { bg: '#e0e7ff', color: '#4338ca', label: 'Pushed' },
+    pulled:          { bg: '#e0e7ff', color: '#4338ca', label: 'Pulled' },
+  };
 
   async function loadHistory() {
     try {
@@ -535,10 +522,9 @@
       const history = result.history || result;
       const list = document.getElementById('historyList');
       if (!history || history.length === 0) {
-        list.innerHTML = `<p style="color: var(--text-muted); font-size: 13px;">${escapeHtml(I18n.tr('editor.history.empty'))}</p>`;
+        list.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">No history yet</p>';
         return;
       }
-      const ACTION_COLORS = actionColors();
 
       // Group by role
       const byRole = {};
@@ -571,7 +557,7 @@
       }
       for (const role of Object.keys(byRole)) {
         if (!stageOrder.includes(role)) {
-          orderedRoles.push({ role });
+          orderedRoles.push({ role, label: roleLabel(role) });
         }
       }
 
@@ -579,7 +565,7 @@
         const entries = collapseEntries(byRole[stage.role]);
         const eventsHtml = entries.map(h => {
           const ac = ACTION_COLORS[h.action] || { bg: '#f1f5f9', color: '#475569', label: h.action };
-          const actor = escapeHtml(h.userName || I18n.tr('editor.history.unknownUser'));
+          const actor = escapeHtml(h.userName || 'Unknown');
           const date = formatHistoryDate(h.actedAt);
           const label = h.action === 'saved' && h._count > 1
             ? `${ac.label} (\u00d7${h._count})` : ac.label;
@@ -587,7 +573,7 @@
           if (h.action === 'returned' || h.action === 'asked_to_return') {
             const noteHtml = h.note
               ? escapeHtml(h.note)
-              : `<span class="sh-return-note__empty">${escapeHtml(I18n.tr('editor.history.noComment'))}</span>`;
+              : '<span class="sh-return-note__empty">No comment provided</span>';
             return `<div class="sh-event">
               <span class="sh-actor">${actor}</span>
               <details class="sh-return-details${h.action === 'asked_to_return' ? ' sh-return-details--ask' : ''}">
@@ -608,7 +594,7 @@
         return `<div class="sh-stage">
           <div class="sh-dot"></div>
           <div class="sh-body">
-            <div class="sh-stage-label">${escapeHtml(stageLabel(stage).toUpperCase())}</div>
+            <div class="sh-stage-label">${escapeHtml(stage.label.toUpperCase())}</div>
             <div class="sh-events">${eventsHtml}</div>
           </div>
         </div>`;

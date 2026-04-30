@@ -140,14 +140,14 @@
         const anchorSpan = editorContainer.querySelector(`.gcp-cmt-anchor[data-cmt-anchor-id="${anchorId}"]`);
         const text = await GCP.ActionDialog.popoverPrompt(
           anchorSpan || editorContainer,
-          I18n.tr('editor.comment.addTitle'),
-          { placeholder: I18n.tr('editor.comment.placeholder'), required: true, confirmLabel: I18n.tr('common.add'), confirmColor: '#3b82f6', fixed: true }
+          'Add comment',
+          { placeholder: 'Enter your comment...', required: true, confirmLabel: 'Add', confirmColor: '#3b82f6', fixed: true }
         );
         if (text && text.trim()) {
           Api.post('/api/workflow/comments', {
             eventId, sectionId: s.sectionId, content: text.trim(), anchorId,
             htmlContent: editor.getHtml(),
-          }).then(() => loadCommentsForSection(s.sectionId)).catch(e => toast.error(I18n.tr('editor.comment.failed') + ' ' + e.message));
+          }).then(() => loadCommentsForSection(s.sectionId)).catch(e => toast.error('Failed: ' + e.message));
         } else {
           editor.removeCommentAnchor(anchorId);
         }
@@ -171,7 +171,7 @@
             eventId, sectionId: s.sectionId, content: text, parentId,
           });
           loadCommentsForSection(s.sectionId);
-        } catch (e) { toast.error(I18n.tr('editor.comment.replyFailed') + ' ' + e.message); }
+        } catch (e) { toast.error('Reply failed: ' + e.message); }
       },
     });
 
@@ -229,13 +229,7 @@
   function groupToolbarButtons(toolbarEl) {
     // Skip if already grouped
     if (toolbarEl.querySelector('.tb-group')) return;
-    const groupNames = [
-      I18n.tr('editor.toolbar.group.font'),
-      I18n.tr('editor.toolbar.group.format'),
-      I18n.tr('editor.toolbar.group.paragraph'),
-      I18n.tr('editor.toolbar.group.insert'),
-      I18n.tr('editor.toolbar.group.review'),
-    ];
+    const groupNames = ['Font', 'Format', 'Paragraph', 'Insert', 'Review'];
     const groups = [];
     let currentGroup = [];
     for (const child of [...toolbarEl.children]) {
@@ -267,15 +261,15 @@
     const secEl = document.getElementById('statusSection');
     const wordsEl = document.getElementById('statusWords');
     if (idx >= 0) {
-      secEl.textContent = I18n.tr('editor.status.sectionOf').replace('{n}', idx + 1).replace('{total}', grid.sections.length);
+      secEl.textContent = `Section ${idx + 1} of ${grid.sections.length}`;
     } else {
-      secEl.textContent = I18n.tr('editor.status.sectionsCount').replace('{total}', grid.sections.length);
+      secEl.textContent = `${grid.sections.length} sections`;
     }
     const sec = focusedSectionId ? sections[focusedSectionId] : null;
     if (sec && sec.editor.el) {
       const text = sec.editor.el.textContent || '';
       const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-      wordsEl.textContent = I18n.tr('editor.status.words').replace('{n}', words);
+      wordsEl.textContent = `${words} words`;
     }
   }
 
@@ -359,34 +353,32 @@
 
     // Last updated info (non-clickable)
     if (s._updatedAt) {
-      const dateLocale = (typeof I18n !== 'undefined' && I18n.getLocale && I18n.getLocale() === 'ka') ? 'ka-GE' : 'en-GB';
-      const ts = new Date(s._updatedAt).toLocaleString(dateLocale, { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      const ts = new Date(s._updatedAt).toLocaleString('en-GB', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
       const info = document.createElement('div');
       info.className = 'section-action-item section-action-item--muted';
-      const byPart = s._updatedByName ? ' ' + I18n.tr('editor.action.by') + ' ' + s._updatedByName : '';
-      info.textContent = I18n.tr('editor.action.updated') + ' ' + ts + byPart;
+      info.textContent = `Updated: ${ts}${s._updatedByName ? ' by ' + s._updatedByName : ''}`;
       drop.appendChild(info);
     }
 
     // Open in Editor
-    addItem(I18n.tr('editor.action.openInEditor'), '', () => {
+    addItem('Open in Editor', '', () => {
       window.location.href = `/pages/editor.html?event_id=${eventId}&section_id=${s.sectionId}`;
     });
 
     // Save
     if (canEdit) {
-      addItem(I18n.tr('common.save'), 'blue', () => handleSaveSection(s.sectionId));
+      addItem('Save', 'blue', () => handleSaveSection(s.sectionId));
     }
 
     if (isHolder) {
       // Submit
       if (status === 'draft' || status.startsWith('returned_')) {
-        addItem(I18n.tr('common.submit'), 'blue', () => handleSubmitSection(s.sectionId));
+        addItem('Submit', 'blue', () => handleSubmitSection(s.sectionId));
       }
       // Approve + Return
       if (status === `submitted_to_${effectiveRole.toLowerCase()}`) {
-        addItem(I18n.tr('common.approve'), 'green', () => handleApproveSection(s.sectionId));
-        addItem(I18n.tr('common.return'), 'red', () => handleReturnSection(s.sectionId));
+        addItem('Approve', 'green', () => handleApproveSection(s.sectionId));
+        addItem('Return', 'red', () => handleReturnSection(s.sectionId));
       }
     }
 
@@ -396,16 +388,16 @@
       const userIdx = chain.indexOf(effectiveRole);
       const holderIdx = chain.indexOf(s.currentHolderRole);
       if (userIdx !== -1 && holderIdx > userIdx) {
-        addItem(I18n.tr('editor.askReturn'), 'orange', () => handleAskReturnSection(s.sectionId));
+        addItem('Ask to Return', 'orange', () => handleAskReturnSection(s.sectionId));
       }
     }
 
     // Push / Pull
     if (s.canPush) {
-      addItem(I18n.tr('editor.pushSection'), 'orange', () => handlePushSection(s.sectionId));
+      addItem('Push Section', 'orange', () => handlePushSection(s.sectionId));
     }
     if (s.canPull) {
-      addItem(I18n.tr('editor.pullSection'), 'purple', () => handlePullSection(s.sectionId));
+      addItem('Pull Section', 'purple', () => handlePullSection(s.sectionId));
     }
 
     return drop;
@@ -421,35 +413,35 @@
         eventId, sectionId,
         htmlContent: sec.editor.getHtml(),
       });
-      showNotification(I18n.tr('editor.saved'));
-      document.getElementById('statusSaved').textContent = I18n.tr('editor.status.saved');
+      showNotification('Saved successfully');
+      document.getElementById('statusSaved').textContent = 'Saved';
     } catch (e) {
-      toast.error(I18n.tr('editor.saveFailed') + ' ' + e.message);
+      toast.error('Save failed: ' + e.message);
     }
   }
 
   async function handleSubmitSection(sectionId) {
     const sec = sections[sectionId];
     if (!sec) return;
-    if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmSubmit'), { confirmLabel: I18n.tr('common.submit'), confirmColor: '#3b82f6' })) return;
+    if (!await GCP.ActionDialog.confirm('Submit section', { confirmLabel: 'Submit', confirmColor: '#3b82f6' })) return;
     try {
       await Api.post('/api/workflow/save', { eventId, sectionId, htmlContent: sec.editor.getHtml() });
       await Api.post('/api/workflow/submit', { eventId, sectionId });
-      showNotification(I18n.tr('editor.submitted'));
+      showNotification('Submitted successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      toast.error(I18n.tr('editor.submitFailed') + ' ' + e.message);
+      toast.error('Submit failed: ' + e.message);
     }
   }
 
   async function handleApproveSection(sectionId) {
-    if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmApprove'), { confirmLabel: I18n.tr('common.approve'), confirmColor: '#16a34a' })) return;
+    if (!await GCP.ActionDialog.confirm('Approve section', { confirmLabel: 'Approve', confirmColor: '#16a34a' })) return;
     try {
       await Api.post('/api/workflow/approve', { eventId, sectionId });
-      showNotification(I18n.tr('editor.approved'));
+      showNotification('Approved successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      toast.error(I18n.tr('editor.approveFailed') + ' ' + e.message);
+      toast.error('Approve failed: ' + e.message);
     }
   }
 
@@ -458,16 +450,16 @@
     if (!sec) return;
     const comment = await GCP.ActionDialog.popoverPrompt(
       sec.dividerEl.querySelector('.section-action-trigger'),
-      I18n.tr('editor.returnTitle'),
-      { placeholder: I18n.tr('editor.returnPlaceholder'), required: true, confirmLabel: I18n.tr('common.return'), confirmColor: '#6d28d9', fixed: true }
+      'Return section',
+      { placeholder: 'Add a comment...', required: true, confirmLabel: 'Return', confirmColor: '#6d28d9', fixed: true }
     );
     if (!comment) return;
     try {
       await Api.post('/api/workflow/return', { eventId, sectionId, comment });
-      showNotification(I18n.tr('editor.returned'));
+      showNotification('Returned successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      toast.error(I18n.tr('editor.returnFailed') + ' ' + e.message);
+      toast.error('Return failed: ' + e.message);
     }
   }
 
@@ -476,38 +468,38 @@
     if (!sec) return;
     const note = await GCP.ActionDialog.popoverPrompt(
       sec.dividerEl.querySelector('.section-action-trigger'),
-      I18n.tr('editor.askReturnTitle'),
-      { placeholder: I18n.tr('editor.askReturnPlaceholder'), required: true, confirmLabel: I18n.tr('editor.sendRequest'), confirmColor: '#a16207', fixed: true }
+      'Request return',
+      { placeholder: 'Reason for return request...', required: true, confirmLabel: 'Send request', confirmColor: '#a16207', fixed: true }
     );
     if (!note) return;
     try {
       await Api.post('/api/workflow/ask-return', { eventId, sectionId, comment: note });
-      showNotification(I18n.tr('editor.requestSent'));
+      showNotification('Return request sent');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      toast.error(I18n.tr('editor.requestFailed') + ' ' + e.message);
+      toast.error('Request failed: ' + e.message);
     }
   }
 
   async function handlePushSection(sectionId) {
-    if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPush'), { confirmLabel: I18n.tr('editor.pushSection'), confirmColor: '#6d28d9' })) return;
+    if (!await GCP.ActionDialog.confirm('Push section', { confirmLabel: 'Push section', confirmColor: '#6d28d9' })) return;
     try {
       await Api.post('/api/workflow/push-section', { eventId, sectionId });
-      showNotification(I18n.tr('editor.pushed'));
+      showNotification('Section pushed successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      toast.error(I18n.tr('editor.pushFailed') + ' ' + e.message);
+      toast.error('Push failed: ' + e.message);
     }
   }
 
   async function handlePullSection(sectionId) {
-    if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPull'), { confirmLabel: I18n.tr('editor.pullSection'), confirmColor: '#7c3aed' })) return;
+    if (!await GCP.ActionDialog.confirm('Pull section', { confirmLabel: 'Pull section', confirmColor: '#7c3aed' })) return;
     try {
       await Api.post('/api/workflow/pull-section', { eventId, sectionId });
-      showNotification(I18n.tr('editor.pulled'));
+      showNotification('Section pulled successfully');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      toast.error(I18n.tr('editor.pullFailed') + ' ' + e.message);
+      toast.error('Pull failed: ' + e.message);
     }
   }
 
@@ -516,11 +508,11 @@
   document.getElementById('btnSaveAll').addEventListener('click', async () => {
     const editable = Object.entries(sections).filter(([, s]) => s.canEdit);
     if (editable.length === 0) {
-      showNotification(I18n.tr('editor.saveAll.noneEditable'));
+      showNotification('No editable sections to save');
       return;
     }
     const btn = document.getElementById('btnSaveAll');
-    btn.disabled = true; btn.textContent = I18n.tr('editor.saveAll.inProgress');
+    btn.disabled = true; btn.textContent = 'Saving…';
     try {
       await Promise.all(editable.map(([sid, s]) =>
         Api.post('/api/workflow/save', {
@@ -528,12 +520,12 @@
           htmlContent: s.editor.getHtml(),
         })
       ));
-      showNotification(I18n.tr('editor.saveAll.allSaved'));
-      document.getElementById('statusSaved').textContent = I18n.tr('editor.status.saved');
+      showNotification('All sections saved');
+      document.getElementById('statusSaved').textContent = 'Saved';
     } catch (e) {
-      toast.error(I18n.tr('editor.saveFailed') + ' ' + e.message);
+      toast.error('Save failed: ' + e.message);
     } finally {
-      btn.disabled = false; btn.textContent = I18n.tr('editor.saveAll');
+      btn.disabled = false; btn.textContent = 'Save All';
     }
   });
 

@@ -25,7 +25,7 @@ const I18n = {
 
   t(key, params) {
     let str = key.split('.').reduce((obj, k) => obj && obj[k], this._strings);
-    if (str == null) return key;
+    if (!str) return key;
     if (params) {
       Object.entries(params).forEach(([k, v]) => {
         str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
@@ -34,38 +34,19 @@ const I18n = {
     return str;
   },
 
-  // tr() — preferred call site for inline JS strings (toasts, alerts,
-  // dynamic modal titles). Identical to t() today; kept as a stable
-  // alias so we can later add e.g. plural / context handling without
-  // touching every call site.
-  tr(key, params) {
-    return this.t(key, params);
-  },
-
   getLocale() {
     return this._locale;
   },
 
-  // Walk a DOM subtree and translate every [data-i18n], [data-i18n-placeholder],
-  // and [data-i18n-title] descendant. setLocale() walks the whole document;
-  // this helper is for fragments built mid-flight (modal HTML, dynamically
-  // inserted card rows, etc.).
-  translateRoot(root) {
-    if (!root) return;
-    root.querySelectorAll('[data-i18n]').forEach(el => {
-      el.textContent = this.t(el.dataset.i18n);
-    });
-    root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-      el.placeholder = this.t(el.dataset.i18nPlaceholder);
-    });
-    root.querySelectorAll('[data-i18n-title]').forEach(el => {
-      el.title = this.t(el.dataset.i18nTitle);
-    });
-  },
-
   async setLocale(locale) {
     await this.load(locale);
-    this.translateRoot(document);
+    // Re-render page translations
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      el.textContent = this.t(el.dataset.i18n);
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      el.placeholder = this.t(el.dataset.i18nPlaceholder);
+    });
   },
 };
 
