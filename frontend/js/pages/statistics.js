@@ -459,7 +459,7 @@
     const shown = filtered.slice(0, 50);
 
     if (shown.length === 0) {
-      dropdown.innerHTML = '<div class="stat-dropdown__empty">No results</div>';
+      dropdown.innerHTML = `<div class="stat-dropdown__empty">${escapeHtml(I18n.tr('statistics.noResults'))}</div>`;
     } else {
       dropdown.innerHTML = shown.map(c =>
         `<div class="stat-dropdown__item${selectedCountry && selectedCountry.value === c.value ? ' selected' : ''}" data-value="${c.value}">${escapeHtml(c.displayLabel)}</div>`
@@ -1004,7 +1004,7 @@
 
     } catch (err) {
       console.error('Report generation error:', err);
-      overviewTable.innerHTML = `<div class="msg msg-error">Failed to generate report: ${escapeHtml(err.message)}</div>`;
+      overviewTable.innerHTML = `<div class="msg msg-error">${escapeHtml(I18n.tr('statistics.reportFailed'))} ${escapeHtml(err.message)}</div>`;
     } finally {
       reportLoading.classList.add('hidden');
       exportPdfBtn.disabled = false;
@@ -2808,7 +2808,7 @@
 
   async function exportPdf(pdfLang) {
     if (typeof pdfMake === 'undefined' || typeof StatisticsPdf === 'undefined') {
-      alert('PDF library not loaded. Please refresh the page.');
+      alert(I18n.tr('statistics.pdfLibMissing'));
       return;
     }
     if (!pdfState.trade || !pdfState.country) {
@@ -2846,7 +2846,7 @@
       });
     } catch (err) {
       console.error('PDF export error:', err);
-      alert('Failed to export PDF: ' + (err.message || err));
+      alert(I18n.tr('statistics.pdfExportFailed') + ' ' + (err.message || err));
     } finally {
       document.body.classList.remove('stat-exporting');
       // Restore chart sizes to fit their actual visible containers
@@ -2895,7 +2895,7 @@
       });
     } catch (err) {
       console.error('Word export error:', err);
-      alert('Failed to export Word: ' + (err.message || err));
+      alert(I18n.tr('statistics.wordExportFailed') + ' ' + (err.message || err));
     } finally {
       document.body.classList.remove('stat-exporting');
       [turnoverChartInstance, dynamicsChartInstance, tourismChartInstance, fdiChartInstance]

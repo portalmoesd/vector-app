@@ -39,6 +39,7 @@
   function showModal(title, bodyHtml, saveFn) {
     modalTitle.textContent = title;
     modalBody.innerHTML = bodyHtml;
+    if (typeof I18n !== 'undefined' && I18n.translateRoot) I18n.translateRoot(modal);
     onSave = saveFn;
     modal.style.display = 'flex';
   }
@@ -136,14 +137,14 @@
     try {
       const depts = await Api.get('/api/departments');
       if (depts.length === 0) {
-        document.getElementById('deptList').innerHTML = '<div class="empty-state"><p>No departments yet</p></div>';
+        document.getElementById('deptList').innerHTML = `<div class="empty-state"><p>${escapeHtml(I18n.tr('admin.dept.empty'))}</p></div>`;
         return depts;
       }
       document.getElementById('deptList').innerHTML = `
         <div class="table-wrap"><table>
-          <thead><tr><th>#</th><th>Name (KA)</th><th>Name (EN)</th><th>Type</th></tr></thead>
+          <thead><tr><th>#</th><th>${escapeHtml(I18n.tr('admin.dept.col.nameKa'))}</th><th>${escapeHtml(I18n.tr('admin.dept.col.nameEn'))}</th><th>${escapeHtml(I18n.tr('admin.dept.col.type'))}</th></tr></thead>
           <tbody>${depts.map((d, i) => `
-            <tr><td>${i + 1}</td><td>${escapeHtml(d.name)}</td><td>${d.nameEn ? escapeHtml(d.nameEn) : '—'}</td><td><span class="pill ${d.isExternal ? 'pill-yellow' : 'pill-blue'}">${d.isExternal ? 'Agency' : 'Department'}</span></td></tr>
+            <tr><td>${i + 1}</td><td>${escapeHtml(d.name)}</td><td>${d.nameEn ? escapeHtml(d.nameEn) : '—'}</td><td><span class="pill ${d.isExternal ? 'pill-yellow' : 'pill-blue'}">${escapeHtml(I18n.tr(d.isExternal ? 'admin.dept.type.agency' : 'admin.dept.type.department'))}</span></td></tr>
           `).join('')}</tbody>
         </table></div>`;
       return depts;
@@ -154,13 +155,13 @@
   }
 
   document.getElementById('addDeptBtn').addEventListener('click', () => {
-    showModal('Add Department', `
+    showModal(I18n.tr('admin.dept.modal.add'), `
       <div class="form-group">
-        <label class="form-label">Name</label>
+        <label class="form-label">${escapeHtml(I18n.tr('admin.dept.form.name'))}</label>
         <input class="form-input" id="deptName" required />
       </div>
       <div class="form-group">
-        <label class="form-label"><input type="checkbox" id="deptExternal" /> External organization</label>
+        <label class="form-label"><input type="checkbox" id="deptExternal" /> ${escapeHtml(I18n.tr('admin.dept.form.external'))}</label>
       </div>
     `, async () => {
       const name = document.getElementById('deptName').value.trim();
@@ -178,21 +179,21 @@
     try {
       const users = await Api.get('/api/users');
       if (users.length === 0) {
-        document.getElementById('userList').innerHTML = '<div class="empty-state"><p>No users yet</p></div>';
+        document.getElementById('userList').innerHTML = `<div class="empty-state"><p>${escapeHtml(I18n.tr('admin.user.empty'))}</p></div>`;
         return;
       }
       document.getElementById('userList').innerHTML = `
         <div class="table-wrap"><table>
-          <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Department</th><th>External</th><th>Actions</th></tr></thead>
+          <thead><tr><th>${escapeHtml(I18n.tr('admin.user.col.name'))}</th><th>${escapeHtml(I18n.tr('admin.user.col.username'))}</th><th>${escapeHtml(I18n.tr('admin.user.col.role'))}</th><th>${escapeHtml(I18n.tr('admin.user.col.dept'))}</th><th>${escapeHtml(I18n.tr('admin.user.col.external'))}</th><th>${escapeHtml(I18n.tr('admin.user.col.actions'))}</th></tr></thead>
           <tbody>${users.map(u => `
             <tr>
               <td>${escapeHtml(u.fullName)}</td>
               <td>${escapeHtml(u.username)}</td>
               <td><span class="pill pill-blue">${roleLabel(u.role)}</span></td>
               <td>${u.departmentName ? escapeHtml(u.departmentName) : '—'}</td>
-              <td>${u.isExternal ? 'Yes' : 'No'}</td>
+              <td>${escapeHtml(I18n.tr(u.isExternal ? 'common.yes' : 'common.no'))}</td>
               <td>
-                <button class="btn btn-outline" style="padding:4px 10px;font-size:12px;" onclick="editUser(${u.id})">Edit</button>
+                <button class="btn btn-outline" style="padding:4px 10px;font-size:12px;" onclick="editUser(${u.id})">${escapeHtml(I18n.tr('common.edit'))}</button>
               </td>
             </tr>
           `).join('')}</tbody>
@@ -208,23 +209,23 @@
 
     return `
       <div class="form-group">
-        <label class="form-label">Full Name</label>
+        <label class="form-label">${escapeHtml(I18n.tr('admin.user.form.fullName'))}</label>
         <input class="form-input" id="userFullName" value="${isEdit ? escapeHtml(user.fullName) : ''}" required />
       </div>
       ${!isEdit ? `<div class="form-group">
-        <label class="form-label">Username</label>
+        <label class="form-label">${escapeHtml(I18n.tr('admin.user.form.username'))}</label>
         <input class="form-input" id="userUsername" required />
       </div>` : ''}
       <div class="form-group">
-        <label class="form-label">Email</label>
+        <label class="form-label">${escapeHtml(I18n.tr('admin.user.form.email'))}</label>
         <input class="form-input" type="email" id="userEmail" value="${isEdit ? escapeHtml(user.email) : ''}" required />
       </div>
       <div class="form-group">
-        <label class="form-label">${isEdit ? 'New Password (leave blank to keep current)' : 'Password'}</label>
+        <label class="form-label">${escapeHtml(I18n.tr(isEdit ? 'admin.user.form.passwordEdit' : 'admin.user.form.password'))}</label>
         <input class="form-input" type="password" id="userPassword" ${!isEdit ? 'required' : ''} />
       </div>
       <div class="form-group">
-        <label class="form-label">Role</label>
+        <label class="form-label">${escapeHtml(I18n.tr('admin.user.form.role'))}</label>
         <select class="form-select" id="userRole">
           ${['COLLABORATOR','SUPER_COLLABORATOR','SUPERVISOR','DEPUTY','PROTOCOL','ADMIN'].map(r =>
             `<option value="${r}" ${isEdit && user.role === r ? 'selected' : ''}>${roleLabel(r)}</option>`
@@ -232,17 +233,17 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Department</label>
+        <label class="form-label">${escapeHtml(I18n.tr('admin.user.form.dept'))}</label>
         <select class="form-select" id="userDept">
-          <option value="">— None —</option>
+          <option value="">${escapeHtml(I18n.tr('admin.user.form.deptNone'))}</option>
           ${deptOptions}
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label"><input type="checkbox" id="userExternal" ${isEdit && user.isExternal ? 'checked' : ''} /> External user</label>
+        <label class="form-label"><input type="checkbox" id="userExternal" ${isEdit && user.isExternal ? 'checked' : ''} /> ${escapeHtml(I18n.tr('admin.user.form.external'))}</label>
       </div>
       <div class="form-group" id="countryAssignmentGroup" style="${needsCountries ? '' : 'display:none;'}">
-        <label class="form-label">Country Assignments</label>
+        <label class="form-label">${escapeHtml(I18n.tr('admin.user.form.countries'))}</label>
         <div id="countryPickerContainer"></div>
       </div>
     `;
@@ -250,7 +251,7 @@
 
   document.getElementById('addUserBtn').addEventListener('click', () => {
     const deptOptions = departments.map(d => `<option value="${d.id}">${escapeHtml(d.name)}</option>`).join('');
-    showModal('Add User', userFormHtml(deptOptions, null), async () => {
+    showModal(I18n.tr('admin.user.modal.add'), userFormHtml(deptOptions, null), async () => {
       const fullName = document.getElementById('userFullName').value.trim();
       const username = document.getElementById('userUsername').value.trim();
       const email = document.getElementById('userEmail').value.trim();
@@ -295,7 +296,7 @@
       `<option value="${d.id}" ${user.departmentId === d.id ? 'selected' : ''}>${escapeHtml(d.name)}</option>`
     ).join('');
 
-    showModal('Edit User — ' + user.fullName, userFormHtml(deptOptions, user), async () => {
+    showModal(I18n.tr('admin.user.modal.edit') + ' ' + user.fullName, userFormHtml(deptOptions, user), async () => {
       const fullName = document.getElementById('userFullName').value.trim();
       const email = document.getElementById('userEmail').value.trim();
       const password = document.getElementById('userPassword').value;
@@ -340,12 +341,12 @@
     try {
       const links = await Api.get('/api/admin/deputy-supervisor-links');
       if (links.length === 0) {
-        document.getElementById('linksList').innerHTML = '<div class="empty-state"><p>No links defined yet</p></div>';
+        document.getElementById('linksList').innerHTML = `<div class="empty-state"><p>${escapeHtml(I18n.tr('admin.link.empty'))}</p></div>`;
         return;
       }
       document.getElementById('linksList').innerHTML = `
         <div class="table-wrap"><table>
-          <thead><tr><th>#</th><th>Deputy</th><th>Supervisor</th><th>Department</th><th>Actions</th></tr></thead>
+          <thead><tr><th>#</th><th>${escapeHtml(I18n.tr('admin.link.col.deputy'))}</th><th>${escapeHtml(I18n.tr('admin.link.col.supervisor'))}</th><th>${escapeHtml(I18n.tr('admin.link.col.dept'))}</th><th>${escapeHtml(I18n.tr('admin.link.col.actions'))}</th></tr></thead>
           <tbody>${links.map((l, i) => `
             <tr>
               <td>${i + 1}</td>
@@ -353,7 +354,7 @@
               <td>${escapeHtml(l.supervisorName)}</td>
               <td>${l.supervisorDepartment ? escapeHtml(l.supervisorDepartment) : '—'}</td>
               <td>
-                <button class="btn btn-danger" style="padding:4px 10px;font-size:12px;" onclick="deleteLink(${l.id})">Delete</button>
+                <button class="btn btn-danger" style="padding:4px 10px;font-size:12px;" onclick="deleteLink(${l.id})">${escapeHtml(I18n.tr('common.delete'))}</button>
               </td>
             </tr>
           `).join('')}</tbody>
@@ -365,7 +366,7 @@
 
   // Expose deleteLink globally
   window.deleteLink = async function(id) {
-    if (!confirm('Remove this link?')) return;
+    if (!confirm(I18n.tr('admin.link.confirmDelete'))) return;
     try {
       await Api.delete(`/api/admin/deputy-supervisor-links/${id}`);
       loadLinks();
@@ -383,18 +384,18 @@
     const deputyOptions = deputies.map(d => `<option value="${d.id}">${escapeHtml(d.fullName)}</option>`).join('');
     const supervisorOptions = supervisors.map(s => `<option value="${s.id}">${escapeHtml(s.fullName)} (${s.departmentName || '—'})</option>`).join('');
 
-    showModal('Add Deputy–Supervisor Link', `
+    showModal(I18n.tr('admin.link.modal.add'), `
       <div class="form-group">
-        <label class="form-label">Deputy</label>
+        <label class="form-label">${escapeHtml(I18n.tr('admin.link.form.deputy'))}</label>
         <select class="form-select" id="linkDeputy">
-          <option value="">— Select Deputy —</option>
+          <option value="">${escapeHtml(I18n.tr('admin.link.form.selectDeputy'))}</option>
           ${deputyOptions}
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Supervisor</label>
+        <label class="form-label">${escapeHtml(I18n.tr('admin.link.form.supervisor'))}</label>
         <select class="form-select" id="linkSupervisor">
-          <option value="">— Select Supervisor —</option>
+          <option value="">${escapeHtml(I18n.tr('admin.link.form.selectSupervisor'))}</option>
           ${supervisorOptions}
         </select>
       </div>
@@ -415,40 +416,48 @@
     try {
       const data = await Api.get('/api/admin/department-hierarchy');
       if (data.length === 0) {
-        document.getElementById('hierarchyList').innerHTML = '<div class="empty-state"><p>No departments with assigned users</p></div>';
+        document.getElementById('hierarchyList').innerHTML = `<div class="empty-state"><p>${escapeHtml(I18n.tr('admin.hier.empty'))}</p></div>`;
         return;
       }
+      const lblDeputy = escapeHtml(I18n.tr('admin.hier.deputy'));
+      const lblNoDeputy = escapeHtml(I18n.tr('admin.hier.noDeputy'));
+      const lblSupervisors = escapeHtml(I18n.tr('admin.hier.supervisors'));
+      const lblSuperCollabs = escapeHtml(I18n.tr('admin.hier.superCollabs'));
+      const lblCollabs = escapeHtml(I18n.tr('admin.hier.collaborators'));
+      const lblNone = escapeHtml(I18n.tr('admin.hier.none'));
+      const lblAgency = escapeHtml(I18n.tr('admin.dept.type.agency'));
+
       document.getElementById('hierarchyList').innerHTML = data.map(dept => {
         const deputyBadges = dept.deputies.length > 0
           ? dept.deputies.map(d => `<span class="pill pill-purple" style="font-size:11px;">${escapeHtml(d)}</span>`).join(' ')
-          : '<span style="color:var(--text-muted);font-size:12px;">No deputy linked</span>';
+          : `<span style="color:var(--text-muted);font-size:12px;">${lblNoDeputy}</span>`;
 
         const renderUsers = (users, pillClass) => users.length > 0
           ? users.map(u => `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;">
               <span class="pill ${pillClass}" style="font-size:11px;">${escapeHtml(u.fullName)}</span>
               <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(u.email)}</span>
             </div>`).join('')
-          : '<span style="color:var(--text-muted);font-size:12px;padding-left:4px;">— None —</span>';
+          : `<span style="color:var(--text-muted);font-size:12px;padding-left:4px;">${lblNone}</span>`;
 
         return `<div class="dept-hierarchy-card" style="border:1px solid var(--border-color);border-radius:12px;padding:18px 20px;margin-bottom:14px;background:var(--bg-card);">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
             <h4 style="margin:0;font-size:0.95rem;">${escapeHtml(dept.departmentNameEn || dept.departmentName)}</h4>
-            ${dept.isExternal ? '<span class="pill pill-yellow" style="font-size:11px;">Agency</span>' : ''}
+            ${dept.isExternal ? `<span class="pill pill-yellow" style="font-size:11px;">${lblAgency}</span>` : ''}
           </div>
           <div style="margin-bottom:10px;">
-            <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Deputy</div>
+            <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">${lblDeputy}</div>
             <div style="padding-left:4px;">${deputyBadges}</div>
           </div>
           <div style="margin-bottom:10px;">
-            <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Supervisors</div>
+            <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">${lblSupervisors}</div>
             ${renderUsers(dept.supervisors, 'pill-blue')}
           </div>
           <div style="margin-bottom:10px;">
-            <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Super-Collaborators</div>
+            <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">${lblSuperCollabs}</div>
             ${renderUsers(dept.superCollaborators, 'pill-green')}
           </div>
           <div>
-            <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Collaborators</div>
+            <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">${lblCollabs}</div>
             ${renderUsers(dept.collaborators, 'pill-blue')}
           </div>
         </div>`;
@@ -528,11 +537,11 @@
     async function submitClientSide() {
       const fileInput = form.querySelector('input[type="file"]');
       const file = fileInput && fileInput.files && fileInput.files[0];
-      if (!file) throw new Error('Please choose a file');
+      if (!file) throw new Error(I18n.tr('admin.upload.errChooseFile'));
       if (typeof XLSX === 'undefined') {
-        throw new Error('Spreadsheet parser not loaded — check your connection');
+        throw new Error(I18n.tr('admin.upload.errParser'));
       }
-      feedback.textContent = labels.parsing || 'Parsing file…';
+      feedback.textContent = labels.parsing || I18n.tr('admin.upload.parsing');
       // Yield to the browser so the "Parsing…" label actually renders
       // before the synchronous XLSX.read blocks the main thread.
       await new Promise((r) => setTimeout(r, 30));
@@ -591,7 +600,7 @@
       sheetStubs: false,
     });
     const sheet = wb.Sheets[wb.SheetNames[0]];
-    if (!sheet) throw new Error('Workbook has no sheets');
+    if (!sheet) throw new Error(I18n.tr('admin.upload.errNoSheet'));
     const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:A1');
     const FIRST_DATA_ROW = 4; // matches the server parser: skip title+header rows
     const COL_S = 18;
@@ -638,7 +647,7 @@
     }
 
     if (!Object.keys(counts).length) {
-      throw new Error('No active companies with foreign capital found in the file');
+      throw new Error(I18n.tr('admin.upload.errNoActive'));
     }
     return { activeCount, countries: counts };
   }
@@ -647,12 +656,12 @@
     panelId: 'panel-fdi-sectors',
     endpoint: '/api/statistics/fdi-sectors',
     labels: {
-      current: 'Current',
-      countries: 'countries',
-      noFile: 'No file uploaded yet',
-      uploading: 'Uploading…',
-      success: 'Uploaded successfully',
-      failure: 'Upload failed',
+      current: I18n.tr('admin.upload.current'),
+      countries: I18n.tr('admin.upload.countries'),
+      noFile: I18n.tr('admin.upload.noFile'),
+      uploading: I18n.tr('admin.upload.uploading'),
+      success: I18n.tr('admin.upload.success'),
+      failure: I18n.tr('admin.upload.failure'),
     },
   });
 
@@ -662,13 +671,13 @@
     clientParse: parseCompaniesFile,
     clientPostPath: '/data',
     labels: {
-      current: 'Current',
-      countries: 'countries',
-      noFile: 'No file uploaded yet',
-      parsing: 'Parsing file in your browser…',
-      uploading: 'Uploading summary…',
-      success: 'Uploaded successfully',
-      failure: 'Upload failed',
+      current: I18n.tr('admin.upload.current'),
+      countries: I18n.tr('admin.upload.countries'),
+      noFile: I18n.tr('admin.upload.noFile'),
+      parsing: I18n.tr('admin.upload.parsing'),
+      uploading: I18n.tr('admin.upload.uploadingSummary'),
+      success: I18n.tr('admin.upload.success'),
+      failure: I18n.tr('admin.upload.failure'),
     },
   });
 })();

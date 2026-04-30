@@ -85,8 +85,7 @@ function statusClass(status) {
 
 function languageLabel(code) {
   const fallback = {
-    EN: 'English', FR: 'Français', AR: 'العربية', ES: 'Español',
-    RU: 'Русский', ZH: '中文', PT: 'Português', DE: 'Deutsch', KA: 'ქართული',
+    EN: 'English', RU: 'Русский', KA: 'ქართული',
   }[code];
   return _i18n(`lang.${code || ''}`, fallback || code);
 }
