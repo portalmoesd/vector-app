@@ -22,27 +22,94 @@
     return btoa(binary);
   }
 
+  // Arial covers Latin/digits/Cyrillic universally but has zero Georgian
+  // glyphs; Sylfaen is Microsoft's classic Georgian companion (84/96
+  // Mkhedruli). We embed both in every PDF so recipients on any OS see
+  // identical output. Sylfaen Bold isn't bundled — Sylfaen Regular is
+  // registered for both weights, mirroring how the previous FiraGO setup
+  // mapped italics/bolditalics to Regular.
   async function ensureFonts() {
     if (fontsPromise) return fontsPromise;
     fontsPromise = (async () => {
-      const [reg, bold] = await Promise.all([
-        fetch('/fonts/FiraGO-Regular.ttf').then(r => r.arrayBuffer()),
-        fetch('/fonts/FiraGO-Bold.ttf').then(r => r.arrayBuffer()),
+      const [arialReg, arialBold, sylfaen] = await Promise.all([
+        fetch('/fonts/Arial-Regular.ttf').then(r => r.arrayBuffer()),
+        fetch('/fonts/Arial-Bold.ttf').then(r => r.arrayBuffer()),
+        fetch('/fonts/Sylfaen.ttf').then(r => r.arrayBuffer()),
       ]);
       pdfMake.vfs = Object.assign({}, pdfMake.vfs || {}, {
-        'FiraGO-Regular.ttf': abToB64(reg),
-        'FiraGO-Bold.ttf': abToB64(bold),
+        'Arial-Regular.ttf': abToB64(arialReg),
+        'Arial-Bold.ttf': abToB64(arialBold),
+        'Sylfaen.ttf': abToB64(sylfaen),
       });
       pdfMake.fonts = {
-        FiraGO: {
-          normal: 'FiraGO-Regular.ttf',
-          bold: 'FiraGO-Bold.ttf',
-          italics: 'FiraGO-Regular.ttf',
-          bolditalics: 'FiraGO-Bold.ttf',
+        Arial: {
+          normal: 'Arial-Regular.ttf',
+          bold: 'Arial-Bold.ttf',
+          italics: 'Arial-Regular.ttf',
+          bolditalics: 'Arial-Bold.ttf',
+        },
+        Sylfaen: {
+          normal: 'Sylfaen.ttf',
+          bold: 'Sylfaen.ttf',
+          italics: 'Sylfaen.ttf',
+          bolditalics: 'Sylfaen.ttf',
         },
       };
     })();
     return fontsPromise;
+  }
+
+  // Walk a pdfmake docDefinition tree and replace every leaf string
+  // appearing in a `text:` property with an array of per-script runs
+  // ({ text, font }). This lets pdfmake emit Latin segments via Arial
+  // and Georgian segments via Sylfaen without rewriting every emitter
+  // call site. Non-leaf properties (table cells, columns, stack, etc.)
+  // recurse normally; numbers/booleans/null are left untouched.
+  function applyScriptFonts(node) {
+    if (node == null || typeof node !== 'object') return node;
+    if (Array.isArray(node)) {
+      for (let i = 0; i < node.length; i++) node[i] = applyScriptFonts(node[i]);
+      return node;
+    }
+    for (const k of Object.keys(node)) {
+      const v = node[k];
+      if (k === 'text') {
+        node[k] = scriptifyTextValue(v);
+      } else if (v && typeof v === 'object') {
+        applyScriptFonts(v);
+      }
+    }
+    return node;
+  }
+
+  function scriptifyTextValue(value) {
+    if (typeof value === 'string') {
+      if (!window.FontUtils.hasGeorgian(value)) return value;
+      return window.FontUtils.splitByScript(value).map(seg => ({ text: seg.text, font: seg.font }));
+    }
+    if (Array.isArray(value)) {
+      const flat = [];
+      for (const item of value) {
+        if (typeof item === 'string') {
+          if (!window.FontUtils.hasGeorgian(item)) {
+            flat.push(item);
+          } else {
+            for (const seg of window.FontUtils.splitByScript(item)) {
+              flat.push({ text: seg.text, font: seg.font });
+            }
+          }
+        } else if (item && typeof item === 'object') {
+          flat.push(applyScriptFonts(item));
+        } else {
+          flat.push(item);
+        }
+      }
+      return flat;
+    }
+    if (value && typeof value === 'object') {
+      return applyScriptFonts(value);
+    }
+    return value;
   }
 
   // ── Labels ──────────────────────────────────────────────────────────────
@@ -1379,7 +1446,7 @@
       pageOrientation: 'portrait',
       pageMargins: [32, 46, 32, 40],
       defaultStyle: {
-        font: 'FiraGO',
+        font: 'Arial',
         fontSize: 9.5,
         lineHeight: 1.25,
         color: '#1f2937',
@@ -1422,6 +1489,7 @@
     }
     await ensureFonts();
     const docDef = buildDocDefinition(state, opts);
+    applyScriptFonts(docDef);
     const safeCountry = (opts.country || 'report').replace(/[^a-zA-Z0-9\u10A0-\u10FF]/g, '_');
     const filename = `${safeCountry}_statistics_${opts.lang}.pdf`;
     pdfMake.createPdf(docDef).download(filename);
