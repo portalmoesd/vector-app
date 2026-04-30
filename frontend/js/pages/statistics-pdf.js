@@ -82,6 +82,14 @@
     return node;
   }
 
+  // Eager script-split helper for content emitted lazily (e.g. pdfmake
+  // header/footer functions, which run after applyScriptFonts has already
+  // walked the doc tree). Returns an array suitable for pdfmake's
+  // `text: [...]` form.
+  function splitText(s) {
+    return window.FontUtils.splitByScript(s).map(seg => ({ text: seg.text, font: seg.font }));
+  }
+
   function scriptifyTextValue(value) {
     if (typeof value === 'string') {
       if (!window.FontUtils.hasGeorgian(value)) return value;
@@ -232,13 +240,13 @@
   function gePeriodGen(year, latestMonth) {
     if (latestMonth === 12) return `${year} წლის`;
     if (latestMonth === 1)  return `${year} წლის ${KA_MONTHS[1].gen}`;
-    return `${year} წლის ${KA_MONTHS[1].stem}\u2011${KA_MONTHS[latestMonth].gen}`;
+    return `${year} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].gen}`;
   }
 
   function gePeriodLoc(year, latestMonth) {
     if (latestMonth === 12) return `${year} წელს`;
     if (latestMonth === 1)  return `${year} წლის ${KA_MONTHS[1].loc}`;
-    return `${year} წლის ${KA_MONTHS[1].stem}\u2011${KA_MONTHS[latestMonth].loc}`;
+    return `${year} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].loc}`;
   }
 
   const EN_MONTHS = { 1:'Jan', 2:'Feb', 3:'Mar', 4:'Apr', 5:'May', 6:'Jun', 7:'Jul', 8:'Aug', 9:'Sep', 10:'Oct', 11:'Nov', 12:'Dec' };
@@ -267,7 +275,7 @@
     const years = `${startYear}-${endYear}`;
     if (latestMonth === 12) return `${years} წლების`;
     if (latestMonth === 1)  return `${years} წლის ${KA_MONTHS[1].gen}`;
-    return `${years} წლის ${KA_MONTHS[1].stem}\u2011${KA_MONTHS[latestMonth].gen}`;
+    return `${years} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].gen}`;
   }
   function enPeriodRange(startYear, endYear, latestMonth) {
     const years = `${startYear}-${endYear}`;
@@ -1461,17 +1469,21 @@
       // sits inside an `unbreakable: true` stack alongside its first
       // content block, so pdfmake moves them as one unit if the current
       // page can't fit them.
+      // pdfmake calls header/footer per-page after createPdf, so the
+      // applyScriptFonts walker can't reach the returned content. Inline
+      // splitText here so Georgian text in the country name and the
+      // "{generated}: …" / "{page} N {of} M" labels routes to Sylfaen.
       header: function (currentPage) {
         return {
           columns: [
-            { text: country, fontSize: 8.5, color: '#94a3b8', margin: [32, 18, 0, 0] },
-            { text: `${t.generated}: ${dateStr}`, fontSize: 8.5, color: '#94a3b8', alignment: 'right', margin: [0, 18, 32, 0] },
+            { text: splitText(country), fontSize: 8.5, color: '#94a3b8', margin: [32, 18, 0, 0] },
+            { text: splitText(`${t.generated}: ${dateStr}`), fontSize: 8.5, color: '#94a3b8', alignment: 'right', margin: [0, 18, 32, 0] },
           ],
         };
       },
       footer: function (currentPage, pageCount) {
         return {
-          text: `${t.page} ${currentPage} ${t.of} ${pageCount}`,
+          text: splitText(`${t.page} ${currentPage} ${t.of} ${pageCount}`),
           alignment: 'center',
           fontSize: 8,
           color: '#94a3b8',
