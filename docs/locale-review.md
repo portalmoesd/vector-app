@@ -190,3 +190,121 @@ Side-by-side draft of every UI string. Use the Notes column to flag corrections;
 | `statistics.investmentsTab` | Investments | ინვესტიციები |  |
 | `statistics.companiesTab` | Companies | კომპანიები |  |
 | `statistics.appendixTab` | Appendix | დანართი |  |
+
+## Admin Panel
+
+| Key | English | Georgian | Notes |
+| --- | --- | --- | --- |
+| `admin.tabs.departments` | Departments | დეპარტამენტები |  |
+| `admin.tabs.users` | Users | მომხმარებლები |  |
+| `admin.tabs.links` | Deputy–Supervisor Links | მოადგილე–ზედამხედველის კავშირები |  |
+| `admin.tabs.hierarchy` | Department Hierarchy | დეპარტამენტის იერარქია |  |
+| `admin.tabs.uploads` | Data Uploads | მონაცემთა ატვირთვა |  |
+| `admin.dept.title` | Departments | დეპარტამენტები |  |
+| `admin.dept.add` | + Add Department | + დეპარტამენტის დამატება |  |
+| `admin.dept.empty` | No departments yet | დეპარტამენტები ჯერ არ არის |  |
+| `admin.dept.col.nameKa` | Name (KA) | სახელი (KA) |  |
+| `admin.dept.col.nameEn` | Name (EN) | სახელი (EN) |  |
+| `admin.dept.col.type` | Type | ტიპი |  |
+| `admin.dept.type.agency` | Agency | უწყება |  |
+| `admin.dept.type.department` | Department | დეპარტამენტი |  |
+| `admin.dept.modal.add` | Add Department | დეპარტამენტის დამატება |  |
+| `admin.dept.form.name` | Name | სახელი |  |
+| `admin.dept.form.external` | External organization | გარე ორგანიზაცია |  |
+| `admin.user.title` | Users | მომხმარებლები |  |
+| `admin.user.add` | + Add User | + მომხმარებლის დამატება |  |
+| `admin.user.empty` | No users yet | მომხმარებლები ჯერ არ არის |  |
+| `admin.user.col.name` | Name | სახელი |  |
+| `admin.user.col.username` | Username | მომხმარებელი |  |
+| `admin.user.col.role` | Role | როლი |  |
+| `admin.user.col.dept` | Department | დეპარტამენტი |  |
+| `admin.user.col.external` | External | გარე |  |
+| `admin.user.col.actions` | Actions | მოქმედებები |  |
+| `admin.user.modal.add` | Add User | მომხმარებლის დამატება |  |
+| `admin.user.modal.edit` | Edit User — | მომხმარებლის რედაქტირება — |  |
+| `admin.user.form.fullName` | Full Name | სრული სახელი |  |
+| `admin.user.form.username` | Username | მომხმარებელი |  |
+| `admin.user.form.email` | Email | ელ. ფოსტა |  |
+| `admin.user.form.password` | Password | პაროლი |  |
+| `admin.user.form.passwordEdit` | New Password (leave blank to keep current) | ახალი პაროლი (ცარიელი ტოვებთ — დაუტოვოთ ძველი) |  |
+| `admin.user.form.role` | Role | როლი |  |
+| `admin.user.form.dept` | Department | დეპარტამენტი |  |
+| `admin.user.form.deptNone` | — None — | — არცერთი — |  |
+| `admin.user.form.external` | External user | გარე მომხმარებელი |  |
+| `admin.user.form.countries` | Country Assignments | ქვეყნების მინიჭება |  |
+| `admin.link.title` | Deputy–Supervisor Links | მოადგილე–ზედამხედველის კავშირები |  |
+| `admin.link.add` | + Add Link | + კავშირის დამატება |  |
+| `admin.link.empty` | No links defined yet | კავშირები ჯერ არ არის განსაზღვრული |  |
+| `admin.link.col.deputy` | Deputy | მოადგილე |  |
+| `admin.link.col.supervisor` | Supervisor | ზედამხედველი |  |
+| `admin.link.col.dept` | Department | დეპარტამენტი |  |
+| `admin.link.col.actions` | Actions | მოქმედებები |  |
+| `admin.link.confirmDelete` | Remove this link? | წავშალოთ ეს კავშირი? |  |
+| `admin.link.modal.add` | Add Deputy–Supervisor Link | მოადგილე–ზედამხედველის კავშირის დამატება |  |
+| `admin.link.form.deputy` | Deputy | მოადგილე |  |
+| `admin.link.form.supervisor` | Supervisor | ზედამხედველი |  |
+| `admin.link.form.selectDeputy` | — Select Deputy — | — აირჩიეთ მოადგილე — |  |
+| `admin.link.form.selectSupervisor` | — Select Supervisor — | — აირჩიეთ ზედამხედველი — |  |
+| `admin.hier.title` | Department Hierarchy | დეპარტამენტის იერარქია |  |
+| `admin.hier.desc` | Shows how Supervisors, Super-Collaborators, and Collaborators are grouped within each department. | აჩვენებს, თუ როგორ არიან ზედამხედველები, სუპერ-კოლაბორატორები და კოლაბორატორები დაჯგუფებული თითოეულ დეპარტამენტში. |  |
+| `admin.hier.empty` | No departments with assigned users | არ არის დეპარტამენტები მინიჭებული მომხმარებლებით |  |
+| `admin.hier.deputy` | Deputy | მოადგილე |  |
+| `admin.hier.noDeputy` | No deputy linked | მოადგილე არ არის მიბმული |  |
+| `admin.hier.supervisors` | Supervisors | ზედამხედველები |  |
+| `admin.hier.superCollabs` | Super-Collaborators | სუპერ-კოლაბორატორები |  |
+| `admin.hier.collaborators` | Collaborators | კოლაბორატორები |  |
+| `admin.hier.none` | — None — | — არცერთი — |  |
+| `admin.upload.fdiTitle` | FDI Sectors | FDI სექტორები |  |
+| `admin.upload.fdiDesc` | Upload the Georgian FDI-by-country-by-sector XLSX file. The file must have a header row with "ქვეყნის კოდი" in column A, then one block per country (code, name, "სულ" row, sector sub-rows). | ატვირთეთ ქართული FDI-ქვეყანა-სექტორების XLSX ფაილი. ფაილს უნდა ჰქონდეს სათაურის ხაზი "ქვეყნის კოდი" A სვეტში, შემდეგ თითო ბლოკი ქვეყანაზე (კოდი, სახელი, "სულ" ხაზი, სექტორის ქვე-ხაზები). |  |
+| `admin.upload.companiesTitle` | Companies | კომპანიები |  |
+| `admin.upload.companiesDesc` | Upload the active-companies XLSX file. Column S contains the active flag (blank = inactive), column V lists the capital-origin countries separated by " / ". The file is parsed in your browser; only the small aggregated summary is sent to the server. | ატვირთეთ აქტიური კომპანიების XLSX ფაილი. S სვეტი შეიცავს აქტიურობის ნიშანს (ცარიელი = არააქტიური), V სვეტი ჩამოთვლის კაპიტალის წარმოშობის ქვეყნებს, გამოყოფილს " / "-ით. ფაილი იპარსება თქვენი ბრაუზერის მიერ; სერვერს მიეწოდება მხოლოდ მცირე აგრეგირებული შეჯამება. |  |
+| `admin.upload.btn` | Upload | ატვირთვა |  |
+| `admin.upload.loading` | Loading… | იტვირთება… |  |
+| `admin.upload.current` | Current | მიმდინარე |  |
+| `admin.upload.countries` | countries | ქვეყანა |  |
+| `admin.upload.noFile` | No file uploaded yet | ფაილი ჯერ არ არის ატვირთული |  |
+| `admin.upload.uploading` | Uploading… | იტვირთება… |  |
+| `admin.upload.parsing` | Parsing file in your browser… | ფაილის დამუშავება ბრაუზერში… |  |
+| `admin.upload.uploadingSummary` | Uploading summary… | შეჯამების ატვირთვა… |  |
+| `admin.upload.success` | Uploaded successfully | წარმატებით აიტვირთა |  |
+| `admin.upload.failure` | Upload failed | ატვირთვა ვერ მოხერხდა |  |
+| `admin.upload.errChooseFile` | Please choose a file | გთხოვთ აირჩიოთ ფაილი |  |
+| `admin.upload.errParser` | Spreadsheet parser not loaded — check your connection | ცხრილების დამუშავება ვერ ჩაიტვირთა — შეამოწმეთ კავშირი |  |
+| `admin.upload.errNoSheet` | Workbook has no sheets | ფაილში ცხრილი არ არის |  |
+| `admin.upload.errNoActive` | No active companies with foreign capital found in the file | ფაილში აქტიური კომპანიები უცხოური კაპიტალით ვერ მოიძებნა |  |
+
+## Library
+
+| Key | English | Georgian | Notes |
+| --- | --- | --- | --- |
+| `library.filter.search` | Search | ძებნა |  |
+| `library.filter.searchPlaceholder` | Title... | სათაური... |  |
+| `library.filter.country` | Country | ქვეყანა |  |
+| `library.empty` | No documents found | დოკუმენტები ვერ მოიძებნა |  |
+| `library.meta.language` | Language: | ენა: |  |
+| `library.meta.ds` | DS: | DS: |  |
+| `library.meta.completed` | Completed: | დასრულდა: |  |
+| `library.btn.preview` | Preview | ნახვა |  |
+| `library.btn.pdf` | PDF | PDF |  |
+| `library.btn.word` | Word | Word |  |
+| `library.btn.files` | Files | ფაილები |  |
+| `library.btn.edit` | Edit | რედაქტირება |  |
+| `library.editTooltip` | Reopen this document for editing — it will leave the Library until you re-publish. | გახსენით დოკუმენტი რედაქტირებისთვის — ბიბლიოთეკიდან ის ამოვა, ვიდრე თავიდან არ გამოაქვეყნებთ. |  |
+| `library.sectionSelect.selectAll` | Select all | ყველას არჩევა |  |
+| `library.sectionSelect.warnEmpty` | Select at least one section. | აირჩიეთ მინიმუმ ერთი სექცია. |  |
+| `library.export.pdfTitle` | Export PDF | PDF ექსპორტი |  |
+| `library.export.wordTitle` | Export Word | Word ექსპორტი |  |
+| `library.export.fail` | Export failed: | ექსპორტი ვერ მოხერხდა: |  |
+| `library.export.wordFail` | Word export failed: | Word ექსპორტი ვერ მოხერხდა: |  |
+| `library.preview.failLoad` | Failed to load document: | დოკუმენტი ვერ ჩაიტვირთა: |  |
+| `library.files.title` | Uploaded Files | ატვირთული ფაილები |  |
+| `library.files.empty` | No files uploaded for this event. | ამ ღონისძიებაზე ფაილები არ არის ატვირთული. |  |
+| `library.files.col.file` | File | ფაილი |  |
+| `library.files.col.section` | Section | სექცია |  |
+| `library.files.col.uploaded` | Uploaded | ატვირთული |  |
+| `library.files.col.by` | By | ვისი მიერ |  |
+| `library.files.col.size` | Size | ზომა |  |
+| `library.files.failLoad` | Failed to load files: | ფაილები ვერ ჩაიტვირთა: |  |
+| `library.reopen.confirm` | Reopen this document for editing? It will leave the Library until you re-publish. | გავხსნათ ეს დოკუმენტი რედაქტირებისთვის? ბიბლიოთეკიდან ის ამოვა, ვიდრე თავიდან არ გამოაქვეყნებთ. |  |
+| `library.reopen.fail` | Failed to reopen: | გახსნა ვერ მოხერხდა: |  |
+| `library.reopen.unknownError` | Unknown error | უცნობი შეცდომა |  |

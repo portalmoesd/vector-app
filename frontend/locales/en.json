@@ -174,5 +174,167 @@
       "view": "View",
       "end": "End"
     }
+  },
+  "admin": {
+    "tabs": {
+      "departments": "Departments",
+      "users": "Users",
+      "links": "Deputy–Supervisor Links",
+      "hierarchy": "Department Hierarchy",
+      "uploads": "Data Uploads"
+    },
+    "dept": {
+      "title": "Departments",
+      "add": "+ Add Department",
+      "empty": "No departments yet",
+      "col": {
+        "nameKa": "Name (KA)",
+        "nameEn": "Name (EN)",
+        "type": "Type"
+      },
+      "type": {
+        "agency": "Agency",
+        "department": "Department"
+      },
+      "modal": {
+        "add": "Add Department"
+      },
+      "form": {
+        "name": "Name",
+        "external": "External organization"
+      }
+    },
+    "user": {
+      "title": "Users",
+      "add": "+ Add User",
+      "empty": "No users yet",
+      "col": {
+        "name": "Name",
+        "username": "Username",
+        "role": "Role",
+        "dept": "Department",
+        "external": "External",
+        "actions": "Actions"
+      },
+      "modal": {
+        "add": "Add User",
+        "edit": "Edit User —"
+      },
+      "form": {
+        "fullName": "Full Name",
+        "username": "Username",
+        "email": "Email",
+        "password": "Password",
+        "passwordEdit": "New Password (leave blank to keep current)",
+        "role": "Role",
+        "dept": "Department",
+        "deptNone": "— None —",
+        "external": "External user",
+        "countries": "Country Assignments"
+      }
+    },
+    "link": {
+      "title": "Deputy–Supervisor Links",
+      "add": "+ Add Link",
+      "empty": "No links defined yet",
+      "col": {
+        "deputy": "Deputy",
+        "supervisor": "Supervisor",
+        "dept": "Department",
+        "actions": "Actions"
+      },
+      "confirmDelete": "Remove this link?",
+      "modal": {
+        "add": "Add Deputy–Supervisor Link"
+      },
+      "form": {
+        "deputy": "Deputy",
+        "supervisor": "Supervisor",
+        "selectDeputy": "— Select Deputy —",
+        "selectSupervisor": "— Select Supervisor —"
+      }
+    },
+    "hier": {
+      "title": "Department Hierarchy",
+      "desc": "Shows how Supervisors, Super-Collaborators, and Collaborators are grouped within each department.",
+      "empty": "No departments with assigned users",
+      "deputy": "Deputy",
+      "noDeputy": "No deputy linked",
+      "supervisors": "Supervisors",
+      "superCollabs": "Super-Collaborators",
+      "collaborators": "Collaborators",
+      "none": "— None —"
+    },
+    "upload": {
+      "fdiTitle": "FDI Sectors",
+      "fdiDesc": "Upload the Georgian FDI-by-country-by-sector XLSX file. The file must have a header row with \"ქვეყნის კოდი\" in column A, then one block per country (code, name, \"სულ\" row, sector sub-rows).",
+      "companiesTitle": "Companies",
+      "companiesDesc": "Upload the active-companies XLSX file. Column S contains the active flag (blank = inactive), column V lists the capital-origin countries separated by \" / \". The file is parsed in your browser; only the small aggregated summary is sent to the server.",
+      "btn": "Upload",
+      "loading": "Loading…",
+      "current": "Current",
+      "countries": "countries",
+      "noFile": "No file uploaded yet",
+      "uploading": "Uploading…",
+      "parsing": "Parsing file in your browser…",
+      "uploadingSummary": "Uploading summary…",
+      "success": "Uploaded successfully",
+      "failure": "Upload failed",
+      "errChooseFile": "Please choose a file",
+      "errParser": "Spreadsheet parser not loaded — check your connection",
+      "errNoSheet": "Workbook has no sheets",
+      "errNoActive": "No active companies with foreign capital found in the file"
+    }
+  },
+  "library": {
+    "filter": {
+      "search": "Search",
+      "searchPlaceholder": "Title...",
+      "country": "Country"
+    },
+    "empty": "No documents found",
+    "meta": {
+      "language": "Language:",
+      "ds": "DS:",
+      "completed": "Completed:"
+    },
+    "btn": {
+      "preview": "Preview",
+      "pdf": "PDF",
+      "word": "Word",
+      "files": "Files",
+      "edit": "Edit"
+    },
+    "editTooltip": "Reopen this document for editing — it will leave the Library until you re-publish.",
+    "sectionSelect": {
+      "selectAll": "Select all",
+      "warnEmpty": "Select at least one section."
+    },
+    "export": {
+      "pdfTitle": "Export PDF",
+      "wordTitle": "Export Word",
+      "fail": "Export failed:",
+      "wordFail": "Word export failed:"
+    },
+    "preview": {
+      "failLoad": "Failed to load document:"
+    },
+    "files": {
+      "title": "Uploaded Files",
+      "empty": "No files uploaded for this event.",
+      "col": {
+        "file": "File",
+        "section": "Section",
+        "uploaded": "Uploaded",
+        "by": "By",
+        "size": "Size"
+      },
+      "failLoad": "Failed to load files:"
+    },
+    "reopen": {
+      "confirm": "Reopen this document for editing? It will leave the Library until you re-publish.",
+      "fail": "Failed to reopen:",
+      "unknownError": "Unknown error"
+    }
   }
 }
