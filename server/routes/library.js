@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, denyAnalyst } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -109,7 +109,7 @@ router.get('/:eventId/files', requireAuth, async (req, res) => {
 // back to IN_PROGRESS so the Document Submitter can pull sections, edit,
 // and re-publish. Mirrors workflow.js's /send-to-library guards but in
 // reverse: requires status === 'COMPLETED' and only the DS may invoke.
-router.post('/:eventId/reopen', requireAuth, async (req, res) => {
+router.post('/:eventId/reopen', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const eventId = req.params.eventId;
 

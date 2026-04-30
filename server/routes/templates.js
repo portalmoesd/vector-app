@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, denyAnalyst } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -59,7 +59,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // POST /api/templates — create template
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const { name, documentSubmitterRole, curatorRequired, sections } = req.body;
     if (!name) {
@@ -112,7 +112,7 @@ router.post('/', requireAuth, async (req, res) => {
 });
 
 // DELETE /api/templates/:id — delete own template (not default)
-router.delete('/:id', requireAuth, async (req, res) => {
+router.delete('/:id', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const result = await db.query(
       'DELETE FROM event_templates WHERE id = $1 AND created_by_id = $2 AND is_default = false',

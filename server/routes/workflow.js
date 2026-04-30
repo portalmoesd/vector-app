@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, denyAnalyst } = require('../middleware/auth');
 const { ROLES } = require('../helpers/roles');
 const {
   STATUS,
@@ -167,7 +167,7 @@ async function effectiveRole(user, event, sectionDeptIds, chain) {
 
 // ─── POST /api/workflow/save ──────────────────────────────────────────────────
 
-router.post('/save', requireAuth, async (req, res) => {
+router.post('/save', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const { eventId, sectionId, htmlContent } = req.body;
     if (!eventId || !sectionId) {
@@ -217,7 +217,7 @@ router.post('/save', requireAuth, async (req, res) => {
 
 // ─── POST /api/workflow/submit ────────────────────────────────────────────────
 
-router.post('/submit', requireAuth, async (req, res) => {
+router.post('/submit', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const { eventId, sectionId } = req.body;
     if (!eventId || !sectionId) {
@@ -312,7 +312,7 @@ router.post('/submit', requireAuth, async (req, res) => {
 
 // ─── POST /api/workflow/approve ───────────────────────────────────────────────
 
-router.post('/approve', requireAuth, async (req, res) => {
+router.post('/approve', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const { eventId, sectionId, comment } = req.body;
     if (!eventId || !sectionId) {
@@ -441,7 +441,7 @@ router.post('/approve', requireAuth, async (req, res) => {
 
 // ─── POST /api/workflow/return ────────────────────────────────────────────────
 
-router.post('/return', requireAuth, async (req, res) => {
+router.post('/return', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const { eventId, sectionId, comment } = req.body;
     if (!eventId || !sectionId) {
@@ -519,7 +519,7 @@ router.post('/return', requireAuth, async (req, res) => {
 
 // ─── POST /api/workflow/ask-to-return ─────────────────────────────────────────
 
-router.post('/ask-to-return', requireAuth, async (req, res) => {
+router.post('/ask-to-return', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const { eventId, sectionId, note } = req.body;
     if (!eventId || !sectionId) {
@@ -615,7 +615,7 @@ router.get('/return-requests', requireAuth, async (req, res) => {
 
 // ─── POST /api/workflow/send-to-library ───────────────────────────────────────
 
-router.post('/send-to-library', requireAuth, async (req, res) => {
+router.post('/send-to-library', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const { eventId } = req.body;
     if (!eventId) return res.status(400).json({ error: 'eventId is required' });
@@ -653,7 +653,7 @@ router.post('/send-to-library', requireAuth, async (req, res) => {
 
 // ─── POST /api/workflow/push-section ──────────────────────────────────────────
 
-router.post('/push-section', requireAuth, async (req, res) => {
+router.post('/push-section', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const { eventId, sectionId } = req.body;
     if (!eventId || !sectionId) {
@@ -726,7 +726,7 @@ router.post('/push-section', requireAuth, async (req, res) => {
 });
 
 // ─── POST /api/workflow/pull-section ──────────────────────────────────────────
-router.post('/pull-section', requireAuth, async (req, res) => {
+router.post('/pull-section', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const { eventId, sectionId } = req.body;
     if (!eventId || !sectionId) {

@@ -17,6 +17,17 @@ const App = {
       return;
     }
 
+    // ANALYST is read-only and may only view the Statistics page (plus
+    // change-password). Any other path bounces them back to Statistics.
+    if (user.role === 'ANALYST') {
+      const path = window.location.pathname;
+      const allow = ['/pages/statistics.html', '/pages/change-password.html'];
+      if (!allow.some(p => path.endsWith(p))) {
+        window.location.href = '/pages/statistics.html';
+        return;
+      }
+    }
+
     await I18n.init();
     this.renderSidebar(user);
   },
@@ -53,14 +64,22 @@ const App = {
       return ICO.dashboard;
     }
 
-    const navItems = [
-      { href: dashUrl, label: 'Dashboard', i18n: 'nav.dashboard', match: 'dashboard' },
-      { href: '/pages/calendar.html', label: 'Calendar', i18n: 'nav.calendar', match: 'calendar' },
-      { href: '/pages/library.html', label: 'Library', i18n: 'nav.library', match: 'library' },
-      { href: '/pages/statistics.html', label: 'Statistics', i18n: 'nav.statistics', match: 'statistics' },
-    ];
-    if (user.role === 'ADMIN') {
-      navItems.push({ href: '/pages/admin.html', label: 'Admin Panel', i18n: 'nav.admin', match: 'admin' });
+    let navItems;
+    if (user.role === 'ANALYST') {
+      // ANALYST sees only Statistics — no dashboard/calendar/library/admin.
+      navItems = [
+        { href: '/pages/statistics.html', label: 'Statistics', i18n: 'nav.statistics', match: 'statistics' },
+      ];
+    } else {
+      navItems = [
+        { href: dashUrl, label: 'Dashboard', i18n: 'nav.dashboard', match: 'dashboard' },
+        { href: '/pages/calendar.html', label: 'Calendar', i18n: 'nav.calendar', match: 'calendar' },
+        { href: '/pages/library.html', label: 'Library', i18n: 'nav.library', match: 'library' },
+        { href: '/pages/statistics.html', label: 'Statistics', i18n: 'nav.statistics', match: 'statistics' },
+      ];
+      if (user.role === 'ADMIN') {
+        navItems.push({ href: '/pages/admin.html', label: 'Admin Panel', i18n: 'nav.admin', match: 'admin' });
+      }
     }
 
     const navHtml = navItems.map(it => {

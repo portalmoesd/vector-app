@@ -5,6 +5,10 @@ const ROLES = {
   SUPERVISOR: 'SUPERVISOR',
   SUPER_COLLABORATOR: 'SUPER_COLLABORATOR',
   COLLABORATOR: 'COLLABORATOR',
+  // Read-only role: sees the Statistics page only, can't participate
+  // in workflow / events / library / admin. Intentionally absent from
+  // PIPELINE_ROLES, EVENT_CREATOR_ROLES, EVENT_ENDER_ROLES below.
+  ANALYST: 'ANALYST',
 };
 
 // Roles that participate in the document approval pipeline

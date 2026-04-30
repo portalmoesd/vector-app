@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const db = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, denyAnalyst } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -9,7 +9,7 @@ const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 // POST /api/workflow/files/upload
-router.post('/upload', requireAuth, upload.array('files', 10), async (req, res) => {
+router.post('/upload', requireAuth, denyAnalyst, upload.array('files', 10), async (req, res) => {
   try {
     const { eventId, sectionId } = req.body;
     if (!eventId || !sectionId) {
@@ -88,7 +88,7 @@ router.get('/download', requireAuth, async (req, res) => {
 });
 
 // POST /api/workflow/files/delete
-router.post('/delete', requireAuth, async (req, res) => {
+router.post('/delete', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const { id } = req.body;
     if (!id) return res.status(400).json({ error: 'id is required' });

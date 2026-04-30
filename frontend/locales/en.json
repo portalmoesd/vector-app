@@ -70,6 +70,7 @@
     "SUPERVISOR": "Supervisor",
     "SUPER_COLLABORATOR": "Super-Collaborator",
     "COLLABORATOR": "Collaborator",
+    "ANALYST": "Analyst",
     "CURATOR": "Curator",
     "RECEIVING_SUPER_COLLABORATOR": "Super-Collaborator",
     "RECEIVING_SUPERVISOR": "Supervisor"

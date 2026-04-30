@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, denyAnalyst } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -34,7 +34,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // PATCH /api/sections/:id/label — rename section
-router.patch('/:id/label', requireAuth, async (req, res) => {
+router.patch('/:id/label', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const { title } = req.body;
     if (!title) return res.status(400).json({ error: 'Title is required' });

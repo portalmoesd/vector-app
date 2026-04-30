@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, denyAnalyst } = require('../middleware/auth');
 const { canCreateEvent, canEndEvent, ROLES } = require('../helpers/roles');
 
 const router = express.Router();
@@ -111,7 +111,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // POST /api/events — create event
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, denyAnalyst, async (req, res) => {
   try {
     if (!canCreateEvent(req.user.role)) {
       return res.status(403).json({ error: 'Not authorized to create events' });
@@ -333,7 +333,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 });
 
 // PATCH /api/events/:id — edit event
-router.patch('/:id', requireAuth, async (req, res) => {
+router.patch('/:id', requireAuth, denyAnalyst, async (req, res) => {
   try {
     if (!canCreateEvent(req.user.role)) {
       return res.status(403).json({ error: 'Not authorized to edit events' });
@@ -367,7 +367,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
 });
 
 // POST /api/events/:id/sections — add section to existing event
-router.post('/:id/sections', requireAuth, async (req, res) => {
+router.post('/:id/sections', requireAuth, denyAnalyst, async (req, res) => {
   try {
     if (!canCreateEvent(req.user.role)) {
       return res.status(403).json({ error: 'Not authorized' });
@@ -421,7 +421,7 @@ router.post('/:id/sections', requireAuth, async (req, res) => {
 });
 
 // POST /api/events/:id/end — end an event
-router.post('/:id/end', requireAuth, async (req, res) => {
+router.post('/:id/end', requireAuth, denyAnalyst, async (req, res) => {
   try {
     if (!canEndEvent(req.user.role)) {
       return res.status(403).json({ error: 'Not authorized to end events' });
