@@ -65,7 +65,7 @@ Mark anything you want corrected in the **Notes** column (or paste the corrected
 | `common.all` | All | ყველა |  |
 | `common.actions` | Actions | მოქმედებები |  |
 | `common.submit` | Submit | გაგზავნა |  |
-| `common.approve` | Approve | დამტკიცება |  |
+| `common.approve` | Approve | დადასტურება |  |
 | `common.return` | Return | დაბრუნება |  |
 
 ## Roles  (`roles.*`)
@@ -89,22 +89,22 @@ Mark anything you want corrected in the **Notes** column (or paste the corrected
 | `status.draft` | Draft | პროექტი |  |
 | `status.submitted_to_super_collaborator` | At Super-Collaborator | სუპერ-კოლაბორატორთან |  |
 | `status.returned_by_super_collaborator` | Returned by Super-Collaborator | დაბრუნებული სუპერ-კოლაბორატორის მიერ |  |
-| `status.approved_by_super_collaborator` | Approved (Super-Collaborator) | დამტკიცებული (სუპერ-კოლაბორატორი) |  |
+| `status.approved_by_super_collaborator` | Approved (Super-Collaborator) | დადასტურებული (სუპერ-კოლაბორატორი) |  |
 | `status.submitted_to_curator` | At Curator | კურატორთან |  |
 | `status.returned_by_curator` | Returned by Curator | დაბრუნებული კურატორის მიერ |  |
-| `status.approved_by_curator` | Approved (Curator) | დამტკიცებული (კურატორი) |  |
+| `status.approved_by_curator` | Approved (Curator) | დადასტურებული (კურატორი) |  |
 | `status.submitted_to_supervisor` | At Supervisor | ზედამხედველთან |  |
 | `status.returned_by_supervisor` | Returned by Supervisor | დაბრუნებული ზედამხედველის მიერ |  |
-| `status.approved_by_supervisor` | Approved (Supervisor) | დამტკიცებული (ზედამხედველი) |  |
+| `status.approved_by_supervisor` | Approved (Supervisor) | დადასტურებული (ზედამხედველი) |  |
 | `status.submitted_to_deputy` | At Deputy | მოადგილესთან |  |
 | `status.returned_by_deputy` | Returned by Deputy | დაბრუნებული მოადგილის მიერ |  |
-| `status.approved_by_deputy` | Approved (Deputy) | დამტკიცებული (მოადგილე) |  |
+| `status.approved_by_deputy` | Approved (Deputy) | დადასტურებული (მოადგილე) |  |
 | `status.submitted_to_receiving_super_collaborator` | At Super-Collaborator (Review) | სუპერ-კოლაბორატორთან (განხილვა) |  |
 | `status.returned_by_receiving_super_collaborator` | Returned by Super-Collaborator (Review) | დაბრუნებული სუპერ-კოლაბორატორის მიერ (განხილვა) |  |
-| `status.approved_by_receiving_super_collaborator` | Approved (Super-Collaborator Review) | დამტკიცებული (სუპერ-კოლაბორატორის განხილვა) |  |
+| `status.approved_by_receiving_super_collaborator` | Approved (Super-Collaborator Review) | დადასტურებული (სუპერ-კოლაბორატორის განხილვა) |  |
 | `status.submitted_to_receiving_supervisor` | At Supervisor (Review) | ზედამხედველთან (განხილვა) |  |
 | `status.returned_by_receiving_supervisor` | Returned by Supervisor (Review) | დაბრუნებული ზედამხედველის მიერ (განხილვა) |  |
-| `status.approved_by_receiving_supervisor` | Approved (Supervisor Review) | დამტკიცებული (ზედამხედველის განხილვა) |  |
+| `status.approved_by_receiving_supervisor` | Approved (Supervisor Review) | დადასტურებული (ზედამხედველის განხილვა) |  |
 | `status.submitted_to_amending_ds` | Amendment in progress (DS) | მიმდინარეობს რედაქტირება (DS) |  |
 | `status.approved_by_ds_amendment` | Amended (DS) | შესწორებული (DS) |  |
 
