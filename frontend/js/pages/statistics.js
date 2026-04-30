@@ -1124,17 +1124,17 @@
     const ov = trade.overview;
 
     const periodGen = isKa
-      ? (lm === 12 ? `${year} წლის` : lm === 1 ? `${year} წლის ${KA_MONTH_GEN[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_GEN[lm]}`)
+      ? (lm === 12 ? `${year} წლის` : lm === 1 ? `${year} წლის ${KA_MONTH_GEN[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_GEN[lm]}`)
       : (lm === 12 ? `${year}` : lm === 1 ? `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)} ${year}` : `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)}-${(mn.find(m => m.value === lm)?.label || '').slice(0, 3)} ${year}`);
     const periodLoc = isKa
-      ? (lm === 12 ? `${year} წელს` : lm === 1 ? `${year} წლის ${KA_MONTH_LOC[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_LOC[lm]}`)
+      ? (lm === 12 ? `${year} წელს` : lm === 1 ? `${year} წლის ${KA_MONTH_LOC[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_LOC[lm]}`)
       : periodGen;
 
     // Expanded "no trade" period label: 5-year lookback + latest period
     // month range, e.g. "2021-2026 წლის იანვარ-თებერვლის".
     const startYear = trade.fiveYearStart || year;
     const periodGenRange = isKa
-      ? (lm === 12 ? `${startYear}-${year} წლების` : lm === 1 ? `${startYear}-${year} წლის ${KA_MONTH_GEN[1]}` : `${startYear}-${year} წლის ${KA_MONTH_STEM[1]}\u2011${KA_MONTH_GEN[lm]}`)
+      ? (lm === 12 ? `${startYear}-${year} წლების` : lm === 1 ? `${startYear}-${year} წლის ${KA_MONTH_GEN[1]}` : `${startYear}-${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_GEN[lm]}`)
       : (lm === 12 ? `${startYear}-${year}` : lm === 1 ? `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)} ${startYear}-${year}` : `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)}-${(mn.find(m => m.value === lm)?.label || '').slice(0, 3)} ${startYear}-${year}`);
 
     function b(s) { return `<strong>${escapeHtml(s)}</strong>`; }
@@ -2708,6 +2708,22 @@
   function ensureDocxLib() {
     if (typeof window.docx !== 'undefined') return Promise.resolve();
     if (_docxLoadPromise) return _docxLoadPromise;
+    // docx 8.5.0's font obfuscator (used when embedding fonts via the
+    // Document `fonts` option) calls `Buffer.concat` directly, which is
+    // a Node-only API. Provide a minimal polyfill that returns a
+    // Uint8Array — JSZip accepts that wherever it accepts a Buffer.
+    if (typeof window.Buffer === 'undefined') {
+      window.Buffer = {
+        concat(arrays) {
+          let total = 0;
+          for (const arr of arrays) total += arr.length;
+          const out = new Uint8Array(total);
+          let offset = 0;
+          for (const arr of arrays) { out.set(arr, offset); offset += arr.length; }
+          return out;
+        },
+      };
+    }
     _docxLoadPromise = new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = 'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js';
