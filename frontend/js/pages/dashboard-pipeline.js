@@ -531,10 +531,13 @@
     const roleIdx = chain.indexOf(role);
     if (roleIdx === -1) return 'todo';
 
-    // While the DS is amending a previously-published section, the
-    // chain doesn't progress — it lives outside the chain. Show every
-    // chain step as already done (which it was, before the reopen).
-    if (status === 'submitted_to_amending_ds') {
+    // The DS amendment lives outside the chain. While it's in
+    // progress (submitted_to_amending_ds) and once the DS has
+    // approved it (approved_by_ds_amendment), every chain step
+    // shows as already done — which is the truth before the reopen
+    // and after the amendment finalises. The DS doesn't appear in
+    // any chain slot at all.
+    if (status === 'submitted_to_amending_ds' || status === 'approved_by_ds_amendment') {
       return 'done';
     }
 
