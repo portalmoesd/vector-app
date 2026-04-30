@@ -946,9 +946,15 @@
     const rows = [...(tourism.quarterlyRows || []), ...[...(tourism.annualRows || [])].reverse()];
     const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
     const shareHeader = lang === 'ka' ? 'წილი, %' : 'Share, %';
-    const body = [
-      [th(t.period), thRight(rankHeader), thRight(t.visitors), thRight(t.changeHeader), thRight(shareHeader)],
-    ];
+
+    // Drop the rank column entirely when no row reaches the top 20.
+    const TOP_RANK_LIMIT = 20;
+    const showRank = rows.some(r => r.rank && r.rank <= TOP_RANK_LIMIT);
+
+    const headerRow = [th(t.period)];
+    if (showRank) headerRow.push(thRight(rankHeader));
+    headerRow.push(thRight(t.visitors), thRight(t.changeHeader), thRight(shareHeader));
+    const body = [headerRow];
     for (const r of rows) {
       let changeCell;
       if (r.changePct === null || r.changePct === undefined) {
@@ -962,19 +968,20 @@
       const shareCell = (r.share != null)
         ? tdNum(`${(Math.round(r.share * 10) / 10).toFixed(1)}%`)
         : tdNum('-');
-      body.push([
-        tdText(r.label, r.isCurrent ? { bold: true } : {}),
-        rankCell,
+      const row = [tdText(r.label, r.isCurrent ? { bold: true } : {})];
+      if (showRank) row.push(rankCell);
+      row.push(
         tdNum(r.visitors.toLocaleString()),
         changeCell,
         shareCell,
-      ]);
+      );
+      body.push(row);
     }
 
     const tableBlock = {
       table: {
         dontBreakRows: true,
-        widths: ['*', 'auto', 'auto', 'auto', 'auto'],
+        widths: showRank ? ['*', 'auto', 'auto', 'auto', 'auto'] : ['*', 'auto', 'auto', 'auto'],
         body,
       },
       layout: tableLayout,
@@ -1159,9 +1166,15 @@
     const data = [...inv.tableData].reverse();
     const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
     const shareHeader = lang === 'ka' ? 'წილი, %' : 'Share, %';
-    const body = [
-      [th(t.year), thRight(rankHeader), thRight(t.volumeHeader), thRight(t.changeHeader), thRight(shareHeader)],
-    ];
+
+    // Drop the rank column entirely when no year reaches the top 20.
+    const TOP_RANK_LIMIT = 20;
+    const showRank = data.some(r => r.valueMln > 0 && r.rank && r.rank <= TOP_RANK_LIMIT);
+
+    const headerRow = [th(t.year)];
+    if (showRank) headerRow.push(thRight(rankHeader));
+    headerRow.push(thRight(t.volumeHeader), thRight(t.changeHeader), thRight(shareHeader));
+    const body = [headerRow];
     for (const r of data) {
       const isCurNeg = !(r.valueMln > 0);
       const isPrevNeg = !(r.prevMln > 0);
@@ -1179,19 +1192,16 @@
       const shareCell = (!isCurNeg && r.share != null)
         ? tdNum(`${(Math.round(r.share * 10) / 10).toFixed(1)}%`)
         : tdNum('-');
-      body.push([
-        tdText(String(r.year)),
-        rankCell,
-        valueCell,
-        changeCell,
-        shareCell,
-      ]);
+      const row = [tdText(String(r.year))];
+      if (showRank) row.push(rankCell);
+      row.push(valueCell, changeCell, shareCell);
+      body.push(row);
     }
 
     const tableBlock = {
       table: {
         dontBreakRows: true,
-        widths: ['auto', 'auto', '*', 'auto', 'auto'],
+        widths: showRank ? ['auto', 'auto', '*', 'auto', 'auto'] : ['auto', '*', 'auto', 'auto'],
         body,
       },
       layout: tableLayout,
