@@ -1,14 +1,8 @@
 # Locale review — English ↔ Georgian
 
-Source files:
-- `frontend/locales/en.json`
-- `frontend/locales/ka.json`
+Side-by-side draft of every UI string. Use the Notes column to flag corrections; I will roll them in.
 
-Total keys: 150
-
-Mark anything you want corrected in the **Notes** column (or paste the corrected Georgian directly). I will apply the fixes in a follow-up commit.
-
-## Navigation  (`nav.*`)
+## Navigation
 
 | Key | English | Georgian | Notes |
 | --- | --- | --- | --- |
@@ -20,7 +14,7 @@ Mark anything you want corrected in the **Notes** column (or paste the corrected
 | `nav.logout` | Log out | გასვლა |  |
 | `nav.language` | Language | ენა |  |
 
-## Authentication  (`auth.*`)
+## Authentication
 
 | Key | English | Georgian | Notes |
 | --- | --- | --- | --- |
@@ -30,7 +24,7 @@ Mark anything you want corrected in the **Notes** column (or paste the corrected
 | `auth.loginButton` | Sign In | შესვლა |  |
 | `auth.loginError` | Invalid username or password | არასწორი მომხმარებელი ან პაროლი |  |
 
-## Dashboard  (`dashboard.*`)
+## Dashboard
 
 | Key | English | Georgian | Notes |
 | --- | --- | --- | --- |
@@ -54,13 +48,13 @@ Mark anything you want corrected in the **Notes** column (or paste the corrected
 | `dashboard.descSupervisor` | Choose an event to review super-collaborator submissions before they move to the deputy stage. | აირჩიეთ ღონისძიება სუპერ-კოლაბორატორის შემოტანების განსახილველად მოადგილის ეტაპზე გადასვლამდე. |  |
 | `dashboard.descSuperCollab` | Choose an event to review collaborator submissions before they move to the supervisor stage. | აირჩიეთ ღონისძიება კოლაბორატორის შემოტანების განსახილველად ზედამხედველის ეტაპზე გადასვლამდე. |  |
 
-## Calendar / Events  (`calendar.*`)
+## Calendar (Events)
 
 | Key | English | Georgian | Notes |
 | --- | --- | --- | --- |
 | `calendar.pageTitle` | Events | ღონისძიებები |  |
 | `calendar.createEvent` | + Create Event | + ღონისძიების შექმნა |  |
-| `calendar.tabs.upcoming` | Upcoming | მომავალი |  |
+| `calendar.tabs.upcoming` | Upcoming | მომავალი ღონისძიებები |  |
 | `calendar.tabs.completed` | Completed Events | დასრულებული ღონისძიებები |  |
 | `calendar.tabs.archived` | Archived Events | დაარქივებული ღონისძიებები |  |
 | `calendar.filter.keywordPlaceholder` | Title or occasion... | სათაური ან აღწერა... |  |
@@ -75,9 +69,9 @@ Mark anything you want corrected in the **Notes** column (or paste the corrected
 | `calendar.form.title` | Title * | სათაური * |  |
 | `calendar.form.titleNoStar` | Title | სათაური |  |
 | `calendar.form.country` | Country * | ქვეყანა * |  |
-| `calendar.form.workflow` | Workflow * | სამუშაო პროცესი * |  |
+| `calendar.form.workflow` | Workflow * | დადასტურების პროცესი * |  |
 | `calendar.form.workflowSimple` | Simple | მარტივი |  |
-| `calendar.form.workflowAdvanced` | Advanced | მოწინავე |  |
+| `calendar.form.workflowAdvanced` | Advanced | სრული |  |
 | `calendar.form.dsRole` | Document Submitter Role * | დოკუმენტის წარმდგენის როლი * |  |
 | `calendar.form.deputy` | Deputy * | მოადგილე * |  |
 | `calendar.form.responsibleSupervisor` | Responsible Supervisor * | პასუხისმგებელი ზედამხედველი * |  |
@@ -101,7 +95,7 @@ Mark anything you want corrected in the **Notes** column (or paste the corrected
 | `calendar.action.view` | View | ნახვა |  |
 | `calendar.action.end` | End | დასრულება |  |
 
-## Common buttons & verbs  (`common.*`)
+## Common buttons & labels
 
 | Key | English | Georgian | Notes |
 | --- | --- | --- | --- |
@@ -129,7 +123,7 @@ Mark anything you want corrected in the **Notes** column (or paste the corrected
 | `common.prev` | Prev | წინა |  |
 | `common.next` | Next | შემდეგი |  |
 
-## Roles  (`roles.*`)
+## Roles
 
 | Key | English | Georgian | Notes |
 | --- | --- | --- | --- |
@@ -143,7 +137,7 @@ Mark anything you want corrected in the **Notes** column (or paste the corrected
 | `roles.RECEIVING_SUPER_COLLABORATOR` | Super-Collaborator | სუპერ-კოლაბორატორი |  |
 | `roles.RECEIVING_SUPERVISOR` | Supervisor | ზედამხედველი |  |
 
-## Section / workflow statuses  (`status.*`)
+## Workflow statuses
 
 | Key | English | Georgian | Notes |
 | --- | --- | --- | --- |
@@ -169,21 +163,15 @@ Mark anything you want corrected in the **Notes** column (or paste the corrected
 | `status.submitted_to_amending_ds` | Amendment in progress (DS) | მიმდინარეობს რედაქტირება (DS) |  |
 | `status.approved_by_ds_amendment` | Amended (DS) | შესწორებული (DS) |  |
 
-## Language names  (`lang.*`)
+## Language names
 
 | Key | English | Georgian | Notes |
 | --- | --- | --- | --- |
 | `lang.EN` | English | English |  |
-| `lang.FR` | Français | Français |  |
-| `lang.AR` | العربية | العربية |  |
-| `lang.ES` | Español | Español |  |
 | `lang.RU` | Русский | Русский |  |
-| `lang.ZH` | 中文 | 中文 |  |
-| `lang.PT` | Português | Português |  |
-| `lang.DE` | Deutsch | Deutsch |  |
 | `lang.KA` | ქართული | ქართული |  |
 
-## Statistics page  (`statistics.*`)
+## Statistics page
 
 | Key | English | Georgian | Notes |
 | --- | --- | --- | --- |

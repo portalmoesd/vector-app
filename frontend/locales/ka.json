@@ -72,13 +72,7 @@
   },
   "lang": {
     "EN": "English",
-    "FR": "Français",
-    "AR": "العربية",
-    "ES": "Español",
     "RU": "Русский",
-    "ZH": "中文",
-    "PT": "Português",
-    "DE": "Deutsch",
     "KA": "ქართული"
   },
   "statistics": {
@@ -127,7 +121,7 @@
     "pageTitle": "ღონისძიებები",
     "createEvent": "+ ღონისძიების შექმნა",
     "tabs": {
-      "upcoming": "მომავალი",
+      "upcoming": "მომავალი ღონისძიებები",
       "completed": "დასრულებული ღონისძიებები",
       "archived": "დაარქივებული ღონისძიებები"
     },
@@ -150,9 +144,9 @@
       "title": "სათაური *",
       "titleNoStar": "სათაური",
       "country": "ქვეყანა *",
-      "workflow": "სამუშაო პროცესი *",
+      "workflow": "დადასტურების პროცესი *",
       "workflowSimple": "მარტივი",
-      "workflowAdvanced": "მოწინავე",
+      "workflowAdvanced": "სრული",
       "dsRole": "დოკუმენტის წარმდგენის როლი *",
       "deputy": "მოადგილე *",
       "responsibleSupervisor": "პასუხისმგებელი ზედამხედველი *",

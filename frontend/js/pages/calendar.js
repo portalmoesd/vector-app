@@ -238,7 +238,7 @@
         <div class="form-group">
           <label class="form-label" data-i18n="calendar.form.language">Language</label>
           <select class="form-select" id="editLanguage">
-            ${['EN','FR','AR','ES','RU','ZH','PT','DE'].map(l =>
+            ${['EN','KA','RU'].map(l =>
               `<option value="${l}" ${l === e.language ? 'selected' : ''}>${l}</option>`
             ).join('')}
           </select>
