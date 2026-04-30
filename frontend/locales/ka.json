@@ -4,7 +4,9 @@
     "calendar": "კალენდარი",
     "library": "ბიბლიოთეკა",
     "statistics": "სტატისტიკა",
-    "admin": "ადმინ პანელი"
+    "admin": "ადმინ. პანელი",
+    "logout": "გასვლა",
+    "language": "ენა"
   },
   "auth": {
     "login": "შესვლა",
@@ -35,7 +37,15 @@
     "approved_by_supervisor": "დამტკიცებული (ზედამხედველი)",
     "submitted_to_deputy": "მოადგილესთან",
     "returned_by_deputy": "დაბრუნებული მოადგილის მიერ",
-    "approved_by_deputy": "დამტკიცებული (მოადგილე)"
+    "approved_by_deputy": "დამტკიცებული (მოადგილე)",
+    "submitted_to_receiving_super_collaborator": "სუპერ-კოლაბორატორთან (განხილვა)",
+    "returned_by_receiving_super_collaborator": "დაბრუნებული სუპერ-კოლაბორატორის მიერ (განხილვა)",
+    "approved_by_receiving_super_collaborator": "დამტკიცებული (სუპერ-კოლაბორატორის განხილვა)",
+    "submitted_to_receiving_supervisor": "ზედამხედველთან (განხილვა)",
+    "returned_by_receiving_supervisor": "დაბრუნებული ზედამხედველის მიერ (განხილვა)",
+    "approved_by_receiving_supervisor": "დამტკიცებული (ზედამხედველის განხილვა)",
+    "submitted_to_amending_ds": "მიმდინარეობს რედაქტირება (DS)",
+    "approved_by_ds_amendment": "შესწორებული (DS)"
   },
   "roles": {
     "ADMIN": "ადმინი",
@@ -43,7 +53,21 @@
     "DEPUTY": "მოადგილე",
     "SUPERVISOR": "ზედამხედველი",
     "SUPER_COLLABORATOR": "სუპერ-კოლაბორატორი",
-    "COLLABORATOR": "კოლაბორატორი"
+    "COLLABORATOR": "კოლაბორატორი",
+    "CURATOR": "კურატორი",
+    "RECEIVING_SUPER_COLLABORATOR": "სუპერ-კოლაბორატორი",
+    "RECEIVING_SUPERVISOR": "ზედამხედველი"
+  },
+  "lang": {
+    "EN": "English",
+    "FR": "Français",
+    "AR": "العربية",
+    "ES": "Español",
+    "RU": "Русский",
+    "ZH": "中文",
+    "PT": "Português",
+    "DE": "Deutsch",
+    "KA": "ქართული"
   },
   "statistics": {
     "country": "ქვეყანა",
@@ -67,6 +91,22 @@
     "cancel": "გაუქმება",
     "confirm": "დადასტურება",
     "close": "დახურვა",
-    "loading": "იტვირთება..."
+    "delete": "წაშლა",
+    "edit": "რედაქტირება",
+    "create": "შექმნა",
+    "add": "დამატება",
+    "remove": "ამოშლა",
+    "back": "უკან",
+    "yes": "კი",
+    "no": "არა",
+    "loading": "იტვირთება...",
+    "search": "ძებნა",
+    "from": "დან",
+    "to": "მდე",
+    "all": "ყველა",
+    "actions": "მოქმედებები",
+    "submit": "გაგზავნა",
+    "approve": "დამტკიცება",
+    "return": "დაბრუნება"
   }
 }
