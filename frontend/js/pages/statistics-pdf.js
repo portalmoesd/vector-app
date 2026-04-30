@@ -937,9 +937,12 @@
     const rows = [...(tourism.quarterlyRows || []), ...[...(tourism.annualRows || [])].reverse()];
     const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
     const shareHeader = lang === 'ka' ? 'წილი, %' : 'Share, %';
-    const body = [
-      [th(t.period), thRight(rankHeader), thRight(t.visitors), thRight(t.changeHeader), thRight(shareHeader)],
-    ];
+    // Drop the rank column entirely if no row has a top-20 rank.
+    const showRank = rows.some(r => r.rank);
+    const headerRow = [th(t.period)];
+    if (showRank) headerRow.push(thRight(rankHeader));
+    headerRow.push(thRight(t.visitors), thRight(t.changeHeader), thRight(shareHeader));
+    const body = [headerRow];
     for (const r of rows) {
       let changeCell;
       if (r.changePct === null || r.changePct === undefined) {
@@ -949,23 +952,21 @@
         const sign = r.changePct > 0 ? '+' : '';
         changeCell = tdNum(`${sign}${formatPct(r.changePct)}`, { color });
       }
-      const rankCell = r.rank ? tdNum(String(r.rank)) : tdNum('-');
       const shareCell = (r.share != null)
         ? tdNum(`${(Math.round(r.share * 10) / 10).toFixed(1)}%`)
         : tdNum('-');
-      body.push([
-        tdText(r.label, r.isCurrent ? { bold: true } : {}),
-        rankCell,
-        tdNum(r.visitors.toLocaleString()),
-        changeCell,
-        shareCell,
-      ]);
+      const dataRow = [tdText(r.label, r.isCurrent ? { bold: true } : {})];
+      if (showRank) dataRow.push(r.rank ? tdNum(String(r.rank)) : tdNum('-'));
+      dataRow.push(tdNum(r.visitors.toLocaleString()), changeCell, shareCell);
+      body.push(dataRow);
     }
 
     const tableBlock = {
       table: {
         dontBreakRows: true,
-        widths: ['*', 'auto', 'auto', 'auto', 'auto'],
+        widths: showRank
+          ? ['*', 'auto', 'auto', 'auto', 'auto']
+          : ['*', 'auto', 'auto', 'auto'],
         body,
       },
       layout: tableLayout,
@@ -1150,9 +1151,12 @@
     const data = [...inv.tableData].reverse();
     const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
     const shareHeader = lang === 'ka' ? 'წილი, %' : 'Share, %';
-    const body = [
-      [th(t.year), thRight(rankHeader), thRight(t.volumeHeader), thRight(t.changeHeader), thRight(shareHeader)],
-    ];
+    // Drop the rank column entirely if no row has a top-20 rank.
+    const showRank = data.some(r => (r.valueMln > 0) && r.rank);
+    const headerRow = [th(t.year)];
+    if (showRank) headerRow.push(thRight(rankHeader));
+    headerRow.push(thRight(t.volumeHeader), thRight(t.changeHeader), thRight(shareHeader));
+    const body = [headerRow];
     for (const r of data) {
       const isCurNeg = !(r.valueMln > 0);
       const isPrevNeg = !(r.prevMln > 0);
@@ -1166,23 +1170,21 @@
         const sign = pct > 0 ? '+' : '';
         changeCell = tdNum(`${sign}${formatPct(pct)}`, { color });
       }
-      const rankCell = (!isCurNeg && r.rank) ? tdNum(String(r.rank)) : tdNum('-');
       const shareCell = (!isCurNeg && r.share != null)
         ? tdNum(`${(Math.round(r.share * 10) / 10).toFixed(1)}%`)
         : tdNum('-');
-      body.push([
-        tdText(String(r.year)),
-        rankCell,
-        valueCell,
-        changeCell,
-        shareCell,
-      ]);
+      const dataRow = [tdText(String(r.year))];
+      if (showRank) dataRow.push((!isCurNeg && r.rank) ? tdNum(String(r.rank)) : tdNum('-'));
+      dataRow.push(valueCell, changeCell, shareCell);
+      body.push(dataRow);
     }
 
     const tableBlock = {
       table: {
         dontBreakRows: true,
-        widths: ['auto', 'auto', '*', 'auto', 'auto'],
+        widths: showRank
+          ? ['auto', 'auto', '*', 'auto', 'auto']
+          : ['auto', '*', 'auto', 'auto'],
         body,
       },
       layout: tableLayout,
