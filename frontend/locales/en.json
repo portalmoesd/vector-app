@@ -248,6 +248,7 @@
         "dept": "Department",
         "deptNone": "— None —",
         "external": "External user",
+        "entity": "Entity",
         "countries": "Country Assignments"
       }
     },
