@@ -1121,6 +1121,12 @@
     const lm = trade.latestMonth;
     const mn = trade.monthNames || [];
     const rank = ranking && ranking.country ? ranking.country : null;
+    // Trade ranks below the top 20 aren't useful in the prose ("47th
+    // among partners" tells the reader the partner isn't material).
+    // Hide that sentence when rank > 20; the table still shows the
+    // actual rank — only the prose is suppressed.
+    const TOP_RANK_LIMIT = 20;
+    const inTop = (r) => r && r.rank <= TOP_RANK_LIMIT;
     const ov = trade.overview;
 
     const periodGen = isKa
@@ -1190,12 +1196,12 @@
     }
     if (isKa) {
       lines.push(`<p>${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიურ პერიოდთან შედარებით, ${chg(curTurn, prevTurn)} და ${b(`${fmln(curTurn)} მლნ. აშშ დოლარი`)} შეადგინა.</p>`);
-      if (rank && rank.turnover) {
+      if (inTop(rank && rank.turnover)) {
         lines.push(`<p>${escapeHtml(countryName)} აღნიშნულ პერიოდში სავაჭრო ბრუნვის მოცულობის მიხედვით არის ${b(`${geP(rank.turnover.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.turnover.sharePct)}%`)}.</p>`);
       }
     } else {
       lines.push(`<p>For ${escapeHtml(periodGen)}, trade turnover ${chg(curTurn, prevTurn)} compared to the same period last year, amounting to ${b(`${fmln(curTurn)} mln USD`)}.</p>`);
-      if (rank && rank.turnover) {
+      if (inTop(rank && rank.turnover)) {
         lines.push(`<p>${escapeHtml(countryName)} ranks ${b(enO(rank.turnover.rank))} by trade turnover with a ${b(`${pctO(rank.turnover.sharePct)}%`)} share.</p>`);
       }
     }
@@ -1206,12 +1212,12 @@
     if (trade.hasExport && curExp >= 0.01) {
       if (isKa) {
         let exp = `<p>ექსპორტი ${periodLoc} ${chg(curExp, prevExp)} და ${b(`${fmln(curExp)} მლნ. აშშ დოლარი`)} შეადგინა.`;
-        if (rank && rank.export) exp += ` საქართველოსთვის ექსპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.export.rank)} ადგილზე`)} საქართველოს სავაჭრო პარტნიორებს შორის, წილი ${b(`${pctO(rank.export.sharePct)}%`)}.`;
+        if (inTop(rank && rank.export)) exp += ` საქართველოსთვის ექსპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.export.rank)} ადგილზე`)} საქართველოს სავაჭრო პარტნიორებს შორის, წილი ${b(`${pctO(rank.export.sharePct)}%`)}.`;
         exp += '</p>';
         lines.push(exp);
       } else {
         let exp = `<p>Exports in ${escapeHtml(periodGen)} ${chg(curExp, prevExp)}, amounting to ${b(`${fmln(curExp)} mln USD`)}.`;
-        if (rank && rank.export) exp += ` ${escapeHtml(countryName)} ranks ${b(enO(rank.export.rank))} by export volume with a ${b(`${pctO(rank.export.sharePct)}%`)} share.`;
+        if (inTop(rank && rank.export)) exp += ` ${escapeHtml(countryName)} ranks ${b(enO(rank.export.rank))} by export volume with a ${b(`${pctO(rank.export.sharePct)}%`)} share.`;
         exp += '</p>';
         lines.push(exp);
       }
@@ -1221,10 +1227,17 @@
         const domPct = (100 * domVal / curExp).toFixed(0);
         const reVal = rank.reExport ? rank.reExport.valueMln : (curExp - domVal);
         const rePct = (100 * reVal / curExp).toFixed(0);
+        // Volumes stay regardless; only the rank sentence drops when > 20.
+        const geRankSent = inTop(rank.domesticExport)
+          ? ` ადგილობრივი ექსპორტით ${escapeHtml(countryName)} იკავებს ${b(`${geP(rank.domesticExport.rank)} ადგილს`)} საქართველოს სავაჭრო პარტნიორებს შორის.`
+          : '';
+        const enRankSent = inTop(rank.domesticExport)
+          ? ` By domestic exports, ${escapeHtml(countryName)} ranks ${b(enO(rank.domesticExport.rank))} among Georgia's trading partners.`
+          : '';
         if (isKa) {
-          lines.push(`<p>${periodGen} პერიოდში განხორციელდა ${b(`${fmln(domVal)} მლნ. აშშ დოლარის`)} ${b('ადგილობრივი ექსპორტი')}, რაც შეადგენს ${b(`${domPct}%-ს`)} სრული ექსპორტის. ადგილობრივი ექსპორტით ${escapeHtml(countryName)} იკავებს ${b(`${geP(rank.domesticExport.rank)} ადგილს`)} საქართველოს სავაჭრო პარტნიორებს შორის. რე-ექსპორტმა იმავე პერიოდში შეადგინა ${b(`${fmln(reVal)} მლნ. აშშ დოლარი`)} <em>(წილი ${rePct}%)</em>.</p>`);
+          lines.push(`<p>${periodGen} პერიოდში განხორციელდა ${b(`${fmln(domVal)} მლნ. აშშ დოლარის`)} ${b('ადგილობრივი ექსპორტი')}, რაც შეადგენს ${b(`${domPct}%-ს`)} სრული ექსპორტის.${geRankSent} რე-ექსპორტმა იმავე პერიოდში შეადგინა ${b(`${fmln(reVal)} მლნ. აშშ დოლარი`)} <em>(წილი ${rePct}%)</em>.</p>`);
         } else {
-          lines.push(`<p>In the given period, domestic exports amounted to ${b(`${fmln(domVal)} mln USD`)}, comprising ${b(`${domPct}%`)} of total exports. By domestic exports, ${escapeHtml(countryName)} ranks ${b(enO(rank.domesticExport.rank))} among Georgia's trading partners. Re-exports in the same period amounted to ${b(`${fmln(reVal)} mln USD`)} <em>(${rePct}% share)</em>.</p>`);
+          lines.push(`<p>In the given period, domestic exports amounted to ${b(`${fmln(domVal)} mln USD`)}, comprising ${b(`${domPct}%`)} of total exports.${enRankSent} Re-exports in the same period amounted to ${b(`${fmln(reVal)} mln USD`)} <em>(${rePct}% share)</em>.</p>`);
         }
       }
 
@@ -1240,12 +1253,12 @@
     if (trade.hasImport && curImp >= 0.01) {
       if (isKa) {
         let imp = `<p>იმპორტი ${periodLoc} ${chg(curImp, prevImp)} და ${b(`${fmln(curImp)} მლნ. აშშ დოლარი`)} შეადგინა.`;
-        if (rank && rank.import) imp += ` იმპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.import.rank)} ადგილზე`)} საქართველოს სავაჭრო პარტნიორებს შორის, წილი ${b(`${pctO(rank.import.sharePct)}%`)}.`;
+        if (inTop(rank && rank.import)) imp += ` იმპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.import.rank)} ადგილზე`)} საქართველოს სავაჭრო პარტნიორებს შორის, წილი ${b(`${pctO(rank.import.sharePct)}%`)}.`;
         imp += '</p>';
         lines.push(imp);
       } else {
         let imp = `<p>Imports in ${escapeHtml(periodGen)} ${chg(curImp, prevImp)}, amounting to ${b(`${fmln(curImp)} mln USD`)}.`;
-        if (rank && rank.import) imp += ` ${escapeHtml(countryName)} ranks ${b(enO(rank.import.rank))} by import volume with a ${b(`${pctO(rank.import.sharePct)}%`)} share.`;
+        if (inTop(rank && rank.import)) imp += ` ${escapeHtml(countryName)} ranks ${b(enO(rank.import.rank))} by import volume with a ${b(`${pctO(rank.import.sharePct)}%`)} share.`;
         imp += '</p>';
         lines.push(imp);
       }

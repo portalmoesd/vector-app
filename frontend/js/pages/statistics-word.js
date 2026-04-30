@@ -1379,6 +1379,10 @@
     const periodLoc = isKa ? gePeriodLoc(trade.latestYear, trade.latestMonth) : null;
     const periodEn  = !isKa ? enPeriod(trade.latestYear, trade.latestMonth)  : null;
     const rank = trade.ranking && trade.ranking.country ? trade.ranking.country : null;
+    // Hide rank-prose when the country sits outside the top 20 — bare
+    // ordinals like "47th" don't add value. Volumes still render.
+    const TOP_RANK_LIMIT = 20;
+    const inTop = (r) => r && r.rank <= TOP_RANK_LIMIT;
 
     const B = (s) => ({ text: s, bold: true });
     const I = (s) => ({ text: s, italics: true });
@@ -1443,7 +1447,7 @@
         changeVerbParts(curTurn, prevTurn),
         ` და `, B(`${formatMln(curTurn)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
       ]));
-      if (rank && rank.turnover) {
+      if (inTop(rank && rank.turnover)) {
         out.push(summaryProseParagraph(D, [
           `${country} აღნიშნულ პერიოდში სავაჭრო ბრუნვის მოცულობის მიხედვით არის `,
           B(`${gePlace(rank.turnover.rank)} ადგილზე`), `, წილი `, B(`${pctOne(rank.turnover.sharePct)}%`), `.`,
@@ -1455,7 +1459,7 @@
         changeVerbParts(curTurn, prevTurn),
         ` compared to the same period last year, amounting to `, B(`${formatMln(curTurn)} mln USD`), `.`,
       ]));
-      if (rank && rank.turnover) {
+      if (inTop(rank && rank.turnover)) {
         out.push(summaryProseParagraph(D, [
           `${country} ranks `, B(enOrdinal(rank.turnover.rank)),
           ` by trade turnover with a `, B(`${pctOne(rank.turnover.sharePct)}%`), ` share.`,
@@ -1476,7 +1480,7 @@
           `ექსპორტი ${periodLoc} `,
           changeVerbParts(curExp, prevExp),
           ` და `, B(`${formatMln(curExp)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
-          ...(rank && rank.export ? [
+          ...(inTop(rank && rank.export) ? [
             ` საქართველოსთვის ექსპორტის მიხედვით ${country} არის `,
             B(`${gePlace(rank.export.rank)} ადგილზე`),
             ` საქართველოს სავაჭრო პარტნიორებს შორის, წილი `,
@@ -1488,7 +1492,7 @@
           `Exports in ${periodEn} `,
           changeVerbParts(curExp, prevExp),
           `, amounting to `, B(`${formatMln(curExp)} mln USD`), `.`,
-          ...(rank && rank.export ? [
+          ...(inTop(rank && rank.export) ? [
             ` ${country} ranks `, B(enOrdinal(rank.export.rank)),
             ` by export volume with a `, B(`${pctOne(rank.export.sharePct)}%`), ` share.`,
           ] : []),
@@ -1499,14 +1503,17 @@
         const domPct = (100 * domVal / curExp).toFixed(0);
         const reVal = rank.reExport ? rank.reExport.valueMln : (curExp - domVal);
         const rePct = (100 * reVal / curExp).toFixed(0);
+        const showDomRank = inTop(rank.domesticExport);
         if (isKa) {
           out.push(summaryProseParagraph(D, [
             `${periodGen} პერიოდში განხორციელდა `,
             B(`${formatMln(domVal)} მლნ. აშშ დოლარის`),
             ` `, B('ადგილობრივი ექსპორტი'), `, რაც შეადგენს `, B(`${domPct}%-ს`), ` სრული ექსპორტის. `,
-            `ადგილობრივი ექსპორტით ${country} იკავებს `,
-            B(`${gePlace(rank.domesticExport.rank)} ადგილს`),
-            ` საქართველოს სავაჭრო პარტნიორებს შორის. `,
+            ...(showDomRank ? [
+              `ადგილობრივი ექსპორტით ${country} იკავებს `,
+              B(`${gePlace(rank.domesticExport.rank)} ადგილს`),
+              ` საქართველოს სავაჭრო პარტნიორებს შორის. `,
+            ] : []),
             `რე-ექსპორტმა იმავე პერიოდში შეადგინა `,
             B(`${formatMln(reVal)} მლნ. აშშ დოლარი`), ` `, I(`(წილი ${rePct}%)`), `.`,
           ]));
@@ -1515,8 +1522,10 @@
             `In the given period, domestic exports amounted to `,
             B(`${formatMln(domVal)} mln USD`),
             `, comprising `, B(`${domPct}%`), ` of total exports. `,
-            `By domestic exports, ${country} ranks `, B(enOrdinal(rank.domesticExport.rank)),
-            ` among Georgia's trading partners. `,
+            ...(showDomRank ? [
+              `By domestic exports, ${country} ranks `, B(enOrdinal(rank.domesticExport.rank)),
+              ` among Georgia's trading partners. `,
+            ] : []),
             `Re-exports in the same period amounted to `,
             B(`${formatMln(reVal)} mln USD`), ` `, I(`(${rePct}% share)`), `.`,
           ]));
@@ -1544,7 +1553,7 @@
           `იმპორტი ${periodLoc} `,
           changeVerbParts(curImp, prevImp),
           ` და `, B(`${formatMln(curImp)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
-          ...(rank && rank.import ? [
+          ...(inTop(rank && rank.import) ? [
             ` იმპორტის მიხედვით ${country} არის `,
             B(`${gePlace(rank.import.rank)} ადგილზე`),
             ` საქართველოს სავაჭრო პარტნიორებს შორის, წილი `,
@@ -1556,7 +1565,7 @@
           `Imports in ${periodEn} `,
           changeVerbParts(curImp, prevImp),
           `, amounting to `, B(`${formatMln(curImp)} mln USD`), `.`,
-          ...(rank && rank.import ? [
+          ...(inTop(rank && rank.import) ? [
             ` ${country} ranks `, B(enOrdinal(rank.import.rank)),
             ` by import volume with a `, B(`${pctOne(rank.import.sharePct)}%`), ` share.`,
           ] : []),
