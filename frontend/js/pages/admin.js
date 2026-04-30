@@ -206,6 +206,8 @@
   function userFormHtml(deptOptions, user) {
     const isEdit = !!user;
     const needsCountries = !user || user.role === 'COLLABORATOR' || user.role === 'SUPER_COLLABORATOR';
+    // ANALYST is read-only and has no department.
+    const isAnalyst = isEdit && user.role === 'ANALYST';
 
     return `
       <div class="form-group">
@@ -227,12 +229,12 @@
       <div class="form-group">
         <label class="form-label">${escapeHtml(I18n.tr('admin.user.form.role'))}</label>
         <select class="form-select" id="userRole">
-          ${['COLLABORATOR','SUPER_COLLABORATOR','SUPERVISOR','DEPUTY','PROTOCOL','ADMIN'].map(r =>
+          ${['COLLABORATOR','SUPER_COLLABORATOR','SUPERVISOR','DEPUTY','PROTOCOL','ADMIN','ANALYST'].map(r =>
             `<option value="${r}" ${isEdit && user.role === r ? 'selected' : ''}>${roleLabel(r)}</option>`
           ).join('')}
         </select>
       </div>
-      <div class="form-group">
+      <div class="form-group" id="deptGroup" style="${isAnalyst ? 'display:none;' : ''}">
         <label class="form-label">${escapeHtml(I18n.tr('admin.user.form.dept'))}</label>
         <select class="form-select" id="userDept">
           <option value="">${escapeHtml(I18n.tr('admin.user.form.deptNone'))}</option>
@@ -257,7 +259,8 @@
       const email = document.getElementById('userEmail').value.trim();
       const password = document.getElementById('userPassword').value;
       const role = document.getElementById('userRole').value;
-      const departmentId = document.getElementById('userDept').value || null;
+      // ANALYST has no department — clear regardless of UI state.
+      const departmentId = role === 'ANALYST' ? null : (document.getElementById('userDept').value || null);
       const isExternal = document.getElementById('userExternal').checked;
       const countryIds = getSelectedCountryIds(document.getElementById('countryPickerContainer'));
       if (!fullName || !username || !email || !password) return;
@@ -273,11 +276,13 @@
     container.innerHTML = buildCountryPickerHtml([]);
     initCountryPicker(container);
 
-    // Show/hide country picker based on role
+    // Show/hide country picker + dept group based on role.
     document.getElementById('userRole').addEventListener('change', () => {
       const role = document.getElementById('userRole').value;
-      const show = role === 'COLLABORATOR' || role === 'SUPER_COLLABORATOR';
-      document.getElementById('countryAssignmentGroup').style.display = show ? '' : 'none';
+      const showCountries = role === 'COLLABORATOR' || role === 'SUPER_COLLABORATOR';
+      document.getElementById('countryAssignmentGroup').style.display = showCountries ? '' : 'none';
+      const deptGroup = document.getElementById('deptGroup');
+      if (deptGroup) deptGroup.style.display = role === 'ANALYST' ? 'none' : '';
     });
   });
 
@@ -301,7 +306,8 @@
       const email = document.getElementById('userEmail').value.trim();
       const password = document.getElementById('userPassword').value;
       const role = document.getElementById('userRole').value;
-      const departmentId = document.getElementById('userDept').value || null;
+      // ANALYST has no department — clear regardless of UI state.
+      const departmentId = role === 'ANALYST' ? null : (document.getElementById('userDept').value || null);
       const isExternal = document.getElementById('userExternal').checked;
       const countryIds = getSelectedCountryIds(document.getElementById('countryPickerContainer'));
       if (!fullName || !email) return;
@@ -325,12 +331,14 @@
     container.innerHTML = buildCountryPickerHtml(selectedCountryIds);
     initCountryPicker(container);
 
-    // Show/hide country picker based on role
+    // Show/hide country picker + dept group based on role.
     const roleSelect = document.getElementById('userRole');
     roleSelect.addEventListener('change', () => {
       const role = roleSelect.value;
-      const show = role === 'COLLABORATOR' || role === 'SUPER_COLLABORATOR';
-      document.getElementById('countryAssignmentGroup').style.display = show ? '' : 'none';
+      const showCountries = role === 'COLLABORATOR' || role === 'SUPER_COLLABORATOR';
+      document.getElementById('countryAssignmentGroup').style.display = showCountries ? '' : 'none';
+      const deptGroup = document.getElementById('deptGroup');
+      if (deptGroup) deptGroup.style.display = role === 'ANALYST' ? 'none' : '';
     });
   };
 

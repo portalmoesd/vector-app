@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, denyAnalyst } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -34,7 +34,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // POST /api/workflow/comments
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const { eventId, sectionId, anchorId, parentId, content, htmlContent } = req.body;
     const { rows } = await db.query(
@@ -62,7 +62,7 @@ router.post('/', requireAuth, async (req, res) => {
 });
 
 // POST /api/workflow/comments/delete  (frontend calls this as POST)
-router.post('/delete', requireAuth, async (req, res) => {
+router.post('/delete', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const { commentId } = req.body;
     await db.query('DELETE FROM section_comments WHERE id = $1 AND user_id = $2', [commentId, req.user.id]);
@@ -74,7 +74,7 @@ router.post('/delete', requireAuth, async (req, res) => {
 });
 
 // Keep DELETE /:id for API consumers
-router.delete('/:id', requireAuth, async (req, res) => {
+router.delete('/:id', requireAuth, denyAnalyst, async (req, res) => {
   try {
     await db.query('DELETE FROM section_comments WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
     res.json({ success: true });
