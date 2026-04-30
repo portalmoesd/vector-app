@@ -2708,10 +2708,14 @@
   function ensureDocxLib() {
     if (typeof window.docx !== 'undefined') return Promise.resolve();
     if (_docxLoadPromise) return _docxLoadPromise;
-    // docx 8.5.0's font obfuscator (used when embedding fonts via the
-    // Document `fonts` option) calls `Buffer.concat` directly, which is
-    // a Node-only API. Provide a minimal polyfill that returns a
-    // Uint8Array — JSZip accepts that wherever it accepts a Buffer.
+    // docx 8.5.0's font obfuscator + the bundled JSZip both call Node's
+    // Buffer API directly (Buffer.concat / Buffer.isBuffer / Buffer.from /
+    // Buffer.alloc), which the browser doesn't have. Provide a polyfill
+    // that satisfies each method using Uint8Array; JSZip accepts Uint8Array
+    // wherever it accepts a Buffer. We deliberately leave `typeof Buffer`
+    // as 'object' (not 'function') so JSZip's "are we in Node?" guards
+    // (`typeof Buffer === 'function'`) still fail and use Uint8Array paths
+    // for everything else.
     if (typeof window.Buffer === 'undefined') {
       window.Buffer = {
         concat(arrays) {
@@ -2722,6 +2726,18 @@
           for (const arr of arrays) { out.set(arr, offset); offset += arr.length; }
           return out;
         },
+        isBuffer() { return false; },
+        from(data, encoding) {
+          if (typeof data === 'string') {
+            // Limited string support; the obfuscate path only needs binary.
+            return new TextEncoder().encode(data);
+          }
+          if (data instanceof ArrayBuffer) return new Uint8Array(data);
+          if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+          if (Array.isArray(data)) return new Uint8Array(data);
+          return new Uint8Array(data || 0);
+        },
+        alloc(size) { return new Uint8Array(size); },
       };
     }
     _docxLoadPromise = new Promise((resolve, reject) => {
