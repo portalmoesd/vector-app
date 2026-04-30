@@ -3058,10 +3058,17 @@
 
   async function buildAppendix(latestYear, latestMonth, countryId) {
     const columns = buildAppendixColumns(latestYear, latestMonth);
-    const settled = await Promise.allSettled(
-      columns.map((c) => fetchAppendixColumn(c, countryId))
+    if (columns.length === 0) return null;
+    // Probe with the first column to detect upstream outages early. If
+    // the probe fails (502 / network error), skip the rest of the
+    // fan-out — firing 5–7 parallel calls against a known-down upstream
+    // floods the browser console with no benefit.
+    const probe = await fetchAppendixColumn(columns[0], countryId);
+    if (probe == null) return null;
+    const rest = await Promise.allSettled(
+      columns.slice(1).map((c) => fetchAppendixColumn(c, countryId))
     );
-    const data = settled.map((s) => (s.status === 'fulfilled' ? s.value : null));
+    const data = [probe, ...rest.map((s) => (s.status === 'fulfilled' ? s.value : null))];
     const anyData = data.some((d) => d && d.totals);
     if (!anyData) return null;
     return {
