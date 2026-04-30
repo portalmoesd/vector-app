@@ -34,7 +34,7 @@ async function resolveUser(jwtUser) {
 
 // ─── Helper: load section context ─────────────────────────────────────────────
 
-async function loadSectionContext(eventId, sectionId) {
+async function loadSectionContext(eventId, sectionId, jwtUser) {
   const { rows: [event] } = await db.query(
     `SELECT id, document_submitter_role, document_submitter_id, deputy_id,
             supervisor_id, curator_required, workflow_type, country_id,
@@ -75,6 +75,22 @@ async function loadSectionContext(eventId, sectionId) {
   const workflowType = event.workflow_type || 'advanced';
   const chain = buildChain(event.document_submitter_role, event.curator_required, isCrossDept, workflowType);
 
+  // Resolve the user's effective role for THIS section. We honour the
+  // amendment override here so every write handler picks up the same
+  // canonical value via ctx.userRole — without it, save / submit /
+  // return etc. compare the DS's JWT role (e.g. SUPERVISOR) to the
+  // synthetic 'AMENDING_DS' holder and 403 the DS out of their own
+  // amendment.
+  let userRole = null;
+  if (jwtUser) {
+    if (sc.status === 'submitted_to_amending_ds'
+        && jwtUser.id === event.document_submitter_id) {
+      userRole = 'AMENDING_DS';
+    } else {
+      userRole = await effectiveRole(jwtUser, event, sectionDeptIds, chain);
+    }
+  }
+
   return {
     event,
     sectionStatus: sc.status || 'draft',
@@ -86,6 +102,7 @@ async function loadSectionContext(eventId, sectionId) {
     dsDeptId,
     sectionDeptIds,
     workflowType,
+    userRole,
   };
 }
 
@@ -159,12 +176,12 @@ router.post('/save', requireAuth, async (req, res) => {
 
     // Authorization: only the current holder can save, and only in editable statuses
     const [ctx, resolvedUser] = await Promise.all([
-      loadSectionContext(eventId, sectionId),
+      loadSectionContext(eventId, sectionId, req.user),
       resolveUser(req.user),
     ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
+    const userRole = ctx.userRole;
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
 
     if (userRole !== holder) {
@@ -208,12 +225,12 @@ router.post('/submit', requireAuth, async (req, res) => {
     }
 
     const [ctx, resolvedUser] = await Promise.all([
-      loadSectionContext(eventId, sectionId),
+      loadSectionContext(eventId, sectionId, req.user),
       resolveUser(req.user),
     ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
+    const userRole = ctx.userRole;
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
 
     // Verify user is the current holder
@@ -303,12 +320,12 @@ router.post('/approve', requireAuth, async (req, res) => {
     }
 
     const [ctx, resolvedUser] = await Promise.all([
-      loadSectionContext(eventId, sectionId),
+      loadSectionContext(eventId, sectionId, req.user),
       resolveUser(req.user),
     ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
+    const userRole = ctx.userRole;
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
     const isDS = req.user.id === ctx.event.document_submitter_id;
 
@@ -432,12 +449,22 @@ router.post('/return', requireAuth, async (req, res) => {
     }
 
     const [ctx, resolvedUser] = await Promise.all([
-      loadSectionContext(eventId, sectionId),
+      loadSectionContext(eventId, sectionId, req.user),
       resolveUser(req.user),
     ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
+    // Return doesn't apply to a DS amendment — the section was already
+    // approved before the reopen, so there's no chain step to return
+    // it to. Frontend hides the button (dashboard + editor); this is
+    // the server-side belt-and-suspenders.
+    if (ctx.sectionStatus === 'submitted_to_amending_ds') {
+      return res.status(400).json({
+        error: 'Cannot return an amendment — approve or leave it open',
+      });
+    }
+
+    const userRole = ctx.userRole;
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
 
     if (userRole !== holder) {
@@ -500,12 +527,12 @@ router.post('/ask-to-return', requireAuth, async (req, res) => {
     }
 
     const [ctx, resolvedUser] = await Promise.all([
-      loadSectionContext(eventId, sectionId),
+      loadSectionContext(eventId, sectionId, req.user),
       resolveUser(req.user),
     ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
+    const userRole = ctx.userRole;
 
     // The user's effective role must be part of this section's chain
     if (!ctx.chain.includes(userRole)) {
@@ -634,12 +661,12 @@ router.post('/push-section', requireAuth, async (req, res) => {
     }
 
     const [ctx, resolvedUser] = await Promise.all([
-      loadSectionContext(eventId, sectionId),
+      loadSectionContext(eventId, sectionId, req.user),
       resolveUser(req.user),
     ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
+    const userRole = ctx.userRole;
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
     const isLastActor = ctx.lastUpdatedByUserId != null && ctx.lastUpdatedByUserId == req.user.id;
 
@@ -707,12 +734,12 @@ router.post('/pull-section', requireAuth, async (req, res) => {
     }
 
     const [ctx, resolvedUser] = await Promise.all([
-      loadSectionContext(eventId, sectionId),
+      loadSectionContext(eventId, sectionId, req.user),
       resolveUser(req.user),
     ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
 
-    const userRole = await effectiveRole(resolvedUser, ctx.event, ctx.sectionDeptIds, ctx.chain);
+    const userRole = ctx.userRole;
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
     const isDS = req.user.id === ctx.event.document_submitter_id;
 
