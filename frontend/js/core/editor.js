@@ -604,10 +604,10 @@
     tcBarActions.className = 'gcp-re-tc-bar-actions';
     const tcAcceptAll = document.createElement('button');
     tcAcceptAll.type = 'button'; tcAcceptAll.className = 'gcp-re-tc-action accept';
-    tcAcceptAll.textContent = I18n.tr('editor.tc.acceptAll');
+    tcAcceptAll.textContent = 'Accept All';
     const tcRejectAll = document.createElement('button');
     tcRejectAll.type = 'button'; tcRejectAll.className = 'gcp-re-tc-action reject';
-    tcRejectAll.textContent = I18n.tr('editor.tc.rejectAll');
+    tcRejectAll.textContent = 'Reject All';
     tcBarActions.appendChild(tcAcceptAll);
     tcBarActions.appendChild(tcRejectAll);
     tcBar.appendChild(tcBarLeft);
@@ -702,7 +702,7 @@
       pop.appendChild(div);
       const customRow = document.createElement('label');
       customRow.className = 'gcp-re-palette-custom';
-      customRow.textContent = I18n.tr('editor.color.custom');
+      customRow.textContent = 'Custom colour…';
       const customInput = document.createElement('input');
       customInput.type = 'color'; customInput.value = '#000000';
       customInput.addEventListener('change', () => { closePalette(); applyColor(customInput.value); });
@@ -725,7 +725,7 @@
 
     // ── Font colour button ────────────────────────────────────────────────────
     const colorWrap = document.createElement('span');
-    colorWrap.className = 'gcp-re-color-wrap'; colorWrap.title = I18n.tr('editor.color.font');
+    colorWrap.className = 'gcp-re-color-wrap'; colorWrap.title = 'Font colour';
     colorWrap.style.cursor = 'pointer';
     const colorLabel = document.createElement('span');
     colorLabel.className = 'gcp-re-color-label'; colorLabel.setAttribute('aria-hidden', 'true');
@@ -745,7 +745,7 @@
 
     // ── Background colour button ──────────────────────────────────────────────
     const bgColorWrap = document.createElement('span');
-    bgColorWrap.className = 'gcp-re-color-wrap'; bgColorWrap.title = I18n.tr('editor.color.highlight');
+    bgColorWrap.className = 'gcp-re-color-wrap'; bgColorWrap.title = 'Highlight / background colour';
     bgColorWrap.style.cursor = 'pointer';
     const bgColorLabel = document.createElement('span');
     bgColorLabel.className = 'gcp-re-color-label'; bgColorLabel.setAttribute('aria-hidden', 'true');
@@ -779,11 +779,8 @@
       }
       const btn = document.createElement('button');
       btn.type = 'button'; btn.className = 'gcp-re-btn';
-      const localizedTitle = I18n.tr('editor.tool.' + tool.cmd);
-      // I18n.tr falls back to the key when missing — keep the English title in that case.
-      const title = (localizedTitle && localizedTitle !== 'editor.tool.' + tool.cmd) ? localizedTitle : tool.title;
-      btn.innerHTML = tool.icon; btn.title = title;
-      btn.setAttribute('aria-label', title); btn.dataset.cmd = tool.cmd;
+      btn.innerHTML = tool.icon; btn.title = tool.title;
+      btn.setAttribute('aria-label', tool.title); btn.dataset.cmd = tool.cmd;
       btn.addEventListener('mousedown', e => {
         e.preventDefault();
         if (FMT_BLOCK.has(tool.cmd)) trackBlockFmtChange(tool.cmd);
@@ -800,8 +797,8 @@
 
     const tblBtn = document.createElement('button');
     tblBtn.type = 'button'; tblBtn.className = 'gcp-re-btn';
-    tblBtn.title = I18n.tr('editor.table.insert');
-    tblBtn.setAttribute('aria-label', I18n.tr('editor.table.insert'));
+    tblBtn.title = 'Insert table';
+    tblBtn.setAttribute('aria-label', 'Insert table');
     tblBtn.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="1" y1="5.5" x2="15" y2="5.5" stroke="currentColor" stroke-width="1.2"/><line x1="1" y1="10" x2="15" y2="10" stroke="currentColor" stroke-width="1.2"/><line x1="5.5" y1="1" x2="5.5" y2="15" stroke="currentColor" stroke-width="1.2"/><line x1="10" y1="1" x2="10" y2="15" stroke="currentColor" stroke-width="1.2"/></svg>';
     toolbar.appendChild(tblBtn);
 
@@ -821,13 +818,11 @@
       const grid = document.createElement('div');
       grid.className = 'gcp-re-tbl-grid';
       const label = document.createElement('div');
-      label.className = 'gcp-re-tbl-label'; label.textContent = I18n.tr('editor.table.insert');
+      label.className = 'gcp-re-tbl-label'; label.textContent = 'Insert table';
       let hoverR = 0, hoverC = 0;
       function updateGrid(r, c) {
         hoverR = r; hoverC = c;
-        label.textContent = (r && c)
-          ? I18n.tr('editor.table.size').replace('{r}', r).replace('{c}', c)
-          : I18n.tr('editor.table.insert');
+        label.textContent = (r && c) ? `${r} × ${c} table` : 'Insert table';
         grid.querySelectorAll('.gcp-re-tbl-cell').forEach(cell => {
           const cr = +cell.dataset.r, cc = +cell.dataset.c;
           cell.classList.toggle('hi', cr <= r && cc <= c);
@@ -882,12 +877,12 @@
 
     const tcBtn = document.createElement('button');
     tcBtn.type = 'button'; tcBtn.className = 'gcp-re-btn';
-    tcBtn.title = I18n.tr('editor.tc.toggleTitle');
-    tcBtn.setAttribute('aria-label', I18n.tr('editor.tc.toggleAria'));
+    tcBtn.title = 'Show / Hide Changes';
+    tcBtn.setAttribute('aria-label', 'Show or hide tracked changes');
     tcBtn.setAttribute('aria-pressed', 'false');
 
     const tcBtnLabel = document.createElement('span');
-    tcBtnLabel.textContent = I18n.tr('editor.tc.label');
+    tcBtnLabel.textContent = 'Changes';
     const tcBadge = document.createElement('span');
     tcBadge.className = 'gcp-re-tc-badge'; tcBadge.style.display = 'none';
     tcBtn.appendChild(tcBtnLabel); tcBtn.appendChild(tcBadge);
@@ -900,8 +895,8 @@
 
     const cmtBtn = document.createElement('button');
     cmtBtn.type = 'button'; cmtBtn.className = 'gcp-re-btn';
-    cmtBtn.title = I18n.tr('editor.comments.toggleTitle');
-    cmtBtn.setAttribute('aria-label', I18n.tr('editor.comments.toggleAria'));
+    cmtBtn.title = 'Comments';
+    cmtBtn.setAttribute('aria-label', 'Toggle comments panel');
     cmtBtn.innerHTML = '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true" style="flex-shrink:0"><path d="M14 1H2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h5.586l2.707 2.707a1 1 0 0 0 1.414 0L14 12h0a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg>';
     const cmtBadge = document.createElement('span');
     cmtBadge.className = 'gcp-re-cmt-badge'; cmtBadge.style.display = 'none';
@@ -910,8 +905,8 @@
 
     const addCmtBtn = document.createElement('button');
     addCmtBtn.type = 'button'; addCmtBtn.className = 'gcp-re-btn gcp-re-btn--mobile-only';
-    addCmtBtn.title = I18n.tr('editor.comment.addTitle');
-    addCmtBtn.setAttribute('aria-label', I18n.tr('editor.comment.addTitle'));
+    addCmtBtn.title = 'Add Comment';
+    addCmtBtn.setAttribute('aria-label', 'Add comment');
     addCmtBtn.innerHTML = '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true" style="flex-shrink:0"><path d="M14 1H2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h5.586l2.707 2.707a1 1 0 0 0 1.414 0L14 12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg><span style="font-size:11px;margin-left:2px;">+</span>';
     addCmtBtn.addEventListener('mousedown', e => e.preventDefault());
     if (readOnly) addCmtBtn.style.display = 'none';
@@ -924,8 +919,8 @@
 
     const fsBtn = document.createElement('button');
     fsBtn.type = 'button'; fsBtn.className = 'gcp-re-btn';
-    fsBtn.setAttribute('aria-label', I18n.tr('editor.fullscreen.aria'));
-    fsBtn.title = I18n.tr('editor.fullscreen.title');
+    fsBtn.setAttribute('aria-label', 'Toggle fullscreen');
+    fsBtn.title = 'Fullscreen (Esc to exit)';
     fsBtn.innerHTML = '<svg class="gcp-re-btn-fullscreen-icon-expand" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4"/></svg><svg class="gcp-re-btn-fullscreen-icon-compress" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 1v4H1M15 5h-4V1M11 15v-4h4M1 11h4v4"/></svg>';
     toolbar.appendChild(fsBtn);
 
@@ -1167,8 +1162,8 @@
             const fmtLabels = group.entries.filter(e => e.kind === 'fmt' && e.fmtCmd).map(e => FMT_CMD_LABELS[e.fmtCmd] || e.fmtCmd).filter((v, i, a) => a.indexOf(v) === i);
             const txtCount = group.entries.filter(e => e.kind !== 'fmt').length;
             let countLabel = `${n} change${n === 1 ? '' : 's'}`;
-            if (fmtLabels.length > 0 && txtCount === 0) countLabel = `${I18n.tr('editor.balloon.formatted')} · ${fmtLabels.join(', ')}`;
-            else if (fmtLabels.length > 0) countLabel = `${I18n.tr('editor.balloon.changesCount').replace('{n}', n)} · ${fmtLabels.join(', ')}`;
+            if (fmtLabels.length > 0 && txtCount === 0) countLabel = `Formatted · ${fmtLabels.join(', ')}`;
+            else if (fmtLabels.length > 0) countLabel = `${n} changes · ${fmtLabels.join(', ')}`;
             const allTextEntries = group.entries.filter(e => e.kind === 'ins' || e.kind === 'del');
             const needsExpand = allTextEntries.length > 2 || allTextEntries.some(e => e.text.length > 38);
             const snippetLines = allTextEntries.slice(0, 2).map(e => {
@@ -1191,10 +1186,10 @@
               </div>
               <div class="gcp-re-snippets-collapsed">${snippetLines || `<div class="gcp-re-balloon-change-count">${escHtml(countLabel)}</div>`}</div>
               ${needsExpand ? `<div class="gcp-re-snippets-expanded" style="display:none">${snippetLinesExpanded}</div>` : ''}
-              ${needsExpand ? `<button class="gcp-re-balloon-expand" type="button">${escHtml(I18n.tr('editor.balloon.showMore'))}</button>` : ''}
+              ${needsExpand ? `<button class="gcp-re-balloon-expand" type="button">Show more</button>` : ''}
               <div class="gcp-re-balloon-btns">
-                <button class="gcp-re-balloon-acc" type="button">✓ ${escHtml(I18n.tr('editor.balloon.accept'))}</button>
-                <button class="gcp-re-balloon-rej" type="button">✗ ${escHtml(I18n.tr('editor.balloon.reject'))}</button>
+                <button class="gcp-re-balloon-acc" type="button">✓ Accept</button>
+                <button class="gcp-re-balloon-rej" type="button">✗ Reject</button>
               </div>`;
             b.querySelector('.gcp-re-balloon-acc').addEventListener('click', () => { group.ids.forEach(id => acceptChange(id)); });
             b.querySelector('.gcp-re-balloon-rej').addEventListener('click', () => { group.ids.forEach(id => rejectChange(id)); });
@@ -1207,13 +1202,13 @@
               if (expandedGroups.has(groupKey)) {
                 collapsedView.style.display = 'none';
                 expandedView.style.display  = '';
-                expandBtn.textContent = I18n.tr('editor.balloon.showLess');
+                expandBtn.textContent = 'Show less';
               }
               expandBtn.addEventListener('click', () => {
                 const isExpanded = expandedView.style.display !== 'none';
                 collapsedView.style.display = isExpanded ? '' : 'none';
                 expandedView.style.display  = isExpanded ? 'none' : '';
-                expandBtn.textContent = isExpanded ? I18n.tr('editor.balloon.showMore') : I18n.tr('editor.balloon.showLess');
+                expandBtn.textContent = isExpanded ? 'Show more' : 'Show less';
                 if (isExpanded) expandedGroups.delete(groupKey); else expandedGroups.add(groupKey);
                 positionBalloons();
               });
@@ -2168,7 +2163,7 @@
 
       const addCmt = document.createElement('div');
       addCmt.className = 'gcp-re-ctx-item';
-      addCmt.innerHTML = '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M14 1H2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h5.586l2.707 2.707a1 1 0 0 0 1.414 0L14 12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg> ' + escHtml(I18n.tr('editor.comment.addTitle'));
+      addCmt.innerHTML = '<svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M14 1H2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h5.586l2.707 2.707a1 1 0 0 0 1.414 0L14 12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg> Add Comment';
       addCmt.addEventListener('mousedown', ev => ev.preventDefault());
       addCmt.addEventListener('click', () => {
         removeCtxMenu();
@@ -2401,17 +2396,17 @@
       findPanel = document.createElement('div');
       findPanel.className = 'gcp-re-find-panel';
       const findInput = document.createElement('input');
-      findInput.type = 'text'; findInput.placeholder = I18n.tr('editor.find.findPlaceholder');
+      findInput.type = 'text'; findInput.placeholder = 'Find...';
       const countLabel = document.createElement('span');
       countLabel.className = 'gcp-re-find-count';
-      const prevBtn = document.createElement('button'); prevBtn.textContent = '▲'; prevBtn.title = I18n.tr('editor.find.prev');
-      const nextBtn = document.createElement('button'); nextBtn.textContent = '▼'; nextBtn.title = I18n.tr('editor.find.next');
+      const prevBtn = document.createElement('button'); prevBtn.textContent = '▲'; prevBtn.title = 'Previous';
+      const nextBtn = document.createElement('button'); nextBtn.textContent = '▼'; nextBtn.title = 'Next';
       const replaceInput = document.createElement('input');
-      replaceInput.type = 'text'; replaceInput.placeholder = I18n.tr('editor.find.replacePlaceholder');
+      replaceInput.type = 'text'; replaceInput.placeholder = 'Replace...';
       if (!showReplace) replaceInput.style.display = 'none';
-      const replaceBtn = document.createElement('button'); replaceBtn.textContent = I18n.tr('editor.find.replace');
+      const replaceBtn = document.createElement('button'); replaceBtn.textContent = 'Replace';
       if (!showReplace) replaceBtn.style.display = 'none';
-      const replaceAllBtn = document.createElement('button'); replaceAllBtn.textContent = I18n.tr('editor.find.replaceAll');
+      const replaceAllBtn = document.createElement('button'); replaceAllBtn.textContent = 'Replace All';
       if (!showReplace) replaceAllBtn.style.display = 'none';
       const closeBtn = document.createElement('span');
       closeBtn.className = 'gcp-re-find-close'; closeBtn.innerHTML = '&times;';

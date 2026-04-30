@@ -99,13 +99,13 @@ const App = {
         <div class="gp-sidebar__spacer"></div>
 
         <div class="gp-sidebar__footer">
-          <div class="gp-lang-switch" role="radiogroup" aria-label="Language">
-            <button type="button" class="gp-lang-switch__opt" data-lang="en">EN</button>
-            <button type="button" class="gp-lang-switch__opt" data-lang="ka">ქარ</button>
-          </div>
+          <button class="gp-nav__link" id="langToggle" type="button">
+            <span class="gp-nav__icon"><span class="lang-label" style="font-size:12px;font-weight:700;letter-spacing:.5px">${I18n.getLocale() === 'ka' ? 'EN' : 'KA'}</span></span>
+            <span class="gp-nav__label">Language</span>
+          </button>
           <button class="gp-logout" id="logoutBtn" type="button">
             <span class="gp-nav__icon">${ICO.logout}</span>
-            <span class="gp-nav__label" data-i18n="nav.logout">Logout</span>
+            <span class="gp-nav__label">Logout</span>
           </button>
         </div>
       </div>
@@ -132,27 +132,16 @@ const App = {
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
     window.addEventListener('resize', () => { if (isDesktop()) closeMenu(); else collapse(); });
 
-    // ── Language switch & logout ─────────────────────────────────────────
-    this._refreshLangSwitch();
-    sidebar.querySelectorAll('.gp-lang-switch__opt').forEach(btn => {
-      btn.addEventListener('click', () => this.setLang(btn.dataset.lang));
-    });
+    // ── Language & logout ──────────────────────────────────────────────────
+    document.getElementById('langToggle')?.addEventListener('click', () => this.toggleLang());
     document.getElementById('logoutBtn')?.addEventListener('click', () => this.logout());
   },
 
-  _refreshLangSwitch() {
-    const cur = I18n.getLocale();
-    document.querySelectorAll('.gp-lang-switch__opt').forEach(btn => {
-      const active = btn.dataset.lang === cur;
-      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-      btn.classList.toggle('is-active', active);
-    });
-  },
-
-  async setLang(lang) {
-    if (!lang || lang === I18n.getLocale()) return;
-    await I18n.setLocale(lang);
-    this._refreshLangSwitch();
+  async toggleLang() {
+    const next = I18n.getLocale() === 'ka' ? 'en' : 'ka';
+    await I18n.setLocale(next);
+    const btn = document.getElementById('langToggle');
+    if (btn) btn.querySelector('.lang-label').textContent = next === 'ka' ? 'EN' : 'KA';
   },
 
   logout() {

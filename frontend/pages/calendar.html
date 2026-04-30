@@ -65,31 +65,31 @@
     <aside class="sidebar"></aside>
     <main class="main">
       <div class="topbar" style="display:flex;justify-content:space-between;align-items:center;">
-        <div class="page-title" data-i18n="calendar.pageTitle">Events</div>
-        <button class="btn btn-primary" id="createEventBtn" style="display:none;"><span data-i18n="calendar.createEvent">+ Create Event</span></button>
+        <div class="page-title">Events</div>
+        <button class="btn btn-primary" id="createEventBtn" style="display:none;">+ Create Event</button>
       </div>
 
       <div class="event-tabs">
-        <button class="event-tab active" data-tab="upcoming" data-i18n="calendar.tabs.upcoming">Upcoming</button>
-        <button class="event-tab" data-tab="completed" data-i18n="calendar.tabs.completed">Completed Events</button>
-        <button class="event-tab" data-tab="archived" data-i18n="calendar.tabs.archived">Archived Events</button>
+        <button class="event-tab active" data-tab="upcoming">Upcoming</button>
+        <button class="event-tab" data-tab="completed">Completed Events</button>
+        <button class="event-tab" data-tab="archived">Archived Events</button>
       </div>
 
       <div class="filter-bar">
         <div class="form-group">
-          <label class="form-label" data-i18n="common.search">Search</label>
-          <input class="form-input" id="filterKeyword" data-i18n-placeholder="calendar.filter.keywordPlaceholder" placeholder="Title or occasion..." />
+          <label class="form-label">Search</label>
+          <input class="form-input" id="filterKeyword" placeholder="Title or occasion..." />
         </div>
         <div class="form-group">
-          <label class="form-label" data-i18n="statistics.country">Country</label>
-          <select class="form-select" id="filterCountry"><option value="" data-i18n="calendar.filter.allCountries">All countries</option></select>
+          <label class="form-label">Country</label>
+          <select class="form-select" id="filterCountry"><option value="">All countries</option></select>
         </div>
         <div class="form-group">
-          <label class="form-label" data-i18n="common.from">From</label>
+          <label class="form-label">From</label>
           <input class="form-input" type="text" id="filterDateFrom" placeholder="dd/mm/yyyy" />
         </div>
         <div class="form-group">
-          <label class="form-label" data-i18n="common.to">To</label>
+          <label class="form-label">To</label>
           <input class="form-input" type="text" id="filterDateTo" placeholder="dd/mm/yyyy" />
         </div>
       </div>
@@ -100,22 +100,22 @@
       <!-- My Templates section -->
       <div class="card" id="templatesCard" style="margin-top:32px;display:none;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-          <h3 data-i18n="calendar.templates.title">My Templates</h3>
-          <button class="btn btn-primary" id="createTemplateBtn"><span data-i18n="calendar.templates.create">+ New Template</span></button>
+          <h3>My Templates</h3>
+          <button class="btn btn-primary" id="createTemplateBtn">+ New Template</button>
         </div>
         <div id="templatesContainer">
-          <div class="empty-state"><p data-i18n="calendar.templates.empty">No templates yet</p></div>
+          <div class="empty-state"><p>No templates yet</p></div>
         </div>
       </div>
 
       <!-- Create / View / Edit Event Modal -->
       <div id="eventModal" class="modal-overlay" style="display:none;">
         <div class="modal-card" style="max-width:900px;max-height:90vh;display:flex;flex-direction:column;">
-          <h3 id="eventModalTitle" style="flex-shrink:0;" data-i18n="calendar.modal.createTitle">Create Event</h3>
+          <h3 id="eventModalTitle" style="flex-shrink:0;">Create Event</h3>
           <div id="eventModalBody" style="overflow-y:auto;flex:1;min-height:0;padding-right:8px;"></div>
           <div class="modal-footer" style="flex-shrink:0;">
-            <button class="btn btn-outline" id="eventModalCancel" data-i18n="common.cancel">Cancel</button>
-            <button class="btn btn-primary" id="eventModalSave" data-i18n="common.create">Create</button>
+            <button class="btn btn-outline" id="eventModalCancel">Cancel</button>
+            <button class="btn btn-primary" id="eventModalSave">Create</button>
           </div>
         </div>
       </div>
@@ -123,11 +123,11 @@
       <!-- Template Modal -->
       <div class="modal-overlay" id="templateModal" style="display:none;">
         <div class="modal-card" style="max-width:1100px;max-height:90vh;display:flex;flex-direction:column;overflow:visible;">
-          <h3 id="templateModalTitle" style="flex-shrink:0;" data-i18n="calendar.templates.modalCreate">Create Template</h3>
+          <h3 id="templateModalTitle" style="flex-shrink:0;">Create Template</h3>
           <div id="templateModalBody" style="overflow-y:auto;flex:1;min-height:0;padding-right:8px;"></div>
           <div class="modal-footer" style="flex-shrink:0;">
-            <button class="btn btn-outline" id="templateModalCancel" data-i18n="common.cancel">Cancel</button>
-            <button class="btn btn-primary" id="templateModalSave" data-i18n="common.save">Save</button>
+            <button class="btn btn-outline" id="templateModalCancel">Cancel</button>
+            <button class="btn btn-primary" id="templateModalSave">Save</button>
           </div>
         </div>
       </div>

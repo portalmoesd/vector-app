@@ -34,7 +34,7 @@
   }
 
   // Populate country filter
-  filterCountry.innerHTML = `<option value="">${escapeHtml(I18n.tr('common.all'))}</option>` +
+  filterCountry.innerHTML = '<option value="">All</option>' +
     countries.map(c => `<option value="${c.name_en || c.nameEn || c.name}">${escapeHtml(c.name_en || c.nameEn || c.name)}</option>`).join('');
 
   // Filters
@@ -66,19 +66,9 @@
     const filtered = getFiltered();
 
     if (filtered.length === 0) {
-      libraryList.innerHTML = `<div class="empty-state"><p>${escapeHtml(I18n.tr('library.empty'))}</p></div>`;
+      libraryList.innerHTML = '<div class="empty-state"><p>No documents found</p></div>';
       return;
     }
-
-    const lblLanguage = escapeHtml(I18n.tr('library.meta.language'));
-    const lblDs = escapeHtml(I18n.tr('library.meta.ds'));
-    const lblCompleted = escapeHtml(I18n.tr('library.meta.completed'));
-    const lblPreview = escapeHtml(I18n.tr('library.btn.preview'));
-    const lblPdf = escapeHtml(I18n.tr('library.btn.pdf'));
-    const lblWord = escapeHtml(I18n.tr('library.btn.word'));
-    const lblFiles = escapeHtml(I18n.tr('library.btn.files'));
-    const lblEdit = escapeHtml(I18n.tr('library.btn.edit'));
-    const editTooltip = I18n.tr('library.editTooltip');
 
     libraryList.innerHTML = filtered.map(d => `
       <div class="doc-card">
@@ -86,31 +76,31 @@
           <h4>${escapeHtml(d.title)}</h4>
           <div class="doc-card-meta">
             <span>${escapeHtml(d.countryName)}</span>
-            <span>${lblLanguage} ${languageLabel(d.language)}</span>
-            <span>${lblDs} ${escapeHtml(d.documentSubmitterName)}</span>
-            ${d.endedAt ? `<span>${lblCompleted} ${formatDate(d.endedAt)}</span>` : ''}
+            <span>Language: ${languageLabel(d.language)}</span>
+            <span>DS: ${escapeHtml(d.documentSubmitterName)}</span>
+            ${d.endedAt ? `<span>Completed: ${formatDate(d.endedAt)}</span>` : ''}
           </div>
         </div>
         <div class="doc-card-actions">
           <button class="btn btn-outline" onclick="previewDoc(${d.id})">
             <span class="icon" style="--icon-url: url(/assets/view-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:16px;height:16px;display:inline-block;background:currentColor;"></span>
-            ${lblPreview}
+            Preview
           </button>
           <button class="btn btn-outline" onclick="exportPdf(${d.id})">
             <span class="icon" style="--icon-url: url(/assets/export-pdf-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:16px;height:16px;display:inline-block;background:currentColor;"></span>
-            ${lblPdf}
+            PDF
           </button>
           <button class="btn btn-outline" onclick="exportWord(${d.id})">
             <span class="icon" style="--icon-url: url(/assets/export-word-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:16px;height:16px;display:inline-block;background:currentColor;"></span>
-            ${lblWord}
+            Word
           </button>
           <button class="btn btn-outline" onclick="viewFiles(${d.id})">
             <span class="icon" style="--icon-url: url(/assets/files-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:16px;height:16px;display:inline-block;background:currentColor;"></span>
-            ${lblFiles}
+            Files
           </button>
           ${d.documentSubmitterId === user.id ? `
-            <button class="btn btn-outline" onclick="reopenDoc(${d.id})" title="${escapeHtml(editTooltip)}">
-              ${lblEdit}
+            <button class="btn btn-outline" onclick="reopenDoc(${d.id})" title="Reopen this document for editing — it will leave the Library until you re-publish.">
+              Edit
             </button>` : ''}
         </div>
       </div>
@@ -129,7 +119,7 @@
         </div>
         <div style="margin-bottom:16px;">
           <label style="cursor:pointer;font-weight:600;">
-            <input type="checkbox" id="selectAllSections" checked /> ${escapeHtml(I18n.tr('library.sectionSelect.selectAll'))}
+            <input type="checkbox" id="selectAllSections" checked /> Select all
           </label>
         </div>
         <div id="sectionChecklist">
@@ -141,7 +131,7 @@
           `).join('')}
         </div>
         <div style="margin-top:16px;text-align:right;">
-          <button class="btn btn-outline" onclick="this.closest('.preview-overlay').remove()">${escapeHtml(I18n.tr('common.cancel'))}</button>
+          <button class="btn btn-outline" onclick="this.closest('.preview-overlay').remove()">Cancel</button>
           <button class="btn btn-primary" id="exportConfirmBtn" style="margin-left:8px;">${escapeHtml(title)}</button>
         </div>
       </div>
@@ -163,7 +153,7 @@
       const selectedIdxs = Array.from(overlay.querySelectorAll('.section-check:checked'))
         .map(cb => parseInt(cb.dataset.idx));
       const selectedSections = selectedIdxs.map(i => doc.sections[i]);
-      if (selectedSections.length === 0) { toast.warn(I18n.tr('library.sectionSelect.warnEmpty')); return; }
+      if (selectedSections.length === 0) { toast.warn('Select at least one section.'); return; }
       overlay.remove();
       onExport(selectedSections);
     });
@@ -208,7 +198,7 @@
         el.style.color = 'inherit';
       });
     } catch (e) {
-      toast.error(I18n.tr('library.preview.failLoad') + ' ' + e.message);
+      toast.error('Failed to load document: ' + e.message);
     }
   };
 
@@ -229,7 +219,7 @@
   window.exportPdf = async function(eventId) {
     try {
       const doc = await Api.get(`/api/library/${eventId}/document`);
-      showSectionSelectModal(doc, I18n.tr('library.export.pdfTitle'), (sections) => {
+      showSectionSelectModal(doc, 'Export PDF', (sections) => {
         const datePart = doc.endedAt ? ' | ' + new Date(doc.endedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '.') : '';
         const html = `
           <div style="font-family: Arial, sans-serif; font-size: 11pt; padding: 20px;">
@@ -262,7 +252,7 @@
         }
       });
     } catch (e) {
-      toast.error(I18n.tr('library.export.fail') + ' ' + e.message);
+      toast.error('Export failed: ' + e.message);
     }
   };
 
@@ -270,16 +260,16 @@
   window.exportWord = async function(eventId) {
     try {
       const doc = await Api.get(`/api/library/${eventId}/document`);
-      showSectionSelectModal(doc, I18n.tr('library.export.wordTitle'), async (sections) => {
+      showSectionSelectModal(doc, 'Export Word', async (sections) => {
         try {
           const mapped = sections.map(s => ({ sectionLabel: s.title, htmlContent: s.htmlContent }));
           await window.GCP.exportDocx(doc.title, mapped, { countryName: doc.countryName, endedAt: doc.endedAt });
         } catch (err) {
-          toast.error(I18n.tr('library.export.wordFail') + ' ' + err.message);
+          toast.error('Word export failed: ' + err.message);
         }
       });
     } catch (e) {
-      toast.error(I18n.tr('library.export.fail') + ' ' + e.message);
+      toast.error('Export failed: ' + e.message);
     }
   };
 
@@ -293,12 +283,12 @@
       overlay.innerHTML = `
         <div class="preview-card" style="max-width:700px;">
           <div class="preview-header">
-            <h2>${escapeHtml(I18n.tr('library.files.title'))}</h2>
+            <h2>Uploaded Files</h2>
             <button class="preview-close" onclick="this.closest('.preview-overlay').remove()">&times;</button>
           </div>
-          ${files.length === 0 ? `<p>${escapeHtml(I18n.tr('library.files.empty'))}</p>` : `
+          ${files.length === 0 ? '<p>No files uploaded for this event.</p>' : `
             <div class="table-wrap"><table>
-              <thead><tr><th>${escapeHtml(I18n.tr('library.files.col.file'))}</th><th>${escapeHtml(I18n.tr('library.files.col.section'))}</th><th>${escapeHtml(I18n.tr('library.files.col.uploaded'))}</th><th>${escapeHtml(I18n.tr('library.files.col.by'))}</th><th>${escapeHtml(I18n.tr('library.files.col.size'))}</th></tr></thead>
+              <thead><tr><th>File</th><th>Section</th><th>Uploaded</th><th>By</th><th>Size</th></tr></thead>
               <tbody>${files.map(f => `
                 <tr>
                   <td><a href="#" onclick="downloadFileAuth(${f.id}, '${escapeHtml(f.original_name).replace(/'/g, "\\'")}'); return false;">${escapeHtml(f.original_name)}</a></td>
@@ -319,7 +309,7 @@
 
       document.body.appendChild(overlay);
     } catch (e) {
-      toast.error(I18n.tr('library.files.failLoad') + ' ' + e.message);
+      toast.error('Failed to load files: ' + e.message);
     }
   };
 
@@ -327,17 +317,17 @@
   // already DS-gated in the card render, but the server enforces it
   // again on the endpoint.
   window.reopenDoc = async function(eventId) {
-    const ok = window.confirm(I18n.tr('library.reopen.confirm'));
+    const ok = window.confirm(
+      'Reopen this document for editing? It will leave the Library until you re-publish.'
+    );
     if (!ok) return;
     try {
       await Api.post(`/api/library/${eventId}/reopen`, {});
-      // Send the DS straight to their role-appropriate dashboard so
-      // the reopened event is right there in their active list.
-      // dashboardUrl() lives in /js/core/utils.js and maps the
-      // user's role → /pages/dashboard-<role>.html.
-      window.location.href = `${dashboardUrl(user.role)}?event_id=${eventId}`;
+      // The event re-appears under "active" on the calendar/dashboards.
+      // Send the DS straight there so they can pull a section to amend.
+      window.location.href = `/pages/calendar.html?event_id=${eventId}`;
     } catch (e) {
-      toast.error(I18n.tr('library.reopen.fail') + ' ' + (e.message || I18n.tr('library.reopen.unknownError')));
+      toast.error('Failed to reopen: ' + (e.message || 'Unknown error'));
     }
   };
 
