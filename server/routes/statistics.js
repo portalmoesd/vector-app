@@ -4,7 +4,6 @@
  */
 const express = require('express');
 const XLSX = require('xlsx');
-const { Agent } = require('undici');
 const router = express.Router();
 
 const GEOSTAT_BASE = 'https://ex-trade-api.geostat.ge/api/trade';
@@ -12,9 +11,15 @@ const GEOSTAT_BASE = 'https://ex-trade-api.geostat.ge/api/trade';
 // Geostat's HTTPS endpoint serves only the leaf cert without the
 // intermediate, so Node's native fetch fails with
 // UNABLE_TO_VERIFY_LEAF_SIGNATURE while browsers (which cache
-// intermediates) work fine. Use a permissive dispatcher only for
-// these calls — the rest of the process keeps full TLS verification.
-const geostatDispatcher = new Agent({ connect: { rejectUnauthorized: false } });
+// intermediates) work fine. Workaround: set NODE_TLS_REJECT_UNAUTHORIZED=0
+// in the Render environment for this service. Outbound calls from
+// this backend only target Geostat + GNTA (both government APIs),
+// so the security cost is low. Long-term, swap for NODE_EXTRA_CA_CERTS
+// pointing to the missing intermediate.
+//
+// (We tried scoping verification with an undici Agent dispatcher, but
+// installing undici as a direct dep creates a version mismatch with
+// Node's bundled undici and trips UND_ERR_INVALID_ARG.)
 
 // ── Helper: proxy fetch with timeout ────────────────────────────────────────
 
@@ -34,7 +39,6 @@ async function geostatFetch(path, options = {}) {
           ...(options.headers || {}),
         },
         signal: AbortSignal.timeout(30_000),
-        dispatcher: geostatDispatcher,
       });
       if (res.status >= 500 && attempt < retries) {
         console.warn(`[geostatFetch] ${path} returned ${res.status}, retrying (${attempt + 1}/${retries})`);
@@ -618,7 +622,6 @@ router.get('/fdi', async (req, res) => {
         headers: { 'User-Agent': 'VectorPortal/1.0' },
         signal: AbortSignal.timeout(15_000),
         redirect: 'follow',
-        dispatcher: geostatDispatcher,
       });
       if (!xlsxRes.ok) throw new Error(`HTTP ${xlsxRes.status}`);
       const buffer = Buffer.from(await xlsxRes.arrayBuffer());
