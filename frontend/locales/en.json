@@ -230,7 +230,7 @@
         "name": "Name",
         "username": "Username",
         "role": "Role",
-        "dept": "Department",
+        "dept": "Department / Entity",
         "external": "External",
         "actions": "Actions"
       },
