@@ -323,9 +323,11 @@
     if (!ok) return;
     try {
       await Api.post(`/api/library/${eventId}/reopen`, {});
-      // The event re-appears under "active" on the calendar/dashboards.
-      // Send the DS straight there so they can pull a section to amend.
-      window.location.href = `/pages/calendar.html?event_id=${eventId}`;
+      // Send the DS straight to their role-appropriate dashboard so
+      // the reopened event is right there in their active list.
+      // dashboardUrl() lives in /js/core/utils.js and maps the
+      // user's role → /pages/dashboard-<role>.html.
+      window.location.href = `${dashboardUrl(user.role)}?event_id=${eventId}`;
     } catch (e) {
       toast.error('Failed to reopen: ' + (e.message || 'Unknown error'));
     }

@@ -48,6 +48,7 @@ function statusLabel(status) {
     // Reopen-amendment state: section was previously approved + fully
     // published; the DS pulled it back from the Library to amend.
     submitted_to_amending_ds: 'Amendment in progress (DS)',
+    approved_by_ds_amendment: 'Amended (DS)',
   };
   return map[status] || status;
 }
