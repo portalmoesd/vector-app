@@ -16,16 +16,6 @@
   const GEOSTAT_API = 'https://ex-trade-api.geostat.ge/api/trade';
   const PROXY_API = `${API_BASE}/api/statistics`;
 
-  // Rankings outside the top 20 are dropped from the report — the prose
-  // mentions skip the phrase entirely and table rank columns hide when
-  // every row's rank exceeds the limit. This applies to trade-partner,
-  // tourism and FDI rankings consistently.
-  const TOP_RANK_LIMIT = 20;
-  function isTopRank(r) {
-    return typeof r === 'number' && r >= 1 && r <= TOP_RANK_LIMIT;
-  }
-  function topRankOrNull(r) { return isTopRank(r) ? r : null; }
-
   // ── DOM refs ─────────────────────────────────────────────────────────────
   const searchInput = document.getElementById('countrySearch');
   const dropdown = document.getElementById('countryDropdown');
@@ -972,19 +962,7 @@
           const hasExport = !!(j.country.export);
           const hasImport = !!(j.country.import);
           console.log('[ranking] ✓ has data — turnover:', hasTurnover, 'export:', hasExport, 'import:', hasImport);
-          // Ranks outside the top 20 are dropped entirely so the prose
-          // sentence (and matching share %) skips them. The reExport
-          // entry has no rank — leave it intact.
-          const filtered = {};
-          for (const k of Object.keys(j.country)) {
-            const v = j.country[k];
-            if (v && typeof v === 'object' && 'rank' in v) {
-              filtered[k] = isTopRank(v.rank) ? v : null;
-            } else {
-              filtered[k] = v;
-            }
-          }
-          ranking = { country: filtered, totals: j.totals };
+          ranking = { country: j.country, totals: j.totals };
         } else {
           console.warn('[ranking] ✗ no usable data in response');
         }
@@ -1929,7 +1907,7 @@
         }
         entries.sort((a, b) => b.val - a.val);
         const idx = entries.findIndex(e => e.name === gntaName);
-        const rank = idx >= 0 ? topRankOrNull(idx + 1) : null;
+        const rank = idx >= 0 ? idx + 1 : null;
         // Share: country's own visitor count divided by the grand total from
         // the file's "საერთაშორისო" row. No summing, no aggregation.
         const ownVal = pickVal(countryData) || 0;
@@ -2111,14 +2089,11 @@
     const hRank = isKa ? 'ადგილი' : 'Rank';
     const hShare = isKa ? 'წილი, %' : 'Share, %';
 
-    // Drop the rank column entirely if no row has a top-20 rank.
-    const showRank = rows.some(r => isTopRank(r.rank));
-
     let html = `<table class="stat-table">
       <thead>
         <tr>
           <th>${hPeriod}</th>
-          ${showRank ? `<th class="stat-col-change">${hRank}</th>` : ''}
+          <th class="stat-col-change">${hRank}</th>
           <th class="stat-col-value">${hValue}</th>
           <th class="stat-col-change">${hChange}</th>
           <th class="stat-col-change">${hShare}</th>
@@ -2135,11 +2110,7 @@
         const sign = r.changePct > 0 ? '+' : '';
         changeCell = `<td class="stat-col-change ${changeClass}">${sign}${formatChangePct(r.changePct)}</td>`;
       }
-      const rankCell = showRank
-        ? (isTopRank(r.rank)
-            ? `<td class="stat-col-change">${r.rank}</td>`
-            : '<td class="stat-col-change">-</td>')
-        : '';
+      const rankCell = r.rank ? `<td class="stat-col-change">${r.rank}</td>` : '<td class="stat-col-change">-</td>';
       const shareCell = (r.share != null)
         ? `<td class="stat-col-change">${(Math.round(r.share * 10) / 10).toFixed(1)}%</td>`
         : '<td class="stat-col-change">-</td>';
@@ -2284,7 +2255,7 @@
         }
         entries.sort((a, b) => b.v - a.v);
         const idx = entries.findIndex(e => e.code === String(countryCode));
-        const rank = idx >= 0 ? topRankOrNull(idx + 1) : null;
+        const rank = idx >= 0 ? idx + 1 : null;
         const ownVal = idx >= 0 ? entries[idx].v : 0;
         const totalMln = (fdiTotalsThd[year] || 0) / 1000;
         const share = totalMln > 0 ? (ownVal / totalMln) * 100 : null;
@@ -2317,7 +2288,7 @@
       }
       totalByCountry.sort((a, b) => b.sum - a.sum);
       const totalRankIdx = totalByCountry.findIndex(c => c.code === String(countryCode));
-      const totalRank = totalRankIdx >= 0 ? topRankOrNull(totalRankIdx + 1) : null;
+      const totalRank = totalRankIdx >= 0 ? totalRankIdx + 1 : null;
       // Last 5 complete years (latestYear-4 through latestYear)
       const fiveYearStart = latestYear - 4;
       const fiveYearEnd = latestYear;
@@ -2622,14 +2593,11 @@
     const hChange = isKa ? 'ცვლილება, %' : 'Change, %';
     const hShare = isKa ? 'წილი, %' : 'Share, %';
 
-    // Drop the rank column entirely if no row has a top-20 rank.
-    const showRank = data.some(r => (r.valueMln > 0) && isTopRank(r.rank));
-
     let html = `<table class="stat-table">
       <thead>
         <tr>
           <th>${hYear}</th>
-          ${showRank ? `<th class="stat-col-change">${hRank}</th>` : ''}
+          <th class="stat-col-change">${hRank}</th>
           <th class="stat-col-value">${hValue}</th>
           <th class="stat-col-change">${hChange}</th>
           <th class="stat-col-change">${hShare}</th>
@@ -2649,13 +2617,12 @@
         const sign = pct > 0 ? '+' : '';
         changeCell = `${sign}${formatChangePct(pct)}`;
       }
-      const rankCellText = (!isCurNeg && isTopRank(r.rank)) ? String(r.rank) : '-';
-      const rankCell = showRank ? `<td class="stat-col-change">${rankCellText}</td>` : '';
+      const rankCell = (!isCurNeg && r.rank) ? String(r.rank) : '-';
       const shareCell = (!isCurNeg && r.share != null) ? `${(Math.round(r.share * 10) / 10).toFixed(1)}%` : '-';
       html += `
         <tr>
           <td>${r.year}</td>
-          ${rankCell}
+          <td class="stat-col-change">${rankCell}</td>
           <td class="stat-col-value">${valueCell}</td>
           <td class="stat-col-change ${changeClass}">${changeCell}</td>
           <td class="stat-col-change">${shareCell}</td>
