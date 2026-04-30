@@ -631,19 +631,17 @@
     const totalRows = 1 + rows.length;
     const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
     const shareHeader = lang === 'ka' ? 'წილი, %' : 'Share, %';
-    // Drop the rank column entirely if no row has a top-20 rank.
-    const showRank = rows.some(r => r.rank);
 
     // Tourism table must not cut across pages → every cell paragraph
     // in non-last rows gets keepNext:true so Word treats the whole
     // table as a single block.
-    const headerCells = [headerCell(D, t.period, { keepWithNext: true })];
-    if (showRank) headerCells.push(headerCell(D, rankHeader, { align: 'right', keepWithNext: true }));
-    headerCells.push(
-      headerCell(D, t.visitors,     { align: 'right', keepWithNext: true }),
-      headerCell(D, t.changeHeader, { align: 'right', keepWithNext: true }),
-      headerCell(D, shareHeader,    { align: 'right', keepWithNext: true }),
-    );
+    const headerCells = [
+      headerCell(D, t.period,           { keepWithNext: true }),
+      headerCell(D, rankHeader,         { align: 'right', keepWithNext: true }),
+      headerCell(D, t.visitors,         { align: 'right', keepWithNext: true }),
+      headerCell(D, t.changeHeader,     { align: 'right', keepWithNext: true }),
+      headerCell(D, shareHeader,        { align: 'right', keepWithNext: true }),
+    ];
     const tableRows = [new D.TableRow({ children: headerCells })];
 
     rows.forEach((r, idx) => {
@@ -659,16 +657,16 @@
       }
       const rankText = r.rank ? String(r.rank) : '-';
       const shareText = r.share != null ? `${(Math.round(r.share * 10) / 10).toFixed(1)}%` : '-';
-      const rowChildren = [
-        dataCell(D, r.label, { bold: !!r.isCurrent, rowIdx, isLastRow: isLast, keepWithNext: keep }),
-      ];
-      if (showRank) rowChildren.push(dataCell(D, rankText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }));
-      rowChildren.push(
-        dataCell(D, r.visitors.toLocaleString(), { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
-        dataCell(D, changeText, { align: 'right', color: changeColor, rowIdx, isLastRow: isLast, keepWithNext: keep }),
-        dataCell(D, shareText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
-      );
-      tableRows.push(new D.TableRow({ cantSplit: true, children: rowChildren }));
+      tableRows.push(new D.TableRow({
+        cantSplit: true,
+        children: [
+          dataCell(D, r.label, { bold: !!r.isCurrent, rowIdx, isLastRow: isLast, keepWithNext: keep }),
+          dataCell(D, rankText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
+          dataCell(D, r.visitors.toLocaleString(), { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
+          dataCell(D, changeText, { align: 'right', color: changeColor, rowIdx, isLastRow: isLast, keepWithNext: keep }),
+          dataCell(D, shareText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
+        ],
+      }));
     });
 
     return new D.Table({
@@ -794,17 +792,15 @@
     const totalRows = 1 + data.length;
     const rankHeader = lang === 'ka' ? 'ადგილი' : 'Rank';
     const shareHeader = lang === 'ka' ? 'წილი, %' : 'Share, %';
-    // Drop the rank column entirely if no row has a top-20 rank.
-    const showRank = data.some(r => (r.valueMln > 0) && r.rank);
 
     // FDI table must not cut across pages (same approach as Tourism).
-    const headerCells = [headerCell(D, t.year, { keepWithNext: true })];
-    if (showRank) headerCells.push(headerCell(D, rankHeader, { align: 'right', keepWithNext: true }));
-    headerCells.push(
+    const headerCells = [
+      headerCell(D, t.year,         { keepWithNext: true }),
+      headerCell(D, rankHeader,     { align: 'right', keepWithNext: true }),
       headerCell(D, t.volumeHeader, { align: 'right', keepWithNext: true }),
       headerCell(D, t.changeHeader, { align: 'right', keepWithNext: true }),
       headerCell(D, shareHeader,    { align: 'right', keepWithNext: true }),
-    );
+    ];
     const rows = [new D.TableRow({ children: headerCells })];
 
     data.forEach((r, idx) => {
@@ -824,14 +820,16 @@
       }
       const rankText = (!isCurNeg && r.rank) ? String(r.rank) : '-';
       const shareText = (!isCurNeg && r.share != null) ? `${(Math.round(r.share * 10) / 10).toFixed(1)}%` : '-';
-      const rowChildren = [dataCell(D, String(r.year), { rowIdx, isLastRow: isLast, keepWithNext: keep })];
-      if (showRank) rowChildren.push(dataCell(D, rankText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }));
-      rowChildren.push(
-        dataCell(D, valueText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
-        dataCell(D, changeText, { align: 'right', color: changeColor, rowIdx, isLastRow: isLast, keepWithNext: keep }),
-        dataCell(D, shareText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
-      );
-      rows.push(new D.TableRow({ cantSplit: true, children: rowChildren }));
+      rows.push(new D.TableRow({
+        cantSplit: true,
+        children: [
+          dataCell(D, String(r.year), { rowIdx, isLastRow: isLast, keepWithNext: keep }),
+          dataCell(D, rankText,  { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
+          dataCell(D, valueText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
+          dataCell(D, changeText, { align: 'right', color: changeColor, rowIdx, isLastRow: isLast, keepWithNext: keep }),
+          dataCell(D, shareText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
+        ],
+      }));
     });
 
     return new D.Table({
