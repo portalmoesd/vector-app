@@ -16,6 +16,31 @@
   const GEOSTAT_API = 'https://ex-trade-api.geostat.ge/api/trade';
   const PROXY_API = `${API_BASE}/api/statistics`;
 
+  // Some proxy endpoints (notably /country-ranking and /country-aggregate)
+  // see transient 502/503 from the Render host on cold-start or when the
+  // upstream Geostat service hiccups. Retry 5xx + network failures with
+  // exponential backoff (≈ 500 ms, 1 s, 2 s) before giving up. Honors the
+  // caller's AbortSignal so a deliberate cancel doesn't keep retrying.
+  async function fetchWithRetry(url, init, opts = {}) {
+    const retries = opts.retries ?? 3;
+    const baseDelay = opts.baseDelay ?? 500;
+    let lastErr = null;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const res = await fetch(url, init);
+        if (res.status < 500 || attempt === retries) return res;
+        console.warn(`[fetchWithRetry] ${url} returned ${res.status}, retrying (attempt ${attempt + 1}/${retries})`);
+      } catch (err) {
+        lastErr = err;
+        if (err.name === 'AbortError' || attempt === retries) throw err;
+        console.warn(`[fetchWithRetry] ${url} threw ${err.message}, retrying (attempt ${attempt + 1}/${retries})`);
+      }
+      await new Promise(r => setTimeout(r, baseDelay * Math.pow(2, attempt)));
+    }
+    if (lastErr) throw lastErr;
+    throw new Error('fetchWithRetry: exhausted retries');
+  }
+
   // ── DOM refs ─────────────────────────────────────────────────────────────
   const searchInput = document.getElementById('countrySearch');
   const dropdown = document.getElementById('countryDropdown');
@@ -948,7 +973,7 @@
       const rankTimer = setTimeout(() => ctrl.abort(), 60_000);
       try {
         console.log('[ranking] fetching...', { year: latestYear, months: monthsYTD, countryId: selectedCountry.value });
-        const rankRes = await fetch(`${PROXY_API}/country-ranking`, {
+        const rankRes = await fetchWithRetry(`${PROXY_API}/country-ranking`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ year: latestYear, months: monthsYTD, countryId: selectedCountry.value }),
@@ -2979,7 +3004,7 @@
       // appendix never reads. Response shape: country.{export,import,
       // turnover} are flat numbers (not {valueMln,rank,sharePct} like
       // /country-ranking).
-      const res = await fetch(`${PROXY_API}/country-aggregate`, {
+      const res = await fetchWithRetry(`${PROXY_API}/country-aggregate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ year: column.year, months, countryId }),
