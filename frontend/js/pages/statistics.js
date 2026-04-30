@@ -27,26 +27,25 @@
   function topRankOrNull(r) { return isTopRank(r) ? r : null; }
 
   // Some proxy endpoints (notably /country-ranking and /country-aggregate)
-  // see transient 502/503 from the Render host on cold-start. Retry once
-  // with a short delay so a one-off hiccup doesn't blank a section, but
-  // back off quickly when the upstream is genuinely down — repeated
-  // retries on hard failures only flood the console (the appendix fans
-  // out 5–7 parallel calls). Honors the caller's AbortSignal.
+  // see transient 502/503 from the Render host on cold-start or when the
+  // upstream Geostat service hiccups. Retry 5xx + network failures with
+  // exponential backoff (≈ 500 ms, 1 s, 2 s) before giving up. Honors the
+  // caller's AbortSignal so a deliberate cancel doesn't keep retrying.
   async function fetchWithRetry(url, init, opts = {}) {
-    const retries = opts.retries ?? 1;
-    const baseDelay = opts.baseDelay ?? 1200;
+    const retries = opts.retries ?? 3;
+    const baseDelay = opts.baseDelay ?? 500;
     let lastErr = null;
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         const res = await fetch(url, init);
-        // 4xx / 2xx → return immediately. 5xx on the final attempt → return
-        // so the caller can degrade gracefully. Otherwise wait + retry once.
         if (res.status < 500 || attempt === retries) return res;
+        console.warn(`[fetchWithRetry] ${url} returned ${res.status}, retrying (attempt ${attempt + 1}/${retries})`);
       } catch (err) {
         lastErr = err;
         if (err.name === 'AbortError' || attempt === retries) throw err;
+        console.warn(`[fetchWithRetry] ${url} threw ${err.message}, retrying (attempt ${attempt + 1}/${retries})`);
       }
-      await new Promise(r => setTimeout(r, baseDelay));
+      await new Promise(r => setTimeout(r, baseDelay * Math.pow(2, attempt)));
     }
     if (lastErr) throw lastErr;
     throw new Error('fetchWithRetry: exhausted retries');
