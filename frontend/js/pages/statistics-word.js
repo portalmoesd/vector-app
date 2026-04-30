@@ -421,6 +421,21 @@
     const bottom = isLastRow ? NONE : NONE; // bottoms left to next-row tops
     return { top, bottom, left: NONE, right: NONE };
   }
+  // Word's default table style applies all-sided borders when the Table
+  // omits a `borders` option. Pass an explicit all-NONE table-level
+  // border set so the cell-level top borders (above) supply the only
+  // horizontal lines and there are no verticals.
+  function tableBorders() {
+    const NONE = { style: 'none', size: 0, color: 'auto' };
+    return {
+      top: NONE,
+      bottom: NONE,
+      left: NONE,
+      right: NONE,
+      insideHorizontal: NONE,
+      insideVertical: NONE,
+    };
+  }
   function cellMargins() {
     return { top: pt(4), bottom: pt(4), left: pt(6), right: pt(6) };
   }
@@ -524,6 +539,12 @@
     if (fontBytes.arialBold) fonts.push({ name: 'Arial',   data: fontBytes.arialBold });
     if (fontBytes.sylfaen)   fonts.push({ name: 'Sylfaen', data: fontBytes.sylfaen });
 
+    // Set the document run language so Word's spell-checker tags Georgian
+    // text as Georgian (otherwise every Georgian word appears underlined
+    // red as a misspelled English word). docx 8.5.0's run properties
+    // accept `language: { value, eastAsia, bidirectional }`; setting it
+    // in styles.default.document.run propagates to every TextRun.
+    const docLang = lang === 'ka' ? 'ka-GE' : 'en-US';
     return new D.Document({
       creator: 'Vector Portal',
       title: `${country} statistics`,
@@ -531,7 +552,7 @@
       styles: {
         default: {
           document: {
-            run: { font: 'Arial', size: hp(9.5), color: COLOR.text },
+            run: { font: 'Arial', size: hp(9.5), color: COLOR.text, language: { value: docLang } },
             paragraph: { spacing: { line: 300, lineRule: 'auto' } },
           },
         },
@@ -649,6 +670,7 @@
     });
 
     return new D.Table({
+      borders: tableBorders(),
       width: { size: 100, type: D.WidthType.PERCENTAGE },
       rows: tableRows,
     });
@@ -811,6 +833,7 @@
     });
 
     return new D.Table({
+      borders: tableBorders(),
       width: { size: 100, type: D.WidthType.PERCENTAGE },
       rows,
     });
@@ -891,6 +914,7 @@
         children: tr(D, { text: subtitleText, size: hp(8.5), color: '64748B' }),
       }),
       new D.Table({
+        borders: tableBorders(),
         width: { size: 100, type: D.WidthType.PERCENTAGE },
         rows,
       }),
@@ -1183,6 +1207,7 @@
     return [
       sectionTitleP(D, `${country} - ${t.appendixSection}`),
       new D.Table({
+        borders: tableBorders(),
         width: { size: 100, type: D.WidthType.PERCENTAGE },
         rows,
       }),
@@ -1291,6 +1316,7 @@
     });
 
     return new D.Table({
+      borders: tableBorders(),
       width: { size: 100, type: D.WidthType.PERCENTAGE },
       rows: [headerRow, ...bodyRows],
     });
@@ -1602,6 +1628,7 @@
       ? [{ size: '*' }, { size: pt(80) }, { size: pt(62) }, { size: pt(80) }]
       : [{ size: '*' }, { size: pt(80) }, { size: pt(70) }];
     return new D.Table({
+      borders: tableBorders(),
       width: { size: 100, type: D.WidthType.PERCENTAGE },
       columnWidths: cols.map(c => c.size === '*' ? pt(280) : c.size),
       rows,
@@ -1639,6 +1666,7 @@
     });
 
     return new D.Table({
+      borders: tableBorders(),
       width: { size: 100, type: D.WidthType.PERCENTAGE },
       columnWidths: [pt(280), pt(80), pt(62), pt(80)],
       rows,
