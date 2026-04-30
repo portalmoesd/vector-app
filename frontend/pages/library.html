@@ -56,24 +56,24 @@
     <aside class="sidebar"></aside>
     <main class="main">
       <div class="topbar">
-        <div class="page-title">Library</div>
+        <div class="page-title" data-i18n="nav.library">Library</div>
       </div>
 
       <div class="filter-bar">
         <div class="form-group">
-          <label class="form-label">Search</label>
-          <input class="form-input" id="filterKeyword" placeholder="Title..." />
+          <label class="form-label" data-i18n="library.filter.search">Search</label>
+          <input class="form-input" id="filterKeyword" data-i18n-placeholder="library.filter.searchPlaceholder" placeholder="Title..." />
         </div>
         <div class="form-group">
-          <label class="form-label">Country</label>
-          <select class="form-select" id="filterCountry"><option value="">All</option></select>
+          <label class="form-label" data-i18n="library.filter.country">Country</label>
+          <select class="form-select" id="filterCountry"><option value="" data-i18n="common.all">All</option></select>
         </div>
         <div class="form-group">
-          <label class="form-label">From</label>
+          <label class="form-label" data-i18n="common.from">From</label>
           <input class="form-input" type="date" id="filterDateFrom" lang="en-GB" />
         </div>
         <div class="form-group">
-          <label class="form-label">To</label>
+          <label class="form-label" data-i18n="common.to">To</label>
           <input class="form-input" type="date" id="filterDateTo" lang="en-GB" />
         </div>
       </div>

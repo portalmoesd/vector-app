@@ -150,15 +150,15 @@
           <div class="event-card-actions">
             <button class="btn btn-outline" onclick="viewEvent(${e.id})">
               <span class="icon" style="--icon-url: url(/assets/view-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:16px;height:16px;display:inline-block;background:currentColor;"></span>
-              View
+              ${I18n.tr('calendar.action.view')}
             </button>
             ${e.isActive && CAN_CREATE.includes(user.role) ? `<button class="btn btn-outline" onclick="editEvent(${e.id})">
               <span class="icon" style="--icon-url: url(/assets/edit-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:16px;height:16px;display:inline-block;background:currentColor;"></span>
-              Edit
+              ${I18n.tr('common.edit')}
             </button>` : ''}
             ${e.isActive && CAN_END.includes(user.role) ? `<button class="btn btn-danger" onclick="endEvent(${e.id})">
               <span class="icon" style="--icon-url: url(/assets/end-icon.svg); mask-image: var(--icon-url); -webkit-mask-image: var(--icon-url); width:16px;height:16px;display:inline-block;background:currentColor;"></span>
-              End
+              ${I18n.tr('calendar.action.end')}
             </button>` : ''}
           </div>
         </div>
@@ -167,11 +167,11 @@
 
     if (totalPages > 1) {
       let btns = [];
-      btns.push(`<button ${currentPage === 1 ? 'disabled' : ''} onclick="goPage(${currentPage - 1})">Prev</button>`);
+      btns.push(`<button ${currentPage === 1 ? 'disabled' : ''} onclick="goPage(${currentPage - 1})">${I18n.tr('common.prev')}</button>`);
       for (let i = 1; i <= totalPages; i++) {
         btns.push(`<button class="${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`);
       }
-      btns.push(`<button ${currentPage === totalPages ? 'disabled' : ''} onclick="goPage(${currentPage + 1})">Next</button>`);
+      btns.push(`<button ${currentPage === totalPages ? 'disabled' : ''} onclick="goPage(${currentPage + 1})">${I18n.tr('common.next')}</button>`);
       paginationEl.innerHTML = btns.join('');
     } else {
       paginationEl.innerHTML = '';
@@ -185,10 +185,14 @@
   function showModal(title, bodyHtml, saveLabel, saveFn) {
     modalTitle.textContent = title;
     modalBody.innerHTML = bodyHtml;
-    document.getElementById('eventModalSave').textContent = saveLabel || 'Save';
+    document.getElementById('eventModalSave').textContent = saveLabel || I18n.tr('common.save');
     onModalSave = saveFn;
     document.getElementById('eventModalSave').style.display = saveFn ? '' : 'none';
     modal.style.display = 'flex';
+    // Translate any data-i18n attributes inside the freshly-rendered
+    // modal body so labels / placeholders in the form pick up the
+    // current locale.
+    I18n.translateRoot(modal);
   }
 
   function hideModal() { modal.style.display = 'none'; onModalSave = null; }
@@ -202,7 +206,7 @@
     try {
       const e = await Api.get(`/api/events/${id}`);
       const sectionsHtml = e.sections.map(s => `<li>${escapeHtml(s.title)}</li>`).join('');
-      showModal('Event Details', `
+      showModal(I18n.tr('calendar.modal.detailsTitle'), `
         <div style="font-size:14px;line-height:1.8;">
           <p><strong>Title:</strong> ${escapeHtml(e.title)}</p>
           <p><strong>Country:</strong> ${escapeHtml(e.countryName)}</p>
@@ -226,28 +230,28 @@
   window.editEvent = async function(id) {
     try {
       const e = await Api.get(`/api/events/${id}`);
-      showModal('Edit Event', `
+      showModal(I18n.tr('calendar.modal.editTitle'), `
         <div class="form-group">
-          <label class="form-label">Title</label>
+          <label class="form-label" data-i18n="calendar.form.titleNoStar">Title</label>
           <input class="form-input" id="editTitle" value="${escapeHtml(e.title)}" />
         </div>
         <div class="form-group">
-          <label class="form-label">Language</label>
+          <label class="form-label" data-i18n="calendar.form.language">Language</label>
           <select class="form-select" id="editLanguage">
-            ${['EN','FR','AR','ES','RU','ZH','PT','DE'].map(l =>
+            ${['EN','KA','RU'].map(l =>
               `<option value="${l}" ${l === e.language ? 'selected' : ''}>${l}</option>`
             ).join('')}
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Deadline</label>
+          <label class="form-label" data-i18n="calendar.form.deadline">Deadline</label>
           <input class="form-input" type="text" id="editDeadline" placeholder="dd/mm/yyyy" />
         </div>
         <div class="form-group">
-          <label class="form-label">Task</label>
+          <label class="form-label" data-i18n="calendar.form.task">Task</label>
           <div id="editOccasionWrap"></div>
         </div>
-      `, 'Save', async () => {
+      `, I18n.tr('common.save'), async () => {
         try {
           await Api.patch(`/api/events/${id}`, {
             title: document.getElementById('editTitle').value.trim(),
@@ -269,7 +273,7 @@
   // ── End Event ────────────────────────────────────────────────────────────
 
   window.endEvent = async function(id) {
-    if (!confirm('End this event? This action cannot be undone.')) return;
+    if (!confirm(I18n.tr('calendar.confirmEnd'))) return;
     try {
       await Api.post(`/api/events/${id}/end`);
       events = await Api.get('/api/events');
@@ -300,7 +304,7 @@
     row.innerHTML = `
       <div class="sec-header" style="display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;user-select:none;">
         <span class="sec-toggle" style="font-size:11px;color:#888;transition:transform .2s;">\u25B6</span>
-        <input class="form-input sec-title" placeholder="Section title" style="flex:1;font-weight:600;border:none;padding:0;background:transparent;" value="${title ? escapeHtml(title) : ''}" onclick="event.stopPropagation()" />
+        <input class="form-input sec-title" placeholder="${I18n.tr('calendar.form.sectionTitlePlaceholder')}" style="flex:1;font-weight:600;border:none;padding:0;background:transparent;" value="${title ? escapeHtml(title) : ''}" onclick="event.stopPropagation()" />
         <span class="sec-dept-count" style="font-size:12px;color:#666;white-space:nowrap;">${deptCount} dept(s)</span>
         <button class="btn btn-outline" type="button" style="padding:2px 8px;font-size:11px;color:#dc2626;" onclick="event.stopPropagation();this.closest('.section-row').remove()">\u2715</button>
       </div>
@@ -393,61 +397,61 @@
       `<option value="${d.id}">${escapeHtml(d.fullName)}</option>`
     ).join('');
 
-    showModal('Create Event', `
+    showModal(I18n.tr('calendar.modal.createTitle'), `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;">
         <div class="form-group">
-          <label class="form-label">Title *</label>
+          <label class="form-label" data-i18n="calendar.form.title">Title *</label>
           <input class="form-input" id="newTitle" required />
         </div>
         <div class="form-group">
-          <label class="form-label">Country *</label>
+          <label class="form-label" data-i18n="calendar.form.country">Country *</label>
           <select class="form-select" id="newCountry">
-            <option value="">— Select —</option>
+            <option value="" data-i18n="calendar.form.selectPlaceholder">— Select —</option>
             ${countryOpts}
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Workflow *</label>
+          <label class="form-label" data-i18n="calendar.form.workflow">Workflow *</label>
           <select class="form-select" id="newWorkflowType">
-            <option value="advanced" selected>Advanced — Department B routes back to responsible Department A</option>
-            <option value="simple">Simple — every department contributes its own section, auto-publish on full approval</option>
+            <option value="simple" selected data-i18n="calendar.form.workflowSimple">Simple</option>
+            <option value="advanced" data-i18n="calendar.form.workflowAdvanced">Advanced</option>
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Document Submitter Role *</label>
+          <label class="form-label" data-i18n="calendar.form.dsRole">Document Submitter Role *</label>
           <select class="form-select" id="newDSRole">
-            <option value="DEPUTY">Deputy</option>
-            <option value="SUPERVISOR">Supervisor</option>
-            <option value="SUPER_COLLABORATOR">Super-Collaborator</option>
+            <option value="DEPUTY" data-i18n="roles.DEPUTY">Deputy</option>
+            <option value="SUPERVISOR" data-i18n="roles.SUPERVISOR">Supervisor</option>
+            <option value="SUPER_COLLABORATOR" data-i18n="roles.SUPER_COLLABORATOR">Super-Collaborator</option>
           </select>
         </div>
         <div class="form-group" id="deputyGroup">
-          <label class="form-label">Deputy *</label>
+          <label class="form-label" data-i18n="calendar.form.deputy">Deputy *</label>
           <select class="form-select" id="newDeputy">
-            <option value="">— Select Deputy —</option>
+            <option value="" data-i18n="calendar.form.selectDeputy">— Select Deputy —</option>
             ${deputyOpts}
           </select>
         </div>
         <div class="form-group" id="supervisorGroup">
-          <label class="form-label">Responsible Supervisor *</label>
+          <label class="form-label" data-i18n="calendar.form.responsibleSupervisor">Responsible Supervisor *</label>
           <select class="form-select" id="newSupervisor">
-            <option value="">— Select Supervisor —</option>
+            <option value="" data-i18n="calendar.form.selectSupervisor">— Select Supervisor —</option>
           </select>
         </div>
         <div class="form-group" id="dsSupervisorGroup" style="display:none;">
-          <label class="form-label">Supervisor *</label>
+          <label class="form-label" data-i18n="calendar.form.supervisor">Supervisor *</label>
           <select class="form-select" id="newDSSupervisor">
-            <option value="">— Select Supervisor —</option>
+            <option value="" data-i18n="calendar.form.selectSupervisor">— Select Supervisor —</option>
           </select>
         </div>
         <div class="form-group" id="dsSCGroup" style="display:none;">
-          <label class="form-label">Super-Collaborator *</label>
+          <label class="form-label" data-i18n="calendar.form.superCollaborator">Super-Collaborator *</label>
           <select class="form-select" id="newDSSC">
-            <option value="">— Select Super-Collaborator —</option>
+            <option value="" data-i18n="calendar.form.selectSuperCollaborator">— Select Super-Collaborator —</option>
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Language</label>
+          <label class="form-label" data-i18n="calendar.form.language">Language</label>
           <select class="form-select" id="newLanguage">
             <option value="EN">English</option>
             <option value="KA">ქართული</option>
@@ -455,33 +459,33 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Deadline</label>
+          <label class="form-label" data-i18n="calendar.form.deadline">Deadline</label>
           <input class="form-input" type="text" id="newDeadline" placeholder="dd/mm/yyyy" />
         </div>
         <div class="form-group">
-          <label class="form-label">Curator Required</label>
+          <label class="form-label" data-i18n="calendar.form.curatorRequired">Curator Required</label>
           <select class="form-select" id="newCurator">
-            <option value="no" selected>No</option>
-            <option value="yes">Yes</option>
+            <option value="no" selected data-i18n="common.no">No</option>
+            <option value="yes" data-i18n="common.yes">Yes</option>
           </select>
         </div>
         <div class="form-group" style="grid-column:1/-1;">
-          <label class="form-label">Task</label>
+          <label class="form-label" data-i18n="calendar.form.task">Task</label>
           <div id="newOccasionWrap"></div>
         </div>
         <div class="form-group" style="grid-column:1/-1;">
-          <label class="form-label">Template</label>
+          <label class="form-label" data-i18n="calendar.form.template">Template</label>
           <select class="form-select" id="newTemplate">
-            <option value="">— Select Template —</option>
+            <option value="" data-i18n="calendar.form.selectTemplate">— Select Template —</option>
           </select>
         </div>
         <div class="form-group" style="grid-column:1/-1;">
-          <label class="form-label" style="font-weight:700;">Sections</label>
+          <label class="form-label" style="font-weight:700;" data-i18n="calendar.form.sections">Sections</label>
           <div id="sectionRows"></div>
-          <button class="btn btn-outline" type="button" id="addSectionRow" style="margin-top:8px;">+ Add Section</button>
+          <button class="btn btn-outline" type="button" id="addSectionRow" style="margin-top:8px;">${I18n.tr('calendar.form.addSection')}</button>
         </div>
       </div>
-    `, 'Create', async () => {
+    `, I18n.tr('common.create'), async () => {
       const title = document.getElementById('newTitle').value.trim();
       const countryId = parseInt(document.getElementById('newCountry').value);
       const dsRole = document.getElementById('newDSRole').value;
@@ -494,13 +498,13 @@
       const curatorRequired = document.getElementById('newCurator').value === 'yes';
 
       if (!title || !countryId || !dsRole) {
-        toast.warn('Title, Country, and DS Role are required');
+        toast.warn(I18n.tr('calendar.warn.missingRequired'));
         return;
       }
 
       const sections = getSectionsFromRows();
       if (sections.length === 0) {
-        toast.warn('Add at least one section');
+        toast.warn(I18n.tr('calendar.warn.missingSection'));
         return;
       }
 
@@ -559,10 +563,23 @@
     // When template is selected → auto-fill sections
     templateSelect.addEventListener('change', () => {
       const tplId = templateSelect.value ? parseInt(templateSelect.value) : null;
-      if (!tplId) return;
+
+      // User picked "Select template" (the empty option). Clear the
+      // previously-seeded section rows so the form goes back to a
+      // blank slate instead of keeping stale rows from the prior
+      // template selection.
+      if (!tplId) {
+        sectionRowsContainer.innerHTML = '';
+        return;
+      }
 
       const tpl = templates.find(t => t.id === tplId);
-      if (!tpl || !tpl.sections || tpl.sections.length === 0) return;
+      if (!tpl || !tpl.sections || tpl.sections.length === 0) {
+        // Selected template has no sections — still clear what was
+        // there, so the user starts fresh.
+        sectionRowsContainer.innerHTML = '';
+        return;
+      }
 
       sectionRowsContainer.innerHTML = '';
       for (const sec of tpl.sections) {

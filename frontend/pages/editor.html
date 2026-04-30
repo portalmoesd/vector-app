@@ -134,7 +134,7 @@
     <aside class="sidebar"></aside>
     <main class="main">
       <div class="topbar">
-        <div class="page-title" id="editorTitle">Section Editor</div>
+        <div class="page-title" id="editorTitle" data-i18n="editor.pageTitle">Section Editor</div>
       </div>
 
       <div class="section-meta" id="sectionMeta"></div>
@@ -148,7 +148,7 @@
       <!-- Files section -->
       <div class="card" id="filesPanel" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <h4 style="margin:0;">Files</h4>
+          <h4 style="margin:0;" data-i18n="editor.files.title">Files</h4>
           <span id="filesCount" style="font-size:12px;color:var(--text-muted);"></span>
         </div>
         <div id="filesList" style="margin-bottom:12px;"></div>
@@ -157,7 +157,7 @@
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:6px;display:block;margin-left:auto;margin-right:auto;opacity:.5;">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
-            Drop files here or <span style="color:var(--accent-blue);text-decoration:underline;">browse</span>
+            <span data-i18n="editor.files.dropHere">Drop files here or </span><span style="color:var(--accent-blue);text-decoration:underline;" data-i18n="editor.files.browse">browse</span>
           </div>
           <input type="file" id="fileUploadInput" multiple style="display:none;" />
         </div>
@@ -165,7 +165,7 @@
 
       <!-- History section -->
       <div class="card history-panel" id="historyPanel">
-        <h4>History</h4>
+        <h4 data-i18n="editor.history.title">History</h4>
         <div id="historyList"></div>
       </div>
     </main>
