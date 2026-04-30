@@ -273,7 +273,7 @@
   // ── End Event ────────────────────────────────────────────────────────────
 
   window.endEvent = async function(id) {
-    if (!confirm('End this event? This action cannot be undone.')) return;
+    if (!confirm(I18n.tr('calendar.confirmEnd'))) return;
     try {
       await Api.post(`/api/events/${id}/end`);
       events = await Api.get('/api/events');
