@@ -4,7 +4,9 @@
     "calendar": "Calendar",
     "library": "Library",
     "statistics": "Statistics",
-    "admin": "Admin Panel"
+    "admin": "Admin Panel",
+    "logout": "Log out",
+    "language": "Language"
   },
   "auth": {
     "login": "Log In",
@@ -35,7 +37,15 @@
     "approved_by_supervisor": "Approved (Supervisor)",
     "submitted_to_deputy": "At Deputy",
     "returned_by_deputy": "Returned by Deputy",
-    "approved_by_deputy": "Approved (Deputy)"
+    "approved_by_deputy": "Approved (Deputy)",
+    "submitted_to_receiving_super_collaborator": "At Super-Collaborator (Review)",
+    "returned_by_receiving_super_collaborator": "Returned by Super-Collaborator (Review)",
+    "approved_by_receiving_super_collaborator": "Approved (Super-Collaborator Review)",
+    "submitted_to_receiving_supervisor": "At Supervisor (Review)",
+    "returned_by_receiving_supervisor": "Returned by Supervisor (Review)",
+    "approved_by_receiving_supervisor": "Approved (Supervisor Review)",
+    "submitted_to_amending_ds": "Amendment in progress (DS)",
+    "approved_by_ds_amendment": "Amended (DS)"
   },
   "roles": {
     "ADMIN": "Admin",
@@ -43,7 +53,21 @@
     "DEPUTY": "Deputy",
     "SUPERVISOR": "Supervisor",
     "SUPER_COLLABORATOR": "Super-Collaborator",
-    "COLLABORATOR": "Collaborator"
+    "COLLABORATOR": "Collaborator",
+    "CURATOR": "Curator",
+    "RECEIVING_SUPER_COLLABORATOR": "Super-Collaborator",
+    "RECEIVING_SUPERVISOR": "Supervisor"
+  },
+  "lang": {
+    "EN": "English",
+    "FR": "Français",
+    "AR": "العربية",
+    "ES": "Español",
+    "RU": "Русский",
+    "ZH": "中文",
+    "PT": "Português",
+    "DE": "Deutsch",
+    "KA": "ქართული"
   },
   "statistics": {
     "country": "Country",
@@ -67,6 +91,22 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "close": "Close",
-    "loading": "Loading..."
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "add": "Add",
+    "remove": "Remove",
+    "back": "Back",
+    "yes": "Yes",
+    "no": "No",
+    "loading": "Loading...",
+    "search": "Search",
+    "from": "From",
+    "to": "To",
+    "all": "All",
+    "actions": "Actions",
+    "submit": "Submit",
+    "approve": "Approve",
+    "return": "Return"
   }
 }
