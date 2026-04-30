@@ -136,12 +136,12 @@
   function gePeriodGen(year, latestMonth) {
     if (latestMonth === 12) return `${year} წლის`;
     if (latestMonth === 1)  return `${year} წლის ${KA_MONTHS[1].gen}`;
-    return `${year} წლის ${KA_MONTHS[1].stem}‑${KA_MONTHS[latestMonth].gen}`;
+    return `${year} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].gen}`;
   }
   function gePeriodLoc(year, latestMonth) {
     if (latestMonth === 12) return `${year} წელს`;
     if (latestMonth === 1)  return `${year} წლის ${KA_MONTHS[1].loc}`;
-    return `${year} წლის ${KA_MONTHS[1].stem}‑${KA_MONTHS[latestMonth].loc}`;
+    return `${year} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].loc}`;
   }
   function periodShortLabel(latestMonth, lang) {
     const months = lang === 'ka' ? KA_MONTHS_SHORT : EN_MONTHS;
@@ -158,7 +158,7 @@
     const years = `${startYear}-${endYear}`;
     if (latestMonth === 12) return `${years} წლების`;
     if (latestMonth === 1)  return `${years} წლის ${KA_MONTHS[1].gen}`;
-    return `${years} წლის ${KA_MONTHS[1].stem}‑${KA_MONTHS[latestMonth].gen}`;
+    return `${years} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].gen}`;
   }
   function enPeriodRange(startYear, endYear, latestMonth) {
     const years = `${startYear}-${endYear}`;
