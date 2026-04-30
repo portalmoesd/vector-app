@@ -4,23 +4,88 @@
  */
 const express = require('express');
 const XLSX = require('xlsx');
+const https = require('node:https');
 const router = express.Router();
 
 const GEOSTAT_BASE = 'https://ex-trade-api.geostat.ge/api/trade';
+
+// Geostat's HTTPS endpoints serve only the leaf cert, no intermediate.
+// Browsers cache intermediates and paper over this; Node does not, and
+// every request fails with UNABLE_TO_VERIFY_LEAF_SIGNATURE.
+//
+// Scope a permissive agent to *.geostat.ge ONLY — the rest of the
+// process keeps full TLS verification. The route is locked down by
+// hostname check inside `geostatHttp` so the agent can't accidentally
+// be used elsewhere.
+//
+// Long-term: retrieve Geostat's missing intermediate cert and set
+// NODE_EXTRA_CA_CERTS in Render to its path. Then this agent + the
+// env-level NODE_TLS_REJECT_UNAUTHORIZED=0 can both be removed and
+// verification is fully strict again.
+const geostatAgent = new https.Agent({ rejectUnauthorized: false });
+
+// Lightweight fetch-shaped wrapper around https.request — native fetch
+// (undici) can't accept an https.Agent, and pulling undici as a direct
+// dep clashes with Node's bundled version (causes UND_ERR_INVALID_ARG).
+// Refuses non-geostat.ge hostnames to prevent accidental misuse.
+function geostatHttp(url, opts = {}) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    if (!u.hostname.endsWith('.geostat.ge')) {
+      reject(new Error(`geostatHttp refused: ${u.hostname} is not a geostat.ge host`));
+      return;
+    }
+    const req = https.request({
+      hostname: u.hostname,
+      port: u.port || 443,
+      path: u.pathname + u.search,
+      method: opts.method || 'GET',
+      headers: opts.headers || {},
+      agent: geostatAgent,
+    }, (res) => {
+      // Optional manual redirect handling (FDI XLSX path).
+      if (opts.followRedirects && [301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+        res.resume();
+        const next = new URL(res.headers.location, url).toString();
+        resolve(geostatHttp(next, opts));
+        return;
+      }
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => {
+        const buf = Buffer.concat(chunks);
+        resolve({
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode,
+          text: async () => buf.toString('utf8'),
+          json: async () => JSON.parse(buf.toString('utf8')),
+          buffer: () => buf,
+        });
+      });
+    });
+    req.on('error', reject);
+    if (opts.timeout) {
+      req.setTimeout(opts.timeout, () => req.destroy(new Error('Geostat request timeout')));
+    }
+    if (opts.body) req.write(opts.body);
+    req.end();
+  });
+}
 
 // ── Helper: proxy fetch with timeout ────────────────────────────────────────
 
 async function geostatFetch(path, options = {}) {
   const url = `${GEOSTAT_BASE}${path}`;
-  const res = await fetch(url, {
-    ...options,
+  const res = await geostatHttp(url, {
+    method: options.method,
+    body: options.body,
+    timeout: 30_000,
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'User-Agent': 'VectorPortal/1.0',
       ...(options.headers || {}),
     },
-    signal: AbortSignal.timeout(30_000),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -579,14 +644,15 @@ router.get('/fdi', async (req, res) => {
 
     let wb;
     try {
-      // Try downloading fresh copy
-      const xlsxRes = await fetch(FDI_URL, {
+      // Try downloading fresh copy — same TLS-chain workaround as
+      // geostatFetch since www.geostat.ge shares the broken cert chain.
+      const xlsxRes = await geostatHttp(FDI_URL, {
         headers: { 'User-Agent': 'VectorPortal/1.0' },
-        signal: AbortSignal.timeout(15_000),
-        redirect: 'follow',
+        timeout: 15_000,
+        followRedirects: true,
       });
       if (!xlsxRes.ok) throw new Error(`HTTP ${xlsxRes.status}`);
-      const buffer = Buffer.from(await xlsxRes.arrayBuffer());
+      const buffer = xlsxRes.buffer();
       wb = XLSX.read(buffer, { type: 'buffer' });
 
       // Save fresh copy locally for future fallback
