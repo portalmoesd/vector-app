@@ -4,7 +4,7 @@ Source files:
 - `frontend/locales/en.json`
 - `frontend/locales/ka.json`
 
-Total keys: 94
+Total keys: 150
 
 Mark anything you want corrected in the **Notes** column (or paste the corrected Georgian directly). I will apply the fixes in a follow-up commit.
 
@@ -35,12 +35,71 @@ Mark anything you want corrected in the **Notes** column (or paste the corrected
 | Key | English | Georgian | Notes |
 | --- | --- | --- | --- |
 | `dashboard.title` | Dashboard | მთავარი |  |
+| `dashboard.deputyTitle` | Deputy Dashboard | მოადგილის მთავარი გვერდი |  |
+| `dashboard.supervisorTitle` | Supervisor Dashboard | ზედამხედველის მთავარი გვერდი |  |
+| `dashboard.superCollabTitle` | Super-collaborator Dashboard | სუპერ-კოლაბორატორის მთავარი გვერდი |  |
 | `dashboard.selectEvent` | Select event | აირჩიეთ ღონისძიება |  |
+| `dashboard.selectEventPlaceholder` | Select event... | აირჩიეთ ღონისძიება... |  |
 | `dashboard.noEvents` | No events available | ღონისძიებები არ არის |  |
 | `dashboard.sections` | Required Sections | საჭირო სექციები |  |
 | `dashboard.status` | Status | სტატუსი |  |
 | `dashboard.lastUpdated` | Last Updated | ბოლო განახლება |  |
 | `dashboard.actions` | Actions | მოქმედებები |  |
+| `dashboard.eventTitle` | Event | ღონისძიება |  |
+| `dashboard.preview` | PREVIEW | ნახვა |  |
+| `dashboard.upcomingEvents` | Upcoming events | მომავალი ღონისძიებები |  |
+| `dashboard.noUpcoming` | No upcoming events | მომავალი ღონისძიებები არ არის |  |
+| `dashboard.descCollab` | Select an event to view your assigned sections and submit your work. | აირჩიეთ ღონისძიება, რათა ნახოთ თქვენთვის მინიჭებული სექციები და წარადგინოთ თქვენი ნამუშევარი. |  |
+| `dashboard.descDeputy` | Choose an event to review and finalize before sending to the library. | აირჩიეთ ღონისძიება განსახილველად და დასასრულებლად ბიბლიოთეკაში გაგზავნამდე. |  |
+| `dashboard.descSupervisor` | Choose an event to review super-collaborator submissions before they move to the deputy stage. | აირჩიეთ ღონისძიება სუპერ-კოლაბორატორის შემოტანების განსახილველად მოადგილის ეტაპზე გადასვლამდე. |  |
+| `dashboard.descSuperCollab` | Choose an event to review collaborator submissions before they move to the supervisor stage. | აირჩიეთ ღონისძიება კოლაბორატორის შემოტანების განსახილველად ზედამხედველის ეტაპზე გადასვლამდე. |  |
+
+## Calendar / Events  (`calendar.*`)
+
+| Key | English | Georgian | Notes |
+| --- | --- | --- | --- |
+| `calendar.pageTitle` | Events | ღონისძიებები |  |
+| `calendar.createEvent` | + Create Event | + ღონისძიების შექმნა |  |
+| `calendar.tabs.upcoming` | Upcoming | მომავალი |  |
+| `calendar.tabs.completed` | Completed Events | დასრულებული ღონისძიებები |  |
+| `calendar.tabs.archived` | Archived Events | დაარქივებული ღონისძიებები |  |
+| `calendar.filter.keywordPlaceholder` | Title or occasion... | სათაური ან აღწერა... |  |
+| `calendar.filter.allCountries` | All countries | ყველა ქვეყანა |  |
+| `calendar.templates.title` | My Templates | ჩემი შაბლონები |  |
+| `calendar.templates.create` | + New Template | + ახალი შაბლონი |  |
+| `calendar.templates.empty` | No templates yet | შაბლონები ჯერ არ არის |  |
+| `calendar.templates.modalCreate` | Create Template | შაბლონის შექმნა |  |
+| `calendar.modal.createTitle` | Create Event | ღონისძიების შექმნა |  |
+| `calendar.modal.editTitle` | Edit Event | ღონისძიების რედაქტირება |  |
+| `calendar.modal.detailsTitle` | Event Details | ღონისძიების დეტალები |  |
+| `calendar.form.title` | Title * | სათაური * |  |
+| `calendar.form.titleNoStar` | Title | სათაური |  |
+| `calendar.form.country` | Country * | ქვეყანა * |  |
+| `calendar.form.workflow` | Workflow * | სამუშაო პროცესი * |  |
+| `calendar.form.workflowSimple` | Simple | მარტივი |  |
+| `calendar.form.workflowAdvanced` | Advanced | მოწინავე |  |
+| `calendar.form.dsRole` | Document Submitter Role * | დოკუმენტის წარმდგენის როლი * |  |
+| `calendar.form.deputy` | Deputy * | მოადგილე * |  |
+| `calendar.form.responsibleSupervisor` | Responsible Supervisor * | პასუხისმგებელი ზედამხედველი * |  |
+| `calendar.form.supervisor` | Supervisor * | ზედამხედველი * |  |
+| `calendar.form.superCollaborator` | Super-Collaborator * | სუპერ-კოლაბორატორი * |  |
+| `calendar.form.language` | Language | ენა |  |
+| `calendar.form.deadline` | Deadline | ვადა |  |
+| `calendar.form.curatorRequired` | Curator Required | საჭიროა კურატორი |  |
+| `calendar.form.task` | Task | დავალება |  |
+| `calendar.form.template` | Template | შაბლონი |  |
+| `calendar.form.sections` | Sections | სექციები |  |
+| `calendar.form.addSection` | + Add Section | + სექციის დამატება |  |
+| `calendar.form.selectPlaceholder` | — Select — | — აირჩიეთ — |  |
+| `calendar.form.selectDeputy` | — Select Deputy — | — აირჩიეთ მოადგილე — |  |
+| `calendar.form.selectSupervisor` | — Select Supervisor — | — აირჩიეთ ზედამხედველი — |  |
+| `calendar.form.selectSuperCollaborator` | — Select Super-Collaborator — | — აირჩიეთ სუპერ-კოლაბორატორი — |  |
+| `calendar.form.selectTemplate` | — Select Template — | — აირჩიეთ შაბლონი — |  |
+| `calendar.form.sectionTitlePlaceholder` | Section title | სექციის სათაური |  |
+| `calendar.warn.missingRequired` | Title, Country, and DS Role are required | სათაური, ქვეყანა და DS-ის როლი სავალდებულოა |  |
+| `calendar.warn.missingSection` | Add at least one section | დაამატეთ მინიმუმ ერთი სექცია |  |
+| `calendar.action.view` | View | ნახვა |  |
+| `calendar.action.end` | End | დასრულება |  |
 
 ## Common buttons & verbs  (`common.*`)
 
@@ -67,6 +126,8 @@ Mark anything you want corrected in the **Notes** column (or paste the corrected
 | `common.submit` | Submit | გაგზავნა |  |
 | `common.approve` | Approve | დადასტურება |  |
 | `common.return` | Return | დაბრუნება |  |
+| `common.prev` | Prev | წინა |  |
+| `common.next` | Next | შემდეგი |  |
 
 ## Roles  (`roles.*`)
 

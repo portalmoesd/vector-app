@@ -21,18 +21,18 @@
       </div>
 
       <div class="card dp-event-card">
-        <h3 class="dp-event-card__title">Event</h3>
-        <p class="dp-event-card__desc">Select an event to view your assigned sections and submit your work.</p>
+        <h3 class="dp-event-card__title" data-i18n="dashboard.eventTitle">Event</h3>
+        <p class="dp-event-card__desc" data-i18n="dashboard.descCollab">Select an event to view your assigned sections and submit your work.</p>
         <div class="dp-event-card__row">
           <div class="dp-event-card__select-wrap">
-            <label class="dp-event-card__label">Event</label>
+            <label class="dp-event-card__label" data-i18n="dashboard.eventTitle">Event</label>
             <select id="eventSelect" class="form-select">
-              <option value="">Select event...</option>
+              <option value="" data-i18n="dashboard.selectEventPlaceholder">Select event...</option>
             </select>
           </div>
           <button class="btn btn-outline dp-preview-btn" id="previewBtn" style="display:none;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            PREVIEW
+            <span data-i18n="dashboard.preview">PREVIEW</span>
           </button>
         </div>
         <div id="eventDetails" style="display:none;"></div>
@@ -40,11 +40,11 @@
       <div id="sectionsCard" style="display:none;"></div>
 
       <div class="card dp-upcoming-card">
-        <h3 class="dp-upcoming-card__title">Upcoming events</h3>
+        <h3 class="dp-upcoming-card__title" data-i18n="dashboard.upcomingEvents">Upcoming events</h3>
         <div class="dp-upcoming-layout">
           <div class="dp-calendar" id="miniCalendar"></div>
           <div class="dp-upcoming-list" id="upcomingList">
-            <div class="empty-state"><p>No upcoming events</p></div>
+            <div class="empty-state"><p data-i18n="dashboard.noUpcoming">No upcoming events</p></div>
           </div>
         </div>
       </div>
