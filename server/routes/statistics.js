@@ -4,63 +4,29 @@
  */
 const express = require('express');
 const XLSX = require('xlsx');
-const { Agent } = require('undici');
 const router = express.Router();
 
 const GEOSTAT_BASE = 'https://ex-trade-api.geostat.ge/api/trade';
-
-// Geostat's HTTPS endpoint serves only the leaf cert without the
-// intermediate, so Node's native fetch fails with
-// UNABLE_TO_VERIFY_LEAF_SIGNATURE while browsers (which cache
-// intermediates) work fine. Use a permissive dispatcher only for
-// these calls — the rest of the process keeps full TLS verification.
-const geostatDispatcher = new Agent({ connect: { rejectUnauthorized: false } });
 
 // ── Helper: proxy fetch with timeout ────────────────────────────────────────
 
 async function geostatFetch(path, options = {}) {
   const url = `${GEOSTAT_BASE}${path}`;
-  const retries = options.retries ?? 3;
-  const baseDelay = options.baseDelay ?? 500;
-  let lastErr = null;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const res = await fetch(url, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'User-Agent': 'VectorPortal/1.0',
-          ...(options.headers || {}),
-        },
-        signal: AbortSignal.timeout(30_000),
-        dispatcher: geostatDispatcher,
-      });
-      if (res.status >= 500 && attempt < retries) {
-        console.warn(`[geostatFetch] ${path} returned ${res.status}, retrying (${attempt + 1}/${retries})`);
-        await new Promise((r) => setTimeout(r, baseDelay * Math.pow(2, attempt)));
-        continue;
-      }
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`Geostat API ${res.status}: ${text.slice(0, 200)}`);
-      }
-      return res.json();
-    } catch (err) {
-      lastErr = err;
-      const causeMsg = err?.cause?.code || err?.cause?.message || '';
-      const detail = causeMsg ? ` (cause: ${causeMsg})` : '';
-      if (attempt === retries) {
-        // Surface the underlying network cause — bare "fetch failed" hides
-        // whether it's DNS, connection-refused, TLS, or something else.
-        if (causeMsg) err.message = `${err.message}${detail}`;
-        throw err;
-      }
-      console.warn(`[geostatFetch] ${path} threw ${err.message}${detail}, retrying (${attempt + 1}/${retries})`);
-      await new Promise((r) => setTimeout(r, baseDelay * Math.pow(2, attempt)));
-    }
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': 'VectorPortal/1.0',
+      ...(options.headers || {}),
+    },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Geostat API ${res.status}: ${text.slice(0, 200)}`);
   }
-  throw lastErr || new Error('geostatFetch: exhausted retries');
+  return res.json();
 }
 
 // ── GET /api/statistics/classificatory ──────────────────────────────────────
@@ -618,7 +584,6 @@ router.get('/fdi', async (req, res) => {
         headers: { 'User-Agent': 'VectorPortal/1.0' },
         signal: AbortSignal.timeout(15_000),
         redirect: 'follow',
-        dispatcher: geostatDispatcher,
       });
       if (!xlsxRes.ok) throw new Error(`HTTP ${xlsxRes.status}`);
       const buffer = Buffer.from(await xlsxRes.arrayBuffer());
