@@ -2102,11 +2102,16 @@
     const hRank = isKa ? 'ადგილი' : 'Rank';
     const hShare = isKa ? 'წილი, %' : 'Share, %';
 
+    // Drop the rank column entirely when no row reaches the top 20 —
+    // a column of all "-" or all "47" / "53" etc. isn't useful.
+    const TOP_RANK_LIMIT = 20;
+    const showRank = rows.some(r => r.rank && r.rank <= TOP_RANK_LIMIT);
+
     let html = `<table class="stat-table">
       <thead>
         <tr>
           <th>${hPeriod}</th>
-          <th class="stat-col-change">${hRank}</th>
+          ${showRank ? `<th class="stat-col-change">${hRank}</th>` : ''}
           <th class="stat-col-value">${hValue}</th>
           <th class="stat-col-change">${hChange}</th>
           <th class="stat-col-change">${hShare}</th>
@@ -2123,7 +2128,9 @@
         const sign = r.changePct > 0 ? '+' : '';
         changeCell = `<td class="stat-col-change ${changeClass}">${sign}${formatChangePct(r.changePct)}</td>`;
       }
-      const rankCell = r.rank ? `<td class="stat-col-change">${r.rank}</td>` : '<td class="stat-col-change">-</td>';
+      const rankCell = showRank
+        ? (r.rank ? `<td class="stat-col-change">${r.rank}</td>` : '<td class="stat-col-change">-</td>')
+        : '';
       const shareCell = (r.share != null)
         ? `<td class="stat-col-change">${(Math.round(r.share * 10) / 10).toFixed(1)}%</td>`
         : '<td class="stat-col-change">-</td>';
@@ -2606,11 +2613,15 @@
     const hChange = isKa ? 'ცვლილება, %' : 'Change, %';
     const hShare = isKa ? 'წილი, %' : 'Share, %';
 
+    // Drop the rank column entirely when no year reaches the top 20.
+    const TOP_RANK_LIMIT = 20;
+    const showRank = data.some(r => r.valueMln > 0 && r.rank && r.rank <= TOP_RANK_LIMIT);
+
     let html = `<table class="stat-table">
       <thead>
         <tr>
           <th>${hYear}</th>
-          <th class="stat-col-change">${hRank}</th>
+          ${showRank ? `<th class="stat-col-change">${hRank}</th>` : ''}
           <th class="stat-col-value">${hValue}</th>
           <th class="stat-col-change">${hChange}</th>
           <th class="stat-col-change">${hShare}</th>
@@ -2630,12 +2641,12 @@
         const sign = pct > 0 ? '+' : '';
         changeCell = `${sign}${formatChangePct(pct)}`;
       }
-      const rankCell = (!isCurNeg && r.rank) ? String(r.rank) : '-';
+      const rankCellInner = (!isCurNeg && r.rank) ? String(r.rank) : '-';
       const shareCell = (!isCurNeg && r.share != null) ? `${(Math.round(r.share * 10) / 10).toFixed(1)}%` : '-';
       html += `
         <tr>
           <td>${r.year}</td>
-          <td class="stat-col-change">${rankCell}</td>
+          ${showRank ? `<td class="stat-col-change">${rankCellInner}</td>` : ''}
           <td class="stat-col-value">${valueCell}</td>
           <td class="stat-col-change ${changeClass}">${changeCell}</td>
           <td class="stat-col-change">${shareCell}</td>
