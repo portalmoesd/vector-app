@@ -17,7 +17,7 @@ router.post('/login', async (req, res) => {
 
     const { rows } = await db.query(
       `SELECT u.id, u.full_name, u.username, u.email, u.password_hash, u.role,
-              u.department_id, u.is_external, u.must_change_password,
+              u.department_id, u.is_external, u.entity_name, u.must_change_password,
               d.name AS department_name
        FROM users u
        LEFT JOIN departments d ON d.id = u.department_id
@@ -57,6 +57,7 @@ router.post('/login', async (req, res) => {
         departmentId: user.department_id,
         departmentName: user.department_name,
         isExternal: user.is_external,
+        entityName: user.entity_name,
         mustChangePassword: user.must_change_password,
       },
     });
@@ -105,7 +106,7 @@ router.get('/me', requireAuth, async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT u.id, u.full_name, u.username, u.email, u.role,
-              u.department_id, u.is_external, u.must_change_password,
+              u.department_id, u.is_external, u.entity_name, u.must_change_password,
               d.name AS department_name
        FROM users u
        LEFT JOIN departments d ON d.id = u.department_id
@@ -127,6 +128,7 @@ router.get('/me', requireAuth, async (req, res) => {
       departmentId: user.department_id,
       departmentName: user.department_name,
       isExternal: user.is_external,
+      entityName: user.entity_name,
       mustChangePassword: user.must_change_password,
     });
   } catch (err) {

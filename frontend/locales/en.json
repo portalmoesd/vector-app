@@ -230,7 +230,7 @@
         "name": "Name",
         "username": "Username",
         "role": "Role",
-        "dept": "Department",
+        "dept": "Department / Entity",
         "external": "External",
         "actions": "Actions"
       },
@@ -248,6 +248,7 @@
         "dept": "Department",
         "deptNone": "— None —",
         "external": "External user",
+        "entity": "Entity",
         "countries": "Country Assignments"
       }
     },

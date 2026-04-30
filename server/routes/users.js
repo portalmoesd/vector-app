@@ -10,7 +10,7 @@ router.get('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT u.id, u.full_name, u.username, u.email, u.role,
-              u.department_id, u.is_external, u.must_change_password,
+              u.department_id, u.is_external, u.entity_name, u.must_change_password,
               d.name AS department_name
        FROM users u
        LEFT JOIN departments d ON d.id = u.department_id
@@ -25,6 +25,7 @@ router.get('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
       departmentId: r.department_id,
       departmentName: r.department_name,
       isExternal: r.is_external,
+      entityName: r.entity_name,
       mustChangePassword: r.must_change_password,
     })));
   } catch (err) {
@@ -36,10 +37,17 @@ router.get('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
 // POST /api/users — create user (admin only)
 router.post('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
-    const { fullName, username, email, password, role, departmentId, isExternal, countryIds } = req.body;
+    const { fullName, username, email, password, role, departmentId, isExternal, entityName, countryIds } = req.body;
     if (!fullName || !username || !email || !password || !role) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
+
+    // External users have an entity name and no department; internal users
+    // have a department and no entity. Normalise here so the DB never
+    // ends up with a stale department_id on an external user (or vice versa).
+    const ext = !!isExternal;
+    const dept = ext ? null : (departmentId || null);
+    const entity = ext ? (entityName?.trim() || null) : null;
 
     const hash = await bcrypt.hash(password, 10);
     const client = await db.pool.connect();
@@ -47,10 +55,10 @@ router.post('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
       await client.query('BEGIN');
 
       const { rows } = await client.query(
-        `INSERT INTO users (full_name, username, email, password_hash, role, department_id, is_external)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO users (full_name, username, email, password_hash, role, department_id, is_external, entity_name)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING id`,
-        [fullName, username, email, hash, role, departmentId || null, isExternal || false]
+        [fullName, username, email, hash, role, dept, ext, entity]
       );
 
       const userId = rows[0].id;
@@ -86,7 +94,7 @@ router.post('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
 router.patch('/:id', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
-    const { fullName, email, role, departmentId, isExternal, password, countryIds } = req.body;
+    const { fullName, email, role, departmentId, isExternal, entityName, password, countryIds } = req.body;
 
     const sets = [];
     const params = [];
@@ -95,8 +103,24 @@ router.patch('/:id', requireAuth, requireRole('ADMIN'), async (req, res) => {
     if (fullName !== undefined) { sets.push(`full_name = $${idx++}`); params.push(fullName); }
     if (email !== undefined) { sets.push(`email = $${idx++}`); params.push(email); }
     if (role !== undefined) { sets.push(`role = $${idx++}`); params.push(role); }
-    if (departmentId !== undefined) { sets.push(`department_id = $${idx++}`); params.push(departmentId || null); }
-    if (isExternal !== undefined) { sets.push(`is_external = $${idx++}`); params.push(isExternal); }
+
+    // Department / entity / external are coupled: external users have an
+    // entity name and no department, internal users have a department and
+    // no entity. When isExternal is in the payload, normalise all three
+    // together so the DB never stores both at once.
+    if (isExternal !== undefined) {
+      const ext = !!isExternal;
+      sets.push(`is_external = $${idx++}`); params.push(ext);
+      if (ext) {
+        sets.push(`department_id = $${idx++}`); params.push(null);
+        sets.push(`entity_name = $${idx++}`); params.push(entityName?.trim() || null);
+      } else {
+        sets.push(`department_id = $${idx++}`); params.push(departmentId || null);
+        sets.push(`entity_name = $${idx++}`); params.push(null);
+      }
+    } else if (departmentId !== undefined) {
+      sets.push(`department_id = $${idx++}`); params.push(departmentId || null);
+    }
 
     if (password) {
       const hash = await bcrypt.hash(password, 10);

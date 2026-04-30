@@ -190,7 +190,7 @@
               <td>${escapeHtml(u.fullName)}</td>
               <td>${escapeHtml(u.username)}</td>
               <td><span class="pill pill-blue">${roleLabel(u.role)}</span></td>
-              <td>${u.departmentName ? escapeHtml(u.departmentName) : '—'}</td>
+              <td>${u.isExternal ? (u.entityName ? escapeHtml(u.entityName) : '—') : (u.departmentName ? escapeHtml(u.departmentName) : '—')}</td>
               <td>${escapeHtml(I18n.tr(u.isExternal ? 'common.yes' : 'common.no'))}</td>
               <td>
                 <button class="btn btn-outline" style="padding:4px 10px;font-size:12px;" onclick="editUser(${u.id})">${escapeHtml(I18n.tr('common.edit'))}</button>
@@ -206,8 +206,11 @@
   function userFormHtml(deptOptions, user) {
     const isEdit = !!user;
     const needsCountries = !user || user.role === 'COLLABORATOR' || user.role === 'SUPER_COLLABORATOR';
-    // ANALYST is read-only and has no department.
-    const isAnalyst = isEdit && user.role === 'ANALYST';
+    // External users are tied to an outside entity (embassy, NGO, partner
+    // ministry…) instead of an internal department. Department and entity
+    // are mutually exclusive — the form toggles between them based on the
+    // External checkbox.
+    const isExt = !!(isEdit && user.isExternal);
 
     return `
       <div class="form-group">
@@ -234,7 +237,7 @@
           ).join('')}
         </select>
       </div>
-      <div class="form-group" id="deptGroup" style="${isAnalyst ? 'display:none;' : ''}">
+      <div class="form-group" id="deptGroup" style="${isExt ? 'display:none;' : ''}">
         <label class="form-label">${escapeHtml(I18n.tr('admin.user.form.dept'))}</label>
         <select class="form-select" id="userDept">
           <option value="">${escapeHtml(I18n.tr('admin.user.form.deptNone'))}</option>
@@ -242,7 +245,11 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label"><input type="checkbox" id="userExternal" ${isEdit && user.isExternal ? 'checked' : ''} /> ${escapeHtml(I18n.tr('admin.user.form.external'))}</label>
+        <label class="form-label"><input type="checkbox" id="userExternal" ${isExt ? 'checked' : ''} /> ${escapeHtml(I18n.tr('admin.user.form.external'))}</label>
+      </div>
+      <div class="form-group" id="entityGroup" style="${isExt ? '' : 'display:none;'}">
+        <label class="form-label">${escapeHtml(I18n.tr('admin.user.form.entity'))}</label>
+        <input class="form-input" id="userEntity" value="${isEdit && user.entityName ? escapeHtml(user.entityName) : ''}" />
       </div>
       <div class="form-group" id="countryAssignmentGroup" style="${needsCountries ? '' : 'display:none;'}">
         <label class="form-label">${escapeHtml(I18n.tr('admin.user.form.countries'))}</label>
@@ -259,13 +266,16 @@
       const email = document.getElementById('userEmail').value.trim();
       const password = document.getElementById('userPassword').value;
       const role = document.getElementById('userRole').value;
-      // ANALYST has no department — clear regardless of UI state.
-      const departmentId = role === 'ANALYST' ? null : (document.getElementById('userDept').value || null);
       const isExternal = document.getElementById('userExternal').checked;
+      // Department and entity are mutually exclusive. Send only the one
+      // matching the External checkbox; the route also normalises this
+      // server-side so the DB never holds both.
+      const departmentId = isExternal ? null : (document.getElementById('userDept').value || null);
+      const entityName = isExternal ? (document.getElementById('userEntity').value.trim() || null) : null;
       const countryIds = getSelectedCountryIds(document.getElementById('countryPickerContainer'));
       if (!fullName || !username || !email || !password) return;
       try {
-        await Api.post('/api/users', { fullName, username, email, password, role, departmentId, isExternal, countryIds });
+        await Api.post('/api/users', { fullName, username, email, password, role, departmentId, isExternal, entityName, countryIds });
         hideModal();
         loadUsers();
       } catch (e) { toast.error(e.message); }
@@ -276,13 +286,18 @@
     container.innerHTML = buildCountryPickerHtml([]);
     initCountryPicker(container);
 
-    // Show/hide country picker + dept group based on role.
+    // Show/hide country picker based on role.
     document.getElementById('userRole').addEventListener('change', () => {
       const role = document.getElementById('userRole').value;
       const showCountries = role === 'COLLABORATOR' || role === 'SUPER_COLLABORATOR';
       document.getElementById('countryAssignmentGroup').style.display = showCountries ? '' : 'none';
-      const deptGroup = document.getElementById('deptGroup');
-      if (deptGroup) deptGroup.style.display = role === 'ANALYST' ? 'none' : '';
+    });
+
+    // Toggle department vs. entity based on External checkbox.
+    document.getElementById('userExternal').addEventListener('change', (e) => {
+      const ext = e.target.checked;
+      document.getElementById('deptGroup').style.display = ext ? 'none' : '';
+      document.getElementById('entityGroup').style.display = ext ? '' : 'none';
     });
   });
 
@@ -306,13 +321,13 @@
       const email = document.getElementById('userEmail').value.trim();
       const password = document.getElementById('userPassword').value;
       const role = document.getElementById('userRole').value;
-      // ANALYST has no department — clear regardless of UI state.
-      const departmentId = role === 'ANALYST' ? null : (document.getElementById('userDept').value || null);
       const isExternal = document.getElementById('userExternal').checked;
+      const departmentId = isExternal ? null : (document.getElementById('userDept').value || null);
+      const entityName = isExternal ? (document.getElementById('userEntity').value.trim() || null) : null;
       const countryIds = getSelectedCountryIds(document.getElementById('countryPickerContainer'));
       if (!fullName || !email) return;
 
-      const body = { fullName, email, role, departmentId, isExternal, countryIds };
+      const body = { fullName, email, role, departmentId, isExternal, entityName, countryIds };
       if (password) body.password = password;
 
       try {
@@ -331,14 +346,19 @@
     container.innerHTML = buildCountryPickerHtml(selectedCountryIds);
     initCountryPicker(container);
 
-    // Show/hide country picker + dept group based on role.
+    // Show/hide country picker based on role.
     const roleSelect = document.getElementById('userRole');
     roleSelect.addEventListener('change', () => {
       const role = roleSelect.value;
       const showCountries = role === 'COLLABORATOR' || role === 'SUPER_COLLABORATOR';
       document.getElementById('countryAssignmentGroup').style.display = showCountries ? '' : 'none';
-      const deptGroup = document.getElementById('deptGroup');
-      if (deptGroup) deptGroup.style.display = role === 'ANALYST' ? 'none' : '';
+    });
+
+    // Toggle department vs. entity based on External checkbox.
+    document.getElementById('userExternal').addEventListener('change', (e) => {
+      const ext = e.target.checked;
+      document.getElementById('deptGroup').style.display = ext ? 'none' : '';
+      document.getElementById('entityGroup').style.display = ext ? '' : 'none';
     });
   };
 

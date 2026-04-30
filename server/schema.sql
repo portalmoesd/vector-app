@@ -48,10 +48,13 @@ CREATE TABLE IF NOT EXISTS users (
   role                  user_role NOT NULL,
   department_id         INT REFERENCES departments(id) ON DELETE SET NULL,
   is_external           BOOLEAN NOT NULL DEFAULT false,
+  entity_name           VARCHAR(200),
   must_change_password  BOOLEAN NOT NULL DEFAULT true,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Backfill for databases predating the entity_name column.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS entity_name VARCHAR(200);
 
 -- ─── Country Assignments ────────────────────────────────────────────────────
 
