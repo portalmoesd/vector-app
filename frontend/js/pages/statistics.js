@@ -1321,15 +1321,32 @@
       return `${formatMln2(Math.abs(value))} ${mln}, ${dir} ${formatChangePct(pct)}`;
     }
 
-    let html = `<table class="stat-table stat-overview-table">
-      <thead>
-        <tr>
-          <th></th>
-          <th class="stat-col-overview">${colFull}</th>
-          <th class="stat-col-overview">${colMonth}</th>
-        </tr>
-      </thead>
-      <tbody>`;
+    // Render two layouts wrapped in stat-overview-{desktop,mobile} —
+    // CSS toggles which is visible at the 980px breakpoint. Desktop
+    // keeps the existing 3-column table; mobile splits into two
+    // stacked 2-column tables (full year, then latest period) so the
+    // wide cells fit without horizontal scroll.
+    const buildRow = (period) => rows.map(r => {
+      const isBalance = r.key === 'balance';
+      const val = data[period][r.key];
+      const prev = data[period][r.key + 'Prev'];
+      return `<tr>
+        <td class="stat-overview-label">${escapeHtml(r.label)}</td>
+        <td class="stat-col-overview">${formatCell(val, prev, isBalance, r.key, data[period])}</td>
+      </tr>`;
+    }).join('');
+
+    let html = `
+      <div class="stat-overview-desktop">
+        <table class="stat-table stat-overview-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th class="stat-col-overview">${colFull}</th>
+              <th class="stat-col-overview">${colMonth}</th>
+            </tr>
+          </thead>
+          <tbody>`;
 
     for (const r of rows) {
       const isBalance = r.key === 'balance';
@@ -1346,7 +1363,17 @@
         </tr>`;
     }
 
-    html += '</tbody></table>';
+    html += `</tbody></table></div>
+      <div class="stat-overview-mobile">
+        <table class="stat-table stat-overview-table">
+          <thead><tr><th colspan="2" class="stat-col-overview">${colFull}</th></tr></thead>
+          <tbody>${buildRow('fullYear')}</tbody>
+        </table>
+        <table class="stat-table stat-overview-table">
+          <thead><tr><th colspan="2" class="stat-col-overview">${colMonth}</th></tr></thead>
+          <tbody>${buildRow('latestPeriod')}</tbody>
+        </table>
+      </div>`;
     overviewTable.innerHTML = html;
   }
 
