@@ -427,6 +427,12 @@ body.stat-exporting .stat-sections.hidden {
 
 /* ─── Trade Overview Table ────────────────────────────────────────────────── */
 
+/* Two layouts are rendered side-by-side in HTML; the @media block at
+   the bottom of this file swaps which is visible. Default = desktop. */
+.stat-overview-mobile { display: none; }
+.stat-overview-mobile .stat-overview-table { margin-bottom: 12px; }
+.stat-overview-mobile .stat-overview-table:last-child { margin-bottom: 0; }
+
 .stat-overview-table .stat-overview-label {
   font-weight: 600;
   white-space: nowrap;
@@ -514,6 +520,34 @@ body.stat-exporting .stat-sections.hidden {
 @media (max-width: 980px) {
   .stat-investments-row {
     flex-direction: column;
+  }
+
+  /* Tabs: tighten padding and allow horizontal scroll if it still
+     overflows on the smallest phones. The native scrollbar is hidden
+     to keep the visual clean — touch swipe still works. */
+  .stat-controls .stat-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .stat-controls .stat-tabs::-webkit-scrollbar { display: none; }
+  .stat-tab {
+    padding: 10px 12px;
+    font-size: 0.82rem;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  /* Overview table: swap to the stacked mobile layout. The wide
+     `min-width: 280px` from the desktop cell rule is dropped so the
+     two stacked tables can fit narrow viewports. */
+  .stat-overview-desktop { display: none; }
+  .stat-overview-mobile { display: block; }
+  .stat-overview-mobile .stat-col-overview {
+    min-width: 0;
+  }
+  .stat-overview-mobile .stat-overview-label {
+    width: auto;
   }
 }
 
