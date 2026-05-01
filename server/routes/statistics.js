@@ -391,8 +391,17 @@ router.post('/country-ranking', async (req, res) => {
         flows: { turnover: turnoverRanked, export: exp.perCountry, import: imp.perCountry, domesticExport: domExp.perCountry, reExport: reExp.perCountry },
         flowStats: { export: exp.stats, import: imp.stats, domesticExport: domExp.stats, reExport: reExp.stats },
       };
-      // Only cache if we got meaningful data; never cache failures.
-      const hasData = exp.stats.withTrade > 0 || imp.stats.withTrade > 0;
+      // All four flows must have non-empty results before we cache.
+      // A partial Geostat outage (e.g. tradeFlow 12/13 returning zero
+      // while 10/11 succeed) would otherwise poison the cache for the
+      // full hour TTL — manifesting as silently-missing domestic-export
+      // and re-export prose downstream until the cache expires or the
+      // backend restarts.
+      const hasData =
+        exp.stats.withTrade > 0 &&
+        imp.stats.withTrade > 0 &&
+        domExp.total > 0 &&
+        reExp.total > 0;
       if (hasData) rankingCacheSet(cacheKey, cached);
       debug.computedMs = Date.now() - t0;
       debug.cached = hasData;
@@ -525,7 +534,10 @@ async function computeAggregate(year, sortedMonths) {
         import: imp.perCountry,
       },
     };
-    if (exp.stats.withTrade > 0 || imp.stats.withTrade > 0) {
+    // Both flows must have data before we cache; a partial Geostat
+    // outage (one of export / import returning zero) would otherwise
+    // poison the appendix for the full hour TTL with blank columns.
+    if (exp.stats.withTrade > 0 && imp.stats.withTrade > 0) {
       aggregateCacheSet(key, data);
     }
     return data;
