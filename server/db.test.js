@@ -39,3 +39,19 @@ test('buildPoolConfig supports explicit buyer SSL modes', () => {
     { connectionString: 'postgres://user:pass@db.example/vector' }
   );
 });
+
+test('buildPoolConfig includes configured pool sizing options', () => {
+  assert.deepEqual(
+    buildPoolConfig('postgres://user:pass@db.example/vector', 'disable', {
+      max: 30,
+      idleTimeoutMillis: 45_000,
+      connectionTimeoutMillis: 5_000,
+    }),
+    {
+      connectionString: 'postgres://user:pass@db.example/vector',
+      max: 30,
+      idleTimeoutMillis: 45_000,
+      connectionTimeoutMillis: 5_000,
+    }
+  );
+});

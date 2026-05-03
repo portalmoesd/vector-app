@@ -25,15 +25,24 @@ function resolveAllowDefaultSeedUsers(isProd, value) {
   return value === 'true';
 }
 
+function parsePositiveInt(value, fallback) {
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 module.exports = {
   isProduction,
   databaseUrl: process.env.DATABASE_URL,
   databaseSslMode: process.env.DATABASE_SSL_MODE || 'auto',
+  databasePoolMax: parsePositiveInt(process.env.DATABASE_POOL_MAX, 20),
+  databaseIdleTimeoutMs: parsePositiveInt(process.env.DATABASE_IDLE_TIMEOUT_MS, 30_000),
+  databaseConnectionTimeoutMs: parsePositiveInt(process.env.DATABASE_CONNECTION_TIMEOUT_MS, 10_000),
   jwtSecret,
   port: parseInt(process.env.PORT, 10) || 3000,
   corsOrigins: parseOrigins(process.env.CORS_ORIGINS),
   allowDefaultSeedUsers: resolveAllowDefaultSeedUsers(isProduction, process.env.ALLOW_DEFAULT_SEED_USERS),
   resolveAllowDefaultSeedUsers,
+  parsePositiveInt,
 };
 
 if (isProduction && !module.exports.databaseUrl) {

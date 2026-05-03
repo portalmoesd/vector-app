@@ -57,6 +57,8 @@ For 500-1000 live users, review these signals daily during launch and weekly aft
 - HTTP 4xx and 5xx rates.
 - Backup completion and restore-test status.
 
+Tune `DATABASE_POOL_MAX` against PostgreSQL's connection limit and the number of running Node processes. Keep enough spare connections for backups, migrations, and administrator access.
+
 Avoid running production with local-only database storage or an unmonitored single terminal process. Use a managed service, systemd, PM2, Docker, or the buyer's standard server manager so the process restarts cleanly after host reboot or failure.
 
 ## Incident response

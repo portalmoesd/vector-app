@@ -8,6 +8,9 @@ services:
       PORT: 3000
       DATABASE_URL: postgres://vector:vector@db:5432/vector_portal
       DATABASE_SSL_MODE: disable
+      DATABASE_POOL_MAX: 20
+      DATABASE_IDLE_TIMEOUT_MS: 30000
+      DATABASE_CONNECTION_TIMEOUT_MS: 10000
       JWT_SECRET: replace-this-with-a-long-random-secret-before-use
       CORS_ORIGINS: http://localhost:3000
       ALLOW_DEFAULT_SEED_USERS: "false"
