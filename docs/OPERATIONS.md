@@ -8,6 +8,7 @@
 - Request logs show method, URL, response status, and duration for non-health traffic.
 - Disallowed production browser origins return HTTP 403 with `Origin not allowed by CORS`.
 - Malformed JSON requests return HTTP 400 with `Invalid JSON request body`.
+- Oversized JSON requests return HTTP 413 with the configured `JSON_BODY_LIMIT_MB` limit.
 - Browser network failures show a clear retry message instead of a raw fetch error.
 - PostgreSQL has current backups and enough disk space.
 - Users can log in, create events, upload files, and export documents.

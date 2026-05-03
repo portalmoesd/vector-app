@@ -30,6 +30,19 @@ test('jsonErrorHandler returns 400 for malformed JSON bodies', () => {
   assert.deepEqual(res.body, { error: 'Invalid JSON request body' });
 });
 
+test('jsonErrorHandler returns 413 for oversized JSON bodies', () => {
+  const res = mockResponse();
+  let nextCalled = false;
+
+  jsonErrorHandler({ type: 'entity.too.large' }, {}, res, () => {
+    nextCalled = true;
+  });
+
+  assert.equal(nextCalled, false);
+  assert.equal(res.statusCode, 413);
+  assert.deepEqual(res.body, { error: 'JSON request body must be 10MB or smaller' });
+});
+
 test('jsonErrorHandler passes unrelated errors to the final handler', () => {
   const res = mockResponse();
   const err = new Error('other');
