@@ -3,6 +3,7 @@ const db = require('../db');
 const { requireAuth, denyAnalyst } = require('../middleware/auth');
 const { ROLES } = require('../helpers/roles');
 const { canAccessEvent, canAccessSection } = require('../helpers/access');
+const { checkEventCompletion } = require('../helpers/event-completion');
 const {
   asOptionalTrimmedString,
   asPositiveInt,
@@ -346,7 +347,7 @@ router.post('/submit', requireAuth, denyAnalyst, async (req, res) => {
     // Auto-complete the event if the simple-mode short-circuit just
     // fired and every section is now approved.
     if (didFinalApprove) {
-      await checkEventCompletion(eventId);
+      await checkEventCompletion(db, eventId);
     }
 
     res.json({ success: true, newStatus: toStatus });
@@ -416,7 +417,7 @@ router.post('/approve', requireAuth, denyAnalyst, async (req, res) => {
         'DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2',
         [eventId, sectionId]
       );
-      await checkEventCompletion(eventId);
+      await checkEventCompletion(db, eventId);
       return res.json({ success: true, newStatus: toStatus });
     }
 
@@ -477,7 +478,7 @@ router.post('/approve', requireAuth, denyAnalyst, async (req, res) => {
 
     // If this was the final approval, check if all sections are approved → complete event
     if (isFinal) {
-      await checkEventCompletion(eventId);
+      await checkEventCompletion(db, eventId);
     }
 
     res.json({ success: true, newStatus: toStatus });
@@ -777,7 +778,7 @@ router.post('/push-section', requireAuth, denyAnalyst, async (req, res) => {
     // Simple-mode push lands on approved_by_*, so trigger the same
     // auto-completion check as a final approval.
     if (isSimplePush) {
-      await checkEventCompletion(eventId);
+      await checkEventCompletion(db, eventId);
     }
 
     res.json({ success: true, newStatus: toStatus });
@@ -1252,34 +1253,5 @@ router.get('/section-content', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-// ─── Helper: check event completion ───────────────────────────────────────────
-
-async function checkEventCompletion(eventId) {
-  // Auto-completion is only enabled in 'simple' workflow mode. Advanced
-  // mode keeps the manual "Send to library" gate (the DS clicks it once
-  // they're satisfied with the final approved sections).
-  const { rows: [event] } = await db.query(
-    'SELECT workflow_type, status FROM events WHERE id = $1', [eventId]
-  );
-  if (!event) return;
-  const workflowType = event.workflow_type || 'advanced';
-  if (workflowType !== 'simple') return;
-  if (event.status === 'COMPLETED') return;
-
-  const { rows: sections } = await db.query(
-    'SELECT status FROM section_content WHERE event_id = $1', [eventId]
-  );
-  if (sections.length === 0) return;
-  const allApproved = sections.every(s => s.status && s.status.startsWith('approved_by_'));
-  if (!allApproved) return;
-
-  await db.query(
-    `UPDATE events
-     SET status = 'COMPLETED', is_active = false, ended_at = now(), updated_at = now()
-     WHERE id = $1 AND status <> 'COMPLETED'`,
-    [eventId]
-  );
-}
 
 module.exports = router;
