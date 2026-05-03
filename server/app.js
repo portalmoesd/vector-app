@@ -5,6 +5,7 @@ const config = require('./config');
 const db = require('./db');
 const securityHeaders = require('./middleware/security-headers');
 const requestLogger = require('./middleware/request-logger');
+const corsErrorHandler = require('./middleware/cors-error');
 const jsonErrorHandler = require('./middleware/json-error');
 
 function createApp(options = {}) {
@@ -24,9 +25,12 @@ function createApp(options = {}) {
       if (config.corsOrigins.includes(origin)) {
         return callback(null, true);
       }
-      return callback(new Error('Origin not allowed by CORS'));
+      const err = new Error('Origin not allowed by CORS');
+      err.code = 'CORS_ORIGIN_DENIED';
+      return callback(err);
     },
   }));
+  app.use(corsErrorHandler);
   app.use(express.json({ limit: '10mb' }));
   app.use(jsonErrorHandler);
 
