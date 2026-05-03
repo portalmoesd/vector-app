@@ -37,10 +37,17 @@ For a production buyer environment, create real administrator accounts through a
 npm test
 ```
 
-Tests cover deployment health, security headers, access helpers, validation helpers, and the event email draft resolver. Workflow, statistics, and browser-level coverage should continue to grow as the buyer environment is finalized.
+Tests cover deployment health and readiness, security headers, rate limiting, access helpers, validation helpers, event email draft resolution, event creation, workflow movement, comments, files, library, templates, users, departments, countries, sections, and section history.
 
 For the full local verification gate, run:
 
 ```bash
 npm run check
+```
+
+After startup, confirm:
+
+```text
+GET /api/health
+GET /api/ready
 ```
