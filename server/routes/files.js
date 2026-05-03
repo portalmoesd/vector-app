@@ -46,6 +46,12 @@ function handleUpload(req, res, next) {
   });
 }
 
+function contentDispositionFilename(name) {
+  const clean = String(name || 'download').replace(/["\\\r\n]/g, '_');
+  const asciiFallback = clean.replace(/[^\x20-\x7E]/g, '_') || 'download';
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(clean)}`;
+}
+
 // POST /api/workflow/files/upload
 router.post('/upload', requireAuth, denyAnalyst, handleUpload, async (req, res) => {
   try {
@@ -130,8 +136,7 @@ router.get('/download', requireAuth, async (req, res) => {
     }
 
     res.set('Content-Type', file.mime_type || 'application/octet-stream');
-    const downloadName = String(file.original_name || 'download').replace(/["\r\n]/g, '_');
-    res.set('Content-Disposition', `attachment; filename="${encodeURIComponent(downloadName)}"`);
+    res.set('Content-Disposition', contentDispositionFilename(file.original_name));
     res.send(file.file_data);
   } catch (err) {
     console.error('Download error:', err);
