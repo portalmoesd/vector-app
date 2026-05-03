@@ -67,6 +67,8 @@ The production server starts statistics cache loaders explicitly during applicat
 
 The current product is web-first, but the backend is organized as JSON API routes. A future mobile app can reuse the same authentication, event, workflow, file, library, and statistics endpoints.
 
+The browser frontend uses a central `API_BASE` setting and can be pointed at a separate API host with `window.VECTOR_PORTAL_CONFIG.apiBase` if the buyer later separates frontend hosting from the Node API.
+
 Before building a native app, decide:
 
 - Whether login should remain JWT-only or move to the buyer's single sign-on.
