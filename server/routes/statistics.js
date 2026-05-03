@@ -1003,10 +1003,6 @@ function scheduleTourismRefresh() {
   if (timer.unref) timer.unref();
 }
 
-// Init: load from disk, schedule daily refresh
-loadTourismFromDisk();
-scheduleTourismRefresh();
-
 router.get('/tourism', async (req, res) => {
   try {
     // Serve from memory/disk cache if available
@@ -1172,9 +1168,6 @@ async function loadFdiSectorsFromDb() {
   }
 }
 
-// Init: load any previously uploaded data on module load.
-loadFdiSectorsFromDb().catch((err) => console.warn('fdi-sectors load failed:', err.message));
-
 router.get('/fdi-sectors', (req, res) => {
   const data = fdiSectorsCache.data;
   if (!data) return res.json({ success: true, empty: true });
@@ -1231,8 +1224,6 @@ async function loadCompaniesFromDb() {
     console.log(`companies: loaded from DB (${Object.keys(parsed.countries || {}).length} countries, ${parsed.activeCount || 0} active)`);
   }
 }
-loadCompaniesFromDb().catch((err) => console.warn('companies load failed:', err.message));
-
 router.get('/companies', (req, res) => {
   const data = companiesCache.data;
   if (!data) return res.json({ success: true, empty: true });
@@ -1287,5 +1278,19 @@ router.post('/companies/data', ...adminOnly, async (req, res) => {
     res.status(400).json({ error: err.message || 'Failed to save companies data' });
   }
 });
+
+let statisticsDataInitialized = false;
+
+function initializeStatisticsData() {
+  if (statisticsDataInitialized) return;
+  statisticsDataInitialized = true;
+
+  loadTourismFromDisk();
+  scheduleTourismRefresh();
+  loadFdiSectorsFromDb().catch((err) => console.warn('fdi-sectors load failed:', err.message));
+  loadCompaniesFromDb().catch((err) => console.warn('companies load failed:', err.message));
+}
+
+router.initializeStatisticsData = initializeStatisticsData;
 
 module.exports = router;

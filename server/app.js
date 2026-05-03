@@ -5,8 +5,9 @@ const config = require('./config');
 const securityHeaders = require('./middleware/security-headers');
 const requestLogger = require('./middleware/request-logger');
 
-function createApp() {
+function createApp(options = {}) {
   const app = express();
+  const statisticsRouter = require('./routes/statistics');
 
   app.set('trust proxy', 1);
 
@@ -50,7 +51,11 @@ function createApp() {
   app.use('/api/library', require('./routes/library'));
   app.use('/api/admin', require('./routes/admin'));
   app.use('/api/templates', require('./routes/templates'));
-  app.use('/api/statistics', require('./routes/statistics'));
+  app.use('/api/statistics', statisticsRouter);
+
+  if (options.initializeBackgroundJobs && typeof statisticsRouter.initializeStatisticsData === 'function') {
+    statisticsRouter.initializeStatisticsData();
+  }
 
   app.use('/api', (req, res) => {
     res.status(404).json({ error: 'API route not found' });

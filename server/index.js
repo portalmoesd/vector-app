@@ -6,7 +6,7 @@ const db = require('./db');
 async function start() {
   await bootstrapDatabase();
 
-  const app = createApp();
+  const app = createApp({ initializeBackgroundJobs: true });
   const server = app.listen(config.port, () => {
     console.log(`Vector Portal running on port ${config.port}`);
   });
