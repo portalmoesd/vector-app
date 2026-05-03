@@ -7,12 +7,22 @@ if (isProduction && (!jwtSecret || jwtSecret === 'dev-secret-change-me')) {
   throw new Error('JWT_SECRET must be set to a strong non-default value in production');
 }
 
+if (isProduction && process.env.ALLOW_DEFAULT_SEED_USERS === 'true') {
+  throw new Error('ALLOW_DEFAULT_SEED_USERS cannot be true in production');
+}
+
 function parseOrigins(value) {
   if (!value) return [];
   return value
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
+}
+
+function resolveAllowDefaultSeedUsers(isProd, value) {
+  if (isProd) return false;
+  if (value === undefined) return true;
+  return value === 'true';
 }
 
 module.exports = {
@@ -22,7 +32,8 @@ module.exports = {
   jwtSecret,
   port: parseInt(process.env.PORT, 10) || 3000,
   corsOrigins: parseOrigins(process.env.CORS_ORIGINS),
-  allowDefaultSeedUsers: process.env.ALLOW_DEFAULT_SEED_USERS === 'true' || !isProduction,
+  allowDefaultSeedUsers: resolveAllowDefaultSeedUsers(isProduction, process.env.ALLOW_DEFAULT_SEED_USERS),
+  resolveAllowDefaultSeedUsers,
 };
 
 if (isProduction && !module.exports.databaseUrl) {

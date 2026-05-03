@@ -47,7 +47,7 @@ For database TLS, prefer `DATABASE_SSL_MODE=require` when the buyer's server tru
 
 New users created by an administrator receive a temporary password and are marked to change it on first login. Passwords must be at least 8 characters and are stored as bcrypt hashes.
 
-Default seed users are intended only for development and demonstrations. Production deployments should keep `ALLOW_DEFAULT_SEED_USERS=false` and provision real accounts.
+Default seed users are intended only for local development and demonstrations. Production deployments refuse to start with `ALLOW_DEFAULT_SEED_USERS=true`; provision real accounts instead.
 
 ## Email draft behavior
 

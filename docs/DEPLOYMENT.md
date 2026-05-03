@@ -13,6 +13,7 @@ Set these variables before starting the service:
 - `PORT=3000` or the port assigned by the host
 
 The application refuses to start in production if `DATABASE_URL`, `JWT_SECRET`, or `CORS_ORIGINS` are missing.
+It also refuses to start in production if `ALLOW_DEFAULT_SEED_USERS=true`.
 
 `DATABASE_SSL_MODE` accepts `auto`, `disable`, `require`, or `no-verify`. Use `require` when the buyer's PostgreSQL certificate chain is trusted by the server. Use `no-verify` only for managed services or transitional environments that require TLS but cannot present a locally trusted certificate chain yet. Local Docker deployments should use `disable`.
 

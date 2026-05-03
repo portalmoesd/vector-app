@@ -23,7 +23,7 @@ Recommended backup expectations:
 ## Security operations
 
 - Rotate `JWT_SECRET` if credentials or environment files may have leaked. This signs out existing sessions.
-- Keep `ALLOW_DEFAULT_SEED_USERS=false` in production.
+- Keep `ALLOW_DEFAULT_SEED_USERS=false` in production. The application refuses to start if this is set to `true` with `NODE_ENV=production`.
 - Use HTTPS only for production access.
 - Restrict database access to the application server and administrators.
 - Review user accounts before buyer handoff and remove unused demo accounts.
@@ -56,7 +56,7 @@ For 500-1000 live users, review these signals daily during launch and weekly aft
 - HTTP 4xx and 5xx rates.
 - Backup completion and restore-test status.
 
-Avoid running production with default seed users, local-only database storage, or an unmonitored single terminal process. Use a managed service, systemd, PM2, Docker, or the buyer's standard server manager so the process restarts cleanly after host reboot or failure.
+Avoid running production with local-only database storage or an unmonitored single terminal process. Use a managed service, systemd, PM2, Docker, or the buyer's standard server manager so the process restarts cleanly after host reboot or failure.
 
 ## Incident response
 

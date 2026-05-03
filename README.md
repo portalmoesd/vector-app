@@ -18,7 +18,7 @@ Vector Portal is a document approval workflow system for creating events, assign
 4. Start the app with `npm start`.
 5. Open `http://localhost:3000`.
 
-The server applies the database schema on startup. Demo/default users are disabled in production unless `ALLOW_DEFAULT_SEED_USERS=true` is explicitly set.
+The server applies the database schema on startup. Demo/default users are blocked in production and are only available for local development or demo environments.
 
 ## Documentation
 
