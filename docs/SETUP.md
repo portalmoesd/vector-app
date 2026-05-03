@@ -37,4 +37,4 @@ For a production buyer environment, create real administrator accounts through a
 npm test
 ```
 
-Tests currently cover the event email draft resolver and are intended to grow around workflow, access control, and statistics behaviour.
+Tests cover deployment health, security headers, access helpers, validation helpers, and the event email draft resolver. Workflow, statistics, and browser-level coverage should continue to grow as the buyer environment is finalized.

@@ -26,6 +26,7 @@ The server applies the database schema on startup. Demo/default users are disabl
 - Deployment: `docs/DEPLOYMENT.md`
 - Operations: `docs/OPERATIONS.md`
 - Database: `docs/DATABASE.md`
+- Buyer handoff: `docs/BUYER_HANDOFF.md`
 - Event email drafts: `docs/event-email-drafts.md`
 
 ## Useful commands
