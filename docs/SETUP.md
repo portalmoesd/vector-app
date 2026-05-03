@@ -11,6 +11,7 @@
 Create `.env` from `.env.example` and set:
 
 - `DATABASE_URL` - PostgreSQL connection string.
+- `DATABASE_SSL_MODE` - database TLS mode: `auto`, `disable`, `require`, or `no-verify`.
 - `JWT_SECRET` - long random secret used for login tokens.
 - `PORT` - server port, usually `3000`.
 - `CORS_ORIGINS` - allowed browser origin in production.

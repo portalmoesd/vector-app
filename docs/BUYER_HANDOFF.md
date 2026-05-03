@@ -33,12 +33,15 @@ The buyer environment must provide:
 
 - `NODE_ENV=production`
 - `DATABASE_URL` for PostgreSQL.
+- `DATABASE_SSL_MODE` for PostgreSQL TLS behavior.
 - `JWT_SECRET` generated specifically for this deployment.
 - `CORS_ORIGINS` set to the final HTTPS origin.
 - `ALLOW_DEFAULT_SEED_USERS=false`.
 - Database backups sized for workflow files and admin-uploaded statistics datasets.
 
 The service should run behind HTTPS through Nginx, Apache, Caddy, a load balancer, or the buyer's hosting platform.
+
+For database TLS, prefer `DATABASE_SSL_MODE=require` when the buyer's server trusts the PostgreSQL certificate chain. Use `no-verify` only when the database requires TLS but certificate verification is not yet available.
 
 ## User and password policy
 

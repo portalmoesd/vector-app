@@ -18,6 +18,7 @@ function parseOrigins(value) {
 module.exports = {
   isProduction,
   databaseUrl: process.env.DATABASE_URL,
+  databaseSslMode: process.env.DATABASE_SSL_MODE || 'auto',
   jwtSecret,
   port: parseInt(process.env.PORT, 10) || 3000,
   corsOrigins: parseOrigins(process.env.CORS_ORIGINS),
