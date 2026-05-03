@@ -16,6 +16,14 @@
   const GEOSTAT_API = 'https://ex-trade-api.geostat.ge/api/trade';
   const PROXY_API = `${API_BASE}/api/statistics`;
 
+  function notifyExportError(message) {
+    if (typeof toast !== 'undefined' && toast && typeof toast.error === 'function') {
+      toast.error(message);
+      return;
+    }
+    console.error(message);
+  }
+
   // ── DOM refs ─────────────────────────────────────────────────────────────
   const searchInput = document.getElementById('countrySearch');
   const dropdown = document.getElementById('countryDropdown');
@@ -2859,11 +2867,11 @@
 
   async function exportPdf(pdfLang) {
     if (typeof pdfMake === 'undefined' || typeof StatisticsPdf === 'undefined') {
-      alert(I18n.tr('statistics.pdfLibMissing'));
+      notifyExportError(I18n.tr('statistics.pdfLibMissing'));
       return;
     }
     if (!pdfState.trade || !pdfState.country) {
-      alert(reportLocale === 'ka' ? 'ჯერ დააგენერირეთ მონაცემები' : 'Please generate data first.');
+      notifyExportError(reportLocale === 'ka' ? 'ჯერ დააგენერირეთ მონაცემები' : 'Please generate data first.');
       return;
     }
 
@@ -2897,7 +2905,7 @@
       });
     } catch (err) {
       console.error('PDF export error:', err);
-      alert(I18n.tr('statistics.pdfExportFailed') + ' ' + (err.message || err));
+      notifyExportError(I18n.tr('statistics.pdfExportFailed') + ' ' + (err.message || err));
     } finally {
       document.body.classList.remove('stat-exporting');
       // Restore chart sizes to fit their actual visible containers
@@ -2914,7 +2922,7 @@
   async function exportWord(wordLang) {
     if (!exportWordBtn) return;
     if (!pdfState.trade || !pdfState.country) {
-      alert(reportLocale === 'ka' ? 'ჯერ დააგენერირეთ მონაცემები' : 'Please generate data first.');
+      notifyExportError(reportLocale === 'ka' ? 'ჯერ დააგენერირეთ მონაცემები' : 'Please generate data first.');
       return;
     }
 
@@ -2946,7 +2954,7 @@
       });
     } catch (err) {
       console.error('Word export error:', err);
-      alert(I18n.tr('statistics.wordExportFailed') + ' ' + (err.message || err));
+      notifyExportError(I18n.tr('statistics.wordExportFailed') + ' ' + (err.message || err));
     } finally {
       document.body.classList.remove('stat-exporting');
       [turnoverChartInstance, dynamicsChartInstance, tourismChartInstance, fdiChartInstance]

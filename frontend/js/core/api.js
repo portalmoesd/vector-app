@@ -77,7 +77,7 @@ function notifyDownloadError(message) {
     toast.error(message);
     return;
   }
-  alert(message);
+  console.error(message);
 }
 
 function downloadFileAuth(fileId, fileName) {
