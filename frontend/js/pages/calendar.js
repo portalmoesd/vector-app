@@ -651,9 +651,13 @@
           sections,
         });
         hideModal();
-        events = await Api.get('/api/events');
-        render();
         await openCreatedEventNotificationDraft(created.id);
+        try {
+          events = await Api.get('/api/events');
+          render();
+        } catch (refreshErr) {
+          toast.warn(`Event created, but the calendar could not be refreshed: ${refreshErr.message}`);
+        }
       } catch (err) { toast.error(err.message); }
     });
 
