@@ -2,17 +2,18 @@ const express = require('express');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { canAccessSection } = require('../helpers/access');
+const { asPositiveInt, validationError } = require('../helpers/validation');
 
 const router = express.Router();
 
 // GET /api/workflow/section-history?event_id=X&section_id=Y
 router.get('/section-history', requireAuth, async (req, res) => {
   try {
-    const { event_id, section_id } = req.query;
-    if (!event_id || !section_id) {
-      return res.status(400).json({ error: 'event_id and section_id are required' });
-    }
-    if (!(await canAccessSection(req.user, event_id, section_id))) {
+    const eventId = asPositiveInt(req.query.event_id, 'event_id');
+    if (eventId.error) return validationError(res, eventId.error);
+    const sectionId = asPositiveInt(req.query.section_id, 'section_id');
+    if (sectionId.error) return validationError(res, sectionId.error);
+    if (!(await canAccessSection(req.user, eventId.value, sectionId.value))) {
       return res.status(403).json({ error: 'Not authorized to access this section' });
     }
 
@@ -21,7 +22,7 @@ router.get('/section-history', requireAuth, async (req, res) => {
        FROM section_history
        WHERE event_id = $1 AND section_id = $2
        ORDER BY acted_at`,
-      [event_id, section_id]
+      [eventId.value, sectionId.value]
     );
 
     res.json({

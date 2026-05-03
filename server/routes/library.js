@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { requireAuth, denyAnalyst } = require('../middleware/auth');
 const { canAccessEvent } = require('../helpers/access');
+const { asPositiveInt, validationError } = require('../helpers/validation');
 
 const router = express.Router();
 
@@ -48,8 +49,9 @@ router.get('/', requireAuth, async (req, res) => {
 // GET /api/library/:eventId/document — full document with all section content
 router.get('/:eventId/document', requireAuth, async (req, res) => {
   try {
-    const eventId = req.params.eventId;
-    if (!(await canAccessEvent(req.user, eventId))) {
+    const eventId = asPositiveInt(req.params.eventId, 'eventId');
+    if (eventId.error) return validationError(res, eventId.error);
+    if (!(await canAccessEvent(req.user, eventId.value))) {
       return res.status(403).json({ error: 'Not authorized to access this document' });
     }
 
@@ -57,7 +59,7 @@ router.get('/:eventId/document', requireAuth, async (req, res) => {
       `SELECT e.title, e.language, e.ended_at, c.name_en AS country_name
        FROM events e JOIN countries c ON c.id = e.country_id
        WHERE e.id = $1 AND (e.status = 'COMPLETED' OR e.status = 'ARCHIVED')`,
-      [eventId]
+      [eventId.value]
     );
     if (!event) return res.status(404).json({ error: 'Document not found' });
 
@@ -67,11 +69,11 @@ router.get('/:eventId/document', requireAuth, async (req, res) => {
        JOIN section_content sc ON sc.section_id = s.id AND sc.event_id = s.event_id
        WHERE s.event_id = $1
        ORDER BY s.sort_order`,
-      [eventId]
+      [eventId.value]
     );
 
     res.json({
-      eventId: parseInt(eventId),
+      eventId: eventId.value,
       title: event.title,
       language: event.language,
       countryName: event.country_name,
@@ -92,7 +94,9 @@ router.get('/:eventId/document', requireAuth, async (req, res) => {
 // GET /api/library/:eventId/files — list all files for an event (across all sections)
 router.get('/:eventId/files', requireAuth, async (req, res) => {
   try {
-    if (!(await canAccessEvent(req.user, req.params.eventId))) {
+    const eventId = asPositiveInt(req.params.eventId, 'eventId');
+    if (eventId.error) return validationError(res, eventId.error);
+    if (!(await canAccessEvent(req.user, eventId.value))) {
       return res.status(403).json({ error: 'Not authorized to access this event' });
     }
 
@@ -104,7 +108,7 @@ router.get('/:eventId/files', requireAuth, async (req, res) => {
        LEFT JOIN sections s ON s.id = sf.section_id
        WHERE sf.event_id = $1
        ORDER BY sf.created_at DESC`,
-      [req.params.eventId]
+      [eventId.value]
     );
     res.json(result.rows);
   } catch (err) {
@@ -119,11 +123,12 @@ router.get('/:eventId/files', requireAuth, async (req, res) => {
 // reverse: requires status === 'COMPLETED' and only the DS may invoke.
 router.post('/:eventId/reopen', requireAuth, denyAnalyst, async (req, res) => {
   try {
-    const eventId = req.params.eventId;
+    const eventId = asPositiveInt(req.params.eventId, 'eventId');
+    if (eventId.error) return validationError(res, eventId.error);
 
     const { rows: [event] } = await db.query(
       'SELECT document_submitter_id, status FROM events WHERE id = $1',
-      [eventId]
+      [eventId.value]
     );
     if (!event) return res.status(404).json({ error: 'Event not found' });
 
@@ -140,10 +145,10 @@ router.post('/:eventId/reopen', requireAuth, denyAnalyst, async (req, res) => {
       `UPDATE events
        SET status = 'IN_PROGRESS', is_active = true, ended_at = NULL, updated_at = now()
        WHERE id = $1`,
-      [eventId]
+      [eventId.value]
     );
 
-    console.log(`[library.reopen] event=${eventId} dsUser=${req.user.id}`);
+    console.log(`[library.reopen] event=${eventId.value} dsUser=${req.user.id}`);
     res.json({ success: true });
   } catch (err) {
     console.error('Library reopen error:', err);

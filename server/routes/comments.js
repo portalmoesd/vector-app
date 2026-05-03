@@ -2,17 +2,23 @@ const express = require('express');
 const db = require('../db');
 const { requireAuth, denyAnalyst } = require('../middleware/auth');
 const { canAccessSection } = require('../helpers/access');
+const {
+  asOptionalTrimmedString,
+  asPositiveInt,
+  asTrimmedString,
+  validationError,
+} = require('../helpers/validation');
 
 const router = express.Router();
 
 // GET /api/workflow/comments?event_id=X&section_id=Y
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const { event_id, section_id } = req.query;
-    if (!event_id || !section_id) {
-      return res.status(400).json({ error: 'event_id and section_id are required' });
-    }
-    if (!(await canAccessSection(req.user, event_id, section_id))) {
+    const eventId = asPositiveInt(req.query.event_id, 'event_id');
+    if (eventId.error) return validationError(res, eventId.error);
+    const sectionId = asPositiveInt(req.query.section_id, 'section_id');
+    if (sectionId.error) return validationError(res, sectionId.error);
+    if (!(await canAccessSection(req.user, eventId.value, sectionId.value))) {
       return res.status(403).json({ error: 'Not authorized to access this section' });
     }
     const { rows } = await db.query(
@@ -22,7 +28,7 @@ router.get('/', requireAuth, async (req, res) => {
        JOIN users u ON u.id = sc.user_id
        WHERE sc.event_id = $1 AND sc.section_id = $2
        ORDER BY sc.created_at`,
-      [event_id, section_id]
+      [eventId.value, sectionId.value]
     );
     res.json(rows.map(r => ({
       id: r.id,
@@ -43,27 +49,35 @@ router.get('/', requireAuth, async (req, res) => {
 // POST /api/workflow/comments
 router.post('/', requireAuth, denyAnalyst, async (req, res) => {
   try {
-    const { eventId, sectionId, anchorId, parentId, content, htmlContent } = req.body;
-    if (!eventId || !sectionId || !content) {
-      return res.status(400).json({ error: 'eventId, sectionId, and content are required' });
-    }
-    if (!(await canAccessSection(req.user, eventId, sectionId))) {
+    const eventId = asPositiveInt(req.body.eventId, 'eventId');
+    if (eventId.error) return validationError(res, eventId.error);
+    const sectionId = asPositiveInt(req.body.sectionId, 'sectionId');
+    if (sectionId.error) return validationError(res, sectionId.error);
+    const parentId = asPositiveInt(req.body.parentId, 'parentId', { required: false });
+    if (parentId.error) return validationError(res, parentId.error);
+    const anchorId = asOptionalTrimmedString(req.body.anchorId, 'anchorId', { max: 200 });
+    if (anchorId.error) return validationError(res, anchorId.error);
+    const content = asTrimmedString(req.body.content, 'content', { required: true, max: 10000 });
+    if (content.error) return validationError(res, content.error);
+    const htmlContent = asOptionalTrimmedString(req.body.htmlContent, 'htmlContent', { max: 2000000 });
+    if (htmlContent.error) return validationError(res, htmlContent.error);
+    if (!(await canAccessSection(req.user, eventId.value, sectionId.value))) {
       return res.status(403).json({ error: 'Not authorized to access this section' });
     }
     const { rows } = await db.query(
       `INSERT INTO section_comments (event_id, section_id, user_id, parent_id, anchor_id, content)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [eventId, sectionId, req.user.id, parentId || null, anchorId || null, content]
+      [eventId.value, sectionId.value, req.user.id, parentId.value, anchorId.value, content.value]
     );
 
     // Auto-save editor HTML so the comment anchor is persisted
-    if (htmlContent) {
+    if (htmlContent.value) {
       await db.query(
         `UPDATE section_content
          SET html_content = $1, last_updated_at = now(),
              last_updated_by_user_id = $2
          WHERE event_id = $3 AND section_id = $4`,
-        [htmlContent, req.user.id, eventId, sectionId]
+        [htmlContent.value, req.user.id, eventId.value, sectionId.value]
       );
     }
 
@@ -77,8 +91,13 @@ router.post('/', requireAuth, denyAnalyst, async (req, res) => {
 // POST /api/workflow/comments/delete  (frontend calls this as POST)
 router.post('/delete', requireAuth, denyAnalyst, async (req, res) => {
   try {
-    const { commentId } = req.body;
-    await db.query('DELETE FROM section_comments WHERE id = $1 AND user_id = $2', [commentId, req.user.id]);
+    const commentId = asPositiveInt(req.body.commentId, 'commentId');
+    if (commentId.error) return validationError(res, commentId.error);
+    const result = await db.query(
+      'DELETE FROM section_comments WHERE id = $1 AND user_id = $2',
+      [commentId.value, req.user.id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Comment not found' });
     res.json({ success: true });
   } catch (err) {
     console.error('Delete comment error:', err);
@@ -89,7 +108,13 @@ router.post('/delete', requireAuth, denyAnalyst, async (req, res) => {
 // Keep DELETE /:id for API consumers
 router.delete('/:id', requireAuth, denyAnalyst, async (req, res) => {
   try {
-    await db.query('DELETE FROM section_comments WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    const commentId = asPositiveInt(req.params.id, 'id');
+    if (commentId.error) return validationError(res, commentId.error);
+    const result = await db.query(
+      'DELETE FROM section_comments WHERE id = $1 AND user_id = $2',
+      [commentId.value, req.user.id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Comment not found' });
     res.json({ success: true });
   } catch (err) {
     console.error('Delete comment error:', err);

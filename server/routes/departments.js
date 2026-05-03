@@ -1,6 +1,12 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const {
+  asBoolean,
+  asOptionalTrimmedString,
+  asTrimmedString,
+  validationError,
+} = require('../helpers/validation');
 
 const router = express.Router();
 
@@ -25,12 +31,16 @@ router.get('/', requireAuth, async (req, res) => {
 // POST /api/departments (admin only)
 router.post('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
-    const { name, nameEn, isExternal } = req.body;
-    if (!name) return res.status(400).json({ error: 'Name is required' });
+    const name = asTrimmedString(req.body.name, 'name', { required: true, max: 200 });
+    if (name.error) return validationError(res, name.error);
+    const nameEn = asOptionalTrimmedString(req.body.nameEn, 'nameEn', { max: 200 });
+    if (nameEn.error) return validationError(res, nameEn.error);
+    const isExternal = asBoolean(req.body.isExternal, 'isExternal');
+    if (isExternal.error) return validationError(res, isExternal.error);
 
     const { rows } = await db.query(
       'INSERT INTO departments (name, name_en, is_external) VALUES ($1, $2, $3) RETURNING id',
-      [name, nameEn || null, isExternal || false]
+      [name.value, nameEn.value, isExternal.value]
     );
     res.status(201).json({ id: rows[0].id, success: true });
   } catch (err) {
