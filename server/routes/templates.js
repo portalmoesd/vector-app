@@ -3,6 +3,7 @@ const db = require('../db');
 const { requireAuth, denyAnalyst } = require('../middleware/auth');
 const {
   asTrimmedString,
+  asPositiveInt,
   asPositiveIntArray,
   asEnum,
   asBoolean,
@@ -150,9 +151,11 @@ router.post('/', requireAuth, denyAnalyst, async (req, res) => {
 // DELETE /api/templates/:id — delete own template (not default)
 router.delete('/:id', requireAuth, denyAnalyst, async (req, res) => {
   try {
+    const templateId = asPositiveInt(req.params.id, 'id');
+    if (templateId.error) return validationError(res, templateId.error);
     const result = await db.query(
       'DELETE FROM event_templates WHERE id = $1 AND created_by_id = $2 AND is_default = false',
-      [req.params.id, req.user.id]
+      [templateId.value, req.user.id]
     );
     if (result.rowCount === 0) return res.status(404).json({ error: 'Template not found or cannot be deleted' });
     res.json({ success: true });
