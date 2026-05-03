@@ -61,12 +61,31 @@ const Api = {
   delete(path) { return this.request('DELETE', path); },
 };
 
+async function readDownloadError(response) {
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const data = await response.json().catch(() => null);
+    return data && data.error ? data.error : 'Download failed';
+  }
+
+  const text = await response.text().catch(() => '');
+  return text || 'Download failed';
+}
+
+function notifyDownloadError(message) {
+  if (typeof toast !== 'undefined' && toast && typeof toast.error === 'function') {
+    toast.error(message);
+    return;
+  }
+  alert(message);
+}
+
 function downloadFileAuth(fileId, fileName) {
-  fetch('/api/workflow/files/download?id=' + fileId, {
-    headers: { 'Authorization': 'Bearer ' + Api.getToken() }
+  fetch('/api/workflow/files/download?id=' + encodeURIComponent(fileId), {
+    headers: { 'Authorization': 'Bearer ' + Api.getToken() },
   })
     .then(r => {
-      if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Download failed'); });
+      if (!r.ok) return readDownloadError(r).then(message => { throw new Error(message); });
       return r.blob();
     })
     .then(blob => {
@@ -79,5 +98,5 @@ function downloadFileAuth(fileId, fileName) {
       a.remove();
       URL.revokeObjectURL(url);
     })
-    .catch(err => alert(err.message));
+    .catch(err => notifyDownloadError(err.message));
 }
