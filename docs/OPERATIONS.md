@@ -30,6 +30,7 @@ Recommended backup expectations:
 - Use HTTPS only for production access.
 - Restrict database access to the application server and administrators.
 - Review user accounts before buyer handoff and remove unused demo accounts.
+- Keep login throttling enabled through `AUTH_RATE_LIMIT_WINDOW_MS` and `AUTH_RATE_LIMIT_MAX`; loosen it only after confirming the buyer's proxy and office network behavior.
 - Browser hardening headers are set by the application; keep the app behind HTTPS so they are effective.
 
 ## Statistics data

@@ -9,8 +9,8 @@ const { asUsername, validationError } = require('../helpers/validation');
 
 const router = express.Router();
 const loginRateLimit = createRateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
+  windowMs: config.authRateLimitWindowMs,
+  max: config.authRateLimitMax,
   keyPrefix: 'login',
 });
 const MIN_PASSWORD_LENGTH = 8;

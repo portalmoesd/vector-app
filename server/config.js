@@ -37,6 +37,8 @@ module.exports = {
   databasePoolMax: parsePositiveInt(process.env.DATABASE_POOL_MAX, 20),
   databaseIdleTimeoutMs: parsePositiveInt(process.env.DATABASE_IDLE_TIMEOUT_MS, 30_000),
   databaseConnectionTimeoutMs: parsePositiveInt(process.env.DATABASE_CONNECTION_TIMEOUT_MS, 10_000),
+  authRateLimitWindowMs: parsePositiveInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
+  authRateLimitMax: parsePositiveInt(process.env.AUTH_RATE_LIMIT_MAX, 20),
   jwtSecret,
   port: parseInt(process.env.PORT, 10) || 3000,
   corsOrigins: parseOrigins(process.env.CORS_ORIGINS),
