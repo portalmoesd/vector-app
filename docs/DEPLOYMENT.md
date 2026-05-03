@@ -10,6 +10,7 @@ Set these variables before starting the service:
 - `DATABASE_POOL_MAX=20`
 - `DATABASE_IDLE_TIMEOUT_MS=30000`
 - `DATABASE_CONNECTION_TIMEOUT_MS=10000`
+- `LOG_FORMAT=text`
 - `JWT_SECRET=<strong random value>`
 - `CORS_ORIGINS=https://your-domain.example`
 - `ALLOW_DEFAULT_SEED_USERS=false`
@@ -21,6 +22,8 @@ It also refuses to start in production if `ALLOW_DEFAULT_SEED_USERS=true`.
 `DATABASE_SSL_MODE` accepts `auto`, `disable`, `require`, or `no-verify`. Use `require` when the buyer's PostgreSQL certificate chain is trusted by the server. Use `no-verify` only for managed services or transitional environments that require TLS but cannot present a locally trusted certificate chain yet. Local Docker deployments should use `disable`.
 
 For 500-1000 live users, tune `DATABASE_POOL_MAX` together with the PostgreSQL server's connection limit and the number of Node processes. For example, two Node processes with `DATABASE_POOL_MAX=20` can open up to 40 application connections.
+
+Set `LOG_FORMAT=json` when the buyer's hosting platform or log collector expects structured request logs. The default `text` format is easier to read during local development.
 
 ## Standard Node deployment
 

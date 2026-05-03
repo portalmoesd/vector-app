@@ -15,6 +15,7 @@ Create `.env` from `.env.example` and set:
 - `DATABASE_POOL_MAX` - maximum PostgreSQL connections opened by one Node process.
 - `DATABASE_IDLE_TIMEOUT_MS` - how long idle database connections stay open.
 - `DATABASE_CONNECTION_TIMEOUT_MS` - how long startup/request queries wait for a database connection.
+- `LOG_FORMAT` - `text` for local development or `json` for structured production logs.
 - `JWT_SECRET` - long random secret used for login tokens.
 - `PORT` - server port, usually `3000`.
 - `CORS_ORIGINS` - allowed browser origin in production.

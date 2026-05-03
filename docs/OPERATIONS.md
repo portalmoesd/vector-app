@@ -61,6 +61,8 @@ For 500-1000 live users, review these signals daily during launch and weekly aft
 
 Tune `DATABASE_POOL_MAX` against PostgreSQL's connection limit and the number of running Node processes. Keep enough spare connections for backups, migrations, and administrator access.
 
+Use `LOG_FORMAT=json` if logs are collected by a structured logging platform. Each request log includes method, path, status, duration, and user ID when available.
+
 Avoid running production with local-only database storage or an unmonitored single terminal process. Use a managed service, systemd, PM2, Docker, or the buyer's standard server manager so the process restarts cleanly after host reboot or failure.
 
 ## Incident response

@@ -40,6 +40,7 @@ module.exports = {
   jwtSecret,
   port: parseInt(process.env.PORT, 10) || 3000,
   corsOrigins: parseOrigins(process.env.CORS_ORIGINS),
+  logFormat: process.env.LOG_FORMAT === 'json' ? 'json' : 'text',
   allowDefaultSeedUsers: resolveAllowDefaultSeedUsers(isProduction, process.env.ALLOW_DEFAULT_SEED_USERS),
   resolveAllowDefaultSeedUsers,
   parsePositiveInt,
