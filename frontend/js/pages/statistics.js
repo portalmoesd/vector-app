@@ -250,7 +250,6 @@
     if (p1) verified = month + 1;
     if (p2) verified = month + 2;
     if (verified !== month) {
-      console.log(`[stats] probe-forward: classificatory selected month ${month} → verified ${verified}`);
       if (classDataEn && classDataEn.selected) classDataEn.selected.month = verified;
       if (classDataKa && classDataKa.selected) classDataKa.selected.month = verified;
     }
@@ -947,27 +946,23 @@
       const ctrl = new AbortController();
       const rankTimer = setTimeout(() => ctrl.abort(), 60_000);
       try {
-        console.log('[ranking] fetching...', { year: latestYear, months: monthsYTD, countryId: selectedCountry.value });
         const rankRes = await fetch(`${PROXY_API}/country-ranking`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ year: latestYear, months: monthsYTD, countryId: selectedCountry.value }),
           signal: ctrl.signal,
         });
-        console.log('[ranking] response status:', rankRes.status);
-        const j = await rankRes.json().catch((e) => { console.warn('[ranking] json parse failed:', e.message); return null; });
-        console.log('[ranking] body:', JSON.stringify(j));
+        const j = await rankRes.json().catch(() => null);
         if (rankRes.ok && j && j.success && j.country) {
           const hasTurnover = !!(j.country.turnover);
           const hasExport = !!(j.country.export);
           const hasImport = !!(j.country.import);
-          console.log('[ranking] ✓ has data — turnover:', hasTurnover, 'export:', hasExport, 'import:', hasImport);
-          ranking = { country: j.country, totals: j.totals };
-        } else {
-          console.warn('[ranking] ✗ no usable data in response');
+          if (hasTurnover || hasExport || hasImport) {
+            ranking = { country: j.country, totals: j.totals };
+          }
         }
       } catch (err) {
-        console.warn('[ranking] fetch failed:', err.message);
+        ranking = null;
       } finally {
         clearTimeout(rankTimer);
       }
