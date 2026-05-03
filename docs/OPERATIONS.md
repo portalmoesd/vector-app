@@ -6,6 +6,7 @@
 - `GET /api/ready` returns `ok: true` and `database: true`.
 - Application logs show successful schema migration during startup.
 - Request logs show method, URL, response status, and duration for non-health traffic.
+- Malformed JSON requests return HTTP 400 with `Invalid JSON request body`.
 - PostgreSQL has current backups and enough disk space.
 - Users can log in, create events, upload files, and export documents.
 

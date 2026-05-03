@@ -5,6 +5,7 @@ const config = require('./config');
 const db = require('./db');
 const securityHeaders = require('./middleware/security-headers');
 const requestLogger = require('./middleware/request-logger');
+const jsonErrorHandler = require('./middleware/json-error');
 
 function createApp(options = {}) {
   const app = express();
@@ -27,6 +28,7 @@ function createApp(options = {}) {
     },
   }));
   app.use(express.json({ limit: '10mb' }));
+  app.use(jsonErrorHandler);
 
   app.get('/api/health', (req, res) => {
     res.json({
