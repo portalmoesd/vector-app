@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { asPositiveInt, validationError } = require('../helpers/validation');
 
 const router = express.Router();
 
@@ -36,26 +37,26 @@ router.get('/deputy-supervisor-links', requireAuth, requireRole('ADMIN'), async 
 // POST /api/admin/deputy-supervisor-links
 router.post('/deputy-supervisor-links', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
-    const { deputyId, supervisorId } = req.body;
-    if (!deputyId || !supervisorId) {
-      return res.status(400).json({ error: 'deputyId and supervisorId are required' });
-    }
+    const deputyId = asPositiveInt(req.body.deputyId, 'deputyId');
+    if (deputyId.error) return validationError(res, deputyId.error);
+    const supervisorId = asPositiveInt(req.body.supervisorId, 'supervisorId');
+    if (supervisorId.error) return validationError(res, supervisorId.error);
 
     // Validate roles
     const { rows: [deputy] } = await db.query(
-      "SELECT id FROM users WHERE id = $1 AND role = 'DEPUTY'", [deputyId]
+      "SELECT id FROM users WHERE id = $1 AND role = 'DEPUTY'", [deputyId.value]
     );
     if (!deputy) return res.status(422).json({ error: 'Invalid deputy user' });
 
     const { rows: [supervisor] } = await db.query(
-      "SELECT id FROM users WHERE id = $1 AND role = 'SUPERVISOR'", [supervisorId]
+      "SELECT id FROM users WHERE id = $1 AND role = 'SUPERVISOR'", [supervisorId.value]
     );
     if (!supervisor) return res.status(422).json({ error: 'Invalid supervisor user' });
 
     const { rows } = await db.query(
       `INSERT INTO deputy_supervisor_links (deputy_id, supervisor_id)
        VALUES ($1, $2) RETURNING id`,
-      [deputyId, supervisorId]
+      [deputyId.value, supervisorId.value]
     );
 
     res.status(201).json({ id: rows[0].id, success: true });
@@ -71,8 +72,10 @@ router.post('/deputy-supervisor-links', requireAuth, requireRole('ADMIN'), async
 // DELETE /api/admin/deputy-supervisor-links/:id
 router.delete('/deputy-supervisor-links/:id', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
+    const id = asPositiveInt(req.params.id, 'id');
+    if (id.error) return validationError(res, id.error);
     const result = await db.query(
-      'DELETE FROM deputy_supervisor_links WHERE id = $1', [req.params.id]
+      'DELETE FROM deputy_supervisor_links WHERE id = $1', [id.value]
     );
     if (result.rowCount === 0) return res.status(404).json({ error: 'Link not found' });
     res.json({ success: true });
@@ -87,8 +90,8 @@ router.delete('/deputy-supervisor-links/:id', requireAuth, requireRole('ADMIN'),
 // GET /api/admin/supervisors?deputy_id=X — get supervisors linked to a deputy
 router.get('/supervisors', requireAuth, async (req, res) => {
   try {
-    const { deputy_id } = req.query;
-    if (!deputy_id) return res.status(400).json({ error: 'deputy_id is required' });
+    const deputyId = asPositiveInt(req.query.deputy_id, 'deputy_id');
+    if (deputyId.error) return validationError(res, deputyId.error);
 
     const { role, id: userId } = req.user;
     const isUnrestricted = role === 'ADMIN' || role === 'PROTOCOL';
@@ -101,7 +104,7 @@ router.get('/supervisors', requireAuth, async (req, res) => {
                LEFT JOIN departments d ON d.id = u.department_id
                WHERE dsl.deputy_id = $1
                ORDER BY u.full_name`;
-      params = [deputy_id];
+      params = [deputyId.value];
     } else {
       // Non-admin users can only select themselves as responsible supervisor
       query = `SELECT u.id, u.full_name, u.department_id, d.name_en AS department_name
@@ -110,7 +113,7 @@ router.get('/supervisors', requireAuth, async (req, res) => {
                LEFT JOIN departments d ON d.id = u.department_id
                WHERE dsl.deputy_id = $1 AND dsl.supervisor_id = $2
                ORDER BY u.full_name`;
-      params = [deputy_id, userId];
+      params = [deputyId.value, userId];
     }
 
     const { rows } = await db.query(query, params);

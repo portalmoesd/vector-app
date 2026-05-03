@@ -74,6 +74,26 @@ function asIsoDate(value, field, options = {}) {
   return { value };
 }
 
+function asEmail(value, field, options = {}) {
+  const text = asTrimmedString(value, field, options);
+  if (text.error) return text;
+  const normalized = text.value.toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    return { error: `${field} must be a valid email address` };
+  }
+  return { value: normalized };
+}
+
+function asUsername(value, field, options = {}) {
+  const text = asTrimmedString(value, field, options);
+  if (text.error) return text;
+  const normalized = text.value.toLowerCase();
+  if (!/^[a-z0-9._-]{3,100}$/.test(normalized)) {
+    return { error: `${field} must be 3-100 characters using letters, numbers, dots, underscores, or hyphens` };
+  }
+  return { value: normalized };
+}
+
 function validationError(res, error) {
   return res.status(400).json({ error });
 }
@@ -86,5 +106,7 @@ module.exports = {
   asEnum,
   asBoolean,
   asIsoDate,
+  asEmail,
+  asUsername,
   validationError,
 };
