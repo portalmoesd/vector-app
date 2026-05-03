@@ -995,10 +995,12 @@ function scheduleTourismRefresh() {
   if (next <= now) next.setDate(next.getDate() + 1);
   const delay = next - now;
   console.log(`tourism: next scheduled refresh in ${(delay / 3600000).toFixed(1)}h (${next.toISOString()})`);
-  setTimeout(() => {
+  const timer = setTimeout(() => {
     refreshTourismData();
-    setInterval(refreshTourismData, 24 * 60 * 60 * 1000);
+    const interval = setInterval(refreshTourismData, 24 * 60 * 60 * 1000);
+    if (interval.unref) interval.unref();
   }, delay);
+  if (timer.unref) timer.unref();
 }
 
 // Init: load from disk, schedule daily refresh

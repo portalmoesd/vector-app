@@ -1,0 +1,32 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://vector:vector@db:5432/vector_portal
+      JWT_SECRET: replace-this-with-a-long-random-secret-before-use
+      CORS_ORIGINS: http://localhost:3000
+      ALLOW_DEFAULT_SEED_USERS: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: vector_portal
+      POSTGRES_USER: vector
+      POSTGRES_PASSWORD: vector
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vector -d vector_portal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

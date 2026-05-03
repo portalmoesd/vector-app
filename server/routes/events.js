@@ -2,6 +2,8 @@ const express = require('express');
 const db = require('../db');
 const { requireAuth, denyAnalyst } = require('../middleware/auth');
 const { canCreateEvent, canEndEvent, ROLES } = require('../helpers/roles');
+const { canAccessEvent } = require('../helpers/access');
+const { resolveEventNotificationDraft } = require('../helpers/event-notification-draft');
 
 const router = express.Router();
 
@@ -258,6 +260,23 @@ router.post('/', requireAuth, denyAnalyst, async (req, res) => {
     }
   } catch (err) {
     console.error('Create event error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/events/:id/notification-draft — recipients and mail content
+router.get('/:id/notification-draft', requireAuth, denyAnalyst, async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const allowed = await canAccessEvent(req.user, eventId);
+    if (!allowed) return res.status(403).json({ error: 'Not authorized to access this event' });
+
+    const draft = await resolveEventNotificationDraft(db, eventId);
+    if (!draft) return res.status(404).json({ error: 'Event not found' });
+
+    res.json(draft);
+  } catch (err) {
+    console.error('Notification draft error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -23,3 +23,11 @@ module.exports = {
   corsOrigins: parseOrigins(process.env.CORS_ORIGINS),
   allowDefaultSeedUsers: process.env.ALLOW_DEFAULT_SEED_USERS === 'true' || !isProduction,
 };
+
+if (isProduction && !module.exports.databaseUrl) {
+  throw new Error('DATABASE_URL must be set in production');
+}
+
+if (isProduction && module.exports.corsOrigins.length === 0) {
+  throw new Error('CORS_ORIGINS must include the production frontend origin');
+}
