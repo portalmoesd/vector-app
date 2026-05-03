@@ -4,6 +4,12 @@ const { requireAuth, denyAnalyst } = require('../middleware/auth');
 const { ROLES } = require('../helpers/roles');
 const { canAccessEvent, canAccessSection } = require('../helpers/access');
 const {
+  asOptionalTrimmedString,
+  asPositiveInt,
+  asTrimmedString,
+  validationError,
+} = require('../helpers/validation');
+const {
   STATUS,
   baseRole,
   buildChain,
@@ -19,6 +25,39 @@ const {
 } = require('../helpers/pipeline');
 
 const router = express.Router();
+const MAX_EDITOR_HTML_LENGTH = 2000000;
+
+function parseEventSectionBody(req, res) {
+  const eventId = asPositiveInt(req.body.eventId, 'eventId');
+  if (eventId.error) {
+    validationError(res, eventId.error);
+    return null;
+  }
+  const sectionId = asPositiveInt(req.body.sectionId, 'sectionId');
+  if (sectionId.error) {
+    validationError(res, sectionId.error);
+    return null;
+  }
+  return { eventId: eventId.value, sectionId: sectionId.value };
+}
+
+function parseEventSectionQuery(req, res) {
+  const eventId = asPositiveInt(req.query.event_id, 'event_id');
+  if (eventId.error) {
+    validationError(res, eventId.error);
+    return null;
+  }
+  const sectionId = asPositiveInt(req.query.section_id, 'section_id');
+  if (sectionId.error) {
+    validationError(res, sectionId.error);
+    return null;
+  }
+  return { eventId: eventId.value, sectionId: sectionId.value };
+}
+
+function parseOptionalNote(value, field) {
+  return asOptionalTrimmedString(value, field, { max: 10000 });
+}
 
 // ─── Helper: resolve user full name + department from DB ──────────────────────
 // JWT doesn't carry full_name, so we look it up for history/audit records.
@@ -174,10 +213,11 @@ async function effectiveRole(user, event, sectionDeptIds, chain) {
 
 router.post('/save', requireAuth, denyAnalyst, async (req, res) => {
   try {
-    const { eventId, sectionId, htmlContent } = req.body;
-    if (!eventId || !sectionId) {
-      return res.status(400).json({ error: 'eventId and sectionId are required' });
-    }
+    const ids = parseEventSectionBody(req, res);
+    if (!ids) return;
+    const { eventId, sectionId } = ids;
+    const htmlContent = asOptionalTrimmedString(req.body.htmlContent, 'htmlContent', { max: MAX_EDITOR_HTML_LENGTH });
+    if (htmlContent.error) return validationError(res, htmlContent.error);
 
     // Authorization: only the current holder can save, and only in editable statuses
     const [ctx, resolvedUser] = await Promise.all([
@@ -202,7 +242,7 @@ router.post('/save', requireAuth, denyAnalyst, async (req, res) => {
            last_content_edited_at = now(),
            last_content_edited_by_user_id = $2
        WHERE event_id = $3 AND section_id = $4`,
-      [htmlContent || '', req.user.id, eventId, sectionId]
+      [htmlContent.value || '', req.user.id, eventId, sectionId]
     );
 
     // Record in history
@@ -225,10 +265,9 @@ router.post('/save', requireAuth, denyAnalyst, async (req, res) => {
 
 router.post('/submit', requireAuth, denyAnalyst, async (req, res) => {
   try {
-    const { eventId, sectionId } = req.body;
-    if (!eventId || !sectionId) {
-      return res.status(400).json({ error: 'eventId and sectionId are required' });
-    }
+    const ids = parseEventSectionBody(req, res);
+    if (!ids) return;
+    const { eventId, sectionId } = ids;
 
     const [ctx, resolvedUser] = await Promise.all([
       loadSectionContext(eventId, sectionId, req.user),
@@ -321,10 +360,11 @@ router.post('/submit', requireAuth, denyAnalyst, async (req, res) => {
 
 router.post('/approve', requireAuth, denyAnalyst, async (req, res) => {
   try {
-    const { eventId, sectionId, comment } = req.body;
-    if (!eventId || !sectionId) {
-      return res.status(400).json({ error: 'eventId and sectionId are required' });
-    }
+    const ids = parseEventSectionBody(req, res);
+    if (!ids) return;
+    const { eventId, sectionId } = ids;
+    const comment = parseOptionalNote(req.body.comment, 'comment');
+    if (comment.error) return validationError(res, comment.error);
 
     const [ctx, resolvedUser] = await Promise.all([
       loadSectionContext(eventId, sectionId, req.user),
@@ -361,7 +401,7 @@ router.post('/approve', requireAuth, denyAnalyst, async (req, res) => {
              last_updated_by_user_id = $3, last_updated_at = now(),
              return_target_role = NULL
          WHERE event_id = $4 AND section_id = $5`,
-        [toStatus, comment || null, req.user.id, eventId, sectionId]
+        [toStatus, comment.value, req.user.id, eventId, sectionId]
       );
       // History row carries the synthetic role 'AMENDING_DS' instead
       // of the DS's JWT role. Same reasoning as the pull-section
@@ -370,7 +410,7 @@ router.post('/approve', requireAuth, denyAnalyst, async (req, res) => {
         `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role, note)
          VALUES ($1, $2, 'approved', $3, $4, $5, $6, $7, $8)`,
         [eventId, sectionId, fromStatus, toStatus, req.user.id,
-         resolvedUser.full_name, 'AMENDING_DS', comment || null]
+         resolvedUser.full_name, 'AMENDING_DS', comment.value]
       );
       await db.query(
         'DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2',
@@ -418,7 +458,7 @@ router.post('/approve', requireAuth, denyAnalyst, async (req, res) => {
            last_updated_by_user_id = $3, last_updated_at = now(),
            return_target_role = NULL
        WHERE event_id = $4 AND section_id = $5`,
-      [toStatus, comment || null, req.user.id, eventId, sectionId]
+      [toStatus, comment.value, req.user.id, eventId, sectionId]
     );
 
     // Record history
@@ -426,7 +466,7 @@ router.post('/approve', requireAuth, denyAnalyst, async (req, res) => {
       `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role, note)
        VALUES ($1, $2, 'approved', $3, $4, $5, $6, $7, $8)`,
       [eventId, sectionId, fromStatus, toStatus, req.user.id,
-       resolvedUser.full_name, userRole, comment || null]
+       resolvedUser.full_name, userRole, comment.value]
     );
 
     // Clear any pending return requests
@@ -451,10 +491,11 @@ router.post('/approve', requireAuth, denyAnalyst, async (req, res) => {
 
 router.post('/return', requireAuth, denyAnalyst, async (req, res) => {
   try {
-    const { eventId, sectionId, comment } = req.body;
-    if (!eventId || !sectionId) {
-      return res.status(400).json({ error: 'eventId and sectionId are required' });
-    }
+    const ids = parseEventSectionBody(req, res);
+    if (!ids) return;
+    const { eventId, sectionId } = ids;
+    const comment = parseOptionalNote(req.body.comment, 'comment');
+    if (comment.error) return validationError(res, comment.error);
 
     const [ctx, resolvedUser] = await Promise.all([
       loadSectionContext(eventId, sectionId, req.user),
@@ -502,7 +543,7 @@ router.post('/return', requireAuth, denyAnalyst, async (req, res) => {
            return_target_role = $3,
            last_updated_by_user_id = $4, last_updated_at = now()
        WHERE event_id = $5 AND section_id = $6`,
-      [toStatus, comment || null, returnTarget, req.user.id, eventId, sectionId]
+      [toStatus, comment.value, returnTarget, req.user.id, eventId, sectionId]
     );
 
     // Record history
@@ -510,7 +551,7 @@ router.post('/return', requireAuth, denyAnalyst, async (req, res) => {
       `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role, note)
        VALUES ($1, $2, 'returned', $3, $4, $5, $6, $7, $8)`,
       [eventId, sectionId, fromStatus, toStatus, req.user.id,
-       resolvedUser.full_name, userRole, comment || null]
+       resolvedUser.full_name, userRole, comment.value]
     );
 
     // Clear any pending ask-to-return requests — the return fulfills them
@@ -530,10 +571,11 @@ router.post('/return', requireAuth, denyAnalyst, async (req, res) => {
 
 router.post('/ask-to-return', requireAuth, denyAnalyst, async (req, res) => {
   try {
-    const { eventId, sectionId, note } = req.body;
-    if (!eventId || !sectionId) {
-      return res.status(400).json({ error: 'eventId and sectionId are required' });
-    }
+    const ids = parseEventSectionBody(req, res);
+    if (!ids) return;
+    const { eventId, sectionId } = ids;
+    const note = parseOptionalNote(req.body.note, 'note');
+    if (note.error) return validationError(res, note.error);
 
     const [ctx, resolvedUser] = await Promise.all([
       loadSectionContext(eventId, sectionId, req.user),
@@ -568,7 +610,7 @@ router.post('/ask-to-return', requireAuth, denyAnalyst, async (req, res) => {
        (event_id, section_id, requested_by_user_id, requested_by_name, requested_by_role, broadcast_above_role, note)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [eventId, sectionId, req.user.id,
-       resolvedUser.full_name, userRole, userRole, note || null]
+       resolvedUser.full_name, userRole, userRole, note.value]
     );
 
     // Record history
@@ -576,7 +618,7 @@ router.post('/ask-to-return', requireAuth, denyAnalyst, async (req, res) => {
       `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role, note)
        VALUES ($1, $2, 'asked_to_return', $3, $3, $4, $5, $6, $7)`,
       [eventId, sectionId, ctx.sectionStatus, req.user.id,
-       resolvedUser.full_name, userRole, note || null]
+       resolvedUser.full_name, userRole, note.value]
     );
 
     res.json({ success: true });
@@ -590,11 +632,15 @@ router.post('/ask-to-return', requireAuth, denyAnalyst, async (req, res) => {
 
 router.get('/return-requests', requireAuth, async (req, res) => {
   try {
-    const { event_id, section_id } = req.query;
-    if (!event_id) return res.status(400).json({ error: 'event_id is required' });
-    const allowed = section_id
-      ? await canAccessSection(req.user, event_id, section_id)
-      : await canAccessEvent(req.user, event_id);
+    const eventId = asPositiveInt(req.query.event_id, 'event_id');
+    if (eventId.error) return validationError(res, eventId.error);
+    const sectionId = req.query.section_id !== undefined
+      ? asPositiveInt(req.query.section_id, 'section_id')
+      : null;
+    if (sectionId && sectionId.error) return validationError(res, sectionId.error);
+    const allowed = sectionId
+      ? await canAccessSection(req.user, eventId.value, sectionId.value)
+      : await canAccessEvent(req.user, eventId.value);
     if (!allowed) {
       return res.status(403).json({ error: 'Not authorized to access return requests' });
     }
@@ -603,11 +649,11 @@ router.get('/return-requests', requireAuth, async (req, res) => {
                         requested_by_name, requested_by_role, broadcast_above_role,
                         note, created_at
                  FROM section_return_requests WHERE event_id = $1`;
-    const params = [event_id];
+    const params = [eventId.value];
 
-    if (section_id) {
+    if (sectionId) {
       query += ' AND section_id = $2';
-      params.push(section_id);
+      params.push(sectionId.value);
     }
     query += ' ORDER BY created_at DESC';
 
@@ -633,12 +679,12 @@ router.get('/return-requests', requireAuth, async (req, res) => {
 
 router.post('/send-to-library', requireAuth, denyAnalyst, async (req, res) => {
   try {
-    const { eventId } = req.body;
-    if (!eventId) return res.status(400).json({ error: 'eventId is required' });
+    const eventId = asPositiveInt(req.body.eventId, 'eventId');
+    if (eventId.error) return validationError(res, eventId.error);
 
     // Verify user is the Document Submitter
     const { rows: [event] } = await db.query(
-      'SELECT document_submitter_id, status FROM events WHERE id = $1', [eventId]
+      'SELECT document_submitter_id, status FROM events WHERE id = $1', [eventId.value]
     );
     if (!event) return res.status(404).json({ error: 'Event not found' });
     if (event.document_submitter_id !== req.user.id) {
@@ -647,7 +693,7 @@ router.post('/send-to-library', requireAuth, denyAnalyst, async (req, res) => {
 
     // Verify all sections are fully approved
     const { rows: sections } = await db.query(
-      `SELECT sc.status FROM section_content sc WHERE sc.event_id = $1`, [eventId]
+      `SELECT sc.status FROM section_content sc WHERE sc.event_id = $1`, [eventId.value]
     );
 
     const allApproved = sections.every(s => s.status.startsWith('approved_by_'));
@@ -657,7 +703,7 @@ router.post('/send-to-library', requireAuth, denyAnalyst, async (req, res) => {
 
     await db.query(
       "UPDATE events SET status = 'COMPLETED', is_active = false, ended_at = now(), updated_at = now() WHERE id = $1",
-      [eventId]
+      [eventId.value]
     );
 
     res.json({ success: true });
@@ -671,10 +717,9 @@ router.post('/send-to-library', requireAuth, denyAnalyst, async (req, res) => {
 
 router.post('/push-section', requireAuth, denyAnalyst, async (req, res) => {
   try {
-    const { eventId, sectionId } = req.body;
-    if (!eventId || !sectionId) {
-      return res.status(400).json({ error: 'eventId and sectionId are required' });
-    }
+    const ids = parseEventSectionBody(req, res);
+    if (!ids) return;
+    const { eventId, sectionId } = ids;
 
     const [ctx, resolvedUser] = await Promise.all([
       loadSectionContext(eventId, sectionId, req.user),
@@ -745,10 +790,9 @@ router.post('/push-section', requireAuth, denyAnalyst, async (req, res) => {
 // ─── POST /api/workflow/pull-section ──────────────────────────────────────────
 router.post('/pull-section', requireAuth, denyAnalyst, async (req, res) => {
   try {
-    const { eventId, sectionId } = req.body;
-    if (!eventId || !sectionId) {
-      return res.status(400).json({ error: 'eventId and sectionId are required' });
-    }
+    const ids = parseEventSectionBody(req, res);
+    if (!ids) return;
+    const { eventId, sectionId } = ids;
 
     const [ctx, resolvedUser] = await Promise.all([
       loadSectionContext(eventId, sectionId, req.user),
@@ -835,18 +879,18 @@ router.post('/pull-section', requireAuth, denyAnalyst, async (req, res) => {
 
 router.get('/status-grid', requireAuth, async (req, res) => {
   try {
-    const eventId = req.query.event_id;
-    if (!eventId) return res.status(400).json({ error: 'event_id is required' });
+    const eventId = asPositiveInt(req.query.event_id, 'event_id');
+    if (eventId.error) return validationError(res, eventId.error);
 
     const { rows: [event] } = await db.query(
       `SELECT id, document_submitter_role, document_submitter_id,
               deputy_id, supervisor_id, curator_required, workflow_type, country_id,
               status AS event_status
        FROM events WHERE id = $1`,
-      [eventId]
+      [eventId.value]
     );
     if (!event) return res.status(404).json({ error: 'Event not found' });
-    if (!(await canAccessEvent(req.user, eventId))) {
+    if (!(await canAccessEvent(req.user, eventId.value))) {
       return res.status(403).json({ error: 'Not authorized to access this event' });
     }
     const eventWorkflowType = event.workflow_type || 'advanced';
@@ -879,7 +923,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
        LEFT JOIN users u ON u.id = sc.last_updated_by_user_id
        WHERE s.event_id = $1
        ORDER BY s.sort_order`,
-      [eventId]
+      [eventId.value]
     );
 
     // Build a lookup of the last actor per (section, role) from history.
@@ -893,7 +937,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
        LEFT JOIN departments d ON d.id = u.department_id
        WHERE sh.event_id = $1
        ORDER BY sh.section_id, sh.user_role, sh.acted_at DESC`,
-      [eventId]
+      [eventId.value]
     );
     const historyActors = {};
     for (const h of historyRows) {
@@ -968,7 +1012,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
          FROM section_return_requests
          WHERE event_id = $1 AND section_id = $2
          ORDER BY created_at DESC LIMIT 1`,
-        [eventId, s.section_id]
+        [eventId.value, s.section_id]
       );
       const returnRequest = rrRows.length > 0 ? {
         from: rrRows[0].requested_by_name,
@@ -985,7 +1029,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
            FROM section_history
            WHERE event_id = $1 AND section_id = $2 AND action = 'returned'
            ORDER BY acted_at DESC LIMIT 1`,
-          [eventId, s.section_id]
+          [eventId.value, s.section_id]
         );
         if (riRows.length > 0) {
           returnInfo = {
@@ -1039,7 +1083,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
     }
 
     res.json({
-      event_id: parseInt(eventId),
+      event_id: eventId.value,
       documentSubmitterRole: event.document_submitter_role,
       documentSubmitterId: event.document_submitter_id,
       deputyId: event.deputy_id,
@@ -1058,19 +1102,23 @@ router.get('/status-grid', requireAuth, async (req, res) => {
 
 router.get('/stage-users', requireAuth, async (req, res) => {
   try {
-    const { event_id, section_id, role } = req.query;
-    if (!event_id || !section_id || !role) {
-      return res.status(400).json({ error: 'event_id, section_id, and role are required' });
+    const ids = parseEventSectionQuery(req, res);
+    if (!ids) return;
+    const { eventId, sectionId } = ids;
+    const role = asTrimmedString(req.query.role, 'role', { required: true, max: 80 });
+    if (role.error) return validationError(res, role.error);
+    if (!/^[A-Z_]+$/.test(role.value)) {
+      return validationError(res, 'role must contain only uppercase letters and underscores');
     }
 
     const { rows: [event] } = await db.query(
       `SELECT id, document_submitter_role, document_submitter_id,
               supervisor_id, curator_required, workflow_type, country_id
        FROM events WHERE id = $1`,
-      [event_id]
+      [eventId]
     );
     if (!event) return res.status(404).json({ error: 'Event not found' });
-    if (!(await canAccessSection(req.user, event_id, section_id))) {
+    if (!(await canAccessSection(req.user, eventId, sectionId))) {
       return res.status(403).json({ error: 'Not authorized to access this section' });
     }
     const stageWorkflowType = event.workflow_type || 'advanced';
@@ -1092,19 +1140,19 @@ router.get('/stage-users', requireAuth, async (req, res) => {
     // Section departments
     const { rows: deptRows } = await db.query(
       'SELECT department_id FROM section_departments WHERE section_id = $1',
-      [section_id]
+      [sectionId]
     );
     const sectionDeptIds = deptRows.map(r => r.department_id);
     const isCrossDept = sectionDeptIds.some(d => d !== dsDeptId);
     const chain = buildChain(event.document_submitter_role, event.curator_required, isCrossDept, stageWorkflowType);
 
-    if (!chain.includes(role)) {
+    if (!chain.includes(role.value)) {
       return res.status(400).json({ error: 'Role is not in the approval chain for this section' });
     }
 
     let users = [];
 
-    if (role === 'CURATOR') {
+    if (role.value === 'CURATOR') {
       const { rows } = await db.query(
         `SELECT u.id, u.full_name, d.name_en AS department_name
          FROM deputy_department_links ddl
@@ -1115,7 +1163,7 @@ router.get('/stage-users', requireAuth, async (req, res) => {
         [sectionDeptIds, event.document_submitter_id]
       );
       users = rows;
-    } else if (role === 'DEPUTY') {
+    } else if (role.value === 'DEPUTY') {
       const { rows } = await db.query(
         `SELECT u.id, u.full_name, d.name_en AS department_name
          FROM users u
@@ -1124,8 +1172,8 @@ router.get('/stage-users', requireAuth, async (req, res) => {
         [event.document_submitter_id]
       );
       users = rows;
-    } else if (role.startsWith('RECEIVING_')) {
-      const dbRole = baseRole(role);
+    } else if (role.value.startsWith('RECEIVING_')) {
+      const dbRole = baseRole(role.value);
       if (dsDeptId) {
         const { rows } = await db.query(
           `SELECT u.id, u.full_name, d.name_en AS department_name
@@ -1150,15 +1198,15 @@ router.get('/stage-users', requireAuth, async (req, res) => {
            WHERE u.role = $1 AND u.department_id = ANY($2)
              AND (ca.user_id IS NOT NULL
                   OR NOT EXISTS (SELECT 1 FROM country_assignments ca2 WHERE ca2.user_id = u.id))
-           ORDER BY u.full_name`,
-          [role, sectionDeptIds, event.country_id]
+          ORDER BY u.full_name`,
+          [role.value, sectionDeptIds, event.country_id]
         );
         users = rows;
       }
     }
 
     res.json({
-      role,
+      role: role.value,
       users: users.map(u => ({
         id: u.id,
         fullName: u.full_name,
@@ -1175,11 +1223,10 @@ router.get('/stage-users', requireAuth, async (req, res) => {
 
 router.get('/section-content', requireAuth, async (req, res) => {
   try {
-    const { event_id, section_id } = req.query;
-    if (!event_id || !section_id) {
-      return res.status(400).json({ error: 'event_id and section_id are required' });
-    }
-    if (!(await canAccessSection(req.user, event_id, section_id))) {
+    const ids = parseEventSectionQuery(req, res);
+    if (!ids) return;
+    const { eventId, sectionId } = ids;
+    if (!(await canAccessSection(req.user, eventId, sectionId))) {
       return res.status(403).json({ error: 'Not authorized to access this section' });
     }
 
@@ -1189,7 +1236,7 @@ router.get('/section-content', requireAuth, async (req, res) => {
        FROM section_content sc
        LEFT JOIN users u ON u.id = sc.last_content_edited_by_user_id
        WHERE sc.event_id = $1 AND sc.section_id = $2`,
-      [event_id, section_id]
+      [eventId, sectionId]
     );
 
     if (!content) return res.status(404).json({ error: 'Content not found' });
