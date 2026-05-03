@@ -148,7 +148,6 @@ router.post('/:eventId/reopen', requireAuth, denyAnalyst, async (req, res) => {
       [eventId.value]
     );
 
-    console.log(`[library.reopen] event=${eventId.value} dsUser=${req.user.id}`);
     res.json({ success: true });
   } catch (err) {
     console.error('Library reopen error:', err);
