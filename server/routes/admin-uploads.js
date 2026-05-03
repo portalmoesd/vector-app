@@ -30,11 +30,46 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 // Legacy disk path — used only for one-shot migration of previously
 // uploaded files the first time the DB-backed version boots.
 const LEGACY_DATA_DIR = path.join(__dirname, '../data');
+const MAX_ADMIN_UPLOAD_BYTES = 50 * 1024 * 1024;
+const ALLOWED_ADMIN_UPLOAD_MIME_TYPES = new Set([
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'text/csv',
+  'application/csv',
+  'text/plain',
+]);
+const ALLOWED_ADMIN_UPLOAD_EXTENSIONS = new Set(['.xlsx', '.xls', '.csv']);
+
+function isAllowedAdminUpload(file) {
+  const ext = path.extname(file?.originalname || '').toLowerCase();
+  return ALLOWED_ADMIN_UPLOAD_MIME_TYPES.has(file?.mimetype) || ALLOWED_ADMIN_UPLOAD_EXTENSIONS.has(ext);
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: MAX_ADMIN_UPLOAD_BYTES, files: 1 },
+  fileFilter(req, file, cb) {
+    if (!isAllowedAdminUpload(file)) {
+      return cb(new Error('Unsupported admin upload type. Use XLSX, XLS, or CSV files.'));
+    }
+    return cb(null, true);
+  },
 });
+
+function handleAdminUpload(fieldName = 'file') {
+  return (req, res, next) => {
+    upload.single(fieldName)(req, res, (err) => {
+      if (!err) return next();
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ error: 'Upload must be 50MB or smaller' });
+      }
+      if (err.code === 'LIMIT_FILE_COUNT') {
+        return res.status(400).json({ error: 'Upload accepts one file at a time' });
+      }
+      return res.status(400).json({ error: err.message || 'Invalid upload' });
+    });
+  };
+}
 
 // Spread this into route definitions: router.post('/x', ...adminOnly, handler)
 const adminOnly = [requireAuth, requireRole('ADMIN')];
@@ -96,6 +131,8 @@ async function migrateLegacyDiskUploadsOnce() {
 
 module.exports = {
   upload,
+  handleAdminUpload,
+  isAllowedAdminUpload,
   adminOnly,
   saveParsedAndRaw,
   loadParsed,

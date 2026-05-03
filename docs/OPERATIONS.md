@@ -35,6 +35,8 @@ The statistics setup is intentionally isolated from the event workflow. Current 
 
 On real server startup, the application explicitly starts statistics background loaders. They load cached tourism, FDI-sector, and companies datasets, then schedule the daily tourism refresh. Test and tooling imports do not start these background jobs.
 
+Admin statistics uploads accept XLSX, XLS, and CSV files up to 50MB. Unsupported file types are rejected before parsing.
+
 ## Event email drafts
 
 Event creation prepares a local email draft through the browser's `mailto:` handling. The portal does not send emails automatically. If the recipient list is too long, users receive a copyable fallback.

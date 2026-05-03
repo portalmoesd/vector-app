@@ -1026,7 +1026,7 @@ router.get('/tourism', async (req, res) => {
 // XLSX file. No initial data is bundled — the endpoint returns {empty:true}
 // until the first upload.
 
-const { upload, adminOnly, saveParsedAndRaw, loadParsed } = require('./admin-uploads');
+const { handleAdminUpload, adminOnly, saveParsedAndRaw, loadParsed } = require('./admin-uploads');
 
 let fdiSectorsCache = { data: null };
 
@@ -1184,7 +1184,7 @@ router.get('/fdi-sectors', (req, res) => {
   });
 });
 
-router.post('/fdi-sectors/upload', ...adminOnly, upload.single('file'), async (req, res) => {
+router.post('/fdi-sectors/upload', ...adminOnly, handleAdminUpload('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded (field name: "file")' });
     const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
