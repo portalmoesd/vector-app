@@ -3,20 +3,60 @@ const multer = require('multer');
 const db = require('../db');
 const { requireAuth, denyAnalyst } = require('../middleware/auth');
 const { canAccessSection } = require('../helpers/access');
+const { asPositiveInt, validationError } = require('../helpers/validation');
 
 const router = express.Router();
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'image/png',
+  'image/jpeg',
+  'text/plain',
+  'text/csv',
+]);
 
 // Use memory storage — files are stored in the database (BYTEA), not on disk
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_UPLOAD_BYTES, files: 10 },
+  fileFilter(req, file, cb) {
+    if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
+      return cb(new Error(`Unsupported file type: ${file.mimetype || 'unknown'}`));
+    }
+    return cb(null, true);
+  },
+});
+
+function handleUpload(req, res, next) {
+  upload.array('files', 10)(req, res, (err) => {
+    if (!err) return next();
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ error: 'Each file must be 50MB or smaller' });
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({ error: 'Upload supports up to 10 files at once' });
+    }
+    return res.status(400).json({ error: err.message || 'Invalid upload' });
+  });
+}
 
 // POST /api/workflow/files/upload
-router.post('/upload', requireAuth, denyAnalyst, upload.array('files', 10), async (req, res) => {
+router.post('/upload', requireAuth, denyAnalyst, handleUpload, async (req, res) => {
   try {
-    const { eventId, sectionId } = req.body;
-    if (!eventId || !sectionId) {
-      return res.status(400).json({ error: 'eventId and sectionId are required' });
+    const eventId = asPositiveInt(req.body.eventId, 'eventId');
+    if (eventId.error) return validationError(res, eventId.error);
+    const sectionId = asPositiveInt(req.body.sectionId, 'sectionId');
+    if (sectionId.error) return validationError(res, sectionId.error);
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'At least one file is required' });
     }
-    if (!(await canAccessSection(req.user, eventId, sectionId))) {
+    if (!(await canAccessSection(req.user, eventId.value, sectionId.value))) {
       return res.status(403).json({ error: 'Not authorized to access this section' });
     }
 
@@ -26,11 +66,12 @@ router.post('/upload', requireAuth, denyAnalyst, upload.array('files', 10), asyn
 
     const uploaded = [];
     for (const f of (req.files || [])) {
-      const storedName = Date.now() + '-' + Math.round(Math.random() * 1e9) + '-' + f.originalname;
+      const originalName = String(f.originalname || 'upload').replace(/[\\/\r\n]/g, '_').slice(0, 500);
+      const storedName = Date.now() + '-' + Math.round(Math.random() * 1e9) + '-' + originalName;
       const row = await db.query(
         `INSERT INTO section_files (event_id, section_id, original_name, stored_name, mime_type, size, uploaded_by_id, uploaded_by_name, file_data)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, original_name, stored_name, mime_type, size, uploaded_by_id, created_at`,
-        [eventId, sectionId, f.originalname, storedName, f.mimetype, f.size, req.user.id, uploaderName, f.buffer]
+        [eventId.value, sectionId.value, originalName, storedName, f.mimetype, f.size, req.user.id, uploaderName, f.buffer]
       );
       uploaded.push(row.rows[0]);
     }
@@ -45,11 +86,11 @@ router.post('/upload', requireAuth, denyAnalyst, upload.array('files', 10), asyn
 // GET /api/workflow/files/list
 router.get('/list', requireAuth, async (req, res) => {
   try {
-    const { eventId, sectionId } = req.query;
-    if (!eventId || !sectionId) {
-      return res.status(400).json({ error: 'eventId and sectionId are required' });
-    }
-    if (!(await canAccessSection(req.user, eventId, sectionId))) {
+    const eventId = asPositiveInt(req.query.eventId, 'eventId');
+    if (eventId.error) return validationError(res, eventId.error);
+    const sectionId = asPositiveInt(req.query.sectionId, 'sectionId');
+    if (sectionId.error) return validationError(res, sectionId.error);
+    if (!(await canAccessSection(req.user, eventId.value, sectionId.value))) {
       return res.status(403).json({ error: 'Not authorized to access this section' });
     }
 
@@ -58,7 +99,7 @@ router.get('/list', requireAuth, async (req, res) => {
        FROM section_files
        WHERE event_id = $1 AND section_id = $2
        ORDER BY created_at DESC`,
-      [eventId, sectionId]
+      [eventId.value, sectionId.value]
     );
 
     res.json(result.rows);
@@ -71,12 +112,12 @@ router.get('/list', requireAuth, async (req, res) => {
 // GET /api/workflow/files/download
 router.get('/download', requireAuth, async (req, res) => {
   try {
-    const { id } = req.query;
-    if (!id) return res.status(400).json({ error: 'id is required' });
+    const id = asPositiveInt(req.query.id, 'id');
+    if (id.error) return validationError(res, id.error);
 
     const result = await db.query(
       `SELECT id, event_id, section_id, original_name, mime_type, file_data FROM section_files WHERE id = $1`,
-      [id]
+      [id.value]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'File not found' });
 
@@ -89,7 +130,8 @@ router.get('/download', requireAuth, async (req, res) => {
     }
 
     res.set('Content-Type', file.mime_type || 'application/octet-stream');
-    res.set('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
+    const downloadName = String(file.original_name || 'download').replace(/["\r\n]/g, '_');
+    res.set('Content-Disposition', `attachment; filename="${encodeURIComponent(downloadName)}"`);
     res.send(file.file_data);
   } catch (err) {
     console.error('Download error:', err);
@@ -100,12 +142,12 @@ router.get('/download', requireAuth, async (req, res) => {
 // POST /api/workflow/files/delete
 router.post('/delete', requireAuth, denyAnalyst, async (req, res) => {
   try {
-    const { id } = req.body;
-    if (!id) return res.status(400).json({ error: 'id is required' });
+    const id = asPositiveInt(req.body.id, 'id');
+    if (id.error) return validationError(res, id.error);
 
     const result = await db.query(
       `SELECT event_id, section_id, uploaded_by_id FROM section_files WHERE id = $1`,
-      [id]
+      [id.value]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'File not found' });
 
@@ -120,7 +162,7 @@ router.post('/delete', requireAuth, denyAnalyst, async (req, res) => {
     }
 
     // Remove from DB (file_data is deleted with the row)
-    await db.query(`DELETE FROM section_files WHERE id = $1`, [id]);
+    await db.query(`DELETE FROM section_files WHERE id = $1`, [id.value]);
 
     res.json({ success: true });
   } catch (err) {

@@ -36,6 +36,10 @@ The statistics setup is intentionally isolated from the event workflow. Current 
 
 Event creation prepares a local email draft through the browser's `mailto:` handling. The portal does not send emails automatically. If the recipient list is too long, users receive a copyable fallback.
 
+## File uploads
+
+Workflow uploads are stored in PostgreSQL and are limited to 10 files per request, 50MB per file. Supported types are PDF, Word, Excel, PowerPoint, PNG/JPEG images, plain text, and CSV. Unsupported types are rejected before storage.
+
 ## Incident response
 
 1. Check `/api/health`.

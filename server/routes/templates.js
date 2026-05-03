@@ -1,8 +1,32 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth, denyAnalyst } = require('../middleware/auth');
+const {
+  asTrimmedString,
+  asPositiveIntArray,
+  asEnum,
+  asBoolean,
+  validationError,
+} = require('../helpers/validation');
 
 const router = express.Router();
+const DS_ROLES = ['DEPUTY', 'SUPERVISOR', 'SUPER_COLLABORATOR'];
+
+function parseTemplateSections(rawSections) {
+  if (rawSections === undefined || rawSections === null) return { value: [] };
+  if (!Array.isArray(rawSections)) return { error: 'sections must be an array' };
+  if (rawSections.length > 100) return { error: 'sections must include 100 sections or fewer' };
+
+  const sections = [];
+  for (const rawSection of rawSections) {
+    const title = asTrimmedString(rawSection && rawSection.title, 'section title', { required: true, max: 500 });
+    if (title.error) return title;
+    const departmentIds = asPositiveIntArray(rawSection ? rawSection.departmentIds : undefined, 'departmentIds');
+    if (departmentIds.error) return departmentIds;
+    sections.push({ title: title.value, departmentIds: departmentIds.value });
+  }
+  return { value: sections };
+}
 
 // GET /api/templates — list templates visible to the current user
 // Returns: default templates + templates created by the current user
@@ -69,10 +93,14 @@ router.get('/', requireAuth, async (req, res) => {
 // POST /api/templates — create template
 router.post('/', requireAuth, denyAnalyst, async (req, res) => {
   try {
-    const { name, documentSubmitterRole, curatorRequired, sections } = req.body;
-    if (!name) {
-      return res.status(400).json({ error: 'name is required' });
-    }
+    const name = asTrimmedString(req.body.name, 'name', { required: true, max: 300 });
+    if (name.error) return validationError(res, name.error);
+    const documentSubmitterRole = asEnum(req.body.documentSubmitterRole, 'documentSubmitterRole', DS_ROLES, { default: 'DEPUTY' });
+    if (documentSubmitterRole.error) return validationError(res, documentSubmitterRole.error);
+    const curatorRequired = asBoolean(req.body.curatorRequired, 'curatorRequired');
+    if (curatorRequired.error) return validationError(res, curatorRequired.error);
+    const sections = parseTemplateSections(req.body.sections);
+    if (sections.error) return validationError(res, sections.error);
 
     const client = await db.pool.connect();
     try {
@@ -81,19 +109,19 @@ router.post('/', requireAuth, denyAnalyst, async (req, res) => {
       const { rows: [template] } = await client.query(
         `INSERT INTO event_templates (name, created_by_id, document_submitter_role, curator_required, is_default)
          VALUES ($1, $2, $3, $4, false) RETURNING id`,
-        [name, req.user.id, documentSubmitterRole || 'DEPUTY', curatorRequired || false]
+        [name.value, req.user.id, documentSubmitterRole.value, curatorRequired.value]
       );
 
-      if (sections && sections.length > 0) {
-        for (let i = 0; i < sections.length; i++) {
-          const sec = sections[i];
+      if (sections.value.length > 0) {
+        for (let i = 0; i < sections.value.length; i++) {
+          const sec = sections.value[i];
           const { rows: [tplSec] } = await client.query(
             `INSERT INTO event_template_sections (template_id, title, sort_order)
              VALUES ($1, $2, $3) RETURNING id`,
-            [template.id, sec.title, sec.sortOrder || i]
+            [template.id, sec.title, i]
           );
 
-          if (sec.departmentIds && sec.departmentIds.length > 0) {
+          if (sec.departmentIds.length > 0) {
             for (const deptId of sec.departmentIds) {
               await client.query(
                 `INSERT INTO event_template_section_departments (template_section_id, department_id)
