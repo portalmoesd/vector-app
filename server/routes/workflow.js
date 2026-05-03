@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { requireAuth, denyAnalyst } = require('../middleware/auth');
 const { ROLES } = require('../helpers/roles');
+const { canAccessEvent, canAccessSection } = require('../helpers/access');
 const {
   STATUS,
   baseRole,
@@ -50,6 +51,10 @@ async function loadSectionContext(eventId, sectionId, jwtUser) {
     [eventId, sectionId]
   );
   if (!sc) return null;
+
+  if (jwtUser && !(await canAccessSection(jwtUser, eventId, sectionId))) {
+    return { forbidden: true };
+  }
 
   // Determine if section has cross-department assignments.
   // For Deputy DS, the "home department" is the Responsible Supervisor's
@@ -180,6 +185,7 @@ router.post('/save', requireAuth, denyAnalyst, async (req, res) => {
       resolveUser(req.user),
     ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
+    if (ctx.forbidden) return res.status(403).json({ error: 'Not authorized to access this section' });
 
     const userRole = ctx.userRole;
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
@@ -229,6 +235,7 @@ router.post('/submit', requireAuth, denyAnalyst, async (req, res) => {
       resolveUser(req.user),
     ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
+    if (ctx.forbidden) return res.status(403).json({ error: 'Not authorized to access this section' });
 
     const userRole = ctx.userRole;
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
@@ -324,6 +331,7 @@ router.post('/approve', requireAuth, denyAnalyst, async (req, res) => {
       resolveUser(req.user),
     ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
+    if (ctx.forbidden) return res.status(403).json({ error: 'Not authorized to access this section' });
 
     const userRole = ctx.userRole;
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
@@ -453,6 +461,7 @@ router.post('/return', requireAuth, denyAnalyst, async (req, res) => {
       resolveUser(req.user),
     ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
+    if (ctx.forbidden) return res.status(403).json({ error: 'Not authorized to access this section' });
 
     // Return doesn't apply to a DS amendment — the section was already
     // approved before the reopen, so there's no chain step to return
@@ -531,6 +540,7 @@ router.post('/ask-to-return', requireAuth, denyAnalyst, async (req, res) => {
       resolveUser(req.user),
     ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
+    if (ctx.forbidden) return res.status(403).json({ error: 'Not authorized to access this section' });
 
     const userRole = ctx.userRole;
 
@@ -582,6 +592,12 @@ router.get('/return-requests', requireAuth, async (req, res) => {
   try {
     const { event_id, section_id } = req.query;
     if (!event_id) return res.status(400).json({ error: 'event_id is required' });
+    const allowed = section_id
+      ? await canAccessSection(req.user, event_id, section_id)
+      : await canAccessEvent(req.user, event_id);
+    if (!allowed) {
+      return res.status(403).json({ error: 'Not authorized to access return requests' });
+    }
 
     let query = `SELECT id, event_id, section_id, requested_by_user_id,
                         requested_by_name, requested_by_role, broadcast_above_role,
@@ -665,6 +681,7 @@ router.post('/push-section', requireAuth, denyAnalyst, async (req, res) => {
       resolveUser(req.user),
     ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
+    if (ctx.forbidden) return res.status(403).json({ error: 'Not authorized to access this section' });
 
     const userRole = ctx.userRole;
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
@@ -738,6 +755,7 @@ router.post('/pull-section', requireAuth, denyAnalyst, async (req, res) => {
       resolveUser(req.user),
     ]);
     if (!ctx) return res.status(404).json({ error: 'Section not found' });
+    if (ctx.forbidden) return res.status(403).json({ error: 'Not authorized to access this section' });
 
     const userRole = ctx.userRole;
     const holder = currentHolderRole(ctx.sectionStatus, ctx.originalSubmitterRole, ctx.returnTargetRole, ctx.chain);
@@ -828,6 +846,9 @@ router.get('/status-grid', requireAuth, async (req, res) => {
       [eventId]
     );
     if (!event) return res.status(404).json({ error: 'Event not found' });
+    if (!(await canAccessEvent(req.user, eventId))) {
+      return res.status(403).json({ error: 'Not authorized to access this event' });
+    }
     const eventWorkflowType = event.workflow_type || 'advanced';
 
     // Get "home department" for the receiving chain.
@@ -1049,6 +1070,9 @@ router.get('/stage-users', requireAuth, async (req, res) => {
       [event_id]
     );
     if (!event) return res.status(404).json({ error: 'Event not found' });
+    if (!(await canAccessSection(req.user, event_id, section_id))) {
+      return res.status(403).json({ error: 'Not authorized to access this section' });
+    }
     const stageWorkflowType = event.workflow_type || 'advanced';
 
     // Resolve home department (same logic as status-grid)
@@ -1154,6 +1178,9 @@ router.get('/section-content', requireAuth, async (req, res) => {
     const { event_id, section_id } = req.query;
     if (!event_id || !section_id) {
       return res.status(400).json({ error: 'event_id and section_id are required' });
+    }
+    if (!(await canAccessSection(req.user, event_id, section_id))) {
+      return res.status(403).json({ error: 'Not authorized to access this section' });
     }
 
     const { rows: [content] } = await db.query(

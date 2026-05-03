@@ -7,6 +7,19 @@ const { resolveEventNotificationDraft } = require('../helpers/event-notification
 
 const router = express.Router();
 
+async function requireEventAccess(req, res, eventId) {
+  const { rows: [event] } = await db.query('SELECT id FROM events WHERE id = $1', [eventId]);
+  if (!event) {
+    res.status(404).json({ error: 'Event not found' });
+    return false;
+  }
+  if (!(await canAccessEvent(req.user, eventId))) {
+    res.status(403).json({ error: 'Not authorized to access this event' });
+    return false;
+  }
+  return true;
+}
+
 // GET /api/events — list events visible to current user
 router.get('/', requireAuth, async (req, res) => {
   try {
@@ -284,6 +297,8 @@ router.get('/:id/notification-draft', requireAuth, denyAnalyst, async (req, res)
 // GET /api/events/:id — event detail with sections
 router.get('/:id', requireAuth, async (req, res) => {
   try {
+    if (!(await requireEventAccess(req, res, req.params.id))) return;
+
     const { rows: [event] } = await db.query(
       `SELECT e.id, e.title, e.description, e.country_id, e.document_submitter_role,
               e.document_submitter_id, e.deputy_id, e.supervisor_id, e.curator_required,
@@ -357,6 +372,7 @@ router.patch('/:id', requireAuth, denyAnalyst, async (req, res) => {
     if (!canCreateEvent(req.user.role)) {
       return res.status(403).json({ error: 'Not authorized to edit events' });
     }
+    if (!(await requireEventAccess(req, res, req.params.id))) return;
 
     const { title, language, deadlineDate, occasion } = req.body;
     const sets = [];
@@ -373,10 +389,11 @@ router.patch('/:id', requireAuth, denyAnalyst, async (req, res) => {
     sets.push(`updated_at = now()`);
     params.push(req.params.id);
 
-    await db.query(
+    const result = await db.query(
       `UPDATE events SET ${sets.join(', ')} WHERE id = $${idx}`,
       params
     );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Event not found' });
 
     res.json({ success: true });
   } catch (err) {
@@ -395,6 +412,7 @@ router.post('/:id/sections', requireAuth, denyAnalyst, async (req, res) => {
     if (!title) return res.status(400).json({ error: 'title is required' });
 
     const eventId = req.params.id;
+    if (!(await requireEventAccess(req, res, eventId))) return;
 
     // Get max sort order
     const { rows: [maxRow] } = await db.query(
@@ -445,12 +463,14 @@ router.post('/:id/end', requireAuth, denyAnalyst, async (req, res) => {
     if (!canEndEvent(req.user.role)) {
       return res.status(403).json({ error: 'Not authorized to end events' });
     }
+    if (!(await requireEventAccess(req, res, req.params.id))) return;
 
-    await db.query(
+    const result = await db.query(
       `UPDATE events SET is_active = false, ended_at = now(), status = 'ARCHIVED', updated_at = now()
        WHERE id = $1`,
       [req.params.id]
     );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Event not found' });
 
     res.json({ success: true });
   } catch (err) {
