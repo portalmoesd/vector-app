@@ -71,6 +71,7 @@ docker compose up --build
 ```
 
 The image and compose service include a healthcheck against `GET /api/ready`, so the container reports unhealthy if PostgreSQL is not reachable after startup.
+The image runs the application directly with Node as a non-root container user.
 
 ## Health check
 
