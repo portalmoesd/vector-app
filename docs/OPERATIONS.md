@@ -32,6 +32,8 @@ Recommended backup expectations:
 
 The statistics setup is intentionally isolated from the event workflow. Current uploaded/packaged datasets continue to work. Direct Geostat integration should be completed only after the required intermediate certificate is available.
 
+On real server startup, the application explicitly starts statistics background loaders. They load cached tourism, FDI-sector, and companies datasets, then schedule the daily tourism refresh. Test and tooling imports do not start these background jobs.
+
 ## Event email drafts
 
 Event creation prepares a local email draft through the browser's `mailto:` handling. The portal does not send emails automatically. If the recipient list is too long, users receive a copyable fallback.

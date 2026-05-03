@@ -11,7 +11,7 @@ The application is split into:
 - A Node.js/Express API.
 - A PostgreSQL database.
 - A static browser frontend served by the same Node service.
-- Local file upload storage managed by the application process.
+- File and admin-uploaded dataset storage in PostgreSQL.
 
 ## Core workflows to verify
 
@@ -36,7 +36,7 @@ The buyer environment must provide:
 - `JWT_SECRET` generated specifically for this deployment.
 - `CORS_ORIGINS` set to the final HTTPS origin.
 - `ALLOW_DEFAULT_SEED_USERS=false`.
-- Persistent storage for uploads if the process runs in Docker or behind an orchestrator.
+- Database backups sized for workflow files and admin-uploaded statistics datasets.
 
 The service should run behind HTTPS through Nginx, Apache, Caddy, a load balancer, or the buyer's hosting platform.
 
@@ -58,6 +58,8 @@ Statistics integration is intentionally environment-specific. The current implem
 
 When the intermediate certificate is available, configure and test the statistics source in the buyer environment before relying on scheduled or live updates.
 
+The production server starts statistics cache loaders explicitly during application startup. These loaders read cached tourism, FDI-sector, and companies datasets, then schedule the tourism refresh. Importing the API module for tests or tooling does not start background timers.
+
 ## Mobile app readiness
 
 The current product is web-first, but the backend is organized as JSON API routes. A future mobile app can reuse the same authentication, event, workflow, file, library, and statistics endpoints.
@@ -77,7 +79,7 @@ Recommended production shape:
 
 - One or more Node.js application processes behind a reverse proxy.
 - PostgreSQL with tuned connection limits and backups.
-- Persistent shared storage for uploads if multiple app processes are used.
+- Upload and dataset storage in PostgreSQL, with a later object-storage migration only if file volume grows beyond the database plan.
 - Health checks against `GET /api/health`.
 - Log collection for application errors and access patterns.
 

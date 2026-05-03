@@ -36,6 +36,8 @@ Recommended baseline:
 
 If multiple Node processes are used, keep all application instances pointed at the same PostgreSQL database. Uploaded files are currently stored in PostgreSQL, so no shared filesystem is required for workflow files. If upload volume grows heavily, plan a later move to object storage and keep the API contract stable for the frontend and future mobile app.
 
+The production entry point starts statistics cache loaders during startup. These loaders read cached/uploaded datasets from PostgreSQL and schedule the daily tourism refresh. Route imports used by tests and tooling do not start those jobs.
+
 ## Docker deployment
 
 Build and run the app image:
