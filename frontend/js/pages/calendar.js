@@ -198,7 +198,15 @@
   function hideModal() { modal.style.display = 'none'; onModalSave = null; }
 
   modalCancel.addEventListener('click', hideModal);
-  modalSave.addEventListener('click', () => { if (onModalSave) onModalSave(); });
+  modalSave.addEventListener('click', async () => {
+    if (!onModalSave || modalSave.disabled) return;
+    modalSave.disabled = true;
+    try {
+      await onModalSave();
+    } finally {
+      modalSave.disabled = false;
+    }
+  });
 
   function buildMailtoUrl(draft) {
     const bcc = draft.recipients.map(r => r.email).join(',');
@@ -588,6 +596,23 @@
 
       if (!title || !countryId || !dsRole) {
         toast.warn(I18n.tr('calendar.warn.missingRequired'));
+        return;
+      }
+
+      if (dsRole === 'DEPUTY' && !deputyId && user.role !== 'DEPUTY') {
+        toast.warn('Please select the document submitter deputy.');
+        return;
+      }
+      if (workflowType === 'advanced' && dsRole === 'DEPUTY' && !supervisorId) {
+        toast.warn('Please select the responsible supervisor for this advanced workflow.');
+        return;
+      }
+      if (dsRole === 'SUPERVISOR' && !document.getElementById('newDSSupervisor').value && user.role !== 'SUPERVISOR') {
+        toast.warn('Please select the document submitter supervisor.');
+        return;
+      }
+      if (dsRole === 'SUPER_COLLABORATOR' && !document.getElementById('newDSSC').value && user.role !== 'SUPER_COLLABORATOR') {
+        toast.warn('Please select the document submitter super-collaborator.');
         return;
       }
 
