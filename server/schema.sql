@@ -56,6 +56,9 @@ CREATE TABLE IF NOT EXISTS users (
 -- Backfill for databases predating the entity_name column.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS entity_name VARCHAR(200);
 
+CREATE INDEX IF NOT EXISTS idx_users_role_name ON users (role, full_name);
+CREATE INDEX IF NOT EXISTS idx_users_department_role ON users (department_id, role) WHERE department_id IS NOT NULL;
+
 -- ─── Country Assignments ────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS country_assignments (
@@ -63,6 +66,8 @@ CREATE TABLE IF NOT EXISTS country_assignments (
   country_id INT NOT NULL REFERENCES countries(id) ON DELETE CASCADE,
   PRIMARY KEY (user_id, country_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_country_assignments_country_user ON country_assignments (country_id, user_id);
 
 -- ─── Deputy–Supervisor Links ────────────────────────────────────────────────
 
@@ -73,6 +78,8 @@ CREATE TABLE IF NOT EXISTS deputy_supervisor_links (
   UNIQUE (deputy_id, supervisor_id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_deputy_supervisor_supervisor ON deputy_supervisor_links (supervisor_id, deputy_id);
+
 -- ─── Deputy–Department Links (direct mapping from org chart) ──────────────
 
 CREATE TABLE IF NOT EXISTS deputy_department_links (
@@ -80,6 +87,8 @@ CREATE TABLE IF NOT EXISTS deputy_department_links (
   department_id INT NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
   PRIMARY KEY (deputy_id, department_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_deputy_department_department ON deputy_department_links (department_id, deputy_id);
 
 -- ─── Events ─────────────────────────────────────────────────────────────────
 
@@ -194,6 +203,7 @@ CREATE TABLE IF NOT EXISTS section_files (
 );
 
 CREATE INDEX IF NOT EXISTS idx_section_files_lookup ON section_files (event_id, section_id);
+CREATE INDEX IF NOT EXISTS idx_section_files_section_created ON section_files (section_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_section_files_event_created ON section_files (event_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_section_files_uploader ON section_files (uploaded_by_id) WHERE uploaded_by_id IS NOT NULL;
 
