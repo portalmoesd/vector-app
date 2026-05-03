@@ -40,6 +40,19 @@ Event creation prepares a local email draft through the browser's `mailto:` hand
 
 Workflow uploads are stored in PostgreSQL and are limited to 10 files per request, 50MB per file. Supported types are PDF, Word, Excel, PowerPoint, PNG/JPEG images, plain text, and CSV. Unsupported types are rejected before storage.
 
+## Capacity monitoring
+
+For 500-1000 live users, review these signals daily during launch and weekly after the system stabilizes:
+
+- PostgreSQL connection count and slow queries.
+- PostgreSQL database size, especially `section_files`.
+- Application memory and CPU.
+- Request durations for workflow, file, statistics, and library endpoints.
+- HTTP 4xx and 5xx rates.
+- Backup completion and restore-test status.
+
+Avoid running production with default seed users, local-only database storage, or an unmonitored single terminal process. Use a managed service, systemd, PM2, Docker, or the buyer's standard server manager so the process restarts cleanly after host reboot or failure.
+
 ## Incident response
 
 1. Check `/api/health`.
