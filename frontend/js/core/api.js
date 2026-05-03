@@ -34,7 +34,12 @@ const Api = {
       opts.body = JSON.stringify(body);
     }
 
-    const res = await fetch(`${API_BASE}${path}`, opts);
+    let res;
+    try {
+      res = await fetch(`${API_BASE}${path}`, opts);
+    } catch (err) {
+      throw new Error('Network request failed. Check your connection and try again.');
+    }
 
     if (res.status === 401) {
       this.clearToken();
