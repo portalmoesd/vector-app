@@ -108,6 +108,14 @@ CREATE TABLE IF NOT EXISTS events (
 -- ADD COLUMN IF NOT EXISTS is a no-op once the column has been added.
 ALTER TABLE events ADD COLUMN IF NOT EXISTS workflow_type event_workflow_type NOT NULL DEFAULT 'advanced';
 
+CREATE INDEX IF NOT EXISTS idx_events_status_ended ON events (status, ended_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_created_at ON events (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_country ON events (country_id);
+CREATE INDEX IF NOT EXISTS idx_events_document_submitter ON events (document_submitter_id);
+CREATE INDEX IF NOT EXISTS idx_events_deputy ON events (deputy_id) WHERE deputy_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_events_supervisor ON events (supervisor_id) WHERE supervisor_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_events_created_by ON events (created_by_id) WHERE created_by_id IS NOT NULL;
+
 -- ─── Sections ───────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS sections (
@@ -119,6 +127,8 @@ CREATE TABLE IF NOT EXISTS sections (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE INDEX IF NOT EXISTS idx_sections_event_sort ON sections (event_id, sort_order);
+
 -- ─── Section–Department Assignment ──────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS section_departments (
@@ -126,6 +136,8 @@ CREATE TABLE IF NOT EXISTS section_departments (
   department_id INT NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
   PRIMARY KEY (section_id, department_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_section_departments_department ON section_departments (department_id, section_id);
 
 -- ─── Workflow Steps ─────────────────────────────────────────────────────────
 
@@ -140,6 +152,9 @@ CREATE TABLE IF NOT EXISTS workflow_steps (
   reviewed_at       TIMESTAMPTZ,
   comments          TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_workflow_steps_section_order ON workflow_steps (section_id, step_order);
+CREATE INDEX IF NOT EXISTS idx_workflow_steps_assigned_user ON workflow_steps (assigned_user_id) WHERE assigned_user_id IS NOT NULL;
 
 -- ─── Section Content ────────────────────────────────────────────────────────
 
@@ -159,6 +174,9 @@ CREATE TABLE IF NOT EXISTS section_content (
   UNIQUE (event_id, section_id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_section_content_status ON section_content (status);
+CREATE INDEX IF NOT EXISTS idx_section_content_event_status ON section_content (event_id, status);
+
 -- ─── Section Files ─────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS section_files (
@@ -176,6 +194,8 @@ CREATE TABLE IF NOT EXISTS section_files (
 );
 
 CREATE INDEX IF NOT EXISTS idx_section_files_lookup ON section_files (event_id, section_id);
+CREATE INDEX IF NOT EXISTS idx_section_files_event_created ON section_files (event_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_section_files_uploader ON section_files (uploaded_by_id) WHERE uploaded_by_id IS NOT NULL;
 
 -- ─── Section History ────────────────────────────────────────────────────────
 
@@ -194,6 +214,9 @@ CREATE TABLE IF NOT EXISTS section_history (
 );
 
 CREATE INDEX IF NOT EXISTS idx_section_history_lookup ON section_history (event_id, section_id, acted_at);
+CREATE INDEX IF NOT EXISTS idx_section_history_event_user ON section_history (event_id, user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_section_history_event_role_latest ON section_history (event_id, section_id, user_role, acted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_section_history_return_latest ON section_history (event_id, section_id, action, acted_at DESC);
 
 -- ─── Section Comments ───────────────────────────────────────────────────────
 
@@ -207,6 +230,9 @@ CREATE TABLE IF NOT EXISTS section_comments (
   content     TEXT NOT NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE INDEX IF NOT EXISTS idx_section_comments_lookup ON section_comments (event_id, section_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_section_comments_user ON section_comments (user_id);
 
 -- ─── Section Return Requests ────────────────────────────────────────────────
 
@@ -222,6 +248,8 @@ CREATE TABLE IF NOT EXISTS section_return_requests (
   created_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE INDEX IF NOT EXISTS idx_section_return_requests_lookup ON section_return_requests (event_id, section_id, created_at DESC);
+
 -- ─── Event Templates ────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS event_templates (
@@ -235,6 +263,9 @@ CREATE TABLE IF NOT EXISTS event_templates (
   updated_at                TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE INDEX IF NOT EXISTS idx_event_templates_visible ON event_templates (is_default, created_by_id, name);
+CREATE INDEX IF NOT EXISTS idx_event_templates_created_by ON event_templates (created_by_id) WHERE created_by_id IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS event_template_sections (
   id            SERIAL PRIMARY KEY,
   template_id   INT NOT NULL REFERENCES event_templates(id) ON DELETE CASCADE,
@@ -242,11 +273,15 @@ CREATE TABLE IF NOT EXISTS event_template_sections (
   sort_order    INT NOT NULL DEFAULT 0
 );
 
+CREATE INDEX IF NOT EXISTS idx_event_template_sections_template_sort ON event_template_sections (template_id, sort_order);
+
 CREATE TABLE IF NOT EXISTS event_template_section_departments (
   template_section_id INT NOT NULL REFERENCES event_template_sections(id) ON DELETE CASCADE,
   department_id       INT NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
   PRIMARY KEY (template_section_id, department_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_event_template_section_depts_department ON event_template_section_departments (department_id);
 
 -- Admin-uploaded datasets (companies registry, FDI sectors, etc.).
 -- Rows are keyed by a short kind string; parsed_json holds the

@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth, denyAnalyst } = require('../middleware/auth');
+const { canAccessSection } = require('../helpers/access');
 
 const router = express.Router();
 
@@ -8,6 +9,12 @@ const router = express.Router();
 router.get('/', requireAuth, async (req, res) => {
   try {
     const { event_id, section_id } = req.query;
+    if (!event_id || !section_id) {
+      return res.status(400).json({ error: 'event_id and section_id are required' });
+    }
+    if (!(await canAccessSection(req.user, event_id, section_id))) {
+      return res.status(403).json({ error: 'Not authorized to access this section' });
+    }
     const { rows } = await db.query(
       `SELECT sc.id, sc.anchor_id, sc.parent_id, sc.content, sc.created_at,
               sc.user_id, u.full_name, u.username
@@ -37,6 +44,12 @@ router.get('/', requireAuth, async (req, res) => {
 router.post('/', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const { eventId, sectionId, anchorId, parentId, content, htmlContent } = req.body;
+    if (!eventId || !sectionId || !content) {
+      return res.status(400).json({ error: 'eventId, sectionId, and content are required' });
+    }
+    if (!(await canAccessSection(req.user, eventId, sectionId))) {
+      return res.status(403).json({ error: 'Not authorized to access this section' });
+    }
     const { rows } = await db.query(
       `INSERT INTO section_comments (event_id, section_id, user_id, parent_id, anchor_id, content)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,

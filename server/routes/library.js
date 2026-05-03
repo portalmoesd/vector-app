@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth, denyAnalyst } = require('../middleware/auth');
+const { canAccessEvent } = require('../helpers/access');
 
 const router = express.Router();
 
@@ -48,6 +49,9 @@ router.get('/', requireAuth, async (req, res) => {
 router.get('/:eventId/document', requireAuth, async (req, res) => {
   try {
     const eventId = req.params.eventId;
+    if (!(await canAccessEvent(req.user, eventId))) {
+      return res.status(403).json({ error: 'Not authorized to access this document' });
+    }
 
     const { rows: [event] } = await db.query(
       `SELECT e.title, e.language, e.ended_at, c.name_en AS country_name
@@ -88,6 +92,10 @@ router.get('/:eventId/document', requireAuth, async (req, res) => {
 // GET /api/library/:eventId/files — list all files for an event (across all sections)
 router.get('/:eventId/files', requireAuth, async (req, res) => {
   try {
+    if (!(await canAccessEvent(req.user, req.params.eventId))) {
+      return res.status(403).json({ error: 'Not authorized to access this event' });
+    }
+
     const result = await db.query(
       `SELECT sf.id, sf.section_id, sf.original_name, sf.mime_type, sf.size,
               sf.uploaded_by_name, sf.created_at,

@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const db = require('./db');
+const config = require('./config');
 
 async function seed() {
   console.log('Running schema...');
@@ -24,6 +25,11 @@ async function seed() {
     );
   }
   console.log(`Seeded ${countries.length} countries.`);
+
+  if (!config.allowDefaultSeedUsers) {
+    console.log('Default user seeding is disabled. Set ALLOW_DEFAULT_SEED_USERS=true only for demo/dev environments.');
+    process.exit(0);
+  }
 
   console.log('Creating default admin user...');
   const hash = await bcrypt.hash('admin123', 10);

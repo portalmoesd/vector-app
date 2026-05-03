@@ -7,7 +7,19 @@ const app = express();
 
 // ── Middleware ───────────────────────────────────────────────────────────────
 
-app.use(cors());
+app.set('trust proxy', 1);
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || !config.isProduction || config.corsOrigins.length === 0) {
+      return callback(null, true);
+    }
+    if (config.corsOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Origin not allowed by CORS'));
+  },
+}));
 app.use(express.json({ limit: '10mb' }));
 
 // Serve frontend static files
@@ -169,7 +181,7 @@ async function migrate() {
     // Seed admin user if not exists
     const { rows: [{ count: userCount }] } = await db.query('SELECT count(*)::int AS count FROM users');
     const { rows: [{ exists: adminExists }] } = await db.query("SELECT EXISTS(SELECT 1 FROM users WHERE username='admin') AS exists");
-    if (!adminExists) {
+    if (!adminExists && config.allowDefaultSeedUsers) {
       console.log('Creating default admin user...');
       const hash = await bcrypt.hash('admin123', 10);
       await db.query(
@@ -178,10 +190,12 @@ async function migrate() {
         ['System Administrator', 'admin', 'admin@vector-portal.gov.ge', hash, 'ADMIN']
       );
       console.log('Admin user created (admin / admin123).');
+    } else if (!adminExists) {
+      console.warn('No admin user exists. Create an admin through a production-safe provisioning process.');
     }
 
     // Seed ministry staff if not already seeded
-    if (userCount <= 1) {
+    if (userCount <= 1 && config.allowDefaultSeedUsers) {
       console.log('Seeding ministry staff...');
       const staffList = require('./data/users.json');
       const defaultHash = await bcrypt.hash('vector2026', 10);
@@ -220,6 +234,8 @@ async function migrate() {
         }
       }
       console.log(`Seeded ${staffList.length} staff members.`);
+    } else if (userCount <= 1) {
+      console.warn('Default staff seeding skipped in production.');
     }
 
     // ── Fix Protocol Department users to PROTOCOL role ────────────────────────
@@ -260,15 +276,19 @@ async function migrate() {
 
     // Deputies oversee multiple departments via deputy_department_links,
     // so department_id on the users table is left NULL.
-    const defaultHashDeputy = await bcrypt.hash('vector2026', 10);
-    for (const dep of deputyUsers) {
-      const username = dep.email.split('@')[0].toLowerCase().replace(/[^a-z0-9.]/g, '');
-      await db.query(
-        `INSERT INTO users (full_name, username, email, password_hash, role, department_id, must_change_password)
-         VALUES ($1, $2, $3, $4, 'DEPUTY', NULL, true)
-         ON CONFLICT (username) DO UPDATE SET department_id = NULL`,
-        [dep.fullName, username, dep.email, defaultHashDeputy]
-      );
+    if (config.allowDefaultSeedUsers) {
+      const defaultHashDeputy = await bcrypt.hash('vector2026', 10);
+      for (const dep of deputyUsers) {
+        const username = dep.email.split('@')[0].toLowerCase().replace(/[^a-z0-9.]/g, '');
+        await db.query(
+          `INSERT INTO users (full_name, username, email, password_hash, role, department_id, must_change_password)
+           VALUES ($1, $2, $3, $4, 'DEPUTY', NULL, true)
+           ON CONFLICT (username) DO UPDATE SET department_id = NULL`,
+          [dep.fullName, username, dep.email, defaultHashDeputy]
+        );
+      }
+    } else {
+      console.warn('Default deputy user provisioning skipped in production.');
     }
 
     // ── Create Deputy–Supervisor links (idempotent) ───────────────────────────

@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { canAccessSection } = require('../helpers/access');
 
 const router = express.Router();
 
@@ -10,6 +11,9 @@ router.get('/section-history', requireAuth, async (req, res) => {
     const { event_id, section_id } = req.query;
     if (!event_id || !section_id) {
       return res.status(400).json({ error: 'event_id and section_id are required' });
+    }
+    if (!(await canAccessSection(req.user, event_id, section_id))) {
+      return res.status(403).json({ error: 'Not authorized to access this section' });
     }
 
     const { rows } = await db.query(

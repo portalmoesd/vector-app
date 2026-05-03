@@ -4,11 +4,17 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 const config = require('../config');
 const { requireAuth } = require('../middleware/auth');
+const { createRateLimit } = require('../middleware/rate-limit');
 
 const router = express.Router();
+const loginRateLimit = createRateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  keyPrefix: 'login',
+});
 
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', loginRateLimit, async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {

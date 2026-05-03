@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const db = require('../db');
 const { requireAuth, denyAnalyst } = require('../middleware/auth');
+const { canAccessSection } = require('../helpers/access');
 
 const router = express.Router();
 
@@ -14,6 +15,9 @@ router.post('/upload', requireAuth, denyAnalyst, upload.array('files', 10), asyn
     const { eventId, sectionId } = req.body;
     if (!eventId || !sectionId) {
       return res.status(400).json({ error: 'eventId and sectionId are required' });
+    }
+    if (!(await canAccessSection(req.user, eventId, sectionId))) {
+      return res.status(403).json({ error: 'Not authorized to access this section' });
     }
 
     // Look up uploader name from DB (JWT only has id/username/role)
@@ -45,6 +49,9 @@ router.get('/list', requireAuth, async (req, res) => {
     if (!eventId || !sectionId) {
       return res.status(400).json({ error: 'eventId and sectionId are required' });
     }
+    if (!(await canAccessSection(req.user, eventId, sectionId))) {
+      return res.status(403).json({ error: 'Not authorized to access this section' });
+    }
 
     const result = await db.query(
       `SELECT id, original_name, stored_name, mime_type, size, uploaded_by_id, uploaded_by_name, created_at
@@ -68,12 +75,15 @@ router.get('/download', requireAuth, async (req, res) => {
     if (!id) return res.status(400).json({ error: 'id is required' });
 
     const result = await db.query(
-      `SELECT original_name, mime_type, file_data FROM section_files WHERE id = $1`,
+      `SELECT id, event_id, section_id, original_name, mime_type, file_data FROM section_files WHERE id = $1`,
       [id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'File not found' });
 
     const file = result.rows[0];
+    if (!(await canAccessSection(req.user, file.event_id, file.section_id))) {
+      return res.status(403).json({ error: 'Not authorized to access this file' });
+    }
     if (!file.file_data) {
       return res.status(404).json({ error: 'File data not available. Please re-upload the file.' });
     }
@@ -94,12 +104,15 @@ router.post('/delete', requireAuth, denyAnalyst, async (req, res) => {
     if (!id) return res.status(400).json({ error: 'id is required' });
 
     const result = await db.query(
-      `SELECT uploaded_by_id FROM section_files WHERE id = $1`,
+      `SELECT event_id, section_id, uploaded_by_id FROM section_files WHERE id = $1`,
       [id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'File not found' });
 
     const file = result.rows[0];
+    if (!(await canAccessSection(req.user, file.event_id, file.section_id))) {
+      return res.status(403).json({ error: 'Not authorized to access this file' });
+    }
 
     // Only the uploader or an admin can delete
     if (file.uploaded_by_id !== req.user.id && req.user.role !== 'ADMIN') {

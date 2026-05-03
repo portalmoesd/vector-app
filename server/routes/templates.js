@@ -19,21 +19,35 @@ router.get('/', requireAuth, async (req, res) => {
       [req.user.id]
     );
 
-    // Enrich with sections
-    const result = [];
-    for (const t of templates) {
+    const templateIds = templates.map(t => t.id);
+    const sectionsByTemplate = new Map();
+
+    if (templateIds.length > 0) {
       const { rows: sections } = await db.query(
-        `SELECT ets.id, ets.title, ets.sort_order,
+        `SELECT ets.template_id, ets.id, ets.title, ets.sort_order,
                 array_agg(etsd.department_id) AS department_ids
          FROM event_template_sections ets
          LEFT JOIN event_template_section_departments etsd ON etsd.template_section_id = ets.id
-         WHERE ets.template_id = $1
-         GROUP BY ets.id
-         ORDER BY ets.sort_order`,
-        [t.id]
+         WHERE ets.template_id = ANY($1)
+         GROUP BY ets.template_id, ets.id
+         ORDER BY ets.template_id, ets.sort_order`,
+        [templateIds]
       );
 
-      result.push({
+      for (const s of sections) {
+        if (!sectionsByTemplate.has(s.template_id)) {
+          sectionsByTemplate.set(s.template_id, []);
+        }
+        sectionsByTemplate.get(s.template_id).push({
+          id: s.id,
+          title: s.title,
+          sortOrder: s.sort_order,
+          departmentIds: (s.department_ids || []).filter(Boolean),
+        });
+      }
+    }
+
+    const result = templates.map(t => ({
         id: t.id,
         name: t.name,
         documentSubmitterRole: t.document_submitter_role,
@@ -42,14 +56,8 @@ router.get('/', requireAuth, async (req, res) => {
         createdAt: t.created_at,
         createdById: t.created_by_id,
         createdByName: t.created_by_name,
-        sections: sections.map(s => ({
-          id: s.id,
-          title: s.title,
-          sortOrder: s.sort_order,
-          departmentIds: (s.department_ids || []).filter(Boolean),
-        })),
-      });
-    }
+        sections: sectionsByTemplate.get(t.id) || [],
+      }));
 
     res.json(result);
   } catch (err) {

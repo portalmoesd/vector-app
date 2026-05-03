@@ -1,6 +1,8 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth, denyAnalyst } = require('../middleware/auth');
+const { canCreateEvent } = require('../helpers/roles');
+const { canAccessEvent, canAccessSection } = require('../helpers/access');
 
 const router = express.Router();
 
@@ -9,6 +11,9 @@ router.get('/', requireAuth, async (req, res) => {
   try {
     const eventId = req.query.event_id;
     if (!eventId) return res.status(400).json({ error: 'event_id is required' });
+    if (!(await canAccessEvent(req.user, eventId))) {
+      return res.status(403).json({ error: 'Not authorized to access this event' });
+    }
 
     const { rows } = await db.query(
       `SELECT s.id, s.title, s.sort_order,
@@ -38,6 +43,18 @@ router.patch('/:id/label', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const { title } = req.body;
     if (!title) return res.status(400).json({ error: 'Title is required' });
+    if (!canCreateEvent(req.user.role)) {
+      return res.status(403).json({ error: 'Not authorized to rename sections' });
+    }
+
+    const { rows: [section] } = await db.query(
+      'SELECT event_id FROM sections WHERE id = $1',
+      [req.params.id]
+    );
+    if (!section) return res.status(404).json({ error: 'Section not found' });
+    if (!(await canAccessSection(req.user, section.event_id, req.params.id))) {
+      return res.status(403).json({ error: 'Not authorized to access this section' });
+    }
 
     await db.query(
       'UPDATE sections SET title = $1, updated_at = now() WHERE id = $2',
