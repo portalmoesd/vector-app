@@ -1,12 +1,13 @@
 const express = require('express');
 const multer = require('multer');
+const config = require('../config');
 const db = require('../db');
 const { requireAuth, denyAnalyst } = require('../middleware/auth');
 const { canAccessSection } = require('../helpers/access');
 const { asPositiveInt, validationError } = require('../helpers/validation');
 
 const router = express.Router();
-const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = config.megabytesToBytes(config.workflowUploadMaxMb);
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
   'application/msword',
@@ -37,7 +38,7 @@ function handleUpload(req, res, next) {
   upload.array('files', 10)(req, res, (err) => {
     if (!err) return next();
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(413).json({ error: 'Each file must be 50MB or smaller' });
+      return res.status(413).json({ error: `Each file must be ${config.workflowUploadMaxMb}MB or smaller` });
     }
     if (err.code === 'LIMIT_FILE_COUNT') {
       return res.status(400).json({ error: 'Upload supports up to 10 files at once' });

@@ -30,6 +30,10 @@ function parsePositiveInt(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function megabytesToBytes(value) {
+  return value * 1024 * 1024;
+}
+
 module.exports = {
   isProduction,
   databaseUrl: process.env.DATABASE_URL,
@@ -39,6 +43,8 @@ module.exports = {
   databaseConnectionTimeoutMs: parsePositiveInt(process.env.DATABASE_CONNECTION_TIMEOUT_MS, 10_000),
   authRateLimitWindowMs: parsePositiveInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
   authRateLimitMax: parsePositiveInt(process.env.AUTH_RATE_LIMIT_MAX, 20),
+  workflowUploadMaxMb: parsePositiveInt(process.env.WORKFLOW_UPLOAD_MAX_MB, 50),
+  adminUploadMaxMb: parsePositiveInt(process.env.ADMIN_UPLOAD_MAX_MB, 50),
   jwtSecret,
   port: parseInt(process.env.PORT, 10) || 3000,
   corsOrigins: parseOrigins(process.env.CORS_ORIGINS),
@@ -46,6 +52,7 @@ module.exports = {
   allowDefaultSeedUsers: resolveAllowDefaultSeedUsers(isProduction, process.env.ALLOW_DEFAULT_SEED_USERS),
   resolveAllowDefaultSeedUsers,
   parsePositiveInt,
+  megabytesToBytes,
 };
 
 if (isProduction && !module.exports.databaseUrl) {

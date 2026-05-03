@@ -23,3 +23,9 @@ test('auth rate limit defaults protect login without extra setup', () => {
   assert.equal(config.authRateLimitWindowMs, 15 * 60 * 1000);
   assert.equal(config.authRateLimitMax, 20);
 });
+
+test('upload limit defaults preserve current buyer capacity', () => {
+  assert.equal(config.workflowUploadMaxMb, 50);
+  assert.equal(config.adminUploadMaxMb, 50);
+  assert.equal(config.megabytesToBytes(50), 50 * 1024 * 1024);
+});

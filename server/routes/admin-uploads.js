@@ -24,13 +24,14 @@
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const config = require('../config');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 // Legacy disk path — used only for one-shot migration of previously
 // uploaded files the first time the DB-backed version boots.
 const LEGACY_DATA_DIR = path.join(__dirname, '../data');
-const MAX_ADMIN_UPLOAD_BYTES = 50 * 1024 * 1024;
+const MAX_ADMIN_UPLOAD_BYTES = config.megabytesToBytes(config.adminUploadMaxMb);
 const ALLOWED_ADMIN_UPLOAD_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.ms-excel',
@@ -61,7 +62,7 @@ function handleAdminUpload(fieldName = 'file') {
     upload.single(fieldName)(req, res, (err) => {
       if (!err) return next();
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(413).json({ error: 'Upload must be 50MB or smaller' });
+        return res.status(413).json({ error: `Upload must be ${config.adminUploadMaxMb}MB or smaller` });
       }
       if (err.code === 'LIMIT_FILE_COUNT') {
         return res.status(400).json({ error: 'Upload accepts one file at a time' });

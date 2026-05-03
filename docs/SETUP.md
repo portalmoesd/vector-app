@@ -17,6 +17,8 @@ Create `.env` from `.env.example` and set:
 - `DATABASE_CONNECTION_TIMEOUT_MS` - how long startup/request queries wait for a database connection.
 - `AUTH_RATE_LIMIT_WINDOW_MS` - login throttling window in milliseconds.
 - `AUTH_RATE_LIMIT_MAX` - maximum login attempts allowed per IP address in one window.
+- `WORKFLOW_UPLOAD_MAX_MB` - maximum size for each workflow attachment.
+- `ADMIN_UPLOAD_MAX_MB` - maximum size for each admin statistics upload.
 - `LOG_FORMAT` - `text` for local development or `json` for structured production logs.
 - `JWT_SECRET` - long random secret used for login tokens.
 - `PORT` - server port, usually `3000`.

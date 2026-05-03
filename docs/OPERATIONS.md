@@ -47,7 +47,7 @@ Event creation prepares a local email draft through the browser's `mailto:` hand
 
 ## File uploads
 
-Workflow uploads are stored in PostgreSQL and are limited to 10 files per request, 50MB per file. Supported types are PDF, Word, Excel, PowerPoint, PNG/JPEG images, plain text, and CSV. Unsupported types are rejected before storage.
+Workflow uploads are stored in PostgreSQL and are limited to 10 files per request. `WORKFLOW_UPLOAD_MAX_MB` controls the maximum size of each file; the default is 50MB. Supported types are PDF, Word, Excel, PowerPoint, PNG/JPEG images, plain text, and CSV. Unsupported types are rejected before storage.
 
 ## Capacity monitoring
 
