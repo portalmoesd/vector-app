@@ -13,4 +13,5 @@ const pool = new Pool(poolConfig);
 module.exports = {
   query: (text, params) => pool.query(text, params),
   pool,
+  close: () => pool.end(),
 };

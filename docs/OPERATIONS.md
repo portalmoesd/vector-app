@@ -4,6 +4,7 @@
 
 - `GET /api/health` returns `ok: true`.
 - Application logs show successful schema migration during startup.
+- Request logs show method, URL, response status, and duration for non-health traffic.
 - PostgreSQL has current backups and enough disk space.
 - Users can log in, create events, upload files, and export documents.
 
@@ -25,6 +26,7 @@ Recommended backup expectations:
 - Use HTTPS only for production access.
 - Restrict database access to the application server and administrators.
 - Review user accounts before buyer handoff and remove unused demo accounts.
+- Browser hardening headers are set by the application; keep the app behind HTTPS so they are effective.
 
 ## Statistics data
 

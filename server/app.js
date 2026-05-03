@@ -2,11 +2,16 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const config = require('./config');
+const securityHeaders = require('./middleware/security-headers');
+const requestLogger = require('./middleware/request-logger');
 
 function createApp() {
   const app = express();
 
   app.set('trust proxy', 1);
+
+  app.use(securityHeaders);
+  app.use(requestLogger);
 
   app.use(cors({
     origin(origin, callback) {
@@ -46,6 +51,16 @@ function createApp() {
   app.use('/api/admin', require('./routes/admin'));
   app.use('/api/templates', require('./routes/templates'));
   app.use('/api/statistics', require('./routes/statistics'));
+
+  app.use('/api', (req, res) => {
+    res.status(404).json({ error: 'API route not found' });
+  });
+
+  app.use((err, req, res, next) => {
+    console.error('Unhandled request error:', err);
+    if (res.headersSent) return next(err);
+    res.status(500).json({ error: 'Internal server error' });
+  });
 
   return app;
 }
