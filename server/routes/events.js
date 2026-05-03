@@ -205,6 +205,34 @@ router.post('/', requireAuth, denyAnalyst, async (req, res) => {
     const effectiveCuratorRequired = curatorRequired.value;
     const effectiveSupervisorId = workflowType === 'simple' ? null : supervisorId.value;
 
+    const { rows: [documentSubmitter] } = await db.query(
+      'SELECT id, role FROM users WHERE id = $1',
+      [documentSubmitterId.value]
+    );
+    if (!documentSubmitter || documentSubmitter.role !== documentSubmitterRole.value) {
+      return res.status(422).json({ error: 'Document submitter does not match the selected role' });
+    }
+
+    if (deputyId.value) {
+      const { rows: [deputy] } = await db.query(
+        "SELECT id FROM users WHERE id = $1 AND role = 'DEPUTY'",
+        [deputyId.value]
+      );
+      if (!deputy) return res.status(422).json({ error: 'Invalid deputy user' });
+    }
+
+    if (workflowType === 'advanced' && documentSubmitterRole.value === 'DEPUTY' && !effectiveSupervisorId) {
+      return validationError(res, 'supervisorId is required for advanced deputy workflows');
+    }
+
+    if (effectiveSupervisorId) {
+      const { rows: [supervisor] } = await db.query(
+        "SELECT id FROM users WHERE id = $1 AND role = 'SUPERVISOR'",
+        [effectiveSupervisorId]
+      );
+      if (!supervisor) return res.status(422).json({ error: 'Invalid responsible supervisor user' });
+    }
+
     // ── Role-based DS assignment validation ──────────────────────────────
     const creatorRole = req.user.role;
     if (creatorRole !== ROLES.ADMIN && creatorRole !== ROLES.PROTOCOL) {
