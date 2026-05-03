@@ -34,6 +34,7 @@ The server applies the database schema on startup. Demo/default users are disabl
 - `npm start` - run the production server.
 - `npm run dev` - run the server with Node watch mode.
 - `npm test` - run automated tests.
+- `npm run check` - run tests and JavaScript syntax checks.
 
 ## Health check
 
