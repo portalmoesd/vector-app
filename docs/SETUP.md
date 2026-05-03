@@ -19,6 +19,7 @@ Create `.env` from `.env.example` and set:
 - `AUTH_RATE_LIMIT_MAX` - maximum login attempts allowed per IP address in one window.
 - `WORKFLOW_UPLOAD_MAX_MB` - maximum size for each workflow attachment.
 - `ADMIN_UPLOAD_MAX_MB` - maximum size for each admin statistics upload.
+- `JSON_BODY_LIMIT_MB` - maximum JSON request size for editor saves and API requests.
 - `LOG_FORMAT` - `text` for local development or `json` for structured production logs.
 - `JWT_SECRET` - long random secret used for login tokens.
 - `PORT` - server port, usually `3000`.

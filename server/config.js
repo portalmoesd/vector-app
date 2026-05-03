@@ -45,6 +45,7 @@ module.exports = {
   authRateLimitMax: parsePositiveInt(process.env.AUTH_RATE_LIMIT_MAX, 20),
   workflowUploadMaxMb: parsePositiveInt(process.env.WORKFLOW_UPLOAD_MAX_MB, 50),
   adminUploadMaxMb: parsePositiveInt(process.env.ADMIN_UPLOAD_MAX_MB, 50),
+  jsonBodyLimitMb: parsePositiveInt(process.env.JSON_BODY_LIMIT_MB, 10),
   jwtSecret,
   port: parseInt(process.env.PORT, 10) || 3000,
   corsOrigins: parseOrigins(process.env.CORS_ORIGINS),

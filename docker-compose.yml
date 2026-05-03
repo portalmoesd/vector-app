@@ -15,6 +15,7 @@ services:
       AUTH_RATE_LIMIT_MAX: 20
       WORKFLOW_UPLOAD_MAX_MB: 50
       ADMIN_UPLOAD_MAX_MB: 50
+      JSON_BODY_LIMIT_MB: 10
       LOG_FORMAT: text
       JWT_SECRET: replace-this-with-a-long-random-secret-before-use
       CORS_ORIGINS: http://localhost:3000

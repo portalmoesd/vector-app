@@ -27,5 +27,6 @@ test('auth rate limit defaults protect login without extra setup', () => {
 test('upload limit defaults preserve current buyer capacity', () => {
   assert.equal(config.workflowUploadMaxMb, 50);
   assert.equal(config.adminUploadMaxMb, 50);
+  assert.equal(config.jsonBodyLimitMb, 10);
   assert.equal(config.megabytesToBytes(50), 50 * 1024 * 1024);
 });

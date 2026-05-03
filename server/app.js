@@ -31,7 +31,7 @@ function createApp(options = {}) {
     },
   }));
   app.use(corsErrorHandler);
-  app.use(express.json({ limit: '10mb' }));
+  app.use(express.json({ limit: `${config.jsonBodyLimitMb}mb` }));
   app.use(jsonErrorHandler);
 
   app.get('/api/health', (req, res) => {
