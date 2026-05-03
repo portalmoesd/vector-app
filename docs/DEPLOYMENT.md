@@ -57,6 +57,8 @@ For a local database-backed stack, use:
 docker compose up --build
 ```
 
+The image and compose service include a healthcheck against `GET /api/ready`, so the container reports unhealthy if PostgreSQL is not reachable after startup.
+
 ## Health check
 
 Use:
