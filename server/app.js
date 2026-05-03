@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const config = require('./config');
+const db = require('./db');
 const securityHeaders = require('./middleware/security-headers');
 const requestLogger = require('./middleware/request-logger');
 
@@ -34,6 +35,25 @@ function createApp(options = {}) {
       environment: config.isProduction ? 'production' : 'development',
       timestamp: new Date().toISOString(),
     });
+  });
+
+  app.get('/api/ready', async (req, res) => {
+    try {
+      await db.query('SELECT 1');
+      res.json({
+        ok: true,
+        service: 'vector-portal',
+        database: true,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      res.status(503).json({
+        ok: false,
+        service: 'vector-portal',
+        database: false,
+        timestamp: new Date().toISOString(),
+      });
+    }
   });
 
   app.use(express.static(path.join(__dirname, '../frontend')));

@@ -81,12 +81,14 @@ Recommended production shape:
 - PostgreSQL with tuned connection limits and backups.
 - Upload and dataset storage in PostgreSQL, with a later object-storage migration only if file volume grows beyond the database plan.
 - Health checks against `GET /api/health`.
+- Readiness checks against `GET /api/ready` where the hosting platform supports them.
 - Log collection for application errors and access patterns.
 
 ## Acceptance checklist
 
 - `npm test` passes.
 - `GET /api/health` returns `ok: true`.
+- `GET /api/ready` returns `ok: true` and `database: true`.
 - Production starts without default seed users.
 - A real administrator can log in and create users.
 - Role-based access checks prevent users from seeing unrelated events and sections.

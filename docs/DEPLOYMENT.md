@@ -32,7 +32,8 @@ Recommended baseline:
 - Node runs under a process manager such as systemd, PM2, Docker, or the buyer's orchestrator.
 - PostgreSQL has automated backups and enough storage headroom for uploaded files.
 - The application and database run on private infrastructure; only HTTPS is public.
-- `GET /api/health` is checked by the reverse proxy, load balancer, or monitoring system.
+- `GET /api/health` is checked for process liveness.
+- `GET /api/ready` is checked before routing traffic when the platform supports database-aware readiness checks.
 
 If multiple Node processes are used, keep all application instances pointed at the same PostgreSQL database. Uploaded files are currently stored in PostgreSQL, so no shared filesystem is required for workflow files. If upload volume grows heavily, plan a later move to object storage and keep the API contract stable for the frontend and future mobile app.
 
@@ -63,12 +64,20 @@ GET /api/health
 
 A healthy response returns JSON with `ok: true`.
 
+For deployment readiness, use:
+
+```text
+GET /api/ready
+```
+
+This endpoint returns `ok: true` only when PostgreSQL responds to a lightweight query. It returns HTTP 503 when the database is unavailable.
+
 ## Buyer server transfer checklist
 
 - Create a PostgreSQL database and restricted database user.
 - Generate a new `JWT_SECRET`; do not reuse development secrets.
 - Configure HTTPS and the final public origin in `CORS_ORIGINS`.
 - Keep `ALLOW_DEFAULT_SEED_USERS=false`.
-- Run one startup and confirm `/api/health`.
+- Run one startup and confirm `/api/health` and `/api/ready`.
 - Create real administrator accounts and remove any demo accounts if they exist.
 - Confirm file upload/download, event creation, email draft opening, document export, and statistics pages.

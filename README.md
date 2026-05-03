@@ -38,4 +38,4 @@ The server applies the database schema on startup. Demo/default users are disabl
 
 ## Health check
 
-Use `GET /api/health` for load balancers, uptime monitors, and deployment verification.
+Use `GET /api/health` for liveness checks. Use `GET /api/ready` when a load balancer or deployment check must confirm PostgreSQL connectivity before sending traffic.

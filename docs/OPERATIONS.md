@@ -3,6 +3,7 @@
 ## Routine checks
 
 - `GET /api/health` returns `ok: true`.
+- `GET /api/ready` returns `ok: true` and `database: true`.
 - Application logs show successful schema migration during startup.
 - Request logs show method, URL, response status, and duration for non-health traffic.
 - PostgreSQL has current backups and enough disk space.
@@ -58,7 +59,8 @@ Avoid running production with default seed users, local-only database storage, o
 ## Incident response
 
 1. Check `/api/health`.
-2. Check server logs for startup, database, authentication, or route errors.
-3. Check PostgreSQL connectivity and disk space.
-4. Restart the Node process only after confirming the database is reachable.
-5. If data is missing or corrupted, stop writes and restore from the most recent verified backup.
+2. Check `/api/ready` to confirm whether PostgreSQL is reachable.
+3. Check server logs for startup, database, authentication, or route errors.
+4. Check PostgreSQL connectivity and disk space.
+5. Restart the Node process only after confirming the database is reachable.
+6. If data is missing or corrupted, stop writes and restore from the most recent verified backup.
