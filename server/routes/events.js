@@ -14,6 +14,7 @@ const {
   asIsoDate,
   validationError,
 } = require('../helpers/validation');
+const logger = require('../logger');
 
 const router = express.Router();
 const DS_ROLES = ['DEPUTY', 'SUPERVISOR', 'SUPER_COLLABORATOR'];
@@ -46,7 +47,9 @@ async function requireEventAccess(req, res, eventId) {
     return false;
   }
 
-  const { rows: [event] } = await db.query('SELECT id FROM events WHERE id = $1', [parsedEventId.value]);
+  const {
+    rows: [event],
+  } = await db.query('SELECT id FROM events WHERE id = $1', [parsedEventId.value]);
   if (!event) {
     res.status(404).json({ error: 'Event not found' });
     return false;
@@ -135,30 +138,32 @@ router.get('/', requireAuth, async (req, res) => {
        ORDER BY e.created_at DESC`,
       params
     );
-    res.json(rows.map(r => ({
-      id: r.id,
-      title: r.title,
-      countryId: r.country_id,
-      countryName: r.country_name,
-      countryCode: r.country_code,
-      documentSubmitterRole: r.document_submitter_role,
-      documentSubmitterId: r.document_submitter_id,
-      documentSubmitterName: r.document_submitter_name,
-      deputyId: r.deputy_id,
-      supervisorId: r.supervisor_id,
-      supervisorName: r.supervisor_name,
-      curatorRequired: r.curator_required,
-      workflowType: r.workflow_type,
-      language: r.language,
-      deadlineDate: r.deadline_date,
-      occasion: r.occasion,
-      isActive: r.is_active,
-      endedAt: r.ended_at,
-      status: r.status,
-      createdAt: r.created_at,
-    })));
+    res.json(
+      rows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        countryId: r.country_id,
+        countryName: r.country_name,
+        countryCode: r.country_code,
+        documentSubmitterRole: r.document_submitter_role,
+        documentSubmitterId: r.document_submitter_id,
+        documentSubmitterName: r.document_submitter_name,
+        deputyId: r.deputy_id,
+        supervisorId: r.supervisor_id,
+        supervisorName: r.supervisor_name,
+        curatorRequired: r.curator_required,
+        workflowType: r.workflow_type,
+        language: r.language,
+        deadlineDate: r.deadline_date,
+        occasion: r.occasion,
+        isActive: r.is_active,
+        endedAt: r.ended_at,
+        status: r.status,
+        createdAt: r.created_at,
+      }))
+    );
   } catch (err) {
-    console.error('List events error:', err);
+    logger.error({ err }, 'List events error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -205,19 +210,17 @@ router.post('/', requireAuth, denyAnalyst, async (req, res) => {
     const effectiveCuratorRequired = curatorRequired.value;
     const effectiveSupervisorId = workflowType === 'simple' ? null : supervisorId.value;
 
-    const { rows: [documentSubmitter] } = await db.query(
-      'SELECT id, role FROM users WHERE id = $1',
-      [documentSubmitterId.value]
-    );
+    const {
+      rows: [documentSubmitter],
+    } = await db.query('SELECT id, role FROM users WHERE id = $1', [documentSubmitterId.value]);
     if (!documentSubmitter || documentSubmitter.role !== documentSubmitterRole.value) {
       return res.status(422).json({ error: 'Document submitter does not match the selected role' });
     }
 
     if (deputyId.value) {
-      const { rows: [deputy] } = await db.query(
-        "SELECT id FROM users WHERE id = $1 AND role = 'DEPUTY'",
-        [deputyId.value]
-      );
+      const {
+        rows: [deputy],
+      } = await db.query("SELECT id FROM users WHERE id = $1 AND role = 'DEPUTY'", [deputyId.value]);
       if (!deputy) return res.status(422).json({ error: 'Invalid deputy user' });
     }
 
@@ -226,10 +229,9 @@ router.post('/', requireAuth, denyAnalyst, async (req, res) => {
     }
 
     if (effectiveSupervisorId) {
-      const { rows: [supervisor] } = await db.query(
-        "SELECT id FROM users WHERE id = $1 AND role = 'SUPERVISOR'",
-        [effectiveSupervisorId]
-      );
+      const {
+        rows: [supervisor],
+      } = await db.query("SELECT id FROM users WHERE id = $1 AND role = 'SUPERVISOR'", [effectiveSupervisorId]);
       if (!supervisor) return res.status(422).json({ error: 'Invalid responsible supervisor user' });
     }
 
@@ -304,39 +306,54 @@ router.post('/', requireAuth, denyAnalyst, async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      const { rows: [event] } = await client.query(
+      const {
+        rows: [event],
+      } = await client.query(
         `INSERT INTO events (title, country_id, document_submitter_role, document_submitter_id,
                              deputy_id, supervisor_id, curator_required, workflow_type, language,
                              deadline_date, occasion, created_by_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          RETURNING id`,
-        [title.value, countryId.value, documentSubmitterRole.value, documentSubmitterId.value,
-         deputyId.value, effectiveSupervisorId, effectiveCuratorRequired, workflowType,
-         language.value, deadlineDate.value, occasion.value, req.user.id]
+        [
+          title.value,
+          countryId.value,
+          documentSubmitterRole.value,
+          documentSubmitterId.value,
+          deputyId.value,
+          effectiveSupervisorId,
+          effectiveCuratorRequired,
+          workflowType,
+          language.value,
+          deadlineDate.value,
+          occasion.value,
+          req.user.id,
+        ]
       );
 
       if (parsedSections.value.length > 0) {
         for (let i = 0; i < parsedSections.value.length; i++) {
           const sec = parsedSections.value[i];
-          const { rows: [section] } = await client.query(
+          const {
+            rows: [section],
+          } = await client.query(
             'INSERT INTO sections (event_id, title, sort_order) VALUES ($1, $2, $3) RETURNING id',
             [event.id, sec.title, i]
           );
 
           if (sec.departmentIds && sec.departmentIds.length > 0) {
             for (const deptId of sec.departmentIds) {
-              await client.query(
-                'INSERT INTO section_departments (section_id, department_id) VALUES ($1, $2)',
-                [section.id, deptId]
-              );
+              await client.query('INSERT INTO section_departments (section_id, department_id) VALUES ($1, $2)', [
+                section.id,
+                deptId,
+              ]);
             }
           }
 
           // Create section_content row
-          await client.query(
-            'INSERT INTO section_content (event_id, section_id) VALUES ($1, $2)',
-            [event.id, section.id]
-          );
+          await client.query('INSERT INTO section_content (event_id, section_id) VALUES ($1, $2)', [
+            event.id,
+            section.id,
+          ]);
         }
       }
 
@@ -349,7 +366,7 @@ router.post('/', requireAuth, denyAnalyst, async (req, res) => {
       client.release();
     }
   } catch (err) {
-    console.error('Create event error:', err);
+    logger.error({ err }, 'Create event error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -367,7 +384,7 @@ router.get('/:id/notification-draft', requireAuth, denyAnalyst, async (req, res)
 
     res.json(draft);
   } catch (err) {
-    console.error('Notification draft error:', err);
+    logger.error({ err }, 'Notification draft error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -378,7 +395,9 @@ router.get('/:id', requireAuth, async (req, res) => {
     const eventId = await requireEventAccess(req, res, req.params.id);
     if (!eventId) return;
 
-    const { rows: [event] } = await db.query(
+    const {
+      rows: [event],
+    } = await db.query(
       `SELECT e.id, e.title, e.description, e.country_id, e.document_submitter_role,
               e.document_submitter_id, e.deputy_id, e.supervisor_id, e.curator_required,
               e.workflow_type,
@@ -432,7 +451,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       endedAt: event.ended_at,
       status: event.status,
       createdAt: event.created_at,
-      sections: sections.map(s => ({
+      sections: sections.map((s) => ({
         id: s.id,
         title: s.title,
         sortOrder: s.sort_order,
@@ -440,7 +459,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       })),
     });
   } catch (err) {
-    console.error('Get event error:', err);
+    logger.error({ err }, 'Get event error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -461,22 +480,26 @@ router.patch('/:id', requireAuth, denyAnalyst, async (req, res) => {
     if (req.body.title !== undefined) {
       const title = asTrimmedString(req.body.title, 'title', { required: true, max: 500 });
       if (title.error) return validationError(res, title.error);
-      sets.push(`title = $${idx++}`); params.push(title.value);
+      sets.push(`title = $${idx++}`);
+      params.push(title.value);
     }
     if (req.body.language !== undefined) {
       const language = asEnum(req.body.language, 'language', LANGUAGES);
       if (language.error) return validationError(res, language.error);
-      sets.push(`language = $${idx++}`); params.push(language.value);
+      sets.push(`language = $${idx++}`);
+      params.push(language.value);
     }
     if (req.body.deadlineDate !== undefined) {
       const deadlineDate = asIsoDate(req.body.deadlineDate, 'deadlineDate');
       if (deadlineDate.error) return validationError(res, deadlineDate.error);
-      sets.push(`deadline_date = $${idx++}`); params.push(deadlineDate.value);
+      sets.push(`deadline_date = $${idx++}`);
+      params.push(deadlineDate.value);
     }
     if (req.body.occasion !== undefined) {
       const occasion = asOptionalTrimmedString(req.body.occasion, 'occasion');
       if (occasion.error) return validationError(res, occasion.error);
-      sets.push(`occasion = $${idx++}`); params.push(occasion.value);
+      sets.push(`occasion = $${idx++}`);
+      params.push(occasion.value);
     }
 
     if (sets.length === 0) return res.status(400).json({ error: 'No fields to update' });
@@ -484,15 +507,12 @@ router.patch('/:id', requireAuth, denyAnalyst, async (req, res) => {
     sets.push(`updated_at = now()`);
     params.push(eventId);
 
-    const result = await db.query(
-      `UPDATE events SET ${sets.join(', ')} WHERE id = $${idx}`,
-      params
-    );
+    const result = await db.query(`UPDATE events SET ${sets.join(', ')} WHERE id = $${idx}`, params);
     if (result.rowCount === 0) return res.status(404).json({ error: 'Event not found' });
 
     res.json({ success: true });
   } catch (err) {
-    console.error('Edit event error:', err);
+    logger.error({ err }, 'Edit event error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -512,33 +532,34 @@ router.post('/:id/sections', requireAuth, denyAnalyst, async (req, res) => {
     if (!eventId) return;
 
     // Get max sort order
-    const { rows: [maxRow] } = await db.query(
-      'SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM sections WHERE event_id = $1',
-      [eventId]
-    );
+    const {
+      rows: [maxRow],
+    } = await db.query('SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM sections WHERE event_id = $1', [
+      eventId,
+    ]);
 
     const client = await db.pool.connect();
     try {
       await client.query('BEGIN');
 
-      const { rows: [section] } = await client.query(
-        'INSERT INTO sections (event_id, title, sort_order) VALUES ($1, $2, $3) RETURNING id',
-        [eventId, title.value, maxRow.next_order]
-      );
+      const {
+        rows: [section],
+      } = await client.query('INSERT INTO sections (event_id, title, sort_order) VALUES ($1, $2, $3) RETURNING id', [
+        eventId,
+        title.value,
+        maxRow.next_order,
+      ]);
 
       if (departmentIds.value.length > 0) {
         for (const deptId of departmentIds.value) {
-          await client.query(
-            'INSERT INTO section_departments (section_id, department_id) VALUES ($1, $2)',
-            [section.id, deptId]
-          );
+          await client.query('INSERT INTO section_departments (section_id, department_id) VALUES ($1, $2)', [
+            section.id,
+            deptId,
+          ]);
         }
       }
 
-      await client.query(
-        'INSERT INTO section_content (event_id, section_id) VALUES ($1, $2)',
-        [eventId, section.id]
-      );
+      await client.query('INSERT INTO section_content (event_id, section_id) VALUES ($1, $2)', [eventId, section.id]);
 
       await client.query('COMMIT');
       res.status(201).json({ id: section.id, success: true });
@@ -549,7 +570,7 @@ router.post('/:id/sections', requireAuth, denyAnalyst, async (req, res) => {
       client.release();
     }
   } catch (err) {
-    console.error('Add section error:', err);
+    logger.error({ err }, 'Add section error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -572,7 +593,7 @@ router.post('/:id/end', requireAuth, denyAnalyst, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error('End event error:', err);
+    logger.error({ err }, 'End event error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

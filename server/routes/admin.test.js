@@ -6,13 +6,11 @@ const db = require('../db');
 const adminRouter = require('./admin');
 
 function findRoute(method, path) {
-  const layer = adminRouter.stack.find((item) => (
-    item.route
-    && item.route.path === path
-    && item.route.methods[method.toLowerCase()]
-  ));
+  const layer = adminRouter.stack.find(
+    (item) => item.route && item.route.path === path && item.route.methods[method.toLowerCase()]
+  );
   assert.ok(layer, `${method} ${path} should be registered`);
-  return layer.route.stack.map(item => item.handle);
+  return layer.route.stack.map((item) => item.handle);
 }
 
 function mockResponse() {
@@ -112,7 +110,10 @@ test('POST /deputy-supervisor-links validates linked user roles', async () => {
 
     assert.equal(res.statusCode, 422);
     assert.equal(res.body.error, 'Invalid supervisor user');
-    assert.equal(mock.calls.some(call => /INSERT INTO deputy_supervisor_links/.test(call.sql)), false);
+    assert.equal(
+      mock.calls.some((call) => /INSERT INTO deputy_supervisor_links/.test(call.sql)),
+      false
+    );
   });
 });
 
@@ -131,7 +132,7 @@ test('POST /deputy-supervisor-links creates valid links', async () => {
 
     assert.equal(res.statusCode, 201);
     assert.deepEqual(res.body, { id: 55, success: true });
-    const insert = mock.calls.find(call => /INSERT INTO deputy_supervisor_links/.test(call.sql));
+    const insert = mock.calls.find((call) => /INSERT INTO deputy_supervisor_links/.test(call.sql));
     assert.deepEqual(insert.params, [10, 20]);
   });
 });

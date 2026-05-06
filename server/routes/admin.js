@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { asPositiveInt, validationError } = require('../helpers/validation');
+const logger = require('../logger');
 
 const router = express.Router();
 
@@ -20,16 +21,18 @@ router.get('/deputy-supervisor-links', requireAuth, requireRole('ADMIN'), async 
        LEFT JOIN departments dept ON dept.id = s.department_id
        ORDER BY d.full_name, s.full_name`
     );
-    res.json(rows.map(r => ({
-      id: r.id,
-      deputyId: r.deputy_id,
-      deputyName: r.deputy_name,
-      supervisorId: r.supervisor_id,
-      supervisorName: r.supervisor_name,
-      supervisorDepartment: r.supervisor_department,
-    })));
+    res.json(
+      rows.map((r) => ({
+        id: r.id,
+        deputyId: r.deputy_id,
+        deputyName: r.deputy_name,
+        supervisorId: r.supervisor_id,
+        supervisorName: r.supervisor_name,
+        supervisorDepartment: r.supervisor_department,
+      }))
+    );
   } catch (err) {
-    console.error('List links error:', err);
+    logger.error({ err }, 'List links error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -43,14 +46,14 @@ router.post('/deputy-supervisor-links', requireAuth, requireRole('ADMIN'), async
     if (supervisorId.error) return validationError(res, supervisorId.error);
 
     // Validate roles
-    const { rows: [deputy] } = await db.query(
-      "SELECT id FROM users WHERE id = $1 AND role = 'DEPUTY'", [deputyId.value]
-    );
+    const {
+      rows: [deputy],
+    } = await db.query("SELECT id FROM users WHERE id = $1 AND role = 'DEPUTY'", [deputyId.value]);
     if (!deputy) return res.status(422).json({ error: 'Invalid deputy user' });
 
-    const { rows: [supervisor] } = await db.query(
-      "SELECT id FROM users WHERE id = $1 AND role = 'SUPERVISOR'", [supervisorId.value]
-    );
+    const {
+      rows: [supervisor],
+    } = await db.query("SELECT id FROM users WHERE id = $1 AND role = 'SUPERVISOR'", [supervisorId.value]);
     if (!supervisor) return res.status(422).json({ error: 'Invalid supervisor user' });
 
     const { rows } = await db.query(
@@ -64,7 +67,7 @@ router.post('/deputy-supervisor-links', requireAuth, requireRole('ADMIN'), async
     if (err.code === '23505') {
       return res.status(409).json({ error: 'This link already exists' });
     }
-    console.error('Create link error:', err);
+    logger.error({ err }, 'Create link error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -74,13 +77,11 @@ router.delete('/deputy-supervisor-links/:id', requireAuth, requireRole('ADMIN'),
   try {
     const id = asPositiveInt(req.params.id, 'id');
     if (id.error) return validationError(res, id.error);
-    const result = await db.query(
-      'DELETE FROM deputy_supervisor_links WHERE id = $1', [id.value]
-    );
+    const result = await db.query('DELETE FROM deputy_supervisor_links WHERE id = $1', [id.value]);
     if (result.rowCount === 0) return res.status(404).json({ error: 'Link not found' });
     res.json({ success: true });
   } catch (err) {
-    console.error('Delete link error:', err);
+    logger.error({ err }, 'Delete link error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -117,14 +118,16 @@ router.get('/supervisors', requireAuth, async (req, res) => {
     }
 
     const { rows } = await db.query(query, params);
-    res.json(rows.map(r => ({
-      id: r.id,
-      fullName: r.full_name,
-      departmentId: r.department_id,
-      departmentName: r.department_name,
-    })));
+    res.json(
+      rows.map((r) => ({
+        id: r.id,
+        fullName: r.full_name,
+        departmentId: r.department_id,
+        departmentName: r.department_name,
+      }))
+    );
   } catch (err) {
-    console.error('Filter supervisors error:', err);
+    logger.error({ err }, 'Filter supervisors error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -134,9 +137,7 @@ router.get('/supervisors', requireAuth, async (req, res) => {
 // GET /api/admin/department-hierarchy — shows Dept → Supervisor(s) → SC(s) → Collaborator(s)
 router.get('/department-hierarchy', requireAuth, async (req, res) => {
   try {
-    const { rows: depts } = await db.query(
-      `SELECT id, name, name_en, is_external FROM departments ORDER BY name_en`
-    );
+    const { rows: depts } = await db.query(`SELECT id, name, name_en, is_external FROM departments ORDER BY name_en`);
     const { rows: users } = await db.query(
       `SELECT id, full_name, email, role, department_id
        FROM users
@@ -174,8 +175,8 @@ router.get('/department-hierarchy', requireAuth, async (req, res) => {
     }
 
     const hierarchy = depts
-      .filter(d => byDept[d.id] && byDept[d.id].length > 0)
-      .map(d => {
+      .filter((d) => byDept[d.id] && byDept[d.id].length > 0)
+      .map((d) => {
         const members = byDept[d.id] || [];
         return {
           departmentId: d.id,
@@ -183,15 +184,15 @@ router.get('/department-hierarchy', requireAuth, async (req, res) => {
           departmentNameEn: d.name_en,
           isExternal: d.is_external,
           deputies: Array.from(deptDeputies[d.id] || []),
-          supervisors: members.filter(u => u.role === 'SUPERVISOR'),
-          superCollaborators: members.filter(u => u.role === 'SUPER_COLLABORATOR'),
-          collaborators: members.filter(u => u.role === 'COLLABORATOR'),
+          supervisors: members.filter((u) => u.role === 'SUPERVISOR'),
+          superCollaborators: members.filter((u) => u.role === 'SUPER_COLLABORATOR'),
+          collaborators: members.filter((u) => u.role === 'COLLABORATOR'),
         };
       });
 
     res.json(hierarchy);
   } catch (err) {
-    console.error('Department hierarchy error:', err);
+    logger.error({ err }, 'Department hierarchy error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -204,13 +205,15 @@ router.get('/deputies', requireAuth, async (req, res) => {
       `SELECT id, full_name, department_id
        FROM users WHERE role = 'DEPUTY' ORDER BY full_name`
     );
-    res.json(rows.map(r => ({
-      id: r.id,
-      fullName: r.full_name,
-      departmentId: r.department_id,
-    })));
+    res.json(
+      rows.map((r) => ({
+        id: r.id,
+        fullName: r.full_name,
+        departmentId: r.department_id,
+      }))
+    );
   } catch (err) {
-    console.error('List deputies error:', err);
+    logger.error({ err }, 'List deputies error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -226,13 +229,15 @@ router.get('/all-supervisors', requireAuth, async (req, res) => {
        WHERE u.role = 'SUPERVISOR'
        ORDER BY u.full_name`
     );
-    res.json(rows.map(r => ({
-      id: r.id,
-      fullName: r.full_name,
-      departmentName: r.department_name,
-    })));
+    res.json(
+      rows.map((r) => ({
+        id: r.id,
+        fullName: r.full_name,
+        departmentName: r.department_name,
+      }))
+    );
   } catch (err) {
-    console.error('List all supervisors error:', err);
+    logger.error({ err }, 'List all supervisors error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -251,9 +256,7 @@ router.get('/linked-deputies', requireAuth, async (req, res) => {
       ));
     } else if (role === 'DEPUTY') {
       // Only themselves
-      ({ rows } = await db.query(
-        `SELECT id, full_name, department_id FROM users WHERE id = $1`, [id]
-      ));
+      ({ rows } = await db.query(`SELECT id, full_name, department_id FROM users WHERE id = $1`, [id]));
     } else if (role === 'SUPERVISOR') {
       // Deputies linked to this supervisor
       ({ rows } = await db.query(
@@ -261,7 +264,8 @@ router.get('/linked-deputies', requireAuth, async (req, res) => {
          FROM deputy_supervisor_links dsl
          JOIN users u ON u.id = dsl.deputy_id
          WHERE dsl.supervisor_id = $1
-         ORDER BY u.full_name`, [id]
+         ORDER BY u.full_name`,
+        [id]
       ));
     } else if (role === 'SUPER_COLLABORATOR') {
       // Deputies linked to supervisors in the same department
@@ -271,19 +275,22 @@ router.get('/linked-deputies', requireAuth, async (req, res) => {
          JOIN users u ON u.id = dsl.deputy_id
          JOIN users s ON s.id = dsl.supervisor_id
          WHERE s.department_id = $1
-         ORDER BY u.full_name`, [departmentId]
+         ORDER BY u.full_name`,
+        [departmentId]
       ));
     } else {
       rows = [];
     }
 
-    res.json(rows.map(r => ({
-      id: r.id,
-      fullName: r.full_name,
-      departmentId: r.department_id,
-    })));
+    res.json(
+      rows.map((r) => ({
+        id: r.id,
+        fullName: r.full_name,
+        departmentId: r.department_id,
+      }))
+    );
   } catch (err) {
-    console.error('Linked deputies error:', err);
+    logger.error({ err }, 'Linked deputies error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -310,7 +317,8 @@ router.get('/linked-supervisors', requireAuth, async (req, res) => {
          JOIN users u ON u.id = dsl.supervisor_id
          LEFT JOIN departments d ON d.id = u.department_id
          WHERE dsl.deputy_id = $1
-         ORDER BY u.full_name`, [id]
+         ORDER BY u.full_name`,
+        [id]
       ));
     } else if (role === 'SUPERVISOR') {
       // Only themselves
@@ -318,7 +326,8 @@ router.get('/linked-supervisors', requireAuth, async (req, res) => {
         `SELECT u.id, u.full_name, d.name_en AS department_name
          FROM users u
          LEFT JOIN departments d ON d.id = u.department_id
-         WHERE u.id = $1`, [id]
+         WHERE u.id = $1`,
+        [id]
       ));
     } else if (role === 'SUPER_COLLABORATOR') {
       // Supervisors in the same department
@@ -327,19 +336,22 @@ router.get('/linked-supervisors', requireAuth, async (req, res) => {
          FROM users u
          LEFT JOIN departments d ON d.id = u.department_id
          WHERE u.role = 'SUPERVISOR' AND u.department_id = $1
-         ORDER BY u.full_name`, [departmentId]
+         ORDER BY u.full_name`,
+        [departmentId]
       ));
     } else {
       rows = [];
     }
 
-    res.json(rows.map(r => ({
-      id: r.id,
-      fullName: r.full_name,
-      departmentName: r.department_name,
-    })));
+    res.json(
+      rows.map((r) => ({
+        id: r.id,
+        fullName: r.full_name,
+        departmentName: r.department_name,
+      }))
+    );
   } catch (err) {
-    console.error('Linked supervisors error:', err);
+    logger.error({ err }, 'Linked supervisors error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -370,7 +382,8 @@ router.get('/linked-super-collaborators', requireAuth, async (req, res) => {
              JOIN users s ON s.id = dsl.supervisor_id
              WHERE dsl.deputy_id = $1 AND s.department_id IS NOT NULL
            )
-         ORDER BY u.full_name`, [id]
+         ORDER BY u.full_name`,
+        [id]
       ));
     } else if (role === 'SUPERVISOR') {
       // SCs in the same department
@@ -379,7 +392,8 @@ router.get('/linked-super-collaborators', requireAuth, async (req, res) => {
          FROM users u
          LEFT JOIN departments d ON d.id = u.department_id
          WHERE u.role = 'SUPER_COLLABORATOR' AND u.department_id = $1
-         ORDER BY u.full_name`, [departmentId]
+         ORDER BY u.full_name`,
+        [departmentId]
       ));
     } else if (role === 'SUPER_COLLABORATOR') {
       // Only themselves
@@ -387,19 +401,22 @@ router.get('/linked-super-collaborators', requireAuth, async (req, res) => {
         `SELECT u.id, u.full_name, d.name_en AS department_name
          FROM users u
          LEFT JOIN departments d ON d.id = u.department_id
-         WHERE u.id = $1`, [id]
+         WHERE u.id = $1`,
+        [id]
       ));
     } else {
       rows = [];
     }
 
-    res.json(rows.map(r => ({
-      id: r.id,
-      fullName: r.full_name,
-      departmentName: r.department_name,
-    })));
+    res.json(
+      rows.map((r) => ({
+        id: r.id,
+        fullName: r.full_name,
+        departmentName: r.department_name,
+      }))
+    );
   } catch (err) {
-    console.error('Linked super-collaborators error:', err);
+    logger.error({ err }, 'Linked super-collaborators error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -415,13 +432,15 @@ router.get('/all-super-collaborators', requireAuth, async (req, res) => {
        WHERE u.role = 'SUPER_COLLABORATOR'
        ORDER BY u.full_name`
     );
-    res.json(rows.map(r => ({
-      id: r.id,
-      fullName: r.full_name,
-      departmentName: r.department_name,
-    })));
+    res.json(
+      rows.map((r) => ({
+        id: r.id,
+        fullName: r.full_name,
+        departmentName: r.department_name,
+      }))
+    );
   } catch (err) {
-    console.error('List all super-collaborators error:', err);
+    logger.error({ err }, 'List all super-collaborators error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

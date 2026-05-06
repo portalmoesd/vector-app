@@ -59,11 +59,21 @@ const Api = {
     return data;
   },
 
-  get(path) { return this.request('GET', path); },
-  post(path, body) { return this.request('POST', path, body); },
-  put(path, body) { return this.request('PUT', path, body); },
-  patch(path, body) { return this.request('PATCH', path, body); },
-  delete(path) { return this.request('DELETE', path); },
+  get(path) {
+    return this.request('GET', path);
+  },
+  post(path, body) {
+    return this.request('POST', path, body);
+  },
+  put(path, body) {
+    return this.request('PUT', path, body);
+  },
+  patch(path, body) {
+    return this.request('PATCH', path, body);
+  },
+  delete(path) {
+    return this.request('DELETE', path);
+  },
 };
 
 async function readDownloadError(response) {
@@ -87,13 +97,16 @@ function notifyDownloadError(message) {
 
 function downloadFileAuth(fileId, fileName) {
   fetch('/api/workflow/files/download?id=' + encodeURIComponent(fileId), {
-    headers: { 'Authorization': 'Bearer ' + Api.getToken() },
+    headers: { Authorization: 'Bearer ' + Api.getToken() },
   })
-    .then(r => {
-      if (!r.ok) return readDownloadError(r).then(message => { throw new Error(message); });
+    .then((r) => {
+      if (!r.ok)
+        return readDownloadError(r).then((message) => {
+          throw new Error(message);
+        });
       return r.blob();
     })
-    .then(blob => {
+    .then((blob) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -103,5 +116,5 @@ function downloadFileAuth(fileId, fileName) {
       a.remove();
       URL.revokeObjectURL(url);
     })
-    .catch(err => notifyDownloadError(err.message));
+    .catch((err) => notifyDownloadError(err.message));
 }

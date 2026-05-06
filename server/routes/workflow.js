@@ -4,12 +4,9 @@ const { requireAuth, denyAnalyst } = require('../middleware/auth');
 const { ROLES } = require('../helpers/roles');
 const { canAccessEvent, canAccessSection } = require('../helpers/access');
 const { checkEventCompletion } = require('../helpers/event-completion');
-const {
-  asOptionalTrimmedString,
-  asPositiveInt,
-  asTrimmedString,
-  validationError,
-} = require('../helpers/validation');
+const { asOptionalTrimmedString, asPositiveInt, asTrimmedString, validationError } = require('../helpers/validation');
+const logger = require('../logger');
+const { sanitize } = require('../helpers/sanitize');
 const {
   STATUS,
   baseRole,
@@ -25,8 +22,10 @@ const {
   canPullSection,
 } = require('../helpers/pipeline');
 
+const { MAX_EDITOR_HTML_LENGTH } = require('../helpers/constants');
+const { resolveHomeDepartmentId } = require('../helpers/home-department');
+
 const router = express.Router();
-const MAX_EDITOR_HTML_LENGTH = 2000000;
 
 function parseEventSectionBody(req, res) {
   const eventId = asPositiveInt(req.body.eventId, 'eventId');
@@ -63,9 +62,9 @@ function parseOptionalNote(value, field) {
 // ─── Helper: resolve user full name + department from DB ──────────────────────
 // JWT doesn't carry full_name, so we look it up for history/audit records.
 async function resolveUser(jwtUser) {
-  const { rows: [row] } = await db.query(
-    'SELECT full_name, department_id FROM users WHERE id = $1', [jwtUser.id]
-  );
+  const {
+    rows: [row],
+  } = await db.query('SELECT full_name, department_id FROM users WHERE id = $1', [jwtUser.id]);
   return {
     ...jwtUser,
     full_name: row ? row.full_name : jwtUser.username,
@@ -76,7 +75,9 @@ async function resolveUser(jwtUser) {
 // ─── Helper: load section context ─────────────────────────────────────────────
 
 async function loadSectionContext(eventId, sectionId, jwtUser) {
-  const { rows: [event] } = await db.query(
+  const {
+    rows: [event],
+  } = await db.query(
     `SELECT id, document_submitter_role, document_submitter_id, deputy_id,
             supervisor_id, curator_required, workflow_type, country_id,
             status AS event_status
@@ -85,7 +86,9 @@ async function loadSectionContext(eventId, sectionId, jwtUser) {
   );
   if (!event) return null;
 
-  const { rows: [sc] } = await db.query(
+  const {
+    rows: [sc],
+  } = await db.query(
     `SELECT status, original_submitter_role, return_target_role, last_updated_by_user_id
      FROM section_content WHERE event_id = $1 AND section_id = $2`,
     [eventId, sectionId]
@@ -96,26 +99,12 @@ async function loadSectionContext(eventId, sectionId, jwtUser) {
     return { forbidden: true };
   }
 
-  // Determine if section has cross-department assignments.
-  // For Deputy DS, the "home department" is the Responsible Supervisor's
-  // department, since Deputies oversee multiple departments.
-  let dsDeptId = null;
-  if (event.document_submitter_role === 'DEPUTY' && event.supervisor_id) {
-    const { rows: [sv] } = await db.query(
-      'SELECT department_id FROM users WHERE id = $1', [event.supervisor_id]
-    );
-    dsDeptId = sv ? sv.department_id : null;
-  } else {
-    const { rows: [dsUser] } = await db.query(
-      'SELECT department_id FROM users WHERE id = $1', [event.document_submitter_id]
-    );
-    dsDeptId = dsUser ? dsUser.department_id : null;
-  }
-  const { rows: deptRows } = await db.query(
-    'SELECT department_id FROM section_departments WHERE section_id = $1', [sectionId]
-  );
-  const sectionDeptIds = deptRows.map(r => r.department_id);
-  const isCrossDept = sectionDeptIds.some(d => d !== dsDeptId);
+  const dsDeptId = await resolveHomeDepartmentId(event);
+  const { rows: deptRows } = await db.query('SELECT department_id FROM section_departments WHERE section_id = $1', [
+    sectionId,
+  ]);
+  const sectionDeptIds = deptRows.map((r) => r.department_id);
+  const isCrossDept = sectionDeptIds.some((d) => d !== dsDeptId);
 
   const workflowType = event.workflow_type || 'advanced';
   const chain = buildChain(event.document_submitter_role, event.curator_required, isCrossDept, workflowType);
@@ -128,8 +117,7 @@ async function loadSectionContext(eventId, sectionId, jwtUser) {
   // amendment.
   let userRole = null;
   if (jwtUser) {
-    if (sc.status === 'submitted_to_amending_ds'
-        && jwtUser.id === event.document_submitter_id) {
+    if (sc.status === 'submitted_to_amending_ds' && jwtUser.id === event.document_submitter_id) {
       userRole = 'AMENDING_DS';
     } else {
       userRole = await effectiveRole(jwtUser, event, sectionDeptIds, chain);
@@ -191,14 +179,14 @@ async function effectiveRole(user, event, sectionDeptIds, chain) {
       // Otherwise check if user is in the DS home department
       let homeDeptId = null;
       if (event.document_submitter_role === 'DEPUTY' && event.supervisor_id) {
-        const { rows: [sv] } = await db.query(
-          'SELECT department_id FROM users WHERE id = $1', [event.supervisor_id]
-        );
+        const {
+          rows: [sv],
+        } = await db.query('SELECT department_id FROM users WHERE id = $1', [event.supervisor_id]);
         homeDeptId = sv ? sv.department_id : null;
       } else {
-        const { rows: [dsUser] } = await db.query(
-          'SELECT department_id FROM users WHERE id = $1', [event.document_submitter_id]
-        );
+        const {
+          rows: [dsUser],
+        } = await db.query('SELECT department_id FROM users WHERE id = $1', [event.document_submitter_id]);
         homeDeptId = dsUser ? dsUser.department_id : null;
       }
       if (homeDeptId && userDeptId === homeDeptId) {
@@ -243,7 +231,7 @@ router.post('/save', requireAuth, denyAnalyst, async (req, res) => {
            last_content_edited_at = now(),
            last_content_edited_by_user_id = $2
        WHERE event_id = $3 AND section_id = $4`,
-      [htmlContent.value || '', req.user.id, eventId, sectionId]
+      [sanitize(htmlContent.value || ''), req.user.id, eventId, sectionId]
     );
 
     // Record in history
@@ -257,7 +245,7 @@ router.post('/save', requireAuth, denyAnalyst, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error('Save error:', err);
+    logger.error({ err }, 'Save error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -339,10 +327,7 @@ router.post('/submit', requireAuth, denyAnalyst, async (req, res) => {
     );
 
     // Clear any pending return requests for this section
-    await db.query(
-      'DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2',
-      [eventId, sectionId]
-    );
+    await db.query('DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2', [eventId, sectionId]);
 
     // Auto-complete the event if the simple-mode short-circuit just
     // fired and every section is now approved.
@@ -352,7 +337,7 @@ router.post('/submit', requireAuth, denyAnalyst, async (req, res) => {
 
     res.json({ success: true, newStatus: toStatus });
   } catch (err) {
-    console.error('Submit error:', err);
+    logger.error({ err }, 'Submit error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -410,13 +395,12 @@ router.post('/approve', requireAuth, denyAnalyst, async (req, res) => {
       await db.query(
         `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role, note)
          VALUES ($1, $2, 'approved', $3, $4, $5, $6, $7, $8)`,
-        [eventId, sectionId, fromStatus, toStatus, req.user.id,
-         resolvedUser.full_name, 'AMENDING_DS', comment.value]
+        [eventId, sectionId, fromStatus, toStatus, req.user.id, resolvedUser.full_name, 'AMENDING_DS', comment.value]
       );
-      await db.query(
-        'DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2',
-        [eventId, sectionId]
-      );
+      await db.query('DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2', [
+        eventId,
+        sectionId,
+      ]);
       await checkEventCompletion(db, eventId);
       return res.json({ success: true, newStatus: toStatus });
     }
@@ -466,15 +450,11 @@ router.post('/approve', requireAuth, denyAnalyst, async (req, res) => {
     await db.query(
       `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role, note)
        VALUES ($1, $2, 'approved', $3, $4, $5, $6, $7, $8)`,
-      [eventId, sectionId, fromStatus, toStatus, req.user.id,
-       resolvedUser.full_name, userRole, comment.value]
+      [eventId, sectionId, fromStatus, toStatus, req.user.id, resolvedUser.full_name, userRole, comment.value]
     );
 
     // Clear any pending return requests
-    await db.query(
-      'DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2',
-      [eventId, sectionId]
-    );
+    await db.query('DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2', [eventId, sectionId]);
 
     // If this was the final approval, check if all sections are approved → complete event
     if (isFinal) {
@@ -483,7 +463,7 @@ router.post('/approve', requireAuth, denyAnalyst, async (req, res) => {
 
     res.json({ success: true, newStatus: toStatus });
   } catch (err) {
-    console.error('Approve error:', err);
+    logger.error({ err }, 'Approve error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -551,19 +531,15 @@ router.post('/return', requireAuth, denyAnalyst, async (req, res) => {
     await db.query(
       `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role, note)
        VALUES ($1, $2, 'returned', $3, $4, $5, $6, $7, $8)`,
-      [eventId, sectionId, fromStatus, toStatus, req.user.id,
-       resolvedUser.full_name, userRole, comment.value]
+      [eventId, sectionId, fromStatus, toStatus, req.user.id, resolvedUser.full_name, userRole, comment.value]
     );
 
     // Clear any pending ask-to-return requests — the return fulfills them
-    await db.query(
-      'DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2',
-      [eventId, sectionId]
-    );
+    await db.query('DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2', [eventId, sectionId]);
 
     res.json({ success: true, newStatus: toStatus, returnTargetRole: returnTarget });
   } catch (err) {
-    console.error('Return error:', err);
+    logger.error({ err }, 'Return error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -589,7 +565,7 @@ router.post('/ask-to-return', requireAuth, denyAnalyst, async (req, res) => {
 
     // The user's effective role must be part of this section's chain
     if (!ctx.chain.includes(userRole)) {
-      return res.status(403).json({ error: 'You are not part of this section\'s approval chain' });
+      return res.status(403).json({ error: "You are not part of this section's approval chain" });
     }
 
     // The section must NOT be at the requester's stage (they can't ask-to-return their own stage)
@@ -610,21 +586,19 @@ router.post('/ask-to-return', requireAuth, denyAnalyst, async (req, res) => {
       `INSERT INTO section_return_requests
        (event_id, section_id, requested_by_user_id, requested_by_name, requested_by_role, broadcast_above_role, note)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [eventId, sectionId, req.user.id,
-       resolvedUser.full_name, userRole, userRole, note.value]
+      [eventId, sectionId, req.user.id, resolvedUser.full_name, userRole, userRole, note.value]
     );
 
     // Record history
     await db.query(
       `INSERT INTO section_history (event_id, section_id, action, from_status, to_status, user_id, user_name, user_role, note)
        VALUES ($1, $2, 'asked_to_return', $3, $3, $4, $5, $6, $7)`,
-      [eventId, sectionId, ctx.sectionStatus, req.user.id,
-       resolvedUser.full_name, userRole, note.value]
+      [eventId, sectionId, ctx.sectionStatus, req.user.id, resolvedUser.full_name, userRole, note.value]
     );
 
     res.json({ success: true });
   } catch (err) {
-    console.error('Ask-to-return error:', err);
+    logger.error({ err }, 'Ask-to-return error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -635,9 +609,7 @@ router.get('/return-requests', requireAuth, async (req, res) => {
   try {
     const eventId = asPositiveInt(req.query.event_id, 'event_id');
     if (eventId.error) return validationError(res, eventId.error);
-    const sectionId = req.query.section_id !== undefined
-      ? asPositiveInt(req.query.section_id, 'section_id')
-      : null;
+    const sectionId = req.query.section_id !== undefined ? asPositiveInt(req.query.section_id, 'section_id') : null;
     if (sectionId && sectionId.error) return validationError(res, sectionId.error);
     const allowed = sectionId
       ? await canAccessSection(req.user, eventId.value, sectionId.value)
@@ -659,19 +631,21 @@ router.get('/return-requests', requireAuth, async (req, res) => {
     query += ' ORDER BY created_at DESC';
 
     const { rows } = await db.query(query, params);
-    res.json(rows.map(r => ({
-      id: r.id,
-      eventId: r.event_id,
-      sectionId: r.section_id,
-      requestedByUserId: r.requested_by_user_id,
-      requestedByName: r.requested_by_name,
-      requestedByRole: r.requested_by_role,
-      broadcastAboveRole: r.broadcast_above_role,
-      note: r.note,
-      createdAt: r.created_at,
-    })));
+    res.json(
+      rows.map((r) => ({
+        id: r.id,
+        eventId: r.event_id,
+        sectionId: r.section_id,
+        requestedByUserId: r.requested_by_user_id,
+        requestedByName: r.requested_by_name,
+        requestedByRole: r.requested_by_role,
+        broadcastAboveRole: r.broadcast_above_role,
+        note: r.note,
+        createdAt: r.created_at,
+      }))
+    );
   } catch (err) {
-    console.error('Return requests error:', err);
+    logger.error({ err }, 'Return requests error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -684,20 +658,20 @@ router.post('/send-to-library', requireAuth, denyAnalyst, async (req, res) => {
     if (eventId.error) return validationError(res, eventId.error);
 
     // Verify user is the Document Submitter
-    const { rows: [event] } = await db.query(
-      'SELECT document_submitter_id, status FROM events WHERE id = $1', [eventId.value]
-    );
+    const {
+      rows: [event],
+    } = await db.query('SELECT document_submitter_id, status FROM events WHERE id = $1', [eventId.value]);
     if (!event) return res.status(404).json({ error: 'Event not found' });
     if (event.document_submitter_id !== req.user.id) {
       return res.status(403).json({ error: 'Only the Document Submitter can send to library' });
     }
 
     // Verify all sections are fully approved
-    const { rows: sections } = await db.query(
-      `SELECT sc.status FROM section_content sc WHERE sc.event_id = $1`, [eventId.value]
-    );
+    const { rows: sections } = await db.query(`SELECT sc.status FROM section_content sc WHERE sc.event_id = $1`, [
+      eventId.value,
+    ]);
 
-    const allApproved = sections.every(s => s.status.startsWith('approved_by_'));
+    const allApproved = sections.every((s) => s.status.startsWith('approved_by_'));
     if (!allApproved) {
       return res.status(400).json({ error: 'All sections must be approved before sending to library' });
     }
@@ -709,7 +683,7 @@ router.post('/send-to-library', requireAuth, denyAnalyst, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error('Send to library error:', err);
+    logger.error({ err }, 'Send to library error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -770,10 +744,7 @@ router.post('/push-section', requireAuth, denyAnalyst, async (req, res) => {
     );
 
     // Clear any pending return requests
-    await db.query(
-      'DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2',
-      [eventId, sectionId]
-    );
+    await db.query('DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2', [eventId, sectionId]);
 
     // Simple-mode push lands on approved_by_*, so trigger the same
     // auto-completion check as a final approval.
@@ -783,7 +754,7 @@ router.post('/push-section', requireAuth, denyAnalyst, async (req, res) => {
 
     res.json({ success: true, newStatus: toStatus });
   } catch (err) {
-    console.error('Push section error:', err);
+    logger.error({ err }, 'Push section error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -809,16 +780,16 @@ router.post('/pull-section', requireAuth, denyAnalyst, async (req, res) => {
     // Simple-mode DS pulls use the user's actual role (e.g. DEPUTY)
     // even though it isn't in the chain — that's the override that
     // canPullSection allows.
-    const pullingRole = (ctx.workflowType === 'simple' && isDS)
-      ? req.user.role
-      : userRole;
+    const pullingRole = ctx.workflowType === 'simple' && isDS ? req.user.role : userRole;
 
-    if (!canPullSection(pullingRole, ctx.chain, holder, {
-      workflowType: ctx.workflowType,
-      isDS,
-      status: ctx.sectionStatus,
-      eventStatus: ctx.event.event_status,
-    })) {
+    if (
+      !canPullSection(pullingRole, ctx.chain, holder, {
+        workflowType: ctx.workflowType,
+        isDS,
+        status: ctx.sectionStatus,
+        eventStatus: ctx.event.event_status,
+      })
+    ) {
       return res.status(400).json({ error: 'Pull is not available for this section' });
     }
 
@@ -828,12 +799,8 @@ router.post('/pull-section', requireAuth, denyAnalyst, async (req, res) => {
     // original approval history; only a separate "Amendment in
     // progress" indicator appears. Approve from this state finalises
     // the section as approved_by_<dsRole> — see /approve.
-    const isAmendmentPull = ctx.workflowType === 'simple'
-      && isDS
-      && ctx.sectionStatus.startsWith('approved_by_');
-    const toStatus = isAmendmentPull
-      ? 'submitted_to_amending_ds'
-      : submittedToStatus(pullingRole);
+    const isAmendmentPull = ctx.workflowType === 'simple' && isDS && ctx.sectionStatus.startsWith('approved_by_');
+    const toStatus = isAmendmentPull ? 'submitted_to_amending_ds' : submittedToStatus(pullingRole);
     const origRole = ctx.originalSubmitterRole || ctx.chain[0];
 
     await db.query(
@@ -864,14 +831,11 @@ router.post('/pull-section', requireAuth, denyAnalyst, async (req, res) => {
     );
 
     // Clear any pending return requests
-    await db.query(
-      'DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2',
-      [eventId, sectionId]
-    );
+    await db.query('DELETE FROM section_return_requests WHERE event_id = $1 AND section_id = $2', [eventId, sectionId]);
 
     res.json({ success: true, newStatus: toStatus });
   } catch (err) {
-    console.error('Pull section error:', err);
+    logger.error({ err }, 'Pull section error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -883,7 +847,9 @@ router.get('/status-grid', requireAuth, async (req, res) => {
     const eventId = asPositiveInt(req.query.event_id, 'event_id');
     if (eventId.error) return validationError(res, eventId.error);
 
-    const { rows: [event] } = await db.query(
+    const {
+      rows: [event],
+    } = await db.query(
       `SELECT id, document_submitter_role, document_submitter_id,
               deputy_id, supervisor_id, curator_required, workflow_type, country_id,
               status AS event_status
@@ -896,21 +862,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
     }
     const eventWorkflowType = event.workflow_type || 'advanced';
 
-    // Get "home department" for the receiving chain.
-    // For Deputy DS, use the Responsible Supervisor's department since
-    // Deputies oversee multiple departments.
-    let dsDeptId = null;
-    if (event.document_submitter_role === 'DEPUTY' && event.supervisor_id) {
-      const { rows: [sv] } = await db.query(
-        'SELECT department_id FROM users WHERE id = $1', [event.supervisor_id]
-      );
-      dsDeptId = sv ? sv.department_id : null;
-    } else {
-      const { rows: [dsUser] } = await db.query(
-        'SELECT department_id FROM users WHERE id = $1', [event.document_submitter_id]
-      );
-      dsDeptId = dsUser ? dsUser.department_id : null;
-    }
+    const dsDeptId = await resolveHomeDepartmentId(event);
 
     const { rows: sections } = await db.query(
       `SELECT s.id AS section_id, s.title AS section_label,
@@ -950,19 +902,75 @@ router.get('/status-grid', requireAuth, async (req, res) => {
       };
     }
 
-    // Get department assignments and actor names for each section
+    // Batch-load department assignments for all sections
+    const sectionIds = sections.map((s) => s.section_id);
+    const { rows: allDeptRows } = await db.query(
+      `SELECT sd.section_id, sd.department_id, d.name_en AS department_name
+       FROM section_departments sd
+       LEFT JOIN departments d ON d.id = sd.department_id
+       WHERE sd.section_id = ANY($1)`,
+      [sectionIds]
+    );
+    const deptsBySection = {};
+    for (const r of allDeptRows) {
+      if (!deptsBySection[r.section_id]) deptsBySection[r.section_id] = [];
+      deptsBySection[r.section_id].push(r);
+    }
+
+    // Batch-load latest return requests for all sections
+    const { rows: allReturnRequests } = await db.query(
+      `SELECT DISTINCT ON (section_id)
+         section_id, requested_by_name, requested_by_role, note, created_at
+       FROM section_return_requests
+       WHERE event_id = $1
+       ORDER BY section_id, created_at DESC`,
+      [eventId.value]
+    );
+    const returnRequestBySection = {};
+    for (const rr of allReturnRequests) {
+      returnRequestBySection[rr.section_id] = {
+        from: rr.requested_by_name,
+        fromRole: rr.requested_by_role,
+        note: rr.note,
+        at: rr.created_at,
+      };
+    }
+
+    // Batch-load latest return actions for all returned sections
+    const { rows: allReturnInfo } = await db.query(
+      `SELECT DISTINCT ON (section_id)
+         section_id, user_name, user_role, note, acted_at
+       FROM section_history
+       WHERE event_id = $1 AND action = 'returned'
+       ORDER BY section_id, acted_at DESC`,
+      [eventId.value]
+    );
+    const returnInfoBySection = {};
+    for (const ri of allReturnInfo) {
+      returnInfoBySection[ri.section_id] = {
+        from: ri.user_name,
+        fromRole: ri.user_role,
+        note: ri.note,
+        at: ri.acted_at,
+      };
+    }
+
+    // Pre-fetch the DS user for DEPUTY step resolution (one query instead of per-section)
+    let dsUser = null;
+    if (event.document_submitter_role === 'DEPUTY') {
+      const { rows: [u] } = await db.query('SELECT id, full_name FROM users WHERE id = $1', [event.document_submitter_id]);
+      dsUser = u || null;
+    }
+
+    // Cache curator lookups by department set to avoid duplicate queries
+    const curatorCache = new Map();
+
     const enrichedSections = [];
     for (const s of sections) {
-      const { rows: deptRows } = await db.query(
-        `SELECT sd.department_id, d.name_en AS department_name
-         FROM section_departments sd
-         LEFT JOIN departments d ON d.id = sd.department_id
-         WHERE sd.section_id = $1`,
-        [s.section_id]
-      );
-      const sectionDeptIds = deptRows.map(r => r.department_id);
-      const sectionDeptNames = deptRows.map(r => r.department_name).filter(Boolean);
-      const isCrossDept = sectionDeptIds.some(d => d !== dsDeptId);
+      const deptRows = deptsBySection[s.section_id] || [];
+      const sectionDeptIds = deptRows.map((r) => r.department_id);
+      const sectionDeptNames = deptRows.map((r) => r.department_name).filter(Boolean);
+      const isCrossDept = sectionDeptIds.some((d) => d !== dsDeptId);
       const chain = buildChain(event.document_submitter_role, event.curator_required, isCrossDept, eventWorkflowType);
 
       // Resolve actor names for each step in the chain
@@ -973,25 +981,35 @@ router.get('/status-grid', requireAuth, async (req, res) => {
         let deptName = null;
 
         if (step === 'CURATOR') {
-          // Find the deputy who oversees the section's department(s), excluding the DS.
-          // Deputies oversee multiple departments, so don't show a single department name.
-          const { rows: [dep] } = await db.query(
-            `SELECT u.id, u.full_name
-             FROM deputy_department_links ddl
-             JOIN users u ON u.id = ddl.deputy_id
-             WHERE ddl.department_id = ANY($1) AND u.id != $2
-             ORDER BY u.id LIMIT 1`,
-            [sectionDeptIds, event.document_submitter_id]);
-          if (dep) { actorName = dep.full_name; actorId = dep.id; deptName = null; }
+          const cacheKey = [...sectionDeptIds].sort().join(',');
+          if (curatorCache.has(cacheKey)) {
+            const cached = curatorCache.get(cacheKey);
+            actorName = cached.actorName;
+            actorId = cached.actorId;
+          } else {
+            const {
+              rows: [dep],
+            } = await db.query(
+              `SELECT u.id, u.full_name
+               FROM deputy_department_links ddl
+               JOIN users u ON u.id = ddl.deputy_id
+               WHERE ddl.department_id = ANY($1) AND u.id != $2
+               ORDER BY u.id LIMIT 1`,
+              [sectionDeptIds, event.document_submitter_id]
+            );
+            const result = dep ? { actorName: dep.full_name, actorId: dep.id } : { actorName: null, actorId: null };
+            curatorCache.set(cacheKey, result);
+            actorName = result.actorName;
+            actorId = result.actorId;
+          }
+          deptName = null;
         } else if (step === ROLES.DEPUTY && event.document_submitter_role === 'DEPUTY') {
-          // Deputy step = the Document Submitter themselves.
-          // Deputies oversee multiple departments, so don't show a single department name.
-          const { rows: [dep] } = await db.query(
-            `SELECT id, full_name FROM users WHERE id = $1`, [event.document_submitter_id]);
-          if (dep) { actorName = dep.full_name; actorId = dep.id; deptName = null; }
+          if (dsUser) {
+            actorName = dsUser.full_name;
+            actorId = dsUser.id;
+          }
+          deptName = null;
         } else {
-          // Multi-user roles (Collaborator, SC, Supervisor, Receiving_*):
-          // Only show name after someone actually acted — use history lookup.
           const hist = (historyActors[s.section_id] || {})[step];
           if (hist) {
             actorName = hist.actorName;
@@ -1007,53 +1025,11 @@ router.get('/status-grid', requireAuth, async (req, res) => {
       const status = s.status || 'draft';
       const holderRole = currentHolderRole(status, s.original_submitter_role, s.return_target_role, chain);
 
-      // Load return request for this section (if any)
-      const { rows: rrRows } = await db.query(
-        `SELECT requested_by_name, requested_by_role, note, created_at
-         FROM section_return_requests
-         WHERE event_id = $1 AND section_id = $2
-         ORDER BY created_at DESC LIMIT 1`,
-        [eventId.value, s.section_id]
-      );
-      const returnRequest = rrRows.length > 0 ? {
-        from: rrRows[0].requested_by_name,
-        fromRole: rrRows[0].requested_by_role,
-        note: rrRows[0].note,
-        at: rrRows[0].created_at,
-      } : null;
+      const returnRequest = returnRequestBySection[s.section_id] || null;
+      const returnInfo = status.startsWith('returned_by_') ? returnInfoBySection[s.section_id] || null : null;
 
-      // Load most recent return action for returned sections
-      let returnInfo = null;
-      if (status.startsWith('returned_by_')) {
-        const { rows: riRows } = await db.query(
-          `SELECT user_name, user_role, note, acted_at
-           FROM section_history
-           WHERE event_id = $1 AND section_id = $2 AND action = 'returned'
-           ORDER BY acted_at DESC LIMIT 1`,
-          [eventId.value, s.section_id]
-        );
-        if (riRows.length > 0) {
-          returnInfo = {
-            from: riRows[0].user_name,
-            fromRole: riRows[0].user_role,
-            note: riRows[0].note,
-            at: riRows[0].acted_at,
-          };
-        }
-      }
-
-      // Compute the requesting user's effective role for this section.
-      // While the section is under DS amendment (after a Library
-      // reopen), the DS holds the section under the synthetic
-      // 'AMENDING_DS' role so the existing
-      // "approve when status === submitted_to_<userRole>" pathway
-      // matches without further special-casing on the frontend.
-      const isAmendmentDS = status === 'submitted_to_amending_ds'
-        && req.user.id === event.document_submitter_id;
-      const userEffRole = isAmendmentDS
-        ? 'AMENDING_DS'
-        : await effectiveRole(req.user, event, sectionDeptIds, chain);
-
+      const isAmendmentDS = status === 'submitted_to_amending_ds' && req.user.id === event.document_submitter_id;
+      const userEffRole = isAmendmentDS ? 'AMENDING_DS' : await effectiveRole(req.user, event, sectionDeptIds, chain);
 
       enrichedSections.push({
         sectionId: s.section_id,
@@ -1071,7 +1047,14 @@ router.get('/status-grid', requireAuth, async (req, res) => {
         isCrossDept,
         chain,
         steps,
-        canPush: canPushSection(userEffRole, chain, isCrossDept, holderRole, s.last_updated_by_user_id != null && s.last_updated_by_user_id == req.user.id, eventWorkflowType),
+        canPush: canPushSection(
+          userEffRole,
+          chain,
+          isCrossDept,
+          holderRole,
+          s.last_updated_by_user_id != null && s.last_updated_by_user_id == req.user.id,
+          eventWorkflowType
+        ),
         canPull: canPullSection(userEffRole, chain, holderRole, {
           workflowType: eventWorkflowType,
           isDS: req.user.id === event.document_submitter_id,
@@ -1094,7 +1077,7 @@ router.get('/status-grid', requireAuth, async (req, res) => {
       sections: enrichedSections,
     });
   } catch (err) {
-    console.error('Status grid error:', err);
+    logger.error({ err }, 'Status grid error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1112,7 +1095,9 @@ router.get('/stage-users', requireAuth, async (req, res) => {
       return validationError(res, 'role must contain only uppercase letters and underscores');
     }
 
-    const { rows: [event] } = await db.query(
+    const {
+      rows: [event],
+    } = await db.query(
       `SELECT id, document_submitter_role, document_submitter_id,
               supervisor_id, curator_required, workflow_type, country_id
        FROM events WHERE id = $1`,
@@ -1124,27 +1109,14 @@ router.get('/stage-users', requireAuth, async (req, res) => {
     }
     const stageWorkflowType = event.workflow_type || 'advanced';
 
-    // Resolve home department (same logic as status-grid)
-    let dsDeptId = null;
-    if (event.document_submitter_role === 'DEPUTY' && event.supervisor_id) {
-      const { rows: [sup] } = await db.query(
-        'SELECT department_id FROM users WHERE id = $1', [event.supervisor_id]
-      );
-      dsDeptId = sup ? sup.department_id : null;
-    } else {
-      const { rows: [dsUser] } = await db.query(
-        'SELECT department_id FROM users WHERE id = $1', [event.document_submitter_id]
-      );
-      dsDeptId = dsUser ? dsUser.department_id : null;
-    }
+    const dsDeptId = await resolveHomeDepartmentId(event);
 
     // Section departments
-    const { rows: deptRows } = await db.query(
-      'SELECT department_id FROM section_departments WHERE section_id = $1',
-      [sectionId]
-    );
-    const sectionDeptIds = deptRows.map(r => r.department_id);
-    const isCrossDept = sectionDeptIds.some(d => d !== dsDeptId);
+    const { rows: deptRows } = await db.query('SELECT department_id FROM section_departments WHERE section_id = $1', [
+      sectionId,
+    ]);
+    const sectionDeptIds = deptRows.map((r) => r.department_id);
+    const isCrossDept = sectionDeptIds.some((d) => d !== dsDeptId);
     const chain = buildChain(event.document_submitter_role, event.curator_required, isCrossDept, stageWorkflowType);
 
     if (!chain.includes(role.value)) {
@@ -1208,14 +1180,14 @@ router.get('/stage-users', requireAuth, async (req, res) => {
 
     res.json({
       role: role.value,
-      users: users.map(u => ({
+      users: users.map((u) => ({
         id: u.id,
         fullName: u.full_name,
         departmentName: u.department_name,
       })),
     });
   } catch (err) {
-    console.error('Stage users error:', err);
+    logger.error({ err }, 'Stage users error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1231,7 +1203,9 @@ router.get('/section-content', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to access this section' });
     }
 
-    const { rows: [content] } = await db.query(
+    const {
+      rows: [content],
+    } = await db.query(
       `SELECT sc.html_content, sc.status, sc.last_content_edited_at,
               u.full_name AS last_edited_by
        FROM section_content sc
@@ -1249,7 +1223,7 @@ router.get('/section-content', requireAuth, async (req, res) => {
       lastEditedBy: content.last_edited_by,
     });
   } catch (err) {
-    console.error('Section content error:', err);
+    logger.error({ err }, 'Section content error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

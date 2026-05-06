@@ -21,7 +21,9 @@ Create `.env` from `.env.example` and set:
 - `ADMIN_UPLOAD_MAX_MB` - maximum size for each admin statistics upload.
 - `JSON_BODY_LIMIT_MB` - maximum JSON request size for editor saves and API requests.
 - `GEOSTAT_TLS_MODE` - `no-verify` for the current missing-intermediate workaround or `strict` after the certificate chain is trusted.
+- `LOG_LEVEL` - Pino log verbosity: `debug`, `info` (default), `warn`, `error`, `fatal`.
 - `LOG_FORMAT` - `text` for local development or `json` for structured production logs.
+- `STORAGE_BACKEND` - file storage implementation: `database` (default, PostgreSQL BYTEA).
 - `JWT_SECRET` - long random secret used for login tokens.
 - `PORT` - server port, usually `3000`.
 - `CORS_ORIGINS` - allowed browser origin in production.
@@ -38,7 +40,13 @@ Open `http://localhost:3000`.
 
 ## Database
 
-The server runs `server/schema.sql` on startup. The schema is idempotent, so it can be applied repeatedly. Startup also performs compatibility fixes for older databases and seeds reference departments/countries/templates when needed.
+The server runs `server/schema.sql` on startup. The schema is idempotent, so it can be applied repeatedly. Startup also runs pending migrations from `server/migrations/` and seeds reference departments/countries/templates when needed.
+
+To run migrations manually:
+
+```bash
+npm run migrate
+```
 
 For a production buyer environment, create real administrator accounts through an approved provisioning process. Default seeded users are intentionally blocked in production.
 
@@ -48,7 +56,7 @@ For a production buyer environment, create real administrator accounts through a
 npm test
 ```
 
-Tests cover deployment health and readiness, security headers, rate limiting, access helpers, validation helpers, event email draft resolution, event creation, workflow movement, comments, files, library, templates, users, departments, countries, sections, and section history.
+Tests cover deployment health and readiness, security headers, rate limiting, access helpers, validation helpers, event email draft resolution, event creation, workflow movement, comments, files, library, templates, users, departments, countries, sections, section history, and frontend utility functions.
 
 For the full local verification gate, run:
 

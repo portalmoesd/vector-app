@@ -36,7 +36,7 @@
     return;
   }
 
-  sectionInfo = grid.sections.find(s => s.sectionId === sectionId);
+  sectionInfo = grid.sections.find((s) => s.sectionId === sectionId);
   if (!sectionInfo) {
     document.getElementById('richEditorContainer').innerHTML =
       `<div class="msg msg-error" style="margin:24px;">${escapeHtml(I18n.tr('editor.errSectionNotFound'))}</div>`;
@@ -72,12 +72,23 @@
       if (anchorId) {
         const anchorSpan = document.querySelector(`.gcp-cmt-anchor[data-cmt-anchor-id="${anchorId}"]`);
         const popAnchor = anchorSpan || document.getElementById('addCmtBtn') || document.body;
-        const text = await GCP.ActionDialog.popoverPrompt(popAnchor, I18n.tr('editor.comment.addTitle'), { placeholder: I18n.tr('editor.comment.placeholder'), required: true, confirmLabel: I18n.tr('common.add'), confirmColor: '#3b82f6', fixed: true });
+        const text = await GCP.ActionDialog.popoverPrompt(popAnchor, I18n.tr('editor.comment.addTitle'), {
+          placeholder: I18n.tr('editor.comment.placeholder'),
+          required: true,
+          confirmLabel: I18n.tr('common.add'),
+          confirmColor: '#3b82f6',
+          fixed: true,
+        });
         if (text && text.trim()) {
           Api.post('/api/workflow/comments', {
-            eventId, sectionId, content: text.trim(), anchorId,
+            eventId,
+            sectionId,
+            content: text.trim(),
+            anchorId,
             htmlContent: richEditor.getHtml(),
-          }).then(() => loadComments()).catch(e => toast.error(I18n.tr('editor.comment.failed') + ' ' + e.message));
+          })
+            .then(() => loadComments())
+            .catch((e) => toast.error(I18n.tr('editor.comment.failed') + ' ' + e.message));
         } else {
           // Cancel — remove the anchor
           richEditor.removeCommentAnchor(anchorId);
@@ -91,20 +102,28 @@
           richEditor.removeCommentAnchor(anchorId);
           // Persist the HTML without the anchor so the highlight doesn't return on reload
           Api.post('/api/workflow/save', {
-            eventId, sectionId,
+            eventId,
+            sectionId,
             htmlContent: richEditor.getHtml(),
-          }).catch(e => console.error('Auto-save after anchor removal failed:', e));
+          }).catch((e) => console.error('Auto-save after anchor removal failed:', e));
         }
         loadComments();
-      } catch (e) { console.error('Delete comment failed:', e); }
+      } catch (e) {
+        console.error('Delete comment failed:', e);
+      }
     },
     async onReplyComment(parentId, text) {
       try {
         await Api.post('/api/workflow/comments', {
-          eventId, sectionId, content: text, parentId,
+          eventId,
+          sectionId,
+          content: text,
+          parentId,
         });
         loadComments();
-      } catch (e) { toast.error(I18n.tr('editor.comment.replyFailed') + ' ' + e.message); }
+      } catch (e) {
+        toast.error(I18n.tr('editor.comment.replyFailed') + ' ' + e.message);
+      }
     },
   });
 
@@ -213,9 +232,10 @@
     if (btnPullSection) btnPullSection.addEventListener('click', handlePullSection);
     const btnUpload = document.getElementById('btnUpload');
     if (btnUpload) btnUpload.addEventListener('click', handleFiles);
-    if (btnBack) btnBack.addEventListener('click', () => {
-      window.location.href = dashboardUrl(user.role);
-    });
+    if (btnBack)
+      btnBack.addEventListener('click', () => {
+        window.location.href = dashboardUrl(user.role);
+      });
   }
 
   // ── Workflow actions (use richEditor.getHtml() instead of contentEditable) ──
@@ -223,7 +243,8 @@
   async function handleSave() {
     try {
       await Api.post('/api/workflow/save', {
-        eventId, sectionId,
+        eventId,
+        sectionId,
         htmlContent: richEditor.getHtml(),
       });
       showNotification(I18n.tr('editor.saved'));
@@ -233,10 +254,17 @@
   }
 
   async function handleSubmit() {
-    if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmSubmit'), { confirmLabel: I18n.tr('common.submit'), confirmColor: '#3b82f6' })) return;
+    if (
+      !(await GCP.ActionDialog.confirm(I18n.tr('editor.confirmSubmit'), {
+        confirmLabel: I18n.tr('common.submit'),
+        confirmColor: '#3b82f6',
+      }))
+    )
+      return;
     try {
       await Api.post('/api/workflow/save', {
-        eventId, sectionId,
+        eventId,
+        sectionId,
         htmlContent: richEditor.getHtml(),
       });
       await Api.post('/api/workflow/submit', { eventId, sectionId });
@@ -248,7 +276,13 @@
   }
 
   async function handleApprove() {
-    if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmApprove'), { confirmLabel: I18n.tr('common.approve'), confirmColor: '#16a34a' })) return;
+    if (
+      !(await GCP.ActionDialog.confirm(I18n.tr('editor.confirmApprove'), {
+        confirmLabel: I18n.tr('common.approve'),
+        confirmColor: '#16a34a',
+      }))
+    )
+      return;
     try {
       await Api.post('/api/workflow/approve', { eventId, sectionId });
       showNotification(I18n.tr('editor.approved'));
@@ -260,7 +294,12 @@
 
   async function handleReturn() {
     const btn = document.getElementById('btnReturn');
-    const comment = await GCP.ActionDialog.popoverPrompt(btn, I18n.tr('editor.returnTitle'), { placeholder: I18n.tr('editor.returnPlaceholder'), required: true, confirmLabel: I18n.tr('common.return'), confirmColor: '#6d28d9' });
+    const comment = await GCP.ActionDialog.popoverPrompt(btn, I18n.tr('editor.returnTitle'), {
+      placeholder: I18n.tr('editor.returnPlaceholder'),
+      required: true,
+      confirmLabel: I18n.tr('common.return'),
+      confirmColor: '#6d28d9',
+    });
     if (!comment) return;
     try {
       await Api.post('/api/workflow/return', { eventId, sectionId, comment });
@@ -273,7 +312,12 @@
 
   async function handleAskReturn() {
     const btn = document.getElementById('btnAskReturn');
-    const note = await GCP.ActionDialog.popoverPrompt(btn, I18n.tr('editor.askReturnTitle'), { placeholder: I18n.tr('editor.askReturnPlaceholder'), required: true, confirmLabel: I18n.tr('editor.sendRequest'), confirmColor: '#a16207' });
+    const note = await GCP.ActionDialog.popoverPrompt(btn, I18n.tr('editor.askReturnTitle'), {
+      placeholder: I18n.tr('editor.askReturnPlaceholder'),
+      required: true,
+      confirmLabel: I18n.tr('editor.sendRequest'),
+      confirmColor: '#a16207',
+    });
     if (!note) return;
     try {
       await Api.post('/api/workflow/ask-to-return', { eventId, sectionId, note });
@@ -284,7 +328,13 @@
   }
 
   async function handlePushSection() {
-    if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPush'), { confirmLabel: I18n.tr('editor.pushSection'), confirmColor: '#6d28d9' })) return;
+    if (
+      !(await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPush'), {
+        confirmLabel: I18n.tr('editor.pushSection'),
+        confirmColor: '#6d28d9',
+      }))
+    )
+      return;
     try {
       await Api.post('/api/workflow/push-section', { eventId, sectionId });
       showNotification(I18n.tr('editor.pushed'));
@@ -295,7 +345,13 @@
   }
 
   async function handlePullSection() {
-    if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPull'), { confirmLabel: I18n.tr('editor.pullSection'), confirmColor: '#7c3aed' })) return;
+    if (
+      !(await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPull'), {
+        confirmLabel: I18n.tr('editor.pullSection'),
+        confirmColor: '#7c3aed',
+      }))
+    )
+      return;
     try {
       await Api.post('/api/workflow/pull-section', { eventId, sectionId });
       showNotification(I18n.tr('editor.pulled'));
@@ -317,22 +373,22 @@
   // ─── Files ──────────────────────────────────────────────────────────────────
 
   const FILE_ICONS = {
-    pdf:  { color: '#dc2626', label: 'PDF' },
-    doc:  { color: '#2563eb', label: 'DOC' },
+    pdf: { color: '#dc2626', label: 'PDF' },
+    doc: { color: '#2563eb', label: 'DOC' },
     docx: { color: '#2563eb', label: 'DOC' },
-    xls:  { color: '#16a34a', label: 'XLS' },
+    xls: { color: '#16a34a', label: 'XLS' },
     xlsx: { color: '#16a34a', label: 'XLS' },
-    ppt:  { color: '#ea580c', label: 'PPT' },
+    ppt: { color: '#ea580c', label: 'PPT' },
     pptx: { color: '#ea580c', label: 'PPT' },
-    jpg:  { color: '#7c3aed', label: 'IMG' },
+    jpg: { color: '#7c3aed', label: 'IMG' },
     jpeg: { color: '#7c3aed', label: 'IMG' },
-    png:  { color: '#7c3aed', label: 'IMG' },
-    gif:  { color: '#7c3aed', label: 'IMG' },
-    svg:  { color: '#7c3aed', label: 'SVG' },
-    zip:  { color: '#64748b', label: 'ZIP' },
-    rar:  { color: '#64748b', label: 'RAR' },
-    txt:  { color: '#475569', label: 'TXT' },
-    csv:  { color: '#16a34a', label: 'CSV' },
+    png: { color: '#7c3aed', label: 'IMG' },
+    gif: { color: '#7c3aed', label: 'IMG' },
+    svg: { color: '#7c3aed', label: 'SVG' },
+    zip: { color: '#64748b', label: 'ZIP' },
+    rar: { color: '#64748b', label: 'RAR' },
+    txt: { color: '#475569', label: 'TXT' },
+    csv: { color: '#16a34a', label: 'CSV' },
   };
 
   function fileIcon(filename) {
@@ -364,22 +420,26 @@
     try {
       const files = await Api.get(`/api/workflow/files/list?eventId=${eventId}&sectionId=${sectionId}`);
       if (countEl) {
-        countEl.textContent = files && files.length
-          ? `${files.length} ${I18n.tr(files.length === 1 ? 'editor.files.countOne' : 'editor.files.countMany')}`
-          : '';
+        countEl.textContent =
+          files && files.length
+            ? `${files.length} ${I18n.tr(files.length === 1 ? 'editor.files.countOne' : 'editor.files.countMany')}`
+            : '';
       }
       if (!files || files.length === 0) {
         list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">${escapeHtml(I18n.tr('editor.files.empty'))}</p>`;
         return;
       }
-      const dateLocale = (typeof I18n !== 'undefined' && I18n.getLocale && I18n.getLocale() === 'ka') ? 'ka-GE' : 'en-GB';
-      list.innerHTML = files.map(f => {
-        const name = escapeHtml(f.original_name);
-        const size = formatFileSize(f.size || 0);
-        const by = escapeHtml(f.uploaded_by_name || '');
-        const date = f.created_at ? new Date(f.created_at).toLocaleDateString(dateLocale, { day: '2-digit', month: 'short', year: 'numeric' }) : '';
-        const canDelete = f.uploaded_by_id === user.id || user.role === 'ADMIN';
-        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);">
+      const dateLocale = typeof I18n !== 'undefined' && I18n.getLocale && I18n.getLocale() === 'ka' ? 'ka-GE' : 'en-GB';
+      list.innerHTML = files
+        .map((f) => {
+          const name = escapeHtml(f.original_name);
+          const size = formatFileSize(f.size || 0);
+          const by = escapeHtml(f.uploaded_by_name || '');
+          const date = f.created_at
+            ? new Date(f.created_at).toLocaleDateString(dateLocale, { day: '2-digit', month: 'short', year: 'numeric' })
+            : '';
+          const canDelete = f.uploaded_by_id === user.id || user.role === 'ADMIN';
+          return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);">
           ${fileIcon(f.original_name)}
           <div style="flex:1;min-width:0;">
             <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${name}</div>
@@ -389,12 +449,17 @@
             <a href="#" onclick="downloadFileAuth(${f.id}, '${escapeHtml(f.original_name).replace(/'/g, "\\\\'")}'); return false;" style="padding:4px 10px;font-size:12px;border:1px solid var(--border-color);border-radius:6px;color:var(--text-muted);text-decoration:none;cursor:pointer;" title="${escapeHtml(I18n.tr('editor.files.download'))}">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </a>
-            ${canDelete ? `<button onclick="deleteFile(${f.id})" style="padding:4px 8px;font-size:12px;border:1px solid #fecaca;border-radius:6px;background:none;color:#dc2626;cursor:pointer;" title="${escapeHtml(I18n.tr('common.delete'))}">
+            ${
+              canDelete
+                ? `<button onclick="deleteFile(${f.id})" style="padding:4px 8px;font-size:12px;border:1px solid #fecaca;border-radius:6px;background:none;color:#dc2626;cursor:pointer;" title="${escapeHtml(I18n.tr('common.delete'))}">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
-            </button>` : ''}
+            </button>`
+                : ''
+            }
           </div>
         </div>`;
-      }).join('');
+        })
+        .join('');
     } catch (e) {
       list.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">${escapeHtml(I18n.tr('editor.files.loadFailed'))}</p>`;
     }
@@ -415,7 +480,7 @@
       const token = Api.getToken();
       const res = await fetch(`${API_BASE}/api/workflow/files/upload`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
       if (!res.ok) {
@@ -430,7 +495,7 @@
   }
 
   // Delete file
-  window.deleteFile = async function(id) {
+  window.deleteFile = async function (id) {
     if (!confirm(I18n.tr('editor.files.confirmDelete'))) return;
     try {
       await Api.post('/api/workflow/files/delete', { id });
@@ -475,7 +540,7 @@
       const comments = await Api.get(`/api/workflow/comments?event_id=${eventId}&section_id=${sectionId}`);
 
       // Feed comments into the editor's margin balloons
-      const editorComments = (comments || []).map(c => ({
+      const editorComments = (comments || []).map((c) => ({
         id: c.id,
         anchor_id: c.anchorId || null,
         parent_id: c.parentId || null,
@@ -510,22 +575,25 @@
   function formatHistoryDate(dateStr) {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
-    const locale = (typeof I18n !== 'undefined' && I18n.getLocale && I18n.getLocale() === 'ka') ? 'ka-GE' : 'en-GB';
+    const locale = typeof I18n !== 'undefined' && I18n.getLocale && I18n.getLocale() === 'ka' ? 'ka-GE' : 'en-GB';
     return d.toLocaleString(locale, {
-      day: '2-digit', month: 'short', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   }
 
   function actionColors() {
     return {
-      saved:           { bg: '#ede9fe', color: '#5b21b6', label: I18n.tr('editor.history.action.saved') },
-      submitted:       { bg: '#dbeafe', color: '#1d4ed8', label: I18n.tr('editor.history.action.submitted') },
-      approved:        { bg: '#dcfce7', color: '#15803d', label: I18n.tr('editor.history.action.approved') },
-      returned:        { bg: '#fee2e2', color: '#b91c1c', label: I18n.tr('editor.history.action.returned') },
+      saved: { bg: '#ede9fe', color: '#5b21b6', label: I18n.tr('editor.history.action.saved') },
+      submitted: { bg: '#dbeafe', color: '#1d4ed8', label: I18n.tr('editor.history.action.submitted') },
+      approved: { bg: '#dcfce7', color: '#15803d', label: I18n.tr('editor.history.action.approved') },
+      returned: { bg: '#fee2e2', color: '#b91c1c', label: I18n.tr('editor.history.action.returned') },
       asked_to_return: { bg: '#fef3c7', color: '#92400e', label: I18n.tr('editor.history.action.askedToReturn') },
-      pushed:          { bg: '#e0e7ff', color: '#4338ca', label: I18n.tr('editor.history.action.pushed') },
-      pulled:          { bg: '#e0e7ff', color: '#4338ca', label: I18n.tr('editor.history.action.pulled') },
+      pushed: { bg: '#e0e7ff', color: '#4338ca', label: I18n.tr('editor.history.action.pushed') },
+      pulled: { bg: '#e0e7ff', color: '#4338ca', label: I18n.tr('editor.history.action.pulled') },
     };
   }
 
@@ -564,7 +632,7 @@
       }
 
       // Build ordered stages — only show stages that have entries
-      const stageOrder = HISTORY_STAGES.map(s => s.role);
+      const stageOrder = HISTORY_STAGES.map((s) => s.role);
       const orderedRoles = [];
       for (const stage of HISTORY_STAGES) {
         if (byRole[stage.role]) orderedRoles.push(stage);
@@ -575,20 +643,23 @@
         }
       }
 
-      list.innerHTML = '<div class="sh-timeline">' + orderedRoles.map(stage => {
-        const entries = collapseEntries(byRole[stage.role]);
-        const eventsHtml = entries.map(h => {
-          const ac = ACTION_COLORS[h.action] || { bg: '#f1f5f9', color: '#475569', label: h.action };
-          const actor = escapeHtml(h.userName || I18n.tr('editor.history.unknownUser'));
-          const date = formatHistoryDate(h.actedAt);
-          const label = h.action === 'saved' && h._count > 1
-            ? `${ac.label} (\u00d7${h._count})` : ac.label;
+      list.innerHTML =
+        '<div class="sh-timeline">' +
+        orderedRoles
+          .map((stage) => {
+            const entries = collapseEntries(byRole[stage.role]);
+            const eventsHtml = entries
+              .map((h) => {
+                const ac = ACTION_COLORS[h.action] || { bg: '#f1f5f9', color: '#475569', label: h.action };
+                const actor = escapeHtml(h.userName || I18n.tr('editor.history.unknownUser'));
+                const date = formatHistoryDate(h.actedAt);
+                const label = h.action === 'saved' && h._count > 1 ? `${ac.label} (\u00d7${h._count})` : ac.label;
 
-          if (h.action === 'returned' || h.action === 'asked_to_return') {
-            const noteHtml = h.note
-              ? escapeHtml(h.note)
-              : `<span class="sh-return-note__empty">${escapeHtml(I18n.tr('editor.history.noComment'))}</span>`;
-            return `<div class="sh-event">
+                if (h.action === 'returned' || h.action === 'asked_to_return') {
+                  const noteHtml = h.note
+                    ? escapeHtml(h.note)
+                    : `<span class="sh-return-note__empty">${escapeHtml(I18n.tr('editor.history.noComment'))}</span>`;
+                  return `<div class="sh-event">
               <span class="sh-actor">${actor}</span>
               <details class="sh-return-details${h.action === 'asked_to_return' ? ' sh-return-details--ask' : ''}">
                 <summary>${escapeHtml(label)}</summary>
@@ -596,23 +667,26 @@
               </details>
               <span class="sh-date">${date}</span>
             </div>`;
-          }
+                }
 
-          return `<div class="sh-event">
+                return `<div class="sh-event">
             <span class="sh-actor">${actor}</span>
             <span class="sh-action-tag" style="background:${ac.bg};color:${ac.color}">${escapeHtml(label)}</span>
             <span class="sh-date">${date}</span>
           </div>`;
-        }).join('');
+              })
+              .join('');
 
-        return `<div class="sh-stage">
+            return `<div class="sh-stage">
           <div class="sh-dot"></div>
           <div class="sh-body">
             <div class="sh-stage-label">${escapeHtml(stageLabel(stage).toUpperCase())}</div>
             <div class="sh-events">${eventsHtml}</div>
           </div>
         </div>`;
-      }).join('') + '</div>';
+          })
+          .join('') +
+        '</div>';
     } catch (e) {
       console.error('Load history error:', e);
     }

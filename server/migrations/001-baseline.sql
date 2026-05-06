@@ -1,0 +1,1 @@
+-- Baseline: represents the current schema.sql state

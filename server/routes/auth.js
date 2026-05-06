@@ -6,6 +6,7 @@ const config = require('../config');
 const { requireAuth } = require('../middleware/auth');
 const { createRateLimit } = require('../middleware/rate-limit');
 const { asUsername, validationError } = require('../helpers/validation');
+const logger = require('../logger');
 
 const router = express.Router();
 const loginRateLimit = createRateLimit({
@@ -91,7 +92,7 @@ router.post('/login', loginRateLimit, async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Login error:', err);
+    logger.error({ err }, 'Login error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -122,7 +123,7 @@ router.post('/change-password', requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error('Change password error:', err);
+    logger.error({ err }, 'Change password error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -158,7 +159,7 @@ router.get('/me', requireAuth, async (req, res) => {
       mustChangePassword: user.must_change_password,
     });
   } catch (err) {
-    console.error('Get me error:', err);
+    logger.error({ err }, 'Get me error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

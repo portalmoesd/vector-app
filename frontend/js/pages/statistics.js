@@ -111,8 +111,20 @@
   let reportLocale = localStorage.getItem('statReportLocale') || I18n.getLocale() || 'ka';
 
   const TAB_LABELS = {
-    ka: { trade: 'ვაჭრობა', tourism: 'ტურიზმი', investments: 'ინვესტიციები', companies: 'კომპანიები', appendix: 'დანართი' },
-    en: { trade: 'Trade',    tourism: 'Tourism',  investments: 'Investments',  companies: 'Companies',  appendix: 'Appendix' },
+    ka: {
+      trade: 'ვაჭრობა',
+      tourism: 'ტურიზმი',
+      investments: 'ინვესტიციები',
+      companies: 'კომპანიები',
+      appendix: 'დანართი',
+    },
+    en: {
+      trade: 'Trade',
+      tourism: 'Tourism',
+      investments: 'Investments',
+      companies: 'Companies',
+      appendix: 'Appendix',
+    },
   };
   const SEARCH_PLACEHOLDER = {
     ka: 'ქვეყნის ძებნა...',
@@ -126,10 +138,10 @@
   // populated on successful completion.
   const pdfState = {
     country: null,
-    trade: null,      // { overview, prevYear, prevPrevYear, latestYear, latestMonth, periodLabel, monthNames, hasExport, hasImport, exportGrowing, importGrowing, exportProducts, importProducts, exportChange, importChange }
-    tourism: null,    // { hasData, quarterlyRows, annualRows }
+    trade: null, // { overview, prevYear, prevPrevYear, latestYear, latestMonth, periodLabel, monthNames, hasExport, hasImport, exportGrowing, importGrowing, exportProducts, importProducts, exportChange, importChange }
+    tourism: null, // { hasData, quarterlyRows, annualRows }
     investments: null, // { hasData, tableData }
-    appendix: null,   // { latestYear, latestMonth, columns, data } — multi-year trade matrix
+    appendix: null, // { latestYear, latestMonth, columns, data } — multi-year trade matrix
   };
 
   // ── Geostat API helpers (direct + proxy fallback) ────────────────────────
@@ -139,7 +151,9 @@
       try {
         const res = await fetch(`${GEOSTAT_API}${path}`);
         if (res.ok) return res.json();
-      } catch (_) { /* fall through to proxy */ }
+      } catch (_) {
+        /* fall through to proxy */
+      }
       useProxy = true;
     }
     const res = await fetch(`${PROXY_API}${path}`);
@@ -156,7 +170,9 @@
           body: JSON.stringify(body),
         });
         if (res.ok) return res.json();
-      } catch (_) { /* fall through to proxy */ }
+      } catch (_) {
+        /* fall through to proxy */
+      }
       useProxy = true;
     }
     const res = await fetch(`${PROXY_API}${path.replace('/get_data', '/trade-data')}`, {
@@ -185,20 +201,20 @@
     ]);
     if (enJson && enJson.success && enJson.data) {
       classDataEn = enJson.data;
-      for (const c of (enJson.data.countries || [])) {
+      for (const c of enJson.data.countries || []) {
         countryNameEnMap[c.value] = c.label.replace(/^\d+\s+/, '');
       }
     }
     if (kaJson && kaJson.success && kaJson.data) {
       classDataKa = kaJson.data;
-      for (const c of (kaJson.data.countries || [])) {
+      for (const c of kaJson.data.countries || []) {
         countryNameKaMap[c.value] = c.label.replace(/^\d+\s+/, '');
       }
     }
-    const primary = reportLocale === 'ka' ? (classDataKa || classDataEn) : (classDataEn || classDataKa);
+    const primary = reportLocale === 'ka' ? classDataKa || classDataEn : classDataEn || classDataKa;
     if (primary) {
       classData = primary;
-      countries = (primary.countries || []).map(c => {
+      countries = (primary.countries || []).map((c) => {
         const baseLabel = c.label.replace(/^\d+\s+/, '');
         const kaName = countryNameKaMap[c.value] || baseLabel;
         const enName = countryNameEnMap[c.value] || baseLabel;
@@ -247,7 +263,9 @@
           }
         }
         return false;
-      } catch (_) { return false; }
+      } catch (_) {
+        return false;
+      }
     }
 
     const [p1, p2] = await Promise.all([
@@ -263,12 +281,16 @@
     }
   }
 
-  try { await verifyLatestMonth(); } catch (_) { /* non-fatal */ }
+  try {
+    await verifyLatestMonth();
+  } catch (_) {
+    /* non-fatal */
+  }
 
   function applyReportLocaleToCountries() {
     const ka = reportLocale === 'ka';
     // Swap classData so month/year labels pick up the new locale.
-    classData = ka ? (classDataKa || classDataEn) : (classDataEn || classDataKa);
+    classData = ka ? classDataKa || classDataEn : classDataEn || classDataKa;
     for (const c of countries) {
       c.displayLabel = ka ? c.displayLabelKa : c.displayLabelEn;
     }
@@ -287,7 +309,10 @@
       const comma = line.indexOf(',');
       if (comma < 0) continue;
       const code = parseInt(line.slice(0, comma).trim(), 10);
-      const name = line.slice(comma + 1).trim().replace(/^"|"$/g, '');
+      const name = line
+        .slice(comma + 1)
+        .trim()
+        .replace(/^"|"$/g, '');
       if (code && name) hs4NameMap[code] = name;
     }
   } catch (err) {
@@ -300,7 +325,10 @@
       const comma = line.indexOf(',');
       if (comma < 0) continue;
       const code = parseInt(line.slice(0, comma).trim(), 10);
-      const name = line.slice(comma + 1).trim().replace(/^"|"$/g, '');
+      const name = line
+        .slice(comma + 1)
+        .trim()
+        .replace(/^"|"$/g, '');
       if (code && name) hs4NameMapEn[code] = name;
     }
   } catch (err) {
@@ -361,7 +389,7 @@
             i = end + 1;
           }
         }
-        const [nom, withCase, inCase, from, of_] = cells.map(s => (s || '').trim());
+        const [nom, withCase, inCase, from, of_] = cells.map((s) => (s || '').trim());
         if (nom) countryGrammar[nom] = { nom, withCase, inCase, from, of: of_ };
       }
     }
@@ -378,22 +406,20 @@
     return countryGrammar[nominative] || kaGrammarFallback(nominative || '');
   }
 
-
-
   const reportLangToggle = document.getElementById('reportLangToggle');
 
   function applyReportLocale(regenerate = true) {
     const ka = reportLocale === 'ka';
 
     // Tabs
-    document.querySelectorAll('.stat-tab').forEach(btn => {
+    document.querySelectorAll('.stat-tab').forEach((btn) => {
       const key = btn.dataset.tab;
       const label = TAB_LABELS[reportLocale] && TAB_LABELS[reportLocale][key];
       if (label) btn.textContent = label;
     });
 
     // Section h2 headings
-    document.querySelectorAll('[data-stat-heading]').forEach(h => {
+    document.querySelectorAll('[data-stat-heading]').forEach((h) => {
       const key = h.dataset.statHeading;
       const label = TAB_LABELS[reportLocale] && TAB_LABELS[reportLocale][key];
       if (label) h.textContent = label;
@@ -403,7 +429,7 @@
     searchInput.placeholder = SEARCH_PLACEHOLDER[reportLocale];
 
     // Loading spinner labels
-    document.querySelectorAll('.stat-loading-label').forEach(el => {
+    document.querySelectorAll('.stat-loading-label').forEach((el) => {
       el.textContent = LOADING_LABEL[reportLocale];
     });
 
@@ -416,7 +442,7 @@
 
     // Toggle button pressed state
     if (reportLangToggle) {
-      reportLangToggle.querySelectorAll('.stat-lang-toggle__btn').forEach(btn => {
+      reportLangToggle.querySelectorAll('.stat-lang-toggle__btn').forEach((btn) => {
         btn.classList.toggle('active', btn.dataset.reportLang === reportLocale);
       });
     }
@@ -461,16 +487,19 @@
   function renderDropdown(filter) {
     const q = (filter || '').toLowerCase();
     const filtered = q
-      ? countries.filter(c => c.displayLabel.toLowerCase().includes(q) || c.label.toLowerCase().includes(q))
+      ? countries.filter((c) => c.displayLabel.toLowerCase().includes(q) || c.label.toLowerCase().includes(q))
       : countries;
     const shown = filtered.slice(0, 50);
 
     if (shown.length === 0) {
       dropdown.innerHTML = `<div class="stat-dropdown__empty">${escapeHtml(I18n.tr('statistics.noResults'))}</div>`;
     } else {
-      dropdown.innerHTML = shown.map(c =>
-        `<div class="stat-dropdown__item${selectedCountry && selectedCountry.value === c.value ? ' selected' : ''}" data-value="${c.value}">${escapeHtml(c.displayLabel)}</div>`
-      ).join('');
+      dropdown.innerHTML = shown
+        .map(
+          (c) =>
+            `<div class="stat-dropdown__item${selectedCountry && selectedCountry.value === c.value ? ' selected' : ''}" data-value="${c.value}">${escapeHtml(c.displayLabel)}</div>`
+        )
+        .join('');
     }
     dropdown.classList.remove('hidden');
   }
@@ -482,7 +511,7 @@
     const item = e.target.closest('.stat-dropdown__item');
     if (!item) return;
     const val = Number(item.dataset.value);
-    selectedCountry = countries.find(c => c.value === val) || null;
+    selectedCountry = countries.find((c) => c.value === val) || null;
     if (selectedCountry) {
       searchInput.value = selectedCountry.displayLabel;
       countryValue.value = selectedCountry.value;
@@ -499,7 +528,7 @@
 
   // ── Tab navigation (scroll-to-section) ───────────────────────────────────
 
-  document.querySelectorAll('.stat-tab').forEach(tab => {
+  document.querySelectorAll('.stat-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
       const section = document.getElementById('section-' + tab.dataset.tab);
       if (section) section.scrollIntoView({ behavior: 'smooth' });
@@ -508,16 +537,20 @@
 
   // Scroll-spy: update active tab as the user scrolls past sections
   const sectionEls = document.querySelectorAll('.stat-section');
-  const scrollSpy = new IntersectionObserver(entries => {
-    for (const entry of entries) {
-      if (entry.isIntersecting) {
-        const tabName = entry.target.id.replace('section-', '');
-        document.querySelectorAll('.stat-tab').forEach(b =>
-          b.classList.toggle('active', b.dataset.tab === tabName));
+  const scrollSpy = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          const tabName = entry.target.id.replace('section-', '');
+          document
+            .querySelectorAll('.stat-tab')
+            .forEach((b) => b.classList.toggle('active', b.dataset.tab === tabName));
+        }
       }
-    }
-  }, { rootMargin: '-160px 0px -60% 0px' });
-  sectionEls.forEach(s => scrollSpy.observe(s));
+    },
+    { rootMargin: '-160px 0px -60% 0px' }
+  );
+  sectionEls.forEach((s) => scrollSpy.observe(s));
 
   // ── Determine latest available period ────────────────────────────────────
 
@@ -525,8 +558,8 @@
     if (cd.selected) {
       return { year: cd.selected.year, month: cd.selected.month };
     }
-    const years = (cd.year || []).map(y => y.value).sort((a, b) => b - a);
-    const months = (cd.month || []).map(m => m.value).sort((a, b) => b - a);
+    const years = (cd.year || []).map((y) => y.value).sort((a, b) => b - a);
+    const months = (cd.month || []).map((m) => m.value).sort((a, b) => b - a);
     return { year: years[0], month: months[0] };
   }
 
@@ -542,29 +575,45 @@
   // destroyed and rebuilt explicitly in restoreReportSnapshot.
   const SNAPSHOT_PANEL_IDS = [
     'tradeSummary',
-    'overviewHeader', 'overviewTable',
-    'exportHeader', 'exportTable',
-    'exportIncreaseHeader', 'exportIncreaseTable',
-    'exportDropHeader', 'exportDropTable',
-    'importHeader', 'importTable',
-    'importIncreaseHeader', 'importIncreaseTable',
-    'importDropHeader', 'importDropTable',
-    'turnoverChartHeader', 'dynamicsChartHeader',
-    'tourismSummary', 'tourismTable', 'tourismChartHeader',
-    'investmentsSummary', 'fdiTable', 'fdiChartHeader',
-    'fdiSectorsHeader', 'fdiSectorsTable',
+    'overviewHeader',
+    'overviewTable',
+    'exportHeader',
+    'exportTable',
+    'exportIncreaseHeader',
+    'exportIncreaseTable',
+    'exportDropHeader',
+    'exportDropTable',
+    'importHeader',
+    'importTable',
+    'importIncreaseHeader',
+    'importIncreaseTable',
+    'importDropHeader',
+    'importDropTable',
+    'turnoverChartHeader',
+    'dynamicsChartHeader',
+    'tourismSummary',
+    'tourismTable',
+    'tourismChartHeader',
+    'investmentsSummary',
+    'fdiTable',
+    'fdiChartHeader',
+    'fdiSectorsHeader',
+    'fdiSectorsTable',
     'companiesSummary',
-    'appendixHeader', 'appendixTable',
+    'appendixHeader',
+    'appendixTable',
   ];
   // Container rows whose `hidden` class we snapshot.
-  const SNAPSHOT_ROW_IDS = [
-    'tradeChartsRow', 'tourismRow', 'fdiRow', 'fdiSectorsCard',
-  ];
+  const SNAPSHOT_ROW_IDS = ['tradeChartsRow', 'tourismRow', 'fdiRow', 'fdiSectorsCard'];
   // Card-style headers — each lives inside a `.card` whose
   // `display` style is toggled by showCard / hideCard.
   const SNAPSHOT_CARD_HEADER_IDS = [
-    'exportHeader', 'exportIncreaseHeader', 'exportDropHeader',
-    'importHeader', 'importIncreaseHeader', 'importDropHeader',
+    'exportHeader',
+    'exportIncreaseHeader',
+    'exportDropHeader',
+    'importHeader',
+    'importIncreaseHeader',
+    'importDropHeader',
   ];
 
   function captureReportSnapshot() {
@@ -588,7 +637,7 @@
     // PDF builder consume. country / countryGrammar / countryNameEn
     // are rebound on restore from the live selectedCountry, so we
     // don't include them.
-    const clone = (v) => v == null ? v : structuredClone(v);
+    const clone = (v) => (v == null ? v : structuredClone(v));
     return {
       panels,
       rowHidden,
@@ -607,18 +656,38 @@
   function restoreReportSnapshot(snap) {
     // Tear down any live Chart.js instances bound to the canvases
     // we're about to repopulate.
-    try { if (turnoverChartInstance) turnoverChartInstance.destroy(); } catch (_) {}
-    try { if (dynamicsChartInstance) dynamicsChartInstance.destroy(); } catch (_) {}
-    try { if (tourismChartInstance) tourismChartInstance.destroy(); } catch (_) {}
-    try { if (fdiChartInstance) fdiChartInstance.destroy(); } catch (_) {}
+    try {
+      if (turnoverChartInstance) turnoverChartInstance.destroy();
+    } catch (_) {}
+    try {
+      if (dynamicsChartInstance) dynamicsChartInstance.destroy();
+    } catch (_) {}
+    try {
+      if (tourismChartInstance) tourismChartInstance.destroy();
+    } catch (_) {}
+    try {
+      if (fdiChartInstance) fdiChartInstance.destroy();
+    } catch (_) {}
     turnoverChartInstance = null;
     dynamicsChartInstance = null;
     tourismChartInstance = null;
     fdiChartInstance = null;
-    try { const c = Chart.getChart(turnoverChartCanvas); if (c) c.destroy(); } catch (_) {}
-    try { const c = Chart.getChart(dynamicsChartCanvas); if (c) c.destroy(); } catch (_) {}
-    try { const c = Chart.getChart(tourismChartCanvas);  if (c) c.destroy(); } catch (_) {}
-    try { const c = Chart.getChart(fdiChartCanvas);      if (c) c.destroy(); } catch (_) {}
+    try {
+      const c = Chart.getChart(turnoverChartCanvas);
+      if (c) c.destroy();
+    } catch (_) {}
+    try {
+      const c = Chart.getChart(dynamicsChartCanvas);
+      if (c) c.destroy();
+    } catch (_) {}
+    try {
+      const c = Chart.getChart(tourismChartCanvas);
+      if (c) c.destroy();
+    } catch (_) {}
+    try {
+      const c = Chart.getChart(fdiChartCanvas);
+      if (c) c.destroy();
+    } catch (_) {}
 
     // Restore panel HTML.
     for (const id of SNAPSHOT_PANEL_IDS) {
@@ -642,7 +711,7 @@
     // languages pick up the right declension forms.
     pdfState.country = selectedCountry;
     pdfState.countryNameEn = selectedCountry
-      ? (countryNameEnMap[selectedCountry.value] || selectedCountry.displayLabel)
+      ? countryNameEnMap[selectedCountry.value] || selectedCountry.displayLabel
       : null;
     pdfState.countryGrammar = selectedCountry
       ? grammarFor(selectedCountry.displayLabelKa || selectedCountry.displayLabel)
@@ -656,13 +725,25 @@
 
     // Re-instantiate the four charts from cached args / pdfState data.
     if (pdfState.trade && pdfState.trade.chartArgs) {
-      try { renderCharts(...pdfState.trade.chartArgs); } catch (e) { console.warn('[stats] trade chart replay failed', e); }
+      try {
+        renderCharts(...pdfState.trade.chartArgs);
+      } catch (e) {
+        console.warn('[stats] trade chart replay failed', e);
+      }
     }
     if (pdfState.tourism && pdfState.tourism.chartArgs) {
-      try { renderTourismChart(...pdfState.tourism.chartArgs, reportLocale === 'ka'); } catch (e) { console.warn('[stats] tourism chart replay failed', e); }
+      try {
+        renderTourismChart(...pdfState.tourism.chartArgs, reportLocale === 'ka');
+      } catch (e) {
+        console.warn('[stats] tourism chart replay failed', e);
+      }
     }
     if (pdfState.investments && pdfState.investments.tableData) {
-      try { renderFdiChart(pdfState.investments.tableData, reportLocale === 'ka'); } catch (e) { console.warn('[stats] fdi chart replay failed', e); }
+      try {
+        renderFdiChart(pdfState.investments.tableData, reportLocale === 'ka');
+      } catch (e) {
+        console.warn('[stats] fdi chart replay failed', e);
+      }
     }
   }
 
@@ -699,12 +780,7 @@
     renderAppendix(null, reportLocale === 'ka');
 
     const latest = classData ? detectLatestPeriod(classData) : null;
-    const tasks = [
-      generateReport(),
-      generateTourism(),
-      generateInvestments(),
-      generateCompanies(),
-    ];
+    const tasks = [generateReport(), generateTourism(), generateInvestments(), generateCompanies()];
     if (latest) tasks.push(generateAppendix(latest.year, latest.month));
 
     try {
@@ -738,30 +814,55 @@
 
     // Clear all sections and hide product cards
     const allHeaders = [
-      overviewHeader, exportHeader, exportIncreaseHeader, exportDropHeader,
-      importHeader, importIncreaseHeader, importDropHeader,
-      turnoverChartHeader, dynamicsChartHeader,
+      overviewHeader,
+      exportHeader,
+      exportIncreaseHeader,
+      exportDropHeader,
+      importHeader,
+      importIncreaseHeader,
+      importDropHeader,
+      turnoverChartHeader,
+      dynamicsChartHeader,
     ];
     const allTables = [
-      overviewTable, exportTable, exportIncreaseTable, exportDropTable,
-      importTable, importIncreaseTable, importDropTable,
+      overviewTable,
+      exportTable,
+      exportIncreaseTable,
+      exportDropTable,
+      importTable,
+      importIncreaseTable,
+      importDropTable,
     ];
     for (const el of allHeaders) el.innerHTML = '';
     for (const el of allTables) el.innerHTML = '';
 
     // Hide all product/change cards (they get shown when they have data)
     const hiddenCards = [
-      exportHeader, exportIncreaseHeader, exportDropHeader,
-      importHeader, importIncreaseHeader, importDropHeader,
+      exportHeader,
+      exportIncreaseHeader,
+      exportDropHeader,
+      importHeader,
+      importIncreaseHeader,
+      importDropHeader,
     ];
     for (const el of hiddenCards) hideCard(el);
 
-    try { if (turnoverChartInstance) turnoverChartInstance.destroy(); } catch (_) {}
+    try {
+      if (turnoverChartInstance) turnoverChartInstance.destroy();
+    } catch (_) {}
     turnoverChartInstance = null;
-    try { if (dynamicsChartInstance) dynamicsChartInstance.destroy(); } catch (_) {}
+    try {
+      if (dynamicsChartInstance) dynamicsChartInstance.destroy();
+    } catch (_) {}
     dynamicsChartInstance = null;
-    try { const ec1 = Chart.getChart(turnoverChartCanvas); if (ec1) ec1.destroy(); } catch (_) {}
-    try { const ec2 = Chart.getChart(dynamicsChartCanvas); if (ec2) ec2.destroy(); } catch (_) {}
+    try {
+      const ec1 = Chart.getChart(turnoverChartCanvas);
+      if (ec1) ec1.destroy();
+    } catch (_) {}
+    try {
+      const ec2 = Chart.getChart(dynamicsChartCanvas);
+      if (ec2) ec2.destroy();
+    } catch (_) {}
 
     try {
       const { year: latestYear, month: latestMonth } = detectLatestPeriod(classData);
@@ -770,15 +871,16 @@
       for (let m = 1; m <= latestMonth; m++) monthsYTD.push(m);
 
       const monthNames = classData.month || [];
-      const firstMonthName = monthNames.find(m => m.value === 1)?.label || 'Jan';
-      const lastMonthName = monthNames.find(m => m.value === latestMonth)?.label || `Month ${latestMonth}`;
-      const periodLabel = monthsYTD.length === 1
-        ? firstMonthName.slice(0, 3)
-        : `${firstMonthName.slice(0, 3)}-${lastMonthName.slice(0, 3)}`;
+      const firstMonthName = monthNames.find((m) => m.value === 1)?.label || 'Jan';
+      const lastMonthName = monthNames.find((m) => m.value === latestMonth)?.label || `Month ${latestMonth}`;
+      const periodLabel =
+        monthsYTD.length === 1
+          ? firstMonthName.slice(0, 3)
+          : `${firstMonthName.slice(0, 3)}-${lastMonthName.slice(0, 3)}`;
 
       const prevYear = latestYear - 1;
       const prevPrevYear = latestYear - 2;
-      const allMonths = [1,2,3,4,5,6,7,8,9,10,11,12];
+      const allMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
       const countryId = selectedCountry.value;
 
       // Chart years: 5 previous full years
@@ -819,10 +921,19 @@
 
       // Unpack overview & product table results (first 13)
       const [
-        expFullCurr, expFullPrev, expMonthCurr, expMonthPrev,
-        impFullCurr, impFullPrev, impMonthCurr, impMonthPrev,
-        expHsCurrent, expHsPrev, reexHsCurrent,
-        impHsCurrent, impHsPrev,
+        expFullCurr,
+        expFullPrev,
+        expMonthCurr,
+        expMonthPrev,
+        impFullCurr,
+        impFullPrev,
+        impMonthCurr,
+        impMonthPrev,
+        expHsCurrent,
+        expHsPrev,
+        reexHsCurrent,
+        impHsCurrent,
+        impHsPrev,
       ] = results;
 
       // Unpack chart year results (next chartYears.length * 2)
@@ -845,7 +956,7 @@
       // ── 1. Trade overview table ──────────────────────────────────────
       const overview = buildOverviewData(
         { expFull: expFullCurr, expFullPrev: expFullPrev, impFull: impFullCurr, impFullPrev: impFullPrev },
-        { expMonth: expMonthCurr, expMonthPrev: expMonthPrev, impMonth: impMonthCurr, impMonthPrev: impMonthPrev },
+        { expMonth: expMonthCurr, expMonthPrev: expMonthPrev, impMonth: impMonthCurr, impMonthPrev: impMonthPrev }
       );
       renderOverview(overview, prevYear, prevPrevYear, latestYear, latestMonth, periodLabel, monthNames);
 
@@ -857,20 +968,31 @@
       // the whole row instead.
       const sum = (arr) => arr.reduce((s, v) => s + (v || 0), 0);
       const hasAnyTrade =
-        sum(chartYearExports) > 0 || sum(chartYearImports) > 0 ||
-        sum(chartMonthExports) > 0 || sum(chartMonthImports) > 0 ||
-        overview.fullYear.export > 0 || overview.fullYear.import > 0 ||
-        overview.latestPeriod.export > 0 || overview.latestPeriod.import > 0;
+        sum(chartYearExports) > 0 ||
+        sum(chartYearImports) > 0 ||
+        sum(chartMonthExports) > 0 ||
+        sum(chartMonthImports) > 0 ||
+        overview.fullYear.export > 0 ||
+        overview.fullYear.import > 0 ||
+        overview.latestPeriod.export > 0 ||
+        overview.latestPeriod.import > 0;
 
       if (tradeChartsRowEl) tradeChartsRowEl.classList.toggle('hidden', !hasAnyTrade);
 
       // Stash for cache replay — language toggle re-runs renderCharts
       // from these without refetching.
-      const tradeChartArgs = hasAnyTrade ? [
-        chartYears, chartYearExports, chartYearImports,
-        monthsYTD, chartMonthExports, chartMonthImports,
-        latestYear, monthNames,
-      ] : null;
+      const tradeChartArgs = hasAnyTrade
+        ? [
+            chartYears,
+            chartYearExports,
+            chartYearImports,
+            monthsYTD,
+            chartMonthExports,
+            chartMonthImports,
+            latestYear,
+            monthNames,
+          ]
+        : null;
       if (tradeChartArgs) renderCharts(...tradeChartArgs);
 
       // Check if there was any export/import in the latest period
@@ -962,9 +1084,9 @@
         });
         const j = await rankRes.json().catch(() => null);
         if (rankRes.ok && j && j.success && j.country) {
-          const hasTurnover = !!(j.country.turnover);
-          const hasExport = !!(j.country.export);
-          const hasImport = !!(j.country.import);
+          const hasTurnover = !!j.country.turnover;
+          const hasExport = !!j.country.export;
+          const hasImport = !!j.country.import;
           if (hasTurnover || hasExport || hasImport) {
             ranking = { country: j.country, totals: j.totals };
           }
@@ -983,9 +1105,16 @@
       pdfState.countryGrammar = grammarFor(selectedCountry.displayLabelKa || selectedCountry.displayLabel);
       pdfState.trade = {
         overview,
-        prevYear, prevPrevYear, latestYear, latestMonth,
-        periodLabel, monthNames,
-        hasExport, hasImport, exportGrowing, importGrowing,
+        prevYear,
+        prevPrevYear,
+        latestYear,
+        latestMonth,
+        periodLabel,
+        monthNames,
+        hasExport,
+        hasImport,
+        exportGrowing,
+        importGrowing,
         exportProducts: hasExport ? buildProductList(expHsCurrent, expHsPrev, reexHsCurrent) : null,
         importProducts: hasImport ? buildProductList(impHsCurrent, impHsPrev, null) : null,
         exportChange: hasExport ? buildChangeLists(expHsCurrent, expHsPrev) : null,
@@ -1004,7 +1133,6 @@
       };
 
       renderTradeSummary(pdfState.trade, ranking, selectedCountry.displayLabel);
-
     } catch (err) {
       console.error('Report generation error:', err);
       overviewTable.innerHTML = `<div class="msg msg-error">${escapeHtml(I18n.tr('statistics.reportFailed'))} ${escapeHtml(err.message)}</div>`;
@@ -1133,26 +1261,56 @@
     const ov = trade.overview;
 
     const periodGen = isKa
-      ? (lm === 12 ? `${year} წლის` : lm === 1 ? `${year} წლის ${KA_MONTH_GEN[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_GEN[lm]}`)
-      : (lm === 12 ? `${year}` : lm === 1 ? `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)} ${year}` : `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)}-${(mn.find(m => m.value === lm)?.label || '').slice(0, 3)} ${year}`);
+      ? lm === 12
+        ? `${year} წლის`
+        : lm === 1
+          ? `${year} წლის ${KA_MONTH_GEN[1]}`
+          : `${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_GEN[lm]}`
+      : lm === 12
+        ? `${year}`
+        : lm === 1
+          ? `${(mn.find((m) => m.value === 1)?.label || 'Jan').slice(0, 3)} ${year}`
+          : `${(mn.find((m) => m.value === 1)?.label || 'Jan').slice(0, 3)}-${(mn.find((m) => m.value === lm)?.label || '').slice(0, 3)} ${year}`;
     const periodLoc = isKa
-      ? (lm === 12 ? `${year} წელს` : lm === 1 ? `${year} წლის ${KA_MONTH_LOC[1]}` : `${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_LOC[lm]}`)
+      ? lm === 12
+        ? `${year} წელს`
+        : lm === 1
+          ? `${year} წლის ${KA_MONTH_LOC[1]}`
+          : `${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_LOC[lm]}`
       : periodGen;
 
     // Expanded "no trade" period label: 5-year lookback + latest period
     // month range, e.g. "2021-2026 წლის იანვარ-თებერვლის".
     const startYear = trade.fiveYearStart || year;
     const periodGenRange = isKa
-      ? (lm === 12 ? `${startYear}-${year} წლების` : lm === 1 ? `${startYear}-${year} წლის ${KA_MONTH_GEN[1]}` : `${startYear}-${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_GEN[lm]}`)
-      : (lm === 12 ? `${startYear}-${year}` : lm === 1 ? `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)} ${startYear}-${year}` : `${(mn.find(m => m.value === 1)?.label || 'Jan').slice(0, 3)}-${(mn.find(m => m.value === lm)?.label || '').slice(0, 3)} ${startYear}-${year}`);
+      ? lm === 12
+        ? `${startYear}-${year} წლების`
+        : lm === 1
+          ? `${startYear}-${year} წლის ${KA_MONTH_GEN[1]}`
+          : `${startYear}-${year} წლის ${KA_MONTH_STEM[1]}-${KA_MONTH_GEN[lm]}`
+      : lm === 12
+        ? `${startYear}-${year}`
+        : lm === 1
+          ? `${(mn.find((m) => m.value === 1)?.label || 'Jan').slice(0, 3)} ${startYear}-${year}`
+          : `${(mn.find((m) => m.value === 1)?.label || 'Jan').slice(0, 3)}-${(mn.find((m) => m.value === lm)?.label || '').slice(0, 3)} ${startYear}-${year}`;
 
-    function b(s) { return `<strong>${escapeHtml(s)}</strong>`; }
-    function i(s) { return `<em>${escapeHtml(s)}</em>`; }
-    function fmln(v) { return formatMln2(Math.abs(v)); }
-    function pctI(x) { return Math.round(Math.abs(x)); }
-    function pctO(x) { return (Math.round(x * 10) / 10).toFixed(1); }
+    function b(s) {
+      return `<strong>${escapeHtml(s)}</strong>`;
+    }
+    function i(s) {
+      return `<em>${escapeHtml(s)}</em>`;
+    }
+    function fmln(v) {
+      return formatMln2(Math.abs(v));
+    }
+    function pctI(x) {
+      return Math.round(Math.abs(x));
+    }
+    function pctO(x) {
+      return (Math.round(x * 10) / 10).toFixed(1);
+    }
     function chg(cur, prev) {
-      const c = cur && prev ? ((cur - prev) / Math.abs(prev)) * 100 : (cur > 0 ? 100 : 0);
+      const c = cur && prev ? ((cur - prev) / Math.abs(prev)) * 100 : cur > 0 ? 100 : 0;
       const abs = pctI(c);
       if (isKa) return b(`${c >= 0 ? 'გაიზარდა' : 'შემცირდა'} ${abs}%-ით`);
       return b(`${c >= 0 ? 'increased' : 'decreased'} by ${abs}%`);
@@ -1165,25 +1323,43 @@
       return `${r}-ე`;
     }
     function enO(r) {
-      const n = Math.abs(r); const m = n % 100;
+      const n = Math.abs(r);
+      const m = n % 100;
       if (m >= 11 && m <= 13) return `${n}th`;
-      switch (n % 10) { case 1: return `${n}st`; case 2: return `${n}nd`; case 3: return `${n}rd`; default: return `${n}th`; }
+      switch (n % 10) {
+        case 1:
+          return `${n}st`;
+        case 2:
+          return `${n}nd`;
+        case 3:
+          return `${n}rd`;
+        default:
+          return `${n}th`;
+      }
     }
 
     function productListHtml(products) {
       if (!products || !products.length) return '';
-      return products.slice(0, 10).map(p => {
-        const name = isKa ? p.name : (p.nameEn || p.name);
-        const sign = p.change > 0 ? '+' : '';
-        const unit = isKa ? 'მლნ. $' : 'mln $';
-        return `${escapeHtml(name)} <em>(${fmln(p.valueMln)} ${unit}, ${sign}${formatChangePct(p.change)})</em>`;
-      }).join(', ') + '.';
+      return (
+        products
+          .slice(0, 10)
+          .map((p) => {
+            const name = isKa ? p.name : p.nameEn || p.name;
+            const sign = p.change > 0 ? '+' : '';
+            const unit = isKa ? 'მლნ. $' : 'mln $';
+            return `${escapeHtml(name)} <em>(${fmln(p.valueMln)} ${unit}, ${sign}${formatChangePct(p.change)})</em>`;
+          })
+          .join(', ') + '.'
+      );
     }
 
     const lines = [];
-    const curTurn = ov.latestPeriod.turnover, prevTurn = ov.latestPeriod.turnoverPrev;
-    const curExp = ov.latestPeriod.export, prevExp = ov.latestPeriod.exportPrev;
-    const curImp = ov.latestPeriod.import, prevImp = ov.latestPeriod.importPrev;
+    const curTurn = ov.latestPeriod.turnover,
+      prevTurn = ov.latestPeriod.turnoverPrev;
+    const curExp = ov.latestPeriod.export,
+      prevExp = ov.latestPeriod.exportPrev;
+    const curImp = ov.latestPeriod.import,
+      prevImp = ov.latestPeriod.importPrev;
 
     // Turnover
     lines.push(`<h4 class="stat-summary__heading">${isKa ? 'სავაჭრო ბრუნვა' : 'Trade Turnover'}</h4>`);
@@ -1192,20 +1368,30 @@
       // Zero trade across the whole 5-year + latest window → widened
       // label that spans the full lookback.
       const noTradeLabel = trade.hasAnyTrade === false ? periodGenRange : periodGen;
-      lines.push(`<p>${isKa ? `${noTradeLabel} მონაცემებით, ვაჭრობა არ განხორციელდა.` : `For ${escapeHtml(noTradeLabel)}, no trade was conducted.`}</p>`);
+      lines.push(
+        `<p>${isKa ? `${noTradeLabel} მონაცემებით, ვაჭრობა არ განხორციელდა.` : `For ${escapeHtml(noTradeLabel)}, no trade was conducted.`}</p>`
+      );
       tradeSummaryEl.innerHTML = lines.join('');
       tradeSummaryEl.classList.remove('hidden');
       return;
     }
     if (isKa) {
-      lines.push(`<p>${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიურ პერიოდთან შედარებით, ${chg(curTurn, prevTurn)} და ${b(`${fmln(curTurn)} მლნ. აშშ დოლარი`)} შეადგინა.</p>`);
+      lines.push(
+        `<p>${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიურ პერიოდთან შედარებით, ${chg(curTurn, prevTurn)} და ${b(`${fmln(curTurn)} მლნ. აშშ დოლარი`)} შეადგინა.</p>`
+      );
       if (inTop(rank && rank.turnover)) {
-        lines.push(`<p>${escapeHtml(countryName)} აღნიშნულ პერიოდში სავაჭრო ბრუნვის მოცულობის მიხედვით არის ${b(`${geP(rank.turnover.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.turnover.sharePct)}%`)}.</p>`);
+        lines.push(
+          `<p>${escapeHtml(countryName)} აღნიშნულ პერიოდში სავაჭრო ბრუნვის მოცულობის მიხედვით არის ${b(`${geP(rank.turnover.rank)} ადგილზე`)}, წილი ${b(`${pctO(rank.turnover.sharePct)}%`)}.</p>`
+        );
       }
     } else {
-      lines.push(`<p>For ${escapeHtml(periodGen)}, trade turnover ${chg(curTurn, prevTurn)} compared to the same period last year, amounting to ${b(`${fmln(curTurn)} mln USD`)}.</p>`);
+      lines.push(
+        `<p>For ${escapeHtml(periodGen)}, trade turnover ${chg(curTurn, prevTurn)} compared to the same period last year, amounting to ${b(`${fmln(curTurn)} mln USD`)}.</p>`
+      );
       if (inTop(rank && rank.turnover)) {
-        lines.push(`<p>${escapeHtml(countryName)} ranks ${b(enO(rank.turnover.rank))} by trade turnover with a ${b(`${pctO(rank.turnover.sharePct)}%`)} share.</p>`);
+        lines.push(
+          `<p>${escapeHtml(countryName)} ranks ${b(enO(rank.turnover.rank))} by trade turnover with a ${b(`${pctO(rank.turnover.sharePct)}%`)} share.</p>`
+        );
       }
     }
 
@@ -1215,21 +1401,23 @@
     if (trade.hasExport && curExp >= 0.01) {
       if (isKa) {
         let exp = `<p>ექსპორტი ${periodLoc} ${chg(curExp, prevExp)} და ${b(`${fmln(curExp)} მლნ. აშშ დოლარი`)} შეადგინა.`;
-        if (inTop(rank && rank.export)) exp += ` საქართველოსთვის ექსპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.export.rank)} ადგილზე`)} საქართველოს სავაჭრო პარტნიორებს შორის, წილი ${b(`${pctO(rank.export.sharePct)}%`)}.`;
+        if (inTop(rank && rank.export))
+          exp += ` საქართველოსთვის ექსპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.export.rank)} ადგილზე`)} საქართველოს სავაჭრო პარტნიორებს შორის, წილი ${b(`${pctO(rank.export.sharePct)}%`)}.`;
         exp += '</p>';
         lines.push(exp);
       } else {
         let exp = `<p>Exports in ${escapeHtml(periodGen)} ${chg(curExp, prevExp)}, amounting to ${b(`${fmln(curExp)} mln USD`)}.`;
-        if (inTop(rank && rank.export)) exp += ` ${escapeHtml(countryName)} ranks ${b(enO(rank.export.rank))} by export volume with a ${b(`${pctO(rank.export.sharePct)}%`)} share.`;
+        if (inTop(rank && rank.export))
+          exp += ` ${escapeHtml(countryName)} ranks ${b(enO(rank.export.rank))} by export volume with a ${b(`${pctO(rank.export.sharePct)}%`)} share.`;
         exp += '</p>';
         lines.push(exp);
       }
 
       if (rank && rank.domesticExport && curExp > 0) {
         const domVal = rank.domesticExport.valueMln;
-        const domPct = (100 * domVal / curExp).toFixed(0);
-        const reVal = rank.reExport ? rank.reExport.valueMln : (curExp - domVal);
-        const rePct = (100 * reVal / curExp).toFixed(0);
+        const domPct = ((100 * domVal) / curExp).toFixed(0);
+        const reVal = rank.reExport ? rank.reExport.valueMln : curExp - domVal;
+        const rePct = ((100 * reVal) / curExp).toFixed(0);
         // Volumes stay regardless; only the rank sentence drops when > 20.
         const geRankSent = inTop(rank.domesticExport)
           ? ` ადგილობრივი ექსპორტით ${escapeHtml(countryName)} იკავებს ${b(`${geP(rank.domesticExport.rank)} ადგილს`)} საქართველოს სავაჭრო პარტნიორებს შორის.`
@@ -1238,9 +1426,13 @@
           ? ` By domestic exports, ${escapeHtml(countryName)} ranks ${b(enO(rank.domesticExport.rank))} among Georgia's trading partners.`
           : '';
         if (isKa) {
-          lines.push(`<p>${periodGen} პერიოდში განხორციელდა ${b(`${fmln(domVal)} მლნ. აშშ დოლარის`)} ${b('ადგილობრივი ექსპორტი')}, რაც შეადგენს ${b(`${domPct}%-ს`)} სრული ექსპორტის.${geRankSent} რე-ექსპორტმა იმავე პერიოდში შეადგინა ${b(`${fmln(reVal)} მლნ. აშშ დოლარი`)} <em>(წილი ${rePct}%)</em>.</p>`);
+          lines.push(
+            `<p>${periodGen} პერიოდში განხორციელდა ${b(`${fmln(domVal)} მლნ. აშშ დოლარის`)} ${b('ადგილობრივი ექსპორტი')}, რაც შეადგენს ${b(`${domPct}%-ს`)} სრული ექსპორტის.${geRankSent} რე-ექსპორტმა იმავე პერიოდში შეადგინა ${b(`${fmln(reVal)} მლნ. აშშ დოლარი`)} <em>(წილი ${rePct}%)</em>.</p>`
+          );
         } else {
-          lines.push(`<p>In the given period, domestic exports amounted to ${b(`${fmln(domVal)} mln USD`)}, comprising ${b(`${domPct}%`)} of total exports.${enRankSent} Re-exports in the same period amounted to ${b(`${fmln(reVal)} mln USD`)} <em>(${rePct}% share)</em>.</p>`);
+          lines.push(
+            `<p>In the given period, domestic exports amounted to ${b(`${fmln(domVal)} mln USD`)}, comprising ${b(`${domPct}%`)} of total exports.${enRankSent} Re-exports in the same period amounted to ${b(`${fmln(reVal)} mln USD`)} <em>(${rePct}% share)</em>.</p>`
+          );
         }
       }
 
@@ -1256,12 +1448,14 @@
     if (trade.hasImport && curImp >= 0.01) {
       if (isKa) {
         let imp = `<p>იმპორტი ${periodLoc} ${chg(curImp, prevImp)} და ${b(`${fmln(curImp)} მლნ. აშშ დოლარი`)} შეადგინა.`;
-        if (inTop(rank && rank.import)) imp += ` იმპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.import.rank)} ადგილზე`)} საქართველოს სავაჭრო პარტნიორებს შორის, წილი ${b(`${pctO(rank.import.sharePct)}%`)}.`;
+        if (inTop(rank && rank.import))
+          imp += ` იმპორტის მიხედვით ${escapeHtml(countryName)} არის ${b(`${geP(rank.import.rank)} ადგილზე`)} საქართველოს სავაჭრო პარტნიორებს შორის, წილი ${b(`${pctO(rank.import.sharePct)}%`)}.`;
         imp += '</p>';
         lines.push(imp);
       } else {
         let imp = `<p>Imports in ${escapeHtml(periodGen)} ${chg(curImp, prevImp)}, amounting to ${b(`${fmln(curImp)} mln USD`)}.`;
-        if (inTop(rank && rank.import)) imp += ` ${escapeHtml(countryName)} ranks ${b(enO(rank.import.rank))} by import volume with a ${b(`${pctO(rank.import.sharePct)}%`)} share.`;
+        if (inTop(rank && rank.import))
+          imp += ` ${escapeHtml(countryName)} ranks ${b(enO(rank.import.rank))} by import volume with a ${b(`${pctO(rank.import.sharePct)}%`)} share.`;
         imp += '</p>';
         lines.push(imp);
       }
@@ -1277,16 +1471,55 @@
   }
 
   // Georgian month forms for the on-page summary
-  const KA_MONTH_STEM = { 1:'იანვარ', 2:'თებერვალ', 3:'მარტ', 4:'აპრილ', 5:'მაის', 6:'ივნის', 7:'ივლის', 8:'აგვისტო', 9:'სექტემბერ', 10:'ოქტომბერ', 11:'ნოემბერ', 12:'დეკემბერ' };
-  const KA_MONTH_GEN = { 1:'იანვრის', 2:'თებერვლის', 3:'მარტის', 4:'აპრილის', 5:'მაისის', 6:'ივნისის', 7:'ივლისის', 8:'აგვისტოს', 9:'სექტემბრის', 10:'ოქტომბრის', 11:'ნოემბრის', 12:'დეკემბრის' };
-  const KA_MONTH_LOC = { 1:'იანვარში', 2:'თებერვალში', 3:'მარტში', 4:'აპრილში', 5:'მაისში', 6:'ივნისში', 7:'ივლისში', 8:'აგვისტოში', 9:'სექტემბერში', 10:'ოქტომბერში', 11:'ნოემბერში', 12:'დეკემბერში' };
+  const KA_MONTH_STEM = {
+    1: 'იანვარ',
+    2: 'თებერვალ',
+    3: 'მარტ',
+    4: 'აპრილ',
+    5: 'მაის',
+    6: 'ივნის',
+    7: 'ივლის',
+    8: 'აგვისტო',
+    9: 'სექტემბერ',
+    10: 'ოქტომბერ',
+    11: 'ნოემბერ',
+    12: 'დეკემბერ',
+  };
+  const KA_MONTH_GEN = {
+    1: 'იანვრის',
+    2: 'თებერვლის',
+    3: 'მარტის',
+    4: 'აპრილის',
+    5: 'მაისის',
+    6: 'ივნისის',
+    7: 'ივლისის',
+    8: 'აგვისტოს',
+    9: 'სექტემბრის',
+    10: 'ოქტომბრის',
+    11: 'ნოემბრის',
+    12: 'დეკემბრის',
+  };
+  const KA_MONTH_LOC = {
+    1: 'იანვარში',
+    2: 'თებერვალში',
+    3: 'მარტში',
+    4: 'აპრილში',
+    5: 'მაისში',
+    6: 'ივნისში',
+    7: 'ივლისში',
+    8: 'აგვისტოში',
+    9: 'სექტემბერში',
+    10: 'ოქტომბერში',
+    11: 'ნოემბერში',
+    12: 'დეკემბერში',
+  };
 
   // ── Render trade overview ──────────────────────────────────────────────
 
   function renderOverview(data, prevYear, prevPrevYear, latestYear, latestMonth, periodLabel, monthNames) {
     const isKa = reportLocale === 'ka';
 
-    const monthLabel = monthNames.find(m => m.value === latestMonth)?.label || `${latestMonth}`;
+    const monthLabel = monthNames.find((m) => m.value === latestMonth)?.label || `${latestMonth}`;
     const colFull = `${prevYear}`;
     const colMonth = `${latestYear} .${String(latestMonth).padStart(2, '0')}`;
 
@@ -1382,9 +1615,14 @@
   // ── Render charts ─────────────────────────────────────────────────────────
 
   function renderCharts(
-    chartYears, yearExports, yearImports,
-    monthsYTD, monthExports, monthImports,
-    latestYear, monthNames,
+    chartYears,
+    yearExports,
+    yearImports,
+    monthsYTD,
+    monthExports,
+    monthImports,
+    latestYear,
+    monthNames
   ) {
     const isKa = reportLocale === 'ka';
 
@@ -1397,19 +1635,16 @@
     const ytdImport = monthImports.reduce((s, v) => s + v, 0);
 
     if (monthsYTD.length === 1) {
-      const mName = monthNames.find(mn => mn.value === monthsYTD[0])?.label || `M${monthsYTD[0]}`;
+      const mName = monthNames.find((mn) => mn.value === monthsYTD[0])?.label || `M${monthsYTD[0]}`;
       labels.push(`${mName.slice(0, 3)}'${shortYear}`);
     } else {
-      const first = monthNames.find(mn => mn.value === monthsYTD[0])?.label || '';
-      const last = monthNames.find(mn => mn.value === monthsYTD[monthsYTD.length - 1])?.label || '';
+      const first = monthNames.find((mn) => mn.value === monthsYTD[0])?.label || '';
+      const last = monthNames.find((mn) => mn.value === monthsYTD[monthsYTD.length - 1])?.label || '';
       labels.push(`${first.slice(0, 3)}-${last.slice(0, 3)}'${shortYear}`);
     }
 
     // Turnover data = export + import
-    const turnoverData = [
-      ...yearExports.map((e, i) => e + yearImports[i]),
-      ytdExport + ytdImport,
-    ];
+    const turnoverData = [...yearExports.map((e, i) => e + yearImports[i]), ytdExport + ytdImport];
 
     // Common chart options
     const commonOptions = {
@@ -1447,11 +1682,13 @@
       type: 'bar',
       data: {
         labels,
-        datasets: [{
-          data: turnoverData,
-          backgroundColor: turnoverData.map((_, i) => i < chartYears.length ? '#3b82f6' : '#60a5fa'),
-          borderRadius: 3,
-        }],
+        datasets: [
+          {
+            data: turnoverData,
+            backgroundColor: turnoverData.map((_, i) => (i < chartYears.length ? '#3b82f6' : '#60a5fa')),
+            borderRadius: 3,
+          },
+        ],
       },
       options: {
         ...commonOptions,
@@ -1489,13 +1726,13 @@
           {
             label: isKa ? 'ექსპორტი' : 'Export',
             data: expData,
-            backgroundColor: expData.map((_, i) => i < chartYears.length ? '#16a34a' : '#4ade80'),
+            backgroundColor: expData.map((_, i) => (i < chartYears.length ? '#16a34a' : '#4ade80')),
             borderRadius: 3,
           },
           {
             label: isKa ? 'იმპორტი' : 'Import',
             data: impData,
-            backgroundColor: impData.map((_, i) => i < chartYears.length ? '#dc2626' : '#f87171'),
+            backgroundColor: impData.map((_, i) => (i < chartYears.length ? '#dc2626' : '#f87171')),
             borderRadius: 3,
           },
         ],
@@ -1534,7 +1771,12 @@
       if (row.isGroupSummary || !row.hs4) continue;
       const val = extractValue(row);
       if (!currentMap[row.hs4]) {
-        currentMap[row.hs4] = { hs4: row.hs4, name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`, row.hs4), nameEn: cleanHs4NameEn(row.hs4_name || `HS ${row.hs4}`, row.hs4), valueThdUsd: 0 };
+        currentMap[row.hs4] = {
+          hs4: row.hs4,
+          name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`, row.hs4),
+          nameEn: cleanHs4NameEn(row.hs4_name || `HS ${row.hs4}`, row.hs4),
+          valueThdUsd: 0,
+        };
       }
       currentMap[row.hs4].valueThdUsd += val;
     }
@@ -1545,7 +1787,11 @@
       if (row.isGroupSummary || !row.hs4) continue;
       const val = extractValue(row);
       if (!prevMap[row.hs4]) {
-        prevMap[row.hs4] = { valueThdUsd: 0, name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`, row.hs4), nameEn: cleanHs4NameEn(row.hs4_name || `HS ${row.hs4}`, row.hs4) };
+        prevMap[row.hs4] = {
+          valueThdUsd: 0,
+          name: cleanHs4Name(row.hs4_name || `HS ${row.hs4}`, row.hs4),
+          nameEn: cleanHs4NameEn(row.hs4_name || `HS ${row.hs4}`, row.hs4),
+        };
       }
       prevMap[row.hs4].valueThdUsd += val;
     }
@@ -1562,24 +1808,22 @@
       const prevMln = prev / 1000;
       const name = currentMap[hs4]?.name || prevMap[hs4]?.name || `HS ${hs4}`;
       const nameEn = currentMap[hs4]?.nameEn || prevMap[hs4]?.nameEn || `HS ${hs4}`;
-      const changePct = prevMln > 0
-        ? ((currMln - prevMln) / prevMln * 100)
-        : (currMln > 0 ? 100 : 0);
+      const changePct = prevMln > 0 ? ((currMln - prevMln) / prevMln) * 100 : currMln > 0 ? 100 : 0;
       products.push({ name, nameEn, valueMln: currMln, changePct, diffMln });
     }
 
     // Increase: positive diff, sorted by diff descending, max 15, min 0.01 mln diff
     const increased = products
-      .filter(p => p.diffMln > 0)
+      .filter((p) => p.diffMln > 0)
       .sort((a, b) => b.diffMln - a.diffMln)
-      .filter(p => p.diffMln >= 0.01)
+      .filter((p) => p.diffMln >= 0.01)
       .slice(0, 10);
 
     // Drop: negative diff, sorted by diff ascending (most negative first), max 10
     const dropped = products
-      .filter(p => p.diffMln < 0)
+      .filter((p) => p.diffMln < 0)
       .sort((a, b) => a.diffMln - b.diffMln)
-      .filter(p => p.diffMln <= -0.01)
+      .filter((p) => p.diffMln <= -0.01)
       .slice(0, 10);
 
     return { increase: increased, drop: dropped };
@@ -1611,7 +1855,7 @@
       <tbody>`;
 
     for (const p of products) {
-      const changeClass = p.changePct > 0 ? 'stat-positive' : (p.changePct < 0 ? 'stat-negative' : '');
+      const changeClass = p.changePct > 0 ? 'stat-positive' : p.changePct < 0 ? 'stat-negative' : '';
       const changeSign = p.changePct > 0 ? '+' : '';
       const diffSign = p.diffMln > 0 ? '+' : '';
       const diffClass = p.diffMln > 0 ? 'stat-positive' : 'stat-negative';
@@ -1669,14 +1913,14 @@
 
     let products = Object.values(currentMap)
       .sort((a, b) => b.valueThdUsd - a.valueThdUsd)
-      .map(p => ({
+      .map((p) => ({
         ...p,
         valueMln: p.valueThdUsd / 1000,
         prevValueMln: (prevMap[p.hs4] || 0) / 1000,
         reexportMln: (reexportMap[p.hs4] || 0) / 1000,
       }));
 
-    const significant = products.filter(p => p.valueMln >= 0.01);
+    const significant = products.filter((p) => p.valueMln >= 0.01);
     let result;
     if (significant.length >= 5) {
       result = significant.slice(0, 15);
@@ -1684,16 +1928,12 @@
       result = products.slice(0, Math.max(5, significant.length));
     }
 
-    return result.map(p => ({
+    return result.map((p) => ({
       name: p.name,
       nameEn: p.nameEn,
       valueMln: p.valueMln,
-      change: p.prevValueMln > 0
-        ? ((p.valueMln - p.prevValueMln) / p.prevValueMln * 100)
-        : (p.valueMln > 0 ? 100 : 0),
-      reexportShare: p.valueMln > 0
-        ? (p.reexportMln / p.valueMln * 100)
-        : 0,
+      change: p.prevValueMln > 0 ? ((p.valueMln - p.prevValueMln) / p.prevValueMln) * 100 : p.valueMln > 0 ? 100 : 0,
+      reexportShare: p.valueMln > 0 ? (p.reexportMln / p.valueMln) * 100 : 0,
     }));
   }
 
@@ -1779,9 +2019,9 @@
       <tbody>`;
 
     products.forEach((p, i) => {
-      const changeClass = p.change > 0 ? 'stat-positive' : (p.change < 0 ? 'stat-negative' : '');
+      const changeClass = p.change > 0 ? 'stat-positive' : p.change < 0 ? 'stat-negative' : '';
       const changeSign = p.change > 0 ? '+' : '';
-      const hiddenStyle = (hasMore && i >= INITIAL_COUNT) ? ' style="display:none" data-expandable' : '';
+      const hiddenStyle = hasMore && i >= INITIAL_COUNT ? ' style="display:none" data-expandable' : '';
       html += `
         <tr${hiddenStyle}>
           <td class="stat-col-product">${escapeHtml(reportLocale !== 'ka' && p.nameEn ? p.nameEn : p.name)}</td>
@@ -1807,7 +2047,7 @@
       btn.addEventListener('click', () => {
         const rows = el.querySelectorAll('tr[data-expandable]');
         const expanded = rows[0]?.style.display !== 'none';
-        rows.forEach(r => r.style.display = expanded ? 'none' : '');
+        rows.forEach((r) => (r.style.display = expanded ? 'none' : ''));
         btn.textContent = expanded ? btn.dataset.more : btn.dataset.less;
       });
     }
@@ -1866,9 +2106,16 @@
     if (tourismRowEl) tourismRowEl.classList.remove('hidden');
     tourismTableEl.innerHTML = '';
     tourismChartHeader.innerHTML = '';
-    try { if (tourismChartInstance) { tourismChartInstance.destroy(); } } catch (_) {}
+    try {
+      if (tourismChartInstance) {
+        tourismChartInstance.destroy();
+      }
+    } catch (_) {}
     tourismChartInstance = null;
-    try { const ec = Chart.getChart(tourismChartCanvas); if (ec) ec.destroy(); } catch (_) {}
+    try {
+      const ec = Chart.getChart(tourismChartCanvas);
+      if (ec) ec.destroy();
+    } catch (_) {}
 
     try {
       const res = await fetch(`${API_BASE}/api/statistics/tourism`);
@@ -1881,9 +2128,10 @@
       if (!countryData) {
         // Match the Companies / FDI no-data style: a single paragraph in
         // the summary card with the table + chart row hidden entirely.
-        const msg = reportLocale === 'ka'
-          ? 'აღნიშნული ქვეყნიდან ვიზიტორები საქართველოში არ ფიქსირდება.'
-          : 'No visitor records from this country to Georgia.';
+        const msg =
+          reportLocale === 'ka'
+            ? 'აღნიშნული ქვეყნიდან ვიზიტორები საქართველოში არ ფიქსირდება.'
+            : 'No visitor records from this country to Georgia.';
         if (tourismSummaryEl) {
           tourismSummaryEl.innerHTML = `<p>${escapeHtml(msg)}</p>`;
           tourismSummaryEl.classList.remove('hidden');
@@ -1922,7 +2170,7 @@
           if (val > 0) entries.push({ name, val });
         }
         entries.sort((a, b) => b.val - a.val);
-        const idx = entries.findIndex(e => e.name === gntaName);
+        const idx = entries.findIndex((e) => e.name === gntaName);
         const rank = idx >= 0 ? idx + 1 : null;
         // Share: country's own visitor count divided by the grand total from
         // the file's "საერთაშორისო" row. No summing, no aggregation.
@@ -1933,9 +2181,9 @@
       const annualTotals = (json.totals && json.totals.annual) || {};
       const currentTotal = json.totals ? json.totals.current : null;
       const compareTotal = json.totals ? json.totals.compare : null;
-      const rankForYear = (year) => rankAndShare(d => (d.annual && d.annual[year]) || 0, annualTotals[year]);
-      const rankForCurrent = () => rankAndShare(d => d.current || 0, currentTotal);
-      const rankForCompare = () => rankAndShare(d => d.compare || 0, compareTotal);
+      const rankForYear = (year) => rankAndShare((d) => (d.annual && d.annual[year]) || 0, annualTotals[year]);
+      const rankForCurrent = () => rankAndShare((d) => d.current || 0, currentTotal);
+      const rankForCompare = () => rankAndShare((d) => d.compare || 0, compareTotal);
 
       // Build annual rows: last 5 years
       const annualRows = [];
@@ -1943,9 +2191,7 @@
         if (allYears.includes(y)) {
           const val = annual[y] || 0;
           const prev = annual[y - 1] || 0;
-          const pct = prev > 0
-            ? ((val - prev) / prev * 100)
-            : (val > 0 ? 100 : 0);
+          const pct = prev > 0 ? ((val - prev) / prev) * 100 : val > 0 ? 100 : 0;
           const { rank, share } = val > 0 ? rankForYear(y) : { rank: null, share: null };
           annualRows.push({
             label: String(y),
@@ -1964,7 +2210,7 @@
       if (json.currentPeriod && countryData.current !== null) {
         const cur = countryData.current || 0;
         const cmp = countryData.compare || 0;
-        const pct = cmp > 0 ? ((cur - cmp) / cmp * 100) : (cur > 0 ? 100 : 0);
+        const pct = cmp > 0 ? ((cur - cmp) / cmp) * 100 : cur > 0 ? 100 : 0;
         const curStats = cur > 0 ? rankForCurrent() : { rank: null, share: null };
         const cmpStats = cmp > 0 ? rankForCompare() : { rank: null, share: null };
         quarterlyRows.push({
@@ -1999,10 +2245,13 @@
       const currentRank = quarterlyRows.length > 0 ? quarterlyRows[0].rank : null;
 
       renderTourismTable(quarterlyRows, annualRows, isKa);
-      const tourismCurrentPeriod = json.currentPeriod && countryData.current !== null ? {
-        label: json.currentPeriod.label,
-        visitors: countryData.current || 0,
-      } : null;
+      const tourismCurrentPeriod =
+        json.currentPeriod && countryData.current !== null
+          ? {
+              label: json.currentPeriod.label,
+              visitors: countryData.current || 0,
+            }
+          : null;
       renderTourismChart(annualRows, tourismCurrentPeriod, isKa);
 
       pdfState.tourism = {
@@ -2020,7 +2269,6 @@
       };
 
       renderTourismSummary(pdfState.tourism, selectedCountry, isKa);
-
     } catch (err) {
       console.error('Tourism error:', err);
       tourismTableEl.innerHTML = `<div class="msg msg-error">${escapeHtml(err.message)}</div>`;
@@ -2067,9 +2315,13 @@
 
     if (tourism.fiveYearSum > 0) {
       if (isKa) {
-        lines.push(`<p>${b(tourism.fiveYearStart + ' - ' + tourism.fiveYearEnd)} წლებში ${escapeHtml(grammar.from)} საქართველოში შემოვიდა ${b(fmt(tourism.fiveYearSum))} ვიზიტორი.</p>`);
+        lines.push(
+          `<p>${b(tourism.fiveYearStart + ' - ' + tourism.fiveYearEnd)} წლებში ${escapeHtml(grammar.from)} საქართველოში შემოვიდა ${b(fmt(tourism.fiveYearSum))} ვიზიტორი.</p>`
+        );
       } else {
-        lines.push(`<p>Between ${b(tourism.fiveYearStart + '-' + tourism.fiveYearEnd)}, ${b(fmt(tourism.fiveYearSum))} visitors came to Georgia from ${escapeHtml(countryEn)}.</p>`);
+        lines.push(
+          `<p>Between ${b(tourism.fiveYearStart + '-' + tourism.fiveYearEnd)}, ${b(fmt(tourism.fiveYearSum))} visitors came to Georgia from ${escapeHtml(countryEn)}.</p>`
+        );
       }
     }
     if (tourism.currentRank && tourism.currentPeriodLabel) {
@@ -2080,14 +2332,28 @@
         return `${r}-ე`;
       };
       const enO = (r) => {
-        const n = Math.abs(r), m = n % 100;
+        const n = Math.abs(r),
+          m = n % 100;
         if (m >= 11 && m <= 13) return `${n}th`;
-        switch (n % 10) { case 1: return `${n}st`; case 2: return `${n}nd`; case 3: return `${n}rd`; default: return `${n}th`; }
+        switch (n % 10) {
+          case 1:
+            return `${n}st`;
+          case 2:
+            return `${n}nd`;
+          case 3:
+            return `${n}rd`;
+          default:
+            return `${n}th`;
+        }
       };
       if (isKa) {
-        lines.push(`<p>${b(formatCurrentPeriodKa(tourism.currentPeriodLabel))} მონაცემებით ვიზიტორების რაოდენობის მიხედვით ${escapeHtml(countryKa)} არის ${b(geP(tourism.currentRank) + ' ადგილზე')}.</p>`);
+        lines.push(
+          `<p>${b(formatCurrentPeriodKa(tourism.currentPeriodLabel))} მონაცემებით ვიზიტორების რაოდენობის მიხედვით ${escapeHtml(countryKa)} არის ${b(geP(tourism.currentRank) + ' ადგილზე')}.</p>`
+        );
       } else {
-        lines.push(`<p>By visitor count in ${b(formatCurrentPeriodEn(tourism.currentPeriodLabel))}, ${escapeHtml(countryEn)} ranks ${b(enO(tourism.currentRank))}.</p>`);
+        lines.push(
+          `<p>By visitor count in ${b(formatCurrentPeriodEn(tourism.currentPeriodLabel))}, ${escapeHtml(countryEn)} ranks ${b(enO(tourism.currentRank))}.</p>`
+        );
       }
     }
 
@@ -2108,7 +2374,7 @@
     // Drop the rank column entirely when no row reaches the top 20 —
     // a column of all "-" or all "47" / "53" etc. isn't useful.
     const TOP_RANK_LIMIT = 20;
-    const showRank = rows.some(r => r.rank && r.rank <= TOP_RANK_LIMIT);
+    const showRank = rows.some((r) => r.rank && r.rank <= TOP_RANK_LIMIT);
 
     let html = `<table class="stat-table">
       <thead>
@@ -2127,16 +2393,19 @@
       if (r.changePct === null || r.changePct === undefined) {
         changeCell = '<td class="stat-col-change">-</td>';
       } else {
-        const changeClass = r.changePct > 0 ? 'stat-positive' : (r.changePct < 0 ? 'stat-negative' : '');
+        const changeClass = r.changePct > 0 ? 'stat-positive' : r.changePct < 0 ? 'stat-negative' : '';
         const sign = r.changePct > 0 ? '+' : '';
         changeCell = `<td class="stat-col-change ${changeClass}">${sign}${formatChangePct(r.changePct)}</td>`;
       }
       const rankCell = showRank
-        ? (r.rank ? `<td class="stat-col-change">${r.rank}</td>` : '<td class="stat-col-change">-</td>')
+        ? r.rank
+          ? `<td class="stat-col-change">${r.rank}</td>`
+          : '<td class="stat-col-change">-</td>'
         : '';
-      const shareCell = (r.share != null)
-        ? `<td class="stat-col-change">${(Math.round(r.share * 10) / 10).toFixed(1)}%</td>`
-        : '<td class="stat-col-change">-</td>';
+      const shareCell =
+        r.share != null
+          ? `<td class="stat-col-change">${(Math.round(r.share * 10) / 10).toFixed(1)}%</td>`
+          : '<td class="stat-col-change">-</td>';
       html += `
         <tr>
           <td>${escapeHtml(r.label)}</td>
@@ -2155,8 +2424,8 @@
     tourismChartHeader.innerHTML = `<h3 class="stat-report__title">${isKa ? 'საერთაშორისო ვიზიტორები' : 'International Visitors'}</h3>`;
 
     // Chart order: annual years ascending, then current period as last bar.
-    const labels = annualRows.map(r => r.label);
-    const values = annualRows.map(r => r.visitors);
+    const labels = annualRows.map((r) => r.label);
+    const values = annualRows.map((r) => r.visitors);
     const colors = annualRows.map(() => '#3b82f6');
 
     if (currentPeriod) {
@@ -2169,11 +2438,13 @@
       type: 'bar',
       data: {
         labels,
-        datasets: [{
-          data: values,
-          backgroundColor: colors,
-          borderRadius: 3,
-        }],
+        datasets: [
+          {
+            data: values,
+            backgroundColor: colors,
+            borderRadius: 3,
+          },
+        ],
       },
       options: {
         responsive: true,
@@ -2222,9 +2493,16 @@
     if (fdiRowEl) fdiRowEl.classList.remove('hidden');
     fdiTable.innerHTML = '';
     fdiChartHeader.innerHTML = '';
-    try { if (fdiChartInstance) { fdiChartInstance.destroy(); } } catch (_) {}
+    try {
+      if (fdiChartInstance) {
+        fdiChartInstance.destroy();
+      }
+    } catch (_) {}
     fdiChartInstance = null;
-    try { const ec = Chart.getChart(fdiChartCanvas); if (ec) ec.destroy(); } catch (_) {}
+    try {
+      const ec = Chart.getChart(fdiChartCanvas);
+      if (ec) ec.destroy();
+    } catch (_) {}
 
     try {
       const res = await fetch(`${API_BASE}/api/statistics/fdi`);
@@ -2240,9 +2518,10 @@
         // summary card, with the table + chart area hidden entirely so the
         // card renders as a compact "no data" note instead of a large
         // centred empty-state block.
-        const msg = reportLocale === 'ka'
-          ? 'აღნიშნული ქვეყნიდან საქართველოში პირდაპირი უცხოური ინვესტიცია არ ფიქსირდება.'
-          : 'No foreign direct investment records from this country to Georgia.';
+        const msg =
+          reportLocale === 'ka'
+            ? 'აღნიშნული ქვეყნიდან საქართველოში პირდაპირი უცხოური ინვესტიცია არ ფიქსირდება.'
+            : 'No foreign direct investment records from this country to Georgia.';
         if (investmentsSummaryEl) {
           investmentsSummaryEl.innerHTML = `<p>${escapeHtml(msg)}</p>`;
           investmentsSummaryEl.classList.remove('hidden');
@@ -2277,7 +2556,7 @@
           if (v > 0) entries.push({ code, v });
         }
         entries.sort((a, b) => b.v - a.v);
-        const idx = entries.findIndex(e => e.code === String(countryCode));
+        const idx = entries.findIndex((e) => e.code === String(countryCode));
         const rank = idx >= 0 ? idx + 1 : null;
         const ownVal = idx >= 0 ? entries[idx].v : 0;
         const totalMln = (fdiTotalsThd[year] || 0) / 1000;
@@ -2286,7 +2565,7 @@
       }
 
       // Build table data: year, value (mln USD), change %, rank, share
-      const tableData = displayYears.map(y => {
+      const tableData = displayYears.map((y) => {
         const val = (countryData[y] || 0) / 1000;
         const prev = (countryData[y - 1] || 0) / 1000;
         const rs = val > 0 ? fdiRankAndShare(y) : { rank: null, share: null };
@@ -2297,7 +2576,10 @@
       // First year country had positive investment
       let firstYear = null;
       for (const y of allYears) {
-        if ((countryData[y] || 0) > 0) { firstYear = y; break; }
+        if ((countryData[y] || 0) > 0) {
+          firstYear = y;
+          break;
+        }
       }
       // Total sum (all years, in mln USD)
       let totalSum = 0;
@@ -2310,7 +2592,7 @@
         if (s > 0) totalByCountry.push({ code, sum: s });
       }
       totalByCountry.sort((a, b) => b.sum - a.sum);
-      const totalRankIdx = totalByCountry.findIndex(c => c.code === String(countryCode));
+      const totalRankIdx = totalByCountry.findIndex((c) => c.code === String(countryCode));
       const totalRank = totalRankIdx >= 0 ? totalRankIdx + 1 : null;
       // Last 5 complete years (latestYear-4 through latestYear)
       const fiveYearStart = latestYear - 4;
@@ -2338,9 +2620,15 @@
         firstYear,
         totalSum,
         totalRank,
-        fiveYearStart, fiveYearEnd, fiveYearSum,
-        latestYear, latestYearValue, latestYearRank,
-        prevYear, prevYearValue, prevYearRank,
+        fiveYearStart,
+        fiveYearEnd,
+        fiveYearSum,
+        latestYear,
+        latestYearValue,
+        latestYearRank,
+        prevYear,
+        prevYearValue,
+        prevYearRank,
       };
 
       renderInvestmentsSummary(pdfState.investments, selectedCountry, isKa);
@@ -2352,12 +2640,19 @@
         const sJson = await sRes.json();
         if (sJson && sJson.success && !sJson.empty) {
           const c = sJson.countries && sJson.countries[String(countryCode)];
-          if (c) sectorsData = { years: sJson.years, sectors: sJson.sectors, sectorNameMap: sJson.sectorNameMap || {}, data: c };
+          if (c)
+            sectorsData = {
+              years: sJson.years,
+              sectors: sJson.sectors,
+              sectorNameMap: sJson.sectorNameMap || {},
+              data: c,
+            };
         }
-      } catch (_) { /* silently hide sectors card */ }
+      } catch (_) {
+        /* silently hide sectors card */
+      }
       pdfState.investmentsSectors = sectorsData;
       renderFdiSectorsTable(sectorsData, selectedCountry, isKa);
-
     } catch (err) {
       console.error('Investments error:', err);
       fdiTable.innerHTML = `<div class="msg msg-error">${escapeHtml(err.message)}</div>`;
@@ -2377,7 +2672,9 @@
       return;
     }
     const { years, data, sectorNameMap } = sectorsState;
-    const country = isKa ? selectedCountry.displayLabel : (countryNameEnMap[selectedCountry.value] || selectedCountry.displayLabel);
+    const country = isKa
+      ? selectedCountry.displayLabel
+      : countryNameEnMap[selectedCountry.value] || selectedCountry.displayLabel;
     const yrRange = years.length > 1 ? `${years[0]}–${years[years.length - 1]}` : `${years[0]}`;
     const title = isKa
       ? `${country} - პირდაპირი უცხოური ინვესტიციები სექტორების მიხედვით, ${yrRange}`
@@ -2391,7 +2688,7 @@
       const str = abs >= 100 ? abs.toFixed(1) : abs.toFixed(2);
       return sign + str.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     };
-    const cellCls = (v) => (v === null || v === undefined || v === 0) ? '' : (v < 0 ? 'stat-negative' : '');
+    const cellCls = (v) => (v === null || v === undefined || v === 0 ? '' : v < 0 ? 'stat-negative' : '');
 
     const sectorHeader = isKa ? 'სექტორი' : 'Sector';
     const totalLabel = isKa ? 'სულ' : 'Total';
@@ -2400,7 +2697,7 @@
       <thead>
         <tr>
           <th>${sectorHeader}</th>
-          ${years.map(y => `<th class="stat-col-value">${y}</th>`).join('')}
+          ${years.map((y) => `<th class="stat-col-value">${y}</th>`).join('')}
         </tr>
       </thead>
       <tbody>`;
@@ -2425,7 +2722,7 @@
     const nameMap = sectorNameMap || {};
     for (const sector of sectorNames) {
       const vals = data.sectors[sector] || {};
-      const displayName = isKa ? sector : (nameMap[sector] || sector);
+      const displayName = isKa ? sector : nameMap[sector] || sector;
       html += `<tr><td>${escapeHtml(displayName)}</td>`;
       for (const y of years) {
         const v = vals[y];
@@ -2440,7 +2737,10 @@
 
   function renderInvestmentsSummary(inv, selectedCountry, isKa) {
     if (!investmentsSummaryEl) return;
-    if (!inv || !inv.hasData) { investmentsSummaryEl.classList.add('hidden'); return; }
+    if (!inv || !inv.hasData) {
+      investmentsSummaryEl.classList.add('hidden');
+      return;
+    }
     const b = (s) => `<strong>${escapeHtml(String(s))}</strong>`;
     const fmt = (n) => (Math.round(Math.abs(n) * 100) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     const countryKa = selectedCountry.displayLabelKa || selectedCountry.displayLabel;
@@ -2455,21 +2755,33 @@
       return `${r}-ე`;
     }
     function enO(r) {
-      const n = Math.abs(r), m = n % 100;
+      const n = Math.abs(r),
+        m = n % 100;
       if (m >= 11 && m <= 13) return `${n}th`;
-      switch (n % 10) { case 1: return `${n}st`; case 2: return `${n}nd`; case 3: return `${n}rd`; default: return `${n}th`; }
+      switch (n % 10) {
+        case 1:
+          return `${n}st`;
+        case 2:
+          return `${n}nd`;
+        case 3:
+          return `${n}rd`;
+        default:
+          return `${n}th`;
+      }
     }
 
     // Sentence 1: first year + total + total rank
     if (inv.firstYear && inv.totalSum > 0) {
       if (isKa) {
         let s = `<p>${escapeHtml(countryKaFrom)} საქართველოში პირდაპირი უცხოური ინვესტიცია პირველად ${b(inv.firstYear)} წელს განხორციელდა. ჯამური განხორციელებული პირდაპირი უცხოური ინვესტიცია შეადგენს ${b(`${fmt(inv.totalSum)} მლნ. აშშ დოლარს`)}.`;
-        if (inv.totalRank) s += ` ${escapeHtml(countryKa)} იკავებს ${b(`${geP(inv.totalRank)} ადგილს`)} ჯამური განხორციელებული ინვესტიციის მოცულობით საქართველოში.`;
+        if (inv.totalRank)
+          s += ` ${escapeHtml(countryKa)} იკავებს ${b(`${geP(inv.totalRank)} ადგილს`)} ჯამური განხორციელებული ინვესტიციის მოცულობით საქართველოში.`;
         s += '</p>';
         lines.push(s);
       } else {
         let s = `<p>Foreign direct investment from ${escapeHtml(countryEn)} to Georgia was first made in ${b(inv.firstYear)}. Total conducted FDI amounts to ${b(`${fmt(inv.totalSum)} mln USD`)}.`;
-        if (inv.totalRank) s += ` ${escapeHtml(countryEn)} ranks ${b(enO(inv.totalRank))} by total FDI volume in Georgia.`;
+        if (inv.totalRank)
+          s += ` ${escapeHtml(countryEn)} ranks ${b(enO(inv.totalRank))} by total FDI volume in Georgia.`;
         s += '</p>';
         lines.push(s);
       }
@@ -2478,9 +2790,13 @@
     // Sentence 2: last 5 years sum
     if (inv.fiveYearSum > 0) {
       if (isKa) {
-        lines.push(`<p>${b(`${inv.fiveYearStart} - ${inv.fiveYearEnd}`)} წლებში ${escapeHtml(countryKaFrom)} საქართველოში შემოსული ინვესტიციების მოცულობამ შეადგინა ${b(`${fmt(inv.fiveYearSum)} მლნ. აშშ დოლარი`)}.</p>`);
+        lines.push(
+          `<p>${b(`${inv.fiveYearStart} - ${inv.fiveYearEnd}`)} წლებში ${escapeHtml(countryKaFrom)} საქართველოში შემოსული ინვესტიციების მოცულობამ შეადგინა ${b(`${fmt(inv.fiveYearSum)} მლნ. აშშ დოლარი`)}.</p>`
+        );
       } else {
-        lines.push(`<p>Between ${b(`${inv.fiveYearStart}-${inv.fiveYearEnd}`)}, investments from ${escapeHtml(countryEn)} to Georgia amounted to ${b(`${fmt(inv.fiveYearSum)} mln USD`)}.</p>`);
+        lines.push(
+          `<p>Between ${b(`${inv.fiveYearStart}-${inv.fiveYearEnd}`)}, investments from ${escapeHtml(countryEn)} to Georgia amounted to ${b(`${fmt(inv.fiveYearSum)} mln USD`)}.</p>`
+        );
       }
     }
 
@@ -2490,17 +2806,21 @@
       if (inv.latestYearValue > 0) {
         if (isKa) {
           let s = `<p>${b(`${inv.latestYear} წელს`)} ${escapeHtml(countryKaFrom)} საქართველოში განხორციელდა ${b(`${fmt(inv.latestYearValue)} მლნ. აშშ დოლარის`)} პირდაპირი უცხოური ინვესტიცია.`;
-          if (inv.latestYearRank) s += ` ${escapeHtml(countryKa)} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით ${inv.latestYear} წელს ${b(`${geP(inv.latestYearRank)} ადგილს`)} იკავებს.`;
+          if (inv.latestYearRank)
+            s += ` ${escapeHtml(countryKa)} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით ${inv.latestYear} წელს ${b(`${geP(inv.latestYearRank)} ადგილს`)} იკავებს.`;
           s += '</p>';
           lines.push(s);
         } else {
           let s = `<p>In ${b(inv.latestYear)}, ${b(`${fmt(inv.latestYearValue)} mln USD`)} of foreign direct investment came to Georgia from ${escapeHtml(countryEn)}.`;
-          if (inv.latestYearRank) s += ` ${escapeHtml(countryEn)} ranked ${b(enO(inv.latestYearRank))} by FDI volume in ${inv.latestYear}.`;
+          if (inv.latestYearRank)
+            s += ` ${escapeHtml(countryEn)} ranked ${b(enO(inv.latestYearRank))} by FDI volume in ${inv.latestYear}.`;
           s += '</p>';
           lines.push(s);
         }
       } else {
-        lines.push(`<p>${isKa ? `${b(`${inv.latestYear} წელს`)} ${escapeHtml(countryKaFrom)} ინვესტიცია არ განხორციელდა.` : `In ${b(inv.latestYear)}, no investment was conducted from ${escapeHtml(countryEn)}.`}</p>`);
+        lines.push(
+          `<p>${isKa ? `${b(`${inv.latestYear} წელს`)} ${escapeHtml(countryKaFrom)} ინვესტიცია არ განხორციელდა.` : `In ${b(inv.latestYear)}, no investment was conducted from ${escapeHtml(countryEn)}.`}</p>`
+        );
       }
     }
 
@@ -2509,17 +2829,21 @@
       if (inv.prevYearValue > 0) {
         if (isKa) {
           let s = `<p>${b(`${inv.prevYear} წელს`)} ${escapeHtml(countryKaFrom)} საქართველოში განხორციელდა ${b(`${fmt(inv.prevYearValue)} მლნ. აშშ დოლარის`)} პირდაპირი უცხოური ინვესტიცია.`;
-          if (inv.prevYearRank) s += ` ${escapeHtml(countryKa)} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით ${inv.prevYear} წელს ${b(`${geP(inv.prevYearRank)} ადგილს`)} იკავებს.`;
+          if (inv.prevYearRank)
+            s += ` ${escapeHtml(countryKa)} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით ${inv.prevYear} წელს ${b(`${geP(inv.prevYearRank)} ადგილს`)} იკავებს.`;
           s += '</p>';
           lines.push(s);
         } else {
           let s = `<p>In ${b(inv.prevYear)}, ${b(`${fmt(inv.prevYearValue)} mln USD`)} of foreign direct investment came to Georgia from ${escapeHtml(countryEn)}.`;
-          if (inv.prevYearRank) s += ` ${escapeHtml(countryEn)} ranked ${b(enO(inv.prevYearRank))} by FDI volume in ${inv.prevYear}.`;
+          if (inv.prevYearRank)
+            s += ` ${escapeHtml(countryEn)} ranked ${b(enO(inv.prevYearRank))} by FDI volume in ${inv.prevYear}.`;
           s += '</p>';
           lines.push(s);
         }
       } else {
-        lines.push(`<p>${isKa ? `${b(`${inv.prevYear} წელს`)} ${escapeHtml(countryKaFrom)} ინვესტიცია არ განხორციელდა.` : `In ${b(inv.prevYear)}, no investment was conducted from ${escapeHtml(countryEn)}.`}</p>`);
+        lines.push(
+          `<p>${isKa ? `${b(`${inv.prevYear} წელს`)} ${escapeHtml(countryKaFrom)} ინვესტიცია არ განხორციელდა.` : `In ${b(inv.prevYear)}, no investment was conducted from ${escapeHtml(countryEn)}.`}</p>`
+        );
       }
     }
 
@@ -2590,18 +2914,30 @@
       lines.push(`<p>${b(fmt(c.total))} მოქმედი კომპანია ${escapeHtml(country)}-ის კაპიტალის მონაწილეობით.</p>`);
       lines.push(`<ul style="margin:0;padding-left:1.2em;">`);
       lines.push(`<li>${b(fmt(c.solo))} კომპანია - ${escapeHtml(country)}-ის კაპიტალით შექმნილი;</li>`);
-      lines.push(`<li>${b(fmt(c.withGeorgia))} კომპანია - ${escapeHtml(country)} - საქართველოს წილობრივი კაპიტალით შექმნილი;</li>`);
-      lines.push(`<li>${b(fmt(c.withGeorgiaAndThird))} კომპანია - ${escapeHtml(country)}, საქართველოსა და მესამე ქვეყნის კაპიტალით შექმნილი;</li>`);
-      lines.push(`<li>${b(fmt(c.withThirdOnly))} კომპანია - ${escapeHtml(country)}-ის და მესამე ქვეყნების წილობრივი კაპიტალით შექმნილი.</li>`);
+      lines.push(
+        `<li>${b(fmt(c.withGeorgia))} კომპანია - ${escapeHtml(country)} - საქართველოს წილობრივი კაპიტალით შექმნილი;</li>`
+      );
+      lines.push(
+        `<li>${b(fmt(c.withGeorgiaAndThird))} კომპანია - ${escapeHtml(country)}, საქართველოსა და მესამე ქვეყნის კაპიტალით შექმნილი;</li>`
+      );
+      lines.push(
+        `<li>${b(fmt(c.withThirdOnly))} კომპანია - ${escapeHtml(country)}-ის და მესამე ქვეყნების წილობრივი კაპიტალით შექმნილი.</li>`
+      );
       lines.push(`</ul>`);
     } else {
       lines.push(`<p>Active companies with capital originating from ${escapeHtml(country)}:</p>`);
       lines.push(`<p>${b(fmt(c.total))} active companies with capital originating from ${escapeHtml(country)}.</p>`);
       lines.push(`<ul style="margin:0;padding-left:1.2em;">`);
       lines.push(`<li>${b(fmt(c.solo))} companies - established with capital from only ${escapeHtml(country)};</li>`);
-      lines.push(`<li>${b(fmt(c.withGeorgia))} companies - established with joint capital from ${escapeHtml(country)} and Georgia;</li>`);
-      lines.push(`<li>${b(fmt(c.withGeorgiaAndThird))} companies - established with joint capital from ${escapeHtml(country)}, Georgia and the third country;</li>`);
-      lines.push(`<li>${b(fmt(c.withThirdOnly))} companies - established with joint capital from ${escapeHtml(country)} and third countries.</li>`);
+      lines.push(
+        `<li>${b(fmt(c.withGeorgia))} companies - established with joint capital from ${escapeHtml(country)} and Georgia;</li>`
+      );
+      lines.push(
+        `<li>${b(fmt(c.withGeorgiaAndThird))} companies - established with joint capital from ${escapeHtml(country)}, Georgia and the third country;</li>`
+      );
+      lines.push(
+        `<li>${b(fmt(c.withThirdOnly))} companies - established with joint capital from ${escapeHtml(country)} and third countries.</li>`
+      );
       lines.push(`</ul>`);
     }
     companiesSummaryEl.innerHTML = lines.join('');
@@ -2618,7 +2954,7 @@
 
     // Drop the rank column entirely when no year reaches the top 20.
     const TOP_RANK_LIMIT = 20;
-    const showRank = data.some(r => r.valueMln > 0 && r.rank && r.rank <= TOP_RANK_LIMIT);
+    const showRank = data.some((r) => r.valueMln > 0 && r.rank && r.rank <= TOP_RANK_LIMIT);
 
     let html = `<table class="stat-table">
       <thead>
@@ -2640,12 +2976,12 @@
       let changeClass = '';
       if (!isCurNeg && !isPrevNeg) {
         const pct = ((r.valueMln - r.prevMln) / r.prevMln) * 100;
-        changeClass = pct > 0 ? 'stat-positive' : (pct < 0 ? 'stat-negative' : '');
+        changeClass = pct > 0 ? 'stat-positive' : pct < 0 ? 'stat-negative' : '';
         const sign = pct > 0 ? '+' : '';
         changeCell = `${sign}${formatChangePct(pct)}`;
       }
-      const rankCellInner = (!isCurNeg && r.rank) ? String(r.rank) : '-';
-      const shareCell = (!isCurNeg && r.share != null) ? `${(Math.round(r.share * 10) / 10).toFixed(1)}%` : '-';
+      const rankCellInner = !isCurNeg && r.rank ? String(r.rank) : '-';
+      const shareCell = !isCurNeg && r.share != null ? `${(Math.round(r.share * 10) / 10).toFixed(1)}%` : '-';
       html += `
         <tr>
           <td>${r.year}</td>
@@ -2663,18 +2999,20 @@
   function renderFdiChart(data, isKa) {
     fdiChartHeader.innerHTML = `<h3 class="stat-report__title">${isKa ? 'პირდაპირი უცხოური ინვესტიციები, მლნ. $' : 'FDI, mln $'}</h3>`;
 
-    const labels = data.map(d => String(d.year));
-    const values = data.map(d => d.valueMln);
+    const labels = data.map((d) => String(d.year));
+    const values = data.map((d) => d.valueMln);
 
     fdiChartInstance = new Chart(fdiChartCanvas, {
       type: 'bar',
       data: {
         labels,
-        datasets: [{
-          data: values,
-          backgroundColor: '#3b82f6',
-          borderRadius: 3,
-        }],
+        datasets: [
+          {
+            data: values,
+            backgroundColor: '#3b82f6',
+            borderRadius: 3,
+          },
+        ],
       },
       options: {
         responsive: true,
@@ -2750,10 +3088,15 @@
           for (const arr of arrays) total += arr.length;
           const out = new Uint8Array(total);
           let offset = 0;
-          for (const arr of arrays) { out.set(arr, offset); offset += arr.length; }
+          for (const arr of arrays) {
+            out.set(arr, offset);
+            offset += arr.length;
+          }
           return out;
         },
-        isBuffer() { return false; },
+        isBuffer() {
+          return false;
+        },
         from(data, encoding) {
           if (typeof data === 'string') {
             // Limited string support; the obfuscate path only needs binary.
@@ -2764,7 +3107,9 @@
           if (Array.isArray(data)) return new Uint8Array(data);
           return new Uint8Array(data || 0);
         },
-        alloc(size) { return new Uint8Array(size); },
+        alloc(size) {
+          return new Uint8Array(size);
+        },
       };
     }
     _docxLoadPromise = new Promise((resolve, reject) => {
@@ -2816,7 +3161,7 @@
       // colour functions, etc.) are shared by reference — fine for a
       // one-shot read-only render.
       const srcOptions = src.options || {};
-      const srcScales  = srcOptions.scales  || {};
+      const srcScales = srcOptions.scales || {};
       const srcPlugins = srcOptions.plugins || {};
 
       const clonedScales = {};
@@ -2860,7 +3205,11 @@
       console.warn('Chart snapshot failed:', err);
       return null;
     } finally {
-      if (tmpChart) { try { tmpChart.destroy(); } catch (_) {} }
+      if (tmpChart) {
+        try {
+          tmpChart.destroy();
+        } catch (_) {}
+      }
       host.remove();
     }
   }
@@ -2883,7 +3232,7 @@
     // resizes them to real dimensions before we snapshot.
     document.body.classList.add('stat-exporting');
     // Wait two animation frames so layout/resize settle.
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
     try {
       // Force all known charts to resize and snapshot to PNG.
@@ -2909,8 +3258,13 @@
     } finally {
       document.body.classList.remove('stat-exporting');
       // Restore chart sizes to fit their actual visible containers
-      [turnoverChartInstance, dynamicsChartInstance, tourismChartInstance, fdiChartInstance]
-        .forEach(c => { if (c) { try { c.resize(); } catch (_) {} } });
+      [turnoverChartInstance, dynamicsChartInstance, tourismChartInstance, fdiChartInstance].forEach((c) => {
+        if (c) {
+          try {
+            c.resize();
+          } catch (_) {}
+        }
+      });
       exportPdfBtn.disabled = false;
       exportPdfBtn.textContent = origBtnText;
     }
@@ -2931,7 +3285,7 @@
     exportWordBtn.textContent = '...';
 
     document.body.classList.add('stat-exporting');
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
     try {
       await ensureDocxLib();
@@ -2942,8 +3296,8 @@
       const charts = {
         turnover: snapshotChart(turnoverChartInstance),
         dynamics: snapshotChart(dynamicsChartInstance),
-        tourism:  snapshotChart(tourismChartInstance),
-        fdi:      snapshotChart(fdiChartInstance),
+        tourism: snapshotChart(tourismChartInstance),
+        fdi: snapshotChart(fdiChartInstance),
       };
 
       await StatisticsWord.build(pdfState, {
@@ -2957,8 +3311,13 @@
       notifyExportError(I18n.tr('statistics.wordExportFailed') + ' ' + (err.message || err));
     } finally {
       document.body.classList.remove('stat-exporting');
-      [turnoverChartInstance, dynamicsChartInstance, tourismChartInstance, fdiChartInstance]
-        .forEach(c => { if (c) { try { c.resize(); } catch (_) {} } });
+      [turnoverChartInstance, dynamicsChartInstance, tourismChartInstance, fdiChartInstance].forEach((c) => {
+        if (c) {
+          try {
+            c.resize();
+          } catch (_) {}
+        }
+      });
       exportWordBtn.disabled = false;
       exportWordBtn.textContent = origBtnText;
     }
@@ -2997,9 +3356,7 @@
   async function fetchAppendixColumn(column, countryId) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 60_000);
-    const months = column.kind === 'full'
-      ? [1,2,3,4,5,6,7,8,9,10,11,12]
-      : column.months;
+    const months = column.kind === 'full' ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] : column.months;
     try {
       // /country-aggregate is the slim cousin of /country-ranking — it
       // skips the dom-export + re-export fetches and the rank sort the
@@ -3026,9 +3383,7 @@
 
   async function buildAppendix(latestYear, latestMonth, countryId) {
     const columns = buildAppendixColumns(latestYear, latestMonth);
-    const settled = await Promise.allSettled(
-      columns.map((c) => fetchAppendixColumn(c, countryId))
-    );
+    const settled = await Promise.allSettled(columns.map((c) => fetchAppendixColumn(c, countryId)));
     const data = settled.map((s) => (s.status === 'fulfilled' ? s.value : null));
     const anyData = data.some((d) => d && d.totals);
     if (!anyData) return null;
@@ -3066,20 +3421,18 @@
     const countryLabel = isKa ? countryKa : countryEn;
     const countryAbbr = (countryLabel || '').slice(0, 3);
 
-    const title = isKa
-      ? `${countryKa} - დანართი`
-      : `${countryEn} - Appendix`;
+    const title = isKa ? `${countryKa} - დანართი` : `${countryEn} - Appendix`;
     if (appendixHeaderEl) {
       appendixHeaderEl.innerHTML = `<h3 class="stat-report__title">${escapeHtml(title)}</h3>`;
     }
 
     const L = {
       turnover: isKa ? 'ბრუნვა' : 'Turnover',
-      export:   isKa ? 'ექსპორტი' : 'Export',
-      import:   isKa ? 'იმპორტი' : 'Import',
-      balance:  isKa ? 'სალდო' : 'Balance',
-      change:   isKa ? 'ცვლილება %' : 'Change %',
-      share:    isKa ? 'წილი %' : 'Share %',
+      export: isKa ? 'ექსპორტი' : 'Export',
+      import: isKa ? 'იმპორტი' : 'Import',
+      balance: isKa ? 'სალდო' : 'Balance',
+      change: isKa ? 'ცვლილება %' : 'Change %',
+      share: isKa ? 'წილი %' : 'Share %',
     };
 
     const cols = state.columns;
@@ -3087,7 +3440,8 @@
 
     function canCompareChange(i) {
       if (i === 0) return false;
-      const a = cols[i - 1], b = cols[i];
+      const a = cols[i - 1],
+        b = cols[i];
       if (a.kind !== b.kind) return false;
       if (b.year - a.year !== 1) return false;
       if (b.kind === 'ytd' && a.months.length !== b.months.length) return false;
@@ -3103,44 +3457,42 @@
       return d && d.totals ? d.totals[flow] : null;
     };
 
-    const headerCells = [`<th>&nbsp;</th>`]
-      .concat(cols.map((c) => `<th>${escapeHtml(c.label)}</th>`))
-      .join('');
+    const headerCells = [`<th>&nbsp;</th>`].concat(cols.map((c) => `<th>${escapeHtml(c.label)}</th>`)).join('');
 
     function totalsRow(label, flow) {
-      const cells = cols
-        .map((_, i) => `<td>${fmtAppendixNum(getTotal(i, flow))}</td>`)
-        .join('');
+      const cells = cols.map((_, i) => `<td>${fmtAppendixNum(getTotal(i, flow))}</td>`).join('');
       return `<tr class="stat-appendix__group"><td>${escapeHtml(label)}</td>${cells}</tr>`;
     }
 
     function valueRow(label, flow) {
-      const cells = cols
-        .map((_, i) => `<td>${fmtAppendixNum(getCountry(i, flow))}</td>`)
-        .join('');
+      const cells = cols.map((_, i) => `<td>${fmtAppendixNum(getCountry(i, flow))}</td>`).join('');
       return `<tr><td>${escapeHtml(label)}</td>${cells}</tr>`;
     }
 
     function changeRow(label, flow) {
-      const cells = cols.map((_, i) => {
-        if (!canCompareChange(i)) return `<td>-</td>`;
-        const cur = getCountry(i, flow);
-        const prev = getCountry(i - 1, flow);
-        if (cur == null || prev == null || prev === 0) return `<td>-</td>`;
-        const pct = ((cur - prev) / prev) * 100;
-        const cls = pct > 0 ? 'stat-positive' : (pct < 0 ? 'stat-negative' : '');
-        return `<td class="${cls}">${fmtAppendixPct(pct, true)}</td>`;
-      }).join('');
+      const cells = cols
+        .map((_, i) => {
+          if (!canCompareChange(i)) return `<td>-</td>`;
+          const cur = getCountry(i, flow);
+          const prev = getCountry(i - 1, flow);
+          if (cur == null || prev == null || prev === 0) return `<td>-</td>`;
+          const pct = ((cur - prev) / prev) * 100;
+          const cls = pct > 0 ? 'stat-positive' : pct < 0 ? 'stat-negative' : '';
+          return `<td class="${cls}">${fmtAppendixPct(pct, true)}</td>`;
+        })
+        .join('');
       return `<tr><td>${escapeHtml(label)}</td>${cells}</tr>`;
     }
 
     function shareRow(label, flow) {
-      const cells = cols.map((_, i) => {
-        const cur = getCountry(i, flow);
-        const tot = getTotal(i, flow);
-        if (cur == null || !tot) return `<td class="stat-appendix__share">-</td>`;
-        return `<td class="stat-appendix__share">${fmtAppendixPct((cur / tot) * 100, false)}</td>`;
-      }).join('');
+      const cells = cols
+        .map((_, i) => {
+          const cur = getCountry(i, flow);
+          const tot = getTotal(i, flow);
+          if (cur == null || !tot) return `<td class="stat-appendix__share">-</td>`;
+          return `<td class="stat-appendix__share">${fmtAppendixPct((cur / tot) * 100, false)}</td>`;
+        })
+        .join('');
       return `<tr><td>${escapeHtml(label)}</td>${cells}</tr>`;
     }
 
@@ -3153,14 +3505,16 @@
       ].join('');
     }
 
-    const balanceCells = cols.map((_, i) => {
-      const c = state.data[i] && state.data[i].country;
-      if (!c) return `<td>-</td>`;
-      const bal = (c.export || 0) - (c.import || 0);
-      const cls = bal > 0 ? 'stat-positive' : (bal < 0 ? 'stat-negative' : '');
-      const sign = bal < 0 ? '-' : '';
-      return `<td class="${cls}">${sign}${fmtAppendixNum(Math.abs(bal))}</td>`;
-    }).join('');
+    const balanceCells = cols
+      .map((_, i) => {
+        const c = state.data[i] && state.data[i].country;
+        if (!c) return `<td>-</td>`;
+        const bal = (c.export || 0) - (c.import || 0);
+        const cls = bal > 0 ? 'stat-positive' : bal < 0 ? 'stat-negative' : '';
+        const sign = bal < 0 ? '-' : '';
+        return `<td class="${cls}">${sign}${fmtAppendixNum(Math.abs(bal))}</td>`;
+      })
+      .join('');
 
     const html = `
       <table class="stat-appendix">

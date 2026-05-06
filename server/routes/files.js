@@ -5,6 +5,8 @@ const db = require('../db');
 const { requireAuth, denyAnalyst } = require('../middleware/auth');
 const { canAccessSection } = require('../helpers/access');
 const { asPositiveInt, validationError } = require('../helpers/validation');
+const storage = require('../storage');
+const logger = require('../logger');
 
 const router = express.Router();
 const MAX_UPLOAD_BYTES = config.megabytesToBytes(config.workflowUploadMaxMb);
@@ -72,20 +74,33 @@ router.post('/upload', requireAuth, denyAnalyst, handleUpload, async (req, res) 
     const uploaderName = userRow.rows[0]?.full_name || req.user.username;
 
     const uploaded = [];
-    for (const f of (req.files || [])) {
-      const originalName = String(f.originalname || 'upload').replace(/[\\/\r\n]/g, '_').slice(0, 500);
+    for (const f of req.files || []) {
+      const originalName = String(f.originalname || 'upload')
+        .replace(/[\\/\r\n]/g, '_')
+        .slice(0, 500);
       const storedName = Date.now() + '-' + Math.round(Math.random() * 1e9) + '-' + originalName;
       const row = await db.query(
-        `INSERT INTO section_files (event_id, section_id, original_name, stored_name, mime_type, size, uploaded_by_id, uploaded_by_name, file_data)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, original_name, stored_name, mime_type, size, uploaded_by_id, created_at`,
-        [eventId.value, sectionId.value, originalName, storedName, f.mimetype, f.size, req.user.id, uploaderName, f.buffer]
+        `INSERT INTO section_files (event_id, section_id, original_name, stored_name, mime_type, size, uploaded_by_id, uploaded_by_name)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, original_name, stored_name, mime_type, size, uploaded_by_id, created_at`,
+        [
+          eventId.value,
+          sectionId.value,
+          originalName,
+          storedName,
+          f.mimetype,
+          f.size,
+          req.user.id,
+          uploaderName,
+        ]
       );
-      uploaded.push(row.rows[0]);
+      const fileRow = row.rows[0];
+      await storage.store(fileRow.id, f.buffer);
+      uploaded.push(fileRow);
     }
 
     res.json({ success: true, files: uploaded });
   } catch (err) {
-    console.error('Upload error:', err);
+    logger.error({ err }, 'Upload error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -111,7 +126,7 @@ router.get('/list', requireAuth, async (req, res) => {
 
     res.json(result.rows);
   } catch (err) {
-    console.error('List files error:', err);
+    logger.error({ err }, 'List files error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -123,7 +138,7 @@ router.get('/download', requireAuth, async (req, res) => {
     if (id.error) return validationError(res, id.error);
 
     const result = await db.query(
-      `SELECT id, event_id, section_id, original_name, mime_type, file_data FROM section_files WHERE id = $1`,
+      `SELECT id, event_id, section_id, original_name, mime_type FROM section_files WHERE id = $1`,
       [id.value]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'File not found' });
@@ -132,15 +147,16 @@ router.get('/download', requireAuth, async (req, res) => {
     if (!(await canAccessSection(req.user, file.event_id, file.section_id))) {
       return res.status(403).json({ error: 'Not authorized to access this file' });
     }
-    if (!file.file_data) {
+    const fileData = await storage.retrieve(file.id);
+    if (!fileData) {
       return res.status(404).json({ error: 'File data not available. Please re-upload the file.' });
     }
 
     res.set('Content-Type', file.mime_type || 'application/octet-stream');
     res.set('Content-Disposition', contentDispositionFilename(file.original_name));
-    res.send(file.file_data);
+    res.send(fileData);
   } catch (err) {
-    console.error('Download error:', err);
+    logger.error({ err }, 'Download error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -151,10 +167,9 @@ router.post('/delete', requireAuth, denyAnalyst, async (req, res) => {
     const id = asPositiveInt(req.body.id, 'id');
     if (id.error) return validationError(res, id.error);
 
-    const result = await db.query(
-      `SELECT event_id, section_id, uploaded_by_id FROM section_files WHERE id = $1`,
-      [id.value]
-    );
+    const result = await db.query(`SELECT event_id, section_id, uploaded_by_id FROM section_files WHERE id = $1`, [
+      id.value,
+    ]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'File not found' });
 
     const file = result.rows[0];
@@ -167,12 +182,13 @@ router.post('/delete', requireAuth, denyAnalyst, async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to delete this file' });
     }
 
-    // Remove from DB (file_data is deleted with the row)
+    // Remove file data from storage backend, then delete the metadata row
+    await storage.remove(id.value);
     await db.query(`DELETE FROM section_files WHERE id = $1`, [id.value]);
 
     res.json({ success: true });
   } catch (err) {
-    console.error('Delete file error:', err);
+    logger.error({ err }, 'Delete file error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -21,7 +21,7 @@
     return;
   }
 
-  const activeEvents = events.filter(e => e.isActive);
+  const activeEvents = events.filter((e) => e.isActive);
   if (activeEvents.length === 0) {
     eventSelect.innerHTML = '<option value="">No events</option>';
     container.innerHTML = '<div class="empty-state"><p>No active events assigned to you</p></div>';
@@ -30,7 +30,7 @@
 
   // Populate event selector
   eventSelect.innerHTML = activeEvents
-    .map(e => `<option value="${e.id}">${escapeHtml(e.title)} — ${escapeHtml(e.countryName)}</option>`)
+    .map((e) => `<option value="${e.id}">${escapeHtml(e.title)} — ${escapeHtml(e.countryName)}</option>`)
     .join('');
 
   // Load sections for selected event
@@ -46,12 +46,17 @@
       // Other users see sections assigned to their department,
       // OR sections where they have a RECEIVING_ role in the approval chain
       // (i.e. they belong to the DS home department reviewing cross-dept sections).
-      const mySections = user.role === 'DEPUTY'
-        ? (grid.sections || [])
-        : (grid.sections || []).filter(s =>
-            (s.departmentIds && s.departmentIds.includes(user.departmentId)) ||
-            (s.userEffectiveRole && s.userEffectiveRole.startsWith('RECEIVING_') && s.chain && s.chain.includes(s.userEffectiveRole))
-          );
+      const mySections =
+        user.role === 'DEPUTY'
+          ? grid.sections || []
+          : (grid.sections || []).filter(
+              (s) =>
+                (s.departmentIds && s.departmentIds.includes(user.departmentId)) ||
+                (s.userEffectiveRole &&
+                  s.userEffectiveRole.startsWith('RECEIVING_') &&
+                  s.chain &&
+                  s.chain.includes(s.userEffectiveRole))
+            );
 
       if (mySections.length === 0) {
         container.innerHTML = '<div class="empty-state"><p>No sections for this event</p></div>';
@@ -72,15 +77,20 @@
               </tr>
             </thead>
             <tbody>
-              ${mySections.map((s, i) => {
-                const notices = [];
-                if (s.returnInfo) {
-                  notices.push(`<div class="dp-return-notice dp-return-notice--returned">Returned by ${escapeHtml(s.returnInfo.from || s.returnInfo.fromRole)}${s.returnInfo.note ? ': ' + escapeHtml(s.returnInfo.note) : ''}</div>`);
-                }
-                if (s.returnRequest) {
-                  notices.push(`<div class="dp-return-notice">Return requested by ${escapeHtml(s.returnRequest.from)}${s.returnRequest.note ? ': ' + escapeHtml(s.returnRequest.note) : ''}</div>`);
-                }
-                return `
+              ${mySections
+                .map((s, i) => {
+                  const notices = [];
+                  if (s.returnInfo) {
+                    notices.push(
+                      `<div class="dp-return-notice dp-return-notice--returned">Returned by ${escapeHtml(s.returnInfo.from || s.returnInfo.fromRole)}${s.returnInfo.note ? ': ' + escapeHtml(s.returnInfo.note) : ''}</div>`
+                    );
+                  }
+                  if (s.returnRequest) {
+                    notices.push(
+                      `<div class="dp-return-notice">Return requested by ${escapeHtml(s.returnRequest.from)}${s.returnRequest.note ? ': ' + escapeHtml(s.returnRequest.note) : ''}</div>`
+                    );
+                  }
+                  return `
                 <tr>
                   <td>${i + 1}</td>
                   <td>${escapeHtml(s.sectionLabel)}${notices.length ? notices.join('') : ''}</td>
@@ -91,7 +101,9 @@
                     ${renderActions(s, eventId, grid)}
                   </td>
                 </tr>
-              `}).join('')}
+              `;
+                })
+                .join('')}
             </tbody>
           </table>
         </div>
@@ -109,14 +121,16 @@
     if (steps.length === 0) return '';
     const status = section.status || 'draft';
 
-    return `<div class="progress-bar">${steps.map((step) => {
-      const state = getStepState(step.role, status, section);
-      const name = step.actorName || roleLabel(step.role);
-      return `<div class="progress-step ${state}" title="${escapeHtml(name)}">
+    return `<div class="progress-bar">${steps
+      .map((step) => {
+        const state = getStepState(step.role, status, section);
+        const name = step.actorName || roleLabel(step.role);
+        return `<div class="progress-step ${state}" title="${escapeHtml(name)}">
         <span class="step-dot"></span>
         <span class="step-label">${escapeHtml(name)}</span>
       </div>`;
-    }).join('<span class="step-arrow">\u2192</span>')}</div>`;
+      })
+      .join('<span class="step-arrow">\u2192</span>')}</div>`;
   }
 
   function getStepState(role, status, section) {
@@ -197,7 +211,7 @@
   }
 
   function bindActions(eventId) {
-    document.querySelectorAll('[data-action]').forEach(btn => {
+    document.querySelectorAll('[data-action]').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         e.preventDefault();
         const action = btn.dataset.action;
@@ -206,17 +220,39 @@
 
         try {
           if (action === 'submit') {
-            if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmSubmit'), { confirmLabel: I18n.tr('common.submit'), confirmColor: '#3b82f6' })) return;
+            if (
+              !(await GCP.ActionDialog.confirm(I18n.tr('editor.confirmSubmit'), {
+                confirmLabel: I18n.tr('common.submit'),
+                confirmColor: '#3b82f6',
+              }))
+            )
+              return;
             await Api.post('/api/workflow/submit', { eventId: evId, sectionId });
           } else if (action === 'ask-to-return') {
-            const note = await GCP.ActionDialog.popoverPrompt(btn, I18n.tr('editor.askReturnTitle'), { placeholder: I18n.tr('editor.askReturnPlaceholder'), confirmLabel: I18n.tr('editor.sendRequest'), confirmColor: '#a16207' });
+            const note = await GCP.ActionDialog.popoverPrompt(btn, I18n.tr('editor.askReturnTitle'), {
+              placeholder: I18n.tr('editor.askReturnPlaceholder'),
+              confirmLabel: I18n.tr('editor.sendRequest'),
+              confirmColor: '#a16207',
+            });
             if (note === null) return;
             await Api.post('/api/workflow/ask-to-return', { eventId: evId, sectionId, note: note || undefined });
           } else if (action === 'push-section') {
-            if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPush'), { confirmLabel: I18n.tr('editor.pushSection'), confirmColor: '#6d28d9' })) return;
+            if (
+              !(await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPush'), {
+                confirmLabel: I18n.tr('editor.pushSection'),
+                confirmColor: '#6d28d9',
+              }))
+            )
+              return;
             await Api.post('/api/workflow/push-section', { eventId: evId, sectionId });
           } else if (action === 'pull-section') {
-            if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPull'), { confirmLabel: I18n.tr('editor.pullSection'), confirmColor: '#7c3aed' })) return;
+            if (
+              !(await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPull'), {
+                confirmLabel: I18n.tr('editor.pullSection'),
+                confirmColor: '#7c3aed',
+              }))
+            )
+              return;
             await Api.post('/api/workflow/pull-section', { eventId: evId, sectionId });
           }
           loadSections(evId);

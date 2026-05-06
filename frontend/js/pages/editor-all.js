@@ -51,16 +51,18 @@
 
   const nav = document.getElementById('sectionNav');
   const navLinks = {};
-  nav.innerHTML = grid.sections.map((s, i) => {
-    const id = `nav-link-${s.sectionId}`;
-    return `<a href="#section-${s.sectionId}" id="${id}">${i + 1}. ${escapeHtml(s.sectionLabel)}</a>`;
-  }).join('');
-  grid.sections.forEach(s => {
+  nav.innerHTML = grid.sections
+    .map((s, i) => {
+      const id = `nav-link-${s.sectionId}`;
+      return `<a href="#section-${s.sectionId}" id="${id}">${i + 1}. ${escapeHtml(s.sectionLabel)}</a>`;
+    })
+    .join('');
+  grid.sections.forEach((s) => {
     navLinks[s.sectionId] = document.getElementById(`nav-link-${s.sectionId}`);
   });
 
   // Smooth scroll on nav click
-  nav.addEventListener('click', e => {
+  nav.addEventListener('click', (e) => {
     const link = e.target.closest('a');
     if (!link) return;
     e.preventDefault();
@@ -70,9 +72,11 @@
 
   // ── Load all section contents ────────────────────────────────────────────
 
-  const contentPromises = grid.sections.map(s =>
-    Api.get(`/api/workflow/section-content?event_id=${eventId}&section_id=${s.sectionId}`)
-      .catch(() => ({ htmlContent: '', status: 'draft' }))
+  const contentPromises = grid.sections.map((s) =>
+    Api.get(`/api/workflow/section-content?event_id=${eventId}&section_id=${s.sectionId}`).catch(() => ({
+      htmlContent: '',
+      status: 'draft',
+    }))
   );
   const contents = await Promise.all(contentPromises);
 
@@ -84,13 +88,20 @@
   let activeDropdown = null;
 
   function closeDropdown() {
-    if (activeDropdown) { activeDropdown.remove(); activeDropdown = null; }
-  }
-  document.addEventListener('mousedown', e => {
-    if (activeDropdown && !activeDropdown.contains(e.target) && !e.target.closest('.section-action-trigger')) {
-      closeDropdown();
+    if (activeDropdown) {
+      activeDropdown.remove();
+      activeDropdown = null;
     }
-  }, true);
+  }
+  document.addEventListener(
+    'mousedown',
+    (e) => {
+      if (activeDropdown && !activeDropdown.contains(e.target) && !e.target.closest('.section-action-trigger')) {
+        closeDropdown();
+      }
+    },
+    true
+  );
 
   grid.sections.forEach((s, i) => {
     const content = contents[i];
@@ -141,13 +152,24 @@
         const text = await GCP.ActionDialog.popoverPrompt(
           anchorSpan || editorContainer,
           I18n.tr('editor.comment.addTitle'),
-          { placeholder: I18n.tr('editor.comment.placeholder'), required: true, confirmLabel: I18n.tr('common.add'), confirmColor: '#3b82f6', fixed: true }
+          {
+            placeholder: I18n.tr('editor.comment.placeholder'),
+            required: true,
+            confirmLabel: I18n.tr('common.add'),
+            confirmColor: '#3b82f6',
+            fixed: true,
+          }
         );
         if (text && text.trim()) {
           Api.post('/api/workflow/comments', {
-            eventId, sectionId: s.sectionId, content: text.trim(), anchorId,
+            eventId,
+            sectionId: s.sectionId,
+            content: text.trim(),
+            anchorId,
             htmlContent: editor.getHtml(),
-          }).then(() => loadCommentsForSection(s.sectionId)).catch(e => toast.error(I18n.tr('editor.comment.failed') + ' ' + e.message));
+          })
+            .then(() => loadCommentsForSection(s.sectionId))
+            .catch((e) => toast.error(I18n.tr('editor.comment.failed') + ' ' + e.message));
         } else {
           editor.removeCommentAnchor(anchorId);
         }
@@ -158,20 +180,28 @@
           if (anchorId) {
             editor.removeCommentAnchor(anchorId);
             Api.post('/api/workflow/save', {
-              eventId, sectionId: s.sectionId,
+              eventId,
+              sectionId: s.sectionId,
               htmlContent: editor.getHtml(),
-            }).catch(e => console.error('Auto-save after anchor removal failed:', e));
+            }).catch((e) => console.error('Auto-save after anchor removal failed:', e));
           }
           loadCommentsForSection(s.sectionId);
-        } catch (e) { console.error('Delete comment failed:', e); }
+        } catch (e) {
+          console.error('Delete comment failed:', e);
+        }
       },
       async onReplyComment(parentId, text) {
         try {
           await Api.post('/api/workflow/comments', {
-            eventId, sectionId: s.sectionId, content: text, parentId,
+            eventId,
+            sectionId: s.sectionId,
+            content: text,
+            parentId,
           });
           loadCommentsForSection(s.sectionId);
-        } catch (e) { toast.error(I18n.tr('editor.comment.replyFailed') + ' ' + e.message); }
+        } catch (e) {
+          toast.error(I18n.tr('editor.comment.replyFailed') + ' ' + e.message);
+        }
       },
     });
 
@@ -251,7 +281,7 @@
     groups.forEach((btns, i) => {
       const wrapper = document.createElement('div');
       wrapper.className = 'tb-group';
-      btns.forEach(b => wrapper.appendChild(b));
+      btns.forEach((b) => wrapper.appendChild(b));
       const label = document.createElement('div');
       label.className = 'tb-group-label';
       label.textContent = groupNames[i] || '';
@@ -263,11 +293,13 @@
   // ── Status bar ────────────────────────────────────────────────────────
 
   function updateStatusBar() {
-    const idx = grid.sections.findIndex(s => s.sectionId === focusedSectionId);
+    const idx = grid.sections.findIndex((s) => s.sectionId === focusedSectionId);
     const secEl = document.getElementById('statusSection');
     const wordsEl = document.getElementById('statusWords');
     if (idx >= 0) {
-      secEl.textContent = I18n.tr('editor.status.sectionOf').replace('{n}', idx + 1).replace('{total}', grid.sections.length);
+      secEl.textContent = I18n.tr('editor.status.sectionOf')
+        .replace('{n}', idx + 1)
+        .replace('{total}', grid.sections.length);
     } else {
       secEl.textContent = I18n.tr('editor.status.sectionsCount').replace('{total}', grid.sections.length);
     }
@@ -280,7 +312,7 @@
   }
 
   // Update word count on typing
-  Object.values(sections).forEach(sec => {
+  Object.values(sections).forEach((sec) => {
     if (sec.editor.el) {
       sec.editor.el.addEventListener('input', () => {
         if (sec.sectionInfo.sectionId === focusedSectionId) updateStatusBar();
@@ -292,7 +324,7 @@
   updateStatusBar();
 
   // Clear toolbar dock when clicking outside any editor
-  document.addEventListener('mousedown', e => {
+  document.addEventListener('mousedown', (e) => {
     if (!e.target.closest('.doc-section') && !e.target.closest('#toolbarDock')) {
       if (focusedSectionId && sections[focusedSectionId]) {
         const prev = sections[focusedSectionId];
@@ -308,21 +340,24 @@
 
   // ── IntersectionObserver for scroll-based nav sync ───────────────────────
 
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const id = parseInt(entry.target.id.replace('section-', ''));
-        Object.values(navLinks).forEach(l => l.classList.remove('active'));
-        if (navLinks[id]) navLinks[id].classList.add('active');
-      }
-    });
-  }, { rootMargin: '-60px 0px -70% 0px', threshold: 0 });
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const id = parseInt(entry.target.id.replace('section-', ''));
+          Object.values(navLinks).forEach((l) => l.classList.remove('active'));
+          if (navLinks[id]) navLinks[id].classList.add('active');
+        }
+      });
+    },
+    { rootMargin: '-60px 0px -70% 0px', threshold: 0 }
+  );
 
-  Object.values(sections).forEach(s => observer.observe(s.sectionEl));
+  Object.values(sections).forEach((s) => observer.observe(s.sectionEl));
 
   // ── Action dropdown ──────────────────────────────────────────────────────
 
-  docFlow.addEventListener('click', e => {
+  docFlow.addEventListener('click', (e) => {
     const trigger = e.target.closest('.section-action-trigger');
     if (!trigger) return;
     e.stopPropagation();
@@ -332,7 +367,8 @@
 
     // Toggle if already open
     if (activeDropdown && activeDropdown.dataset.sectionId === String(sid)) {
-      closeDropdown(); return;
+      closeDropdown();
+      return;
     }
     closeDropdown();
 
@@ -353,14 +389,23 @@
       const item = document.createElement('div');
       item.className = 'section-action-item' + (colorClass ? ' section-action-item--' + colorClass : '');
       item.textContent = label;
-      item.addEventListener('click', () => { closeDropdown(); handler(); });
+      item.addEventListener('click', () => {
+        closeDropdown();
+        handler();
+      });
       drop.appendChild(item);
     }
 
     // Last updated info (non-clickable)
     if (s._updatedAt) {
-      const dateLocale = (typeof I18n !== 'undefined' && I18n.getLocale && I18n.getLocale() === 'ka') ? 'ka-GE' : 'en-GB';
-      const ts = new Date(s._updatedAt).toLocaleString(dateLocale, { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      const dateLocale = typeof I18n !== 'undefined' && I18n.getLocale && I18n.getLocale() === 'ka' ? 'ka-GE' : 'en-GB';
+      const ts = new Date(s._updatedAt).toLocaleString(dateLocale, {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
       const info = document.createElement('div');
       info.className = 'section-action-item section-action-item--muted';
       const byPart = s._updatedByName ? ' ' + I18n.tr('editor.action.by') + ' ' + s._updatedByName : '';
@@ -418,7 +463,8 @@
     if (!sec) return;
     try {
       await Api.post('/api/workflow/save', {
-        eventId, sectionId,
+        eventId,
+        sectionId,
         htmlContent: sec.editor.getHtml(),
       });
       showNotification(I18n.tr('editor.saved'));
@@ -431,7 +477,13 @@
   async function handleSubmitSection(sectionId) {
     const sec = sections[sectionId];
     if (!sec) return;
-    if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmSubmit'), { confirmLabel: I18n.tr('common.submit'), confirmColor: '#3b82f6' })) return;
+    if (
+      !(await GCP.ActionDialog.confirm(I18n.tr('editor.confirmSubmit'), {
+        confirmLabel: I18n.tr('common.submit'),
+        confirmColor: '#3b82f6',
+      }))
+    )
+      return;
     try {
       await Api.post('/api/workflow/save', { eventId, sectionId, htmlContent: sec.editor.getHtml() });
       await Api.post('/api/workflow/submit', { eventId, sectionId });
@@ -443,7 +495,13 @@
   }
 
   async function handleApproveSection(sectionId) {
-    if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmApprove'), { confirmLabel: I18n.tr('common.approve'), confirmColor: '#16a34a' })) return;
+    if (
+      !(await GCP.ActionDialog.confirm(I18n.tr('editor.confirmApprove'), {
+        confirmLabel: I18n.tr('common.approve'),
+        confirmColor: '#16a34a',
+      }))
+    )
+      return;
     try {
       await Api.post('/api/workflow/approve', { eventId, sectionId });
       showNotification(I18n.tr('editor.approved'));
@@ -459,7 +517,13 @@
     const comment = await GCP.ActionDialog.popoverPrompt(
       sec.dividerEl.querySelector('.section-action-trigger'),
       I18n.tr('editor.returnTitle'),
-      { placeholder: I18n.tr('editor.returnPlaceholder'), required: true, confirmLabel: I18n.tr('common.return'), confirmColor: '#6d28d9', fixed: true }
+      {
+        placeholder: I18n.tr('editor.returnPlaceholder'),
+        required: true,
+        confirmLabel: I18n.tr('common.return'),
+        confirmColor: '#6d28d9',
+        fixed: true,
+      }
     );
     if (!comment) return;
     try {
@@ -477,7 +541,13 @@
     const note = await GCP.ActionDialog.popoverPrompt(
       sec.dividerEl.querySelector('.section-action-trigger'),
       I18n.tr('editor.askReturnTitle'),
-      { placeholder: I18n.tr('editor.askReturnPlaceholder'), required: true, confirmLabel: I18n.tr('editor.sendRequest'), confirmColor: '#a16207', fixed: true }
+      {
+        placeholder: I18n.tr('editor.askReturnPlaceholder'),
+        required: true,
+        confirmLabel: I18n.tr('editor.sendRequest'),
+        confirmColor: '#a16207',
+        fixed: true,
+      }
     );
     if (!note) return;
     try {
@@ -490,7 +560,13 @@
   }
 
   async function handlePushSection(sectionId) {
-    if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPush'), { confirmLabel: I18n.tr('editor.pushSection'), confirmColor: '#6d28d9' })) return;
+    if (
+      !(await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPush'), {
+        confirmLabel: I18n.tr('editor.pushSection'),
+        confirmColor: '#6d28d9',
+      }))
+    )
+      return;
     try {
       await Api.post('/api/workflow/push-section', { eventId, sectionId });
       showNotification(I18n.tr('editor.pushed'));
@@ -501,7 +577,13 @@
   }
 
   async function handlePullSection(sectionId) {
-    if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPull'), { confirmLabel: I18n.tr('editor.pullSection'), confirmColor: '#7c3aed' })) return;
+    if (
+      !(await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPull'), {
+        confirmLabel: I18n.tr('editor.pullSection'),
+        confirmColor: '#7c3aed',
+      }))
+    )
+      return;
     try {
       await Api.post('/api/workflow/pull-section', { eventId, sectionId });
       showNotification(I18n.tr('editor.pulled'));
@@ -520,20 +602,25 @@
       return;
     }
     const btn = document.getElementById('btnSaveAll');
-    btn.disabled = true; btn.textContent = I18n.tr('editor.saveAll.inProgress');
+    btn.disabled = true;
+    btn.textContent = I18n.tr('editor.saveAll.inProgress');
     try {
-      await Promise.all(editable.map(([sid, s]) =>
-        Api.post('/api/workflow/save', {
-          eventId, sectionId: parseInt(sid),
-          htmlContent: s.editor.getHtml(),
-        })
-      ));
+      await Promise.all(
+        editable.map(([sid, s]) =>
+          Api.post('/api/workflow/save', {
+            eventId,
+            sectionId: parseInt(sid),
+            htmlContent: s.editor.getHtml(),
+          })
+        )
+      );
       showNotification(I18n.tr('editor.saveAll.allSaved'));
       document.getElementById('statusSaved').textContent = I18n.tr('editor.status.saved');
     } catch (e) {
       toast.error(I18n.tr('editor.saveFailed') + ' ' + e.message);
     } finally {
-      btn.disabled = false; btn.textContent = I18n.tr('editor.saveAll');
+      btn.disabled = false;
+      btn.textContent = I18n.tr('editor.saveAll');
     }
   });
 
@@ -544,7 +631,7 @@
     if (!sec) return;
     try {
       const comments = await Api.get(`/api/workflow/comments?event_id=${eventId}&section_id=${sectionId}`);
-      const editorComments = (comments || []).map(c => ({
+      const editorComments = (comments || []).map((c) => ({
         id: c.id,
         anchor_id: c.anchorId || null,
         parent_id: c.parentId || null,

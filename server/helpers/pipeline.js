@@ -237,7 +237,7 @@ function canPushSection(userRole, chain, isCrossDept, holderRole, isLastActor, w
 
   if (isHolder) {
     // Holder case: must have >1 step gap to RECEIVING_SC
-    return (receivingScIdx - userIdx) > 1;
+    return receivingScIdx - userIdx > 1;
   }
 
   // Non-holder case: the user already submitted/approved but next in chain
@@ -317,7 +317,7 @@ function canPullSection(userRole, chain, holderRole, opts) {
   if (userIdx <= holderIdx) return false;
 
   // Department boundary: can't pull across the RECEIVING_ boundary
-  const boundaryIdx = chain.findIndex(r => r.startsWith('RECEIVING_'));
+  const boundaryIdx = chain.findIndex((r) => r.startsWith('RECEIVING_'));
   if (boundaryIdx !== -1) {
     const userBeforeBoundary = userIdx < boundaryIdx;
     const holderBeforeBoundary = holderIdx < boundaryIdx;

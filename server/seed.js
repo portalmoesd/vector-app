@@ -8,14 +8,15 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const db = require('./db');
 const config = require('./config');
+const logger = require('./logger');
 
 async function seed() {
-  console.log('Running schema...');
+  logger.info('Running schema...');
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   await db.query(schema);
-  console.log('Schema applied.');
+  logger.info('Schema applied.');
 
-  console.log('Seeding countries...');
+  logger.info('Seeding countries...');
   const countries = require('./data/countries.json');
   for (const c of countries) {
     await db.query(
@@ -24,14 +25,14 @@ async function seed() {
       [c.name, c.code]
     );
   }
-  console.log(`Seeded ${countries.length} countries.`);
+  logger.info(`Seeded ${countries.length} countries.`);
 
   if (!config.allowDefaultSeedUsers) {
-    console.log('Default user seeding is disabled. Set ALLOW_DEFAULT_SEED_USERS=true only for demo/dev environments.');
+    logger.info('Default user seeding is disabled. Set ALLOW_DEFAULT_SEED_USERS=true only for demo/dev environments.');
     process.exit(0);
   }
 
-  console.log('Creating default admin user...');
+  logger.info('Creating default admin user...');
   const hash = await bcrypt.hash('admin123', 10);
   await db.query(
     `INSERT INTO users (full_name, username, email, password_hash, role, must_change_password)
@@ -39,13 +40,13 @@ async function seed() {
      ON CONFLICT (username) DO NOTHING`,
     ['System Administrator', 'admin', 'admin@vector-portal.gov.ge', hash, 'ADMIN']
   );
-  console.log('Admin user created (admin / admin123).');
+  logger.info('Admin user created (admin / admin123).');
 
-  console.log('Seed complete.');
+  logger.info('Seed complete.');
   process.exit(0);
 }
 
-seed().catch(err => {
-  console.error('Seed failed:', err);
+seed().catch((err) => {
+  logger.error({ err }, 'Seed failed');
   process.exit(1);
 });

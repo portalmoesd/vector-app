@@ -1,22 +1,62 @@
 /* ─── Reset & Base ────────────────────────────────────────────────────────── */
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-.hidden { display: none; }
+.hidden {
+  display: none;
+}
 
-@font-face { font-family: 'FiraGO'; src: url('/fonts/FiraGO-Regular.ttf'); font-weight: 400; }
-@font-face { font-family: 'FiraGO'; src: url('/fonts/FiraGO-Bold.ttf'); font-weight: 700; }
-@font-face { font-family: 'Noto Sans Georgian'; src: url('/fonts/NotoSansGeorgian.ttf'); font-weight: 400; }
-@font-face { font-family: 'Noto Serif Georgian'; src: url('/fonts/NotoSerifGeorgian.ttf'); font-weight: 400; }
-@font-face { font-family: 'Sylfaen'; src: url('/fonts/Sylfaen.ttf'); font-weight: 400; }
-@font-face { font-family: 'Arial'; src: url('/fonts/Arial-Regular.ttf'); font-weight: 400; }
-@font-face { font-family: 'Arial'; src: url('/fonts/Arial-Bold.ttf'); font-weight: 700; }
-@font-face { font-family: 'Calibri'; src: url('/fonts/Calibri-Regular.ttf'); font-weight: 400; }
-@font-face { font-family: 'Calibri'; src: url('/fonts/Calibri-Bold.ttf'); font-weight: 700; }
+@font-face {
+  font-family: 'FiraGO';
+  src: url('/fonts/FiraGO-Regular.ttf');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'FiraGO';
+  src: url('/fonts/FiraGO-Bold.ttf');
+  font-weight: 700;
+}
+@font-face {
+  font-family: 'Noto Sans Georgian';
+  src: url('/fonts/NotoSansGeorgian.ttf');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Noto Serif Georgian';
+  src: url('/fonts/NotoSerifGeorgian.ttf');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Sylfaen';
+  src: url('/fonts/Sylfaen.ttf');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Arial';
+  src: url('/fonts/Arial-Regular.ttf');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Arial';
+  src: url('/fonts/Arial-Bold.ttf');
+  font-weight: 700;
+}
+@font-face {
+  font-family: 'Calibri';
+  src: url('/fonts/Calibri-Regular.ttf');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Calibri';
+  src: url('/fonts/Calibri-Bold.ttf');
+  font-weight: 700;
+}
 
 html {
   font-size: 16px;
@@ -30,8 +70,13 @@ body {
   min-height: 100vh;
 }
 
-a { color: var(--accent-blue); text-decoration: none; }
-a:hover { text-decoration: underline; }
+a {
+  color: var(--accent-blue);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
 
 /* ─── Layout ─────────────────────────────────────────────────────────────── */
 
@@ -62,8 +107,13 @@ a:hover { text-decoration: underline; }
 }
 
 /* When gp-shell-ready is active the new sidebar.css takes over */
-body.gp-shell-ready .sidebar { background: transparent; overflow: visible; }
-body.gp-shell-ready .main { min-height: auto; }
+body.gp-shell-ready .sidebar {
+  background: transparent;
+  overflow: visible;
+}
+body.gp-shell-ready .main {
+  min-height: auto;
+}
 
 /* ─── Topbar ─────────────────────────────────────────────────────────────── */
 

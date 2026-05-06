@@ -6,13 +6,11 @@ const db = require('../db');
 const commentsRouter = require('./comments');
 
 function findRoute(method, path) {
-  const layer = commentsRouter.stack.find((item) => (
-    item.route
-    && item.route.path === path
-    && item.route.methods[method.toLowerCase()]
-  ));
+  const layer = commentsRouter.stack.find(
+    (item) => item.route && item.route.path === path && item.route.methods[method.toLowerCase()]
+  );
   assert.ok(layer, `${method} ${path} should be registered`);
-  return layer.route.stack.map(item => item.handle);
+  return layer.route.stack.map((item) => item.handle);
 }
 
 function mockResponse() {
@@ -117,9 +115,9 @@ test('POST /api/workflow/comments inserts comment and autosaves editor HTML', as
 
     assert.equal(res.statusCode, 201);
     assert.deepEqual(res.body, { id: 88, success: true });
-    const insert = mock.calls.find(call => /INSERT INTO section_comments/.test(call.sql));
+    const insert = mock.calls.find((call) => /INSERT INTO section_comments/.test(call.sql));
     assert.deepEqual(insert.params, [10, 20, 7, null, 'note-1', 'Please revise']);
-    const update = mock.calls.find(call => /UPDATE section_content/.test(call.sql));
+    const update = mock.calls.find((call) => /UPDATE section_content/.test(call.sql));
     assert.deepEqual(update.params, ['<p id="note-1">Text</p>', 7, 10, 20]);
   });
 });

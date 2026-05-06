@@ -22,17 +22,17 @@
   --accent-yellow: #eab308;
   --accent-orange: #f97316;
 
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 
   /* Spacing */
   --sidebar-width: 260px;
   --gp-sidebar-collapsed: 88px;
   --gp-sidebar-expanded: 296px;
   --gp-sidebar-accent: #2b445b;
-  --gp-sidebar-accent-soft: rgba(43,68,91,.10);
-  --gp-sidebar-divider: rgba(17,24,39,.08);
+  --gp-sidebar-accent-soft: rgba(43, 68, 91, 0.1);
+  --gp-sidebar-divider: rgba(17, 24, 39, 0.08);
   --topbar-height: 56px;
   --radius-sm: 8px;
   --radius-md: 14px;

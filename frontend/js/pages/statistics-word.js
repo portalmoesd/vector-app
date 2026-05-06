@@ -119,32 +119,58 @@
 
   // ── Georgian month declensions + English month abbreviations ───────────
   const KA_MONTHS = {
-    1:  { stem: 'იანვარ',     gen: 'იანვრის',     loc: 'იანვარში'    },
-    2:  { stem: 'თებერვალ',   gen: 'თებერვლის',   loc: 'თებერვალში'  },
-    3:  { stem: 'მარტ',       gen: 'მარტის',      loc: 'მარტში'      },
-    4:  { stem: 'აპრილ',      gen: 'აპრილის',     loc: 'აპრილში'     },
-    5:  { stem: 'მაის',       gen: 'მაისის',      loc: 'მაისში'      },
-    6:  { stem: 'ივნის',      gen: 'ივნისის',     loc: 'ივნისში'     },
-    7:  { stem: 'ივლის',      gen: 'ივლისის',     loc: 'ივლისში'     },
-    8:  { stem: 'აგვისტო',    gen: 'აგვისტოს',    loc: 'აგვისტოში'   },
-    9:  { stem: 'სექტემბერ',  gen: 'სექტემბრის',  loc: 'სექტემბერში' },
-    10: { stem: 'ოქტომბერ',   gen: 'ოქტომბრის',   loc: 'ოქტომბერში'  },
-    11: { stem: 'ნოემბერ',    gen: 'ნოემბრის',    loc: 'ნოემბერში'   },
-    12: { stem: 'დეკემბერ',   gen: 'დეკემბრის',   loc: 'დეკემბერში'  },
+    1: { stem: 'იანვარ', gen: 'იანვრის', loc: 'იანვარში' },
+    2: { stem: 'თებერვალ', gen: 'თებერვლის', loc: 'თებერვალში' },
+    3: { stem: 'მარტ', gen: 'მარტის', loc: 'მარტში' },
+    4: { stem: 'აპრილ', gen: 'აპრილის', loc: 'აპრილში' },
+    5: { stem: 'მაის', gen: 'მაისის', loc: 'მაისში' },
+    6: { stem: 'ივნის', gen: 'ივნისის', loc: 'ივნისში' },
+    7: { stem: 'ივლის', gen: 'ივლისის', loc: 'ივლისში' },
+    8: { stem: 'აგვისტო', gen: 'აგვისტოს', loc: 'აგვისტოში' },
+    9: { stem: 'სექტემბერ', gen: 'სექტემბრის', loc: 'სექტემბერში' },
+    10: { stem: 'ოქტომბერ', gen: 'ოქტომბრის', loc: 'ოქტომბერში' },
+    11: { stem: 'ნოემბერ', gen: 'ნოემბრის', loc: 'ნოემბერში' },
+    12: { stem: 'დეკემბერ', gen: 'დეკემბრის', loc: 'დეკემბერში' },
   };
 
-  const EN_MONTHS = { 1:'Jan', 2:'Feb', 3:'Mar', 4:'Apr', 5:'May', 6:'Jun', 7:'Jul', 8:'Aug', 9:'Sep', 10:'Oct', 11:'Nov', 12:'Dec' };
-  const KA_MONTHS_SHORT = { 1:'იან', 2:'თებ', 3:'მარ', 4:'აპრ', 5:'მაი', 6:'ივნ', 7:'ივლ', 8:'აგვ', 9:'სექ', 10:'ოქტ', 11:'ნოე', 12:'დეკ' };
+  const EN_MONTHS = {
+    1: 'Jan',
+    2: 'Feb',
+    3: 'Mar',
+    4: 'Apr',
+    5: 'May',
+    6: 'Jun',
+    7: 'Jul',
+    8: 'Aug',
+    9: 'Sep',
+    10: 'Oct',
+    11: 'Nov',
+    12: 'Dec',
+  };
+  const KA_MONTHS_SHORT = {
+    1: 'იან',
+    2: 'თებ',
+    3: 'მარ',
+    4: 'აპრ',
+    5: 'მაი',
+    6: 'ივნ',
+    7: 'ივლ',
+    8: 'აგვ',
+    9: 'სექ',
+    10: 'ოქტ',
+    11: 'ნოე',
+    12: 'დეკ',
+  };
 
   // ── Period formatters (locale-aware, copied from statistics-pdf.js) ────
   function gePeriodGen(year, latestMonth) {
     if (latestMonth === 12) return `${year} წლის`;
-    if (latestMonth === 1)  return `${year} წლის ${KA_MONTHS[1].gen}`;
+    if (latestMonth === 1) return `${year} წლის ${KA_MONTHS[1].gen}`;
     return `${year} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].gen}`;
   }
   function gePeriodLoc(year, latestMonth) {
     if (latestMonth === 12) return `${year} წელს`;
-    if (latestMonth === 1)  return `${year} წლის ${KA_MONTHS[1].loc}`;
+    if (latestMonth === 1) return `${year} წლის ${KA_MONTHS[1].loc}`;
     return `${year} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].loc}`;
   }
   function periodShortLabel(latestMonth, lang) {
@@ -161,7 +187,7 @@
   function gePeriodGenRange(startYear, endYear, latestMonth) {
     const years = `${startYear}-${endYear}`;
     if (latestMonth === 12) return `${years} წლების`;
-    if (latestMonth === 1)  return `${years} წლის ${KA_MONTHS[1].gen}`;
+    if (latestMonth === 1) return `${years} წლის ${KA_MONTHS[1].gen}`;
     return `${years} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].gen}`;
   }
   function enPeriodRange(startYear, endYear, latestMonth) {
@@ -182,10 +208,14 @@
     const m100 = n % 100;
     if (m100 >= 11 && m100 <= 13) return `${n}th`;
     switch (n % 10) {
-      case 1: return `${n}st`;
-      case 2: return `${n}nd`;
-      case 3: return `${n}rd`;
-      default: return `${n}th`;
+      case 1:
+        return `${n}st`;
+      case 2:
+        return `${n}nd`;
+      case 3:
+        return `${n}rd`;
+      default:
+        return `${n}th`;
     }
   }
 
@@ -225,9 +255,15 @@
   //   - Page geometry / table widths: TWIPS (1 pt = 20 twips, 1 inch = 1440)
   //   - Font sizes: HALF-POINTS (10pt = 20)
   // These wrappers keep the rest of the file in plain points.
-  function pt(n) { return Math.round(n * 20); }     // pt → twips
-  function hp(n) { return Math.round(n * 2); }      // pt → half-points
-  function px(n) { return Math.round(n * 96 / 72); } // pt → CSS pixels (chart sizes)
+  function pt(n) {
+    return Math.round(n * 20);
+  } // pt → twips
+  function hp(n) {
+    return Math.round(n * 2);
+  } // pt → half-points
+  function px(n) {
+    return Math.round((n * 96) / 72);
+  } // pt → CSS pixels (chart sizes)
 
   // ── Font embedding ─────────────────────────────────────────────────────
   // Arial covers Latin/digits/Cyrillic universally but has zero Georgian
@@ -242,9 +278,9 @@
     if (fontsPromise) return fontsPromise;
     fontsPromise = (async () => {
       const [arialReg, arialBold, sylfaen] = await Promise.all([
-        fetch('/fonts/Arial-Regular.ttf').then(r => r.arrayBuffer()),
-        fetch('/fonts/Arial-Bold.ttf').then(r => r.arrayBuffer()),
-        fetch('/fonts/Sylfaen.ttf').then(r => r.arrayBuffer()),
+        fetch('/fonts/Arial-Regular.ttf').then((r) => r.arrayBuffer()),
+        fetch('/fonts/Arial-Bold.ttf').then((r) => r.arrayBuffer()),
+        fetch('/fonts/Sylfaen.ttf').then((r) => r.arrayBuffer()),
       ]);
       return {
         arialReg: new Uint8Array(arialReg),
@@ -257,16 +293,16 @@
 
   // ── Color palette (matches PDF) ────────────────────────────────────────
   const COLOR = {
-    text:       '1F2937',
-    textMuted:  '6B7280',
+    text: '1F2937',
+    textMuted: '6B7280',
     headerText: '475569',
     headerFill: 'F8FAFC',
-    border:     'E5E7EB',
-    borderTop:  '94A3B8',
-    groupFill:  'F1F5F9',
-    positive:   '16A34A',
-    negative:   'DC2626',
-    titleDark:  '0F172A',
+    border: 'E5E7EB',
+    borderTop: '94A3B8',
+    groupFill: 'F1F5F9',
+    positive: '16A34A',
+    negative: 'DC2626',
+    titleDark: '0F172A',
   };
 
   // ── docx paragraph + run helpers ──────────────────────────────────────
@@ -295,8 +331,9 @@
     if (text === '' || !window.FontUtils.hasGeorgian(text)) {
       return [new D.TextRun({ ...rest, text, font: 'Arial' })];
     }
-    return window.FontUtils.splitByScript(text).map(seg =>
-      new D.TextRun({ ...rest, text: seg.text, font: seg.font }));
+    return window.FontUtils.splitByScript(text).map(
+      (seg) => new D.TextRun({ ...rest, text: seg.text, font: seg.font })
+    );
   }
   function run(D, text, opts = {}) {
     return tr(D, {
@@ -322,8 +359,10 @@
       keepNext: true,
       keepLines: true,
       children: tr(D, {
-        text, bold: true,
-        size: hp(13), color: COLOR.titleDark,
+        text,
+        bold: true,
+        size: hp(13),
+        color: COLOR.titleDark,
       }),
       ...opts,
     });
@@ -334,8 +373,10 @@
       keepNext: true,
       keepLines: true,
       children: tr(D, {
-        text, bold: true,
-        size: hp(10.5), color: COLOR.text,
+        text,
+        bold: true,
+        size: hp(10.5),
+        color: COLOR.text,
       }),
       ...opts,
     });
@@ -347,8 +388,10 @@
       keepNext: true,
       keepLines: true,
       children: tr(D, {
-        text, bold: true,
-        size: hp(9.5), color: COLOR.text,
+        text,
+        bold: true,
+        size: hp(9.5),
+        color: COLOR.text,
       }),
     });
   }
@@ -373,10 +416,12 @@
       // split mid-page; keepNext keeps the next block (sub-title /
       // table) attached too.
       keepLines: true,
-      children: [new D.ImageRun({
-        data: bytes,
-        transformation: { width: px(widthPt), height: px(heightPt) },
-      })],
+      children: [
+        new D.ImageRun({
+          data: bytes,
+          transformation: { width: px(widthPt), height: px(heightPt) },
+        }),
+      ],
     });
   }
   // Combined caption + chart image as one paragraph. Using a single
@@ -394,8 +439,10 @@
       keepNext: true,
       children: [
         ...tr(D, {
-          text: captionText, bold: true,
-          size: hp(9.5), color: COLOR.text,
+          text: captionText,
+          bold: true,
+          size: hp(9.5),
+          color: COLOR.text,
         }),
         new D.TextRun({ text: '', break: 1 }),
         new D.ImageRun({
@@ -420,8 +467,8 @@
   function cellBorders(rowIdx, isLastRow) {
     const NONE = { style: 'none', size: 0, color: 'auto' };
     const headerLine = { style: 'single', size: 8 /* eighths-of-a-point: 8 = 1pt */, color: COLOR.borderTop };
-    const rowLine    = { style: 'single', size: 4 /* 0.5pt */,                       color: COLOR.border };
-    const top = rowIdx === 0 ? NONE : (rowIdx === 1 ? headerLine : rowLine);
+    const rowLine = { style: 'single', size: 4 /* 0.5pt */, color: COLOR.border };
+    const top = rowIdx === 0 ? NONE : rowIdx === 1 ? headerLine : rowLine;
     const bottom = isLastRow ? NONE : NONE; // bottoms left to next-row tops
     return { top, bottom, left: NONE, right: NONE };
   }
@@ -463,16 +510,23 @@
   // unbreakable block.
   function headerCell(D, text, opts = {}) {
     return makeCell(D, {
-      children: [new D.Paragraph({
-        alignment: opts.align === 'right' ? D.AlignmentType.RIGHT
-                 : opts.align === 'center' ? D.AlignmentType.CENTER
-                 : D.AlignmentType.LEFT,
-        keepNext: !!opts.keepWithNext,
-        children: tr(D, {
-          text, bold: true,
-          size: hp(8), color: COLOR.headerText,
+      children: [
+        new D.Paragraph({
+          alignment:
+            opts.align === 'right'
+              ? D.AlignmentType.RIGHT
+              : opts.align === 'center'
+                ? D.AlignmentType.CENTER
+                : D.AlignmentType.LEFT,
+          keepNext: !!opts.keepWithNext,
+          children: tr(D, {
+            text,
+            bold: true,
+            size: hp(8),
+            color: COLOR.headerText,
+          }),
         }),
-      })],
+      ],
       rowIdx: 0,
       shading: COLOR.headerFill,
       columnSpan: opts.columnSpan,
@@ -483,16 +537,23 @@
     const align = opts.align || 'left';
     const color = opts.color || COLOR.text;
     return makeCell(D, {
-      children: [new D.Paragraph({
-        alignment: align === 'right' ? D.AlignmentType.RIGHT
-                 : align === 'center' ? D.AlignmentType.CENTER
-                 : D.AlignmentType.LEFT,
-        keepNext: !!opts.keepWithNext,
-        children: tr(D, {
-          text: String(text),
-          size: hp(9), color, bold: !!opts.bold,
+      children: [
+        new D.Paragraph({
+          alignment:
+            align === 'right'
+              ? D.AlignmentType.RIGHT
+              : align === 'center'
+                ? D.AlignmentType.CENTER
+                : D.AlignmentType.LEFT,
+          keepNext: !!opts.keepWithNext,
+          children: tr(D, {
+            text: String(text),
+            size: hp(9),
+            color,
+            bold: !!opts.bold,
+          }),
         }),
-      })],
+      ],
       rowIdx: opts.rowIdx,
       isLastRow: opts.isLastRow,
       shading: opts.shading,
@@ -511,7 +572,7 @@
   function buildDocxDocument(D, children, opts) {
     const lang = opts.lang || 'en';
     const t = T[lang] || T.en;
-    const country = lang === 'en' && opts.countryNameEn ? opts.countryNameEn : (opts.country || '');
+    const country = lang === 'en' && opts.countryNameEn ? opts.countryNameEn : opts.country || '';
     const dateStr = formatDate();
     const fontBytes = opts.fontBytes || {};
 
@@ -539,9 +600,9 @@
     // Recipients on Word/Win, Word/Mac, and modern LibreOffice render the
     // embedded fonts; older readers fall back to system installs.
     const fonts = [];
-    if (fontBytes.arialReg)  fonts.push({ name: 'Arial',   data: fontBytes.arialReg });
-    if (fontBytes.arialBold) fonts.push({ name: 'Arial',   data: fontBytes.arialBold });
-    if (fontBytes.sylfaen)   fonts.push({ name: 'Sylfaen', data: fontBytes.sylfaen });
+    if (fontBytes.arialReg) fonts.push({ name: 'Arial', data: fontBytes.arialReg });
+    if (fontBytes.arialBold) fonts.push({ name: 'Arial', data: fontBytes.arialBold });
+    if (fontBytes.sylfaen) fonts.push({ name: 'Sylfaen', data: fontBytes.sylfaen });
 
     // Set the document run language so Word's spell-checker tags Georgian
     // text as Georgian (otherwise every Georgian word appears underlined
@@ -561,18 +622,19 @@
           },
         },
       },
-      sections: [{
-        properties: {
-          page: {
-            size: { width: pt(595), height: pt(842), orientation: D.PageOrientation.PORTRAIT }, // A4
-            margin: { top: pt(46), bottom: pt(40), left: pt(32), right: pt(32),
-                      header: pt(18), footer: pt(14) },
+      sections: [
+        {
+          properties: {
+            page: {
+              size: { width: pt(595), height: pt(842), orientation: D.PageOrientation.PORTRAIT }, // A4
+              margin: { top: pt(46), bottom: pt(40), left: pt(32), right: pt(32), header: pt(18), footer: pt(14) },
+            },
           },
+          headers: { default: new D.Header({ children: [headerP] }) },
+          footers: { default: new D.Footer({ children: [footerP] }) },
+          children,
         },
-        headers: { default: new D.Header({ children: [headerP] }) },
-        footers: { default: new D.Footer({ children: [footerP] }) },
-        children,
-      }],
+      ],
     });
   }
 
@@ -595,35 +657,51 @@
     const isKa = lang === 'ka';
     const B = (s) => ({ text: s, bold: true });
     const fmt = (n) => Number(n).toLocaleString();
-    const kaFrom = (name) => (grammar && grammar.from) || (name + 'დან');
+    const kaFrom = (name) => (grammar && grammar.from) || name + 'დან';
 
     const out = [];
     if (tourism.fiveYearSum > 0) {
       if (isKa) {
-        out.push(summaryProseParagraph(D, [
-          B(`${tourism.fiveYearStart} - ${tourism.fiveYearEnd}`),
-          ` წლებში ${kaFrom(country)} საქართველოში შემოვიდა `,
-          B(fmt(tourism.fiveYearSum)), ` ვიზიტორი.`,
-        ]));
+        out.push(
+          summaryProseParagraph(D, [
+            B(`${tourism.fiveYearStart} - ${tourism.fiveYearEnd}`),
+            ` წლებში ${kaFrom(country)} საქართველოში შემოვიდა `,
+            B(fmt(tourism.fiveYearSum)),
+            ` ვიზიტორი.`,
+          ])
+        );
       } else {
-        out.push(summaryProseParagraph(D, [
-          `Between `, B(`${tourism.fiveYearStart}-${tourism.fiveYearEnd}`),
-          `, `, B(fmt(tourism.fiveYearSum)), ` visitors came to Georgia from ${country}.`,
-        ]));
+        out.push(
+          summaryProseParagraph(D, [
+            `Between `,
+            B(`${tourism.fiveYearStart}-${tourism.fiveYearEnd}`),
+            `, `,
+            B(fmt(tourism.fiveYearSum)),
+            ` visitors came to Georgia from ${country}.`,
+          ])
+        );
       }
     }
     if (tourism.currentRank && tourism.currentPeriodLabel) {
       if (isKa) {
-        out.push(summaryProseParagraph(D, [
-          B(formatTourismPeriodKa(tourism.currentPeriodLabel)),
-          ` მონაცემებით ვიზიტორების რაოდენობის მიხედვით ${country} არის `,
-          B(`${gePlace(tourism.currentRank)} ადგილზე`), `.`,
-        ]));
+        out.push(
+          summaryProseParagraph(D, [
+            B(formatTourismPeriodKa(tourism.currentPeriodLabel)),
+            ` მონაცემებით ვიზიტორების რაოდენობის მიხედვით ${country} არის `,
+            B(`${gePlace(tourism.currentRank)} ადგილზე`),
+            `.`,
+          ])
+        );
       } else {
-        out.push(summaryProseParagraph(D, [
-          `By visitor count in `, B(formatTourismPeriodEn(tourism.currentPeriodLabel)),
-          `, ${country} ranks `, B(enOrdinal(tourism.currentRank)), `.`,
-        ]));
+        out.push(
+          summaryProseParagraph(D, [
+            `By visitor count in `,
+            B(formatTourismPeriodEn(tourism.currentPeriodLabel)),
+            `, ${country} ranks `,
+            B(enOrdinal(tourism.currentRank)),
+            `.`,
+          ])
+        );
       }
     }
     return out;
@@ -638,7 +716,7 @@
 
     // Drop the rank column entirely when no row reaches the top 20.
     const TOP_RANK_LIMIT = 20;
-    const showRank = rows.some(r => r.rank && r.rank <= TOP_RANK_LIMIT);
+    const showRank = rows.some((r) => r.rank && r.rank <= TOP_RANK_LIMIT);
 
     // Tourism table must not cut across pages → every cell paragraph
     // in non-last rows gets keepNext:true so Word treats the whole
@@ -646,9 +724,9 @@
     const headerCells = [headerCell(D, t.period, { keepWithNext: true })];
     if (showRank) headerCells.push(headerCell(D, rankHeader, { align: 'right', keepWithNext: true }));
     headerCells.push(
-      headerCell(D, t.visitors,     { align: 'right', keepWithNext: true }),
+      headerCell(D, t.visitors, { align: 'right', keepWithNext: true }),
       headerCell(D, t.changeHeader, { align: 'right', keepWithNext: true }),
-      headerCell(D, shareHeader,    { align: 'right', keepWithNext: true }),
+      headerCell(D, shareHeader, { align: 'right', keepWithNext: true })
     );
     const tableRows = [new D.TableRow({ children: headerCells })];
 
@@ -659,18 +737,19 @@
       let changeColor = COLOR.text;
       let changeText = '-';
       if (r.changePct !== null && r.changePct !== undefined) {
-        changeColor = r.changePct > 0 ? COLOR.positive : (r.changePct < 0 ? COLOR.negative : COLOR.headerText);
+        changeColor = r.changePct > 0 ? COLOR.positive : r.changePct < 0 ? COLOR.negative : COLOR.headerText;
         const sign = r.changePct > 0 ? '+' : '';
         changeText = `${sign}${formatPct(r.changePct)}`;
       }
       const rankText = r.rank ? String(r.rank) : '-';
       const shareText = r.share != null ? `${(Math.round(r.share * 10) / 10).toFixed(1)}%` : '-';
       const cells = [dataCell(D, r.label, { bold: !!r.isCurrent, rowIdx, isLastRow: isLast, keepWithNext: keep })];
-      if (showRank) cells.push(dataCell(D, rankText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }));
+      if (showRank)
+        cells.push(dataCell(D, rankText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }));
       cells.push(
         dataCell(D, r.visitors.toLocaleString(), { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
         dataCell(D, changeText, { align: 'right', color: changeColor, rowIdx, isLastRow: isLast, keepWithNext: keep }),
-        dataCell(D, shareText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
+        dataCell(D, shareText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep })
       );
       tableRows.push(new D.TableRow({ cantSplit: true, children: cells }));
     });
@@ -708,7 +787,7 @@
     const isKa = lang === 'ka';
     const B = (s) => ({ text: s, bold: true });
     const fmt = (n) => (Math.round(Math.abs(n) * 100) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    const kaFrom = (name) => (grammar && grammar.from) || (name + 'დან');
+    const kaFrom = (name) => (grammar && grammar.from) || name + 'დან';
     const countryFrom = isKa ? kaFrom(country) : country;
     const out = [];
 
@@ -717,19 +796,26 @@
       if (isKa) {
         const parts = [
           `${countryFrom} საქართველოში პირდაპირი უცხოური ინვესტიცია პირველად `,
-          B(`${inv.firstYear}`), ` წელს განხორციელდა. ჯამური განხორციელებული პირდაპირი უცხოური ინვესტიცია შეადგენს `,
-          B(`${fmt(inv.totalSum)} მლნ. აშშ დოლარს`), `.`,
+          B(`${inv.firstYear}`),
+          ` წელს განხორციელდა. ჯამური განხორციელებული პირდაპირი უცხოური ინვესტიცია შეადგენს `,
+          B(`${fmt(inv.totalSum)} მლნ. აშშ დოლარს`),
+          `.`,
         ];
         if (inv.totalRank) {
-          parts.push(` ${country} იკავებს `, B(`${gePlace(inv.totalRank)} ადგილს`),
-            ` ჯამური განხორციელებული ინვესტიციის მოცულობით საქართველოში.`);
+          parts.push(
+            ` ${country} იკავებს `,
+            B(`${gePlace(inv.totalRank)} ადგილს`),
+            ` ჯამური განხორციელებული ინვესტიციის მოცულობით საქართველოში.`
+          );
         }
         out.push(summaryProseParagraph(D, parts));
       } else {
         const parts = [
           `Foreign direct investment from ${country} to Georgia was first made in `,
-          B(`${inv.firstYear}`), `. Total FDI amounts to `,
-          B(`${fmt(inv.totalSum)} mln USD`), `.`,
+          B(`${inv.firstYear}`),
+          `. Total FDI amounts to `,
+          B(`${fmt(inv.totalSum)} mln USD`),
+          `.`,
         ];
         if (inv.totalRank) {
           parts.push(` ${country} ranks `, B(enOrdinal(inv.totalRank)), ` by total FDI volume in Georgia.`);
@@ -741,17 +827,24 @@
     // Sentence 2: 5-year sum
     if (inv.fiveYearSum > 0) {
       if (isKa) {
-        out.push(summaryProseParagraph(D, [
-          B(`${inv.fiveYearStart} - ${inv.fiveYearEnd}`),
-          ` წლებში ${countryFrom} საქართველოში შემოსული ინვესტიციების მოცულობამ შეადგინა `,
-          B(`${fmt(inv.fiveYearSum)} მლნ. აშშ დოლარი`), `.`,
-        ]));
+        out.push(
+          summaryProseParagraph(D, [
+            B(`${inv.fiveYearStart} - ${inv.fiveYearEnd}`),
+            ` წლებში ${countryFrom} საქართველოში შემოსული ინვესტიციების მოცულობამ შეადგინა `,
+            B(`${fmt(inv.fiveYearSum)} მლნ. აშშ დოლარი`),
+            `.`,
+          ])
+        );
       } else {
-        out.push(summaryProseParagraph(D, [
-          `Between `, B(`${inv.fiveYearStart}-${inv.fiveYearEnd}`),
-          `, investments from ${country} to Georgia amounted to `,
-          B(`${fmt(inv.fiveYearSum)} mln USD`), `.`,
-        ]));
+        out.push(
+          summaryProseParagraph(D, [
+            `Between `,
+            B(`${inv.fiveYearStart}-${inv.fiveYearEnd}`),
+            `, investments from ${country} to Georgia amounted to `,
+            B(`${fmt(inv.fiveYearSum)} mln USD`),
+            `.`,
+          ])
+        );
       }
     }
 
@@ -760,25 +853,35 @@
       if (!(value > 0) || !year) return null;
       if (isKa) {
         const parts = [
-          B(`${year} წელს`), ` ${countryFrom} საქართველოში განხორციელდა `,
-          B(`${fmt(value)} მლნ. აშშ დოლარის`), ` პირდაპირი უცხოური ინვესტიცია.`,
+          B(`${year} წელს`),
+          ` ${countryFrom} საქართველოში განხორციელდა `,
+          B(`${fmt(value)} მლნ. აშშ დოლარის`),
+          ` პირდაპირი უცხოური ინვესტიცია.`,
         ];
         if (rank) {
-          parts.push(` ${country} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით `,
-            `${year} წელს `, B(`${gePlace(rank)} ადგილს`), ` იკავებს.`);
+          parts.push(
+            ` ${country} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით `,
+            `${year} წელს `,
+            B(`${gePlace(rank)} ადგილს`),
+            ` იკავებს.`
+          );
         }
         return summaryProseParagraph(D, parts);
       }
       const parts = [
-        `In `, B(`${year}`), `, `, B(`${fmt(value)} mln USD`),
+        `In `,
+        B(`${year}`),
+        `, `,
+        B(`${fmt(value)} mln USD`),
         ` of foreign direct investment came to Georgia from ${country}.`,
       ];
       if (rank) parts.push(` ${country} ranked `, B(enOrdinal(rank)), ` by FDI volume in ${year}.`);
       return summaryProseParagraph(D, parts);
     };
-    const noInv = (year) => isKa
-      ? summaryProseParagraph(D, [B(`${year} წელს`), ` ${countryFrom} ინვესტიცია არ განხორციელდა.`])
-      : summaryProseParagraph(D, [`In `, B(`${year}`), `, no investment was conducted from ${country}.`]);
+    const noInv = (year) =>
+      isKa
+        ? summaryProseParagraph(D, [B(`${year} წელს`), ` ${countryFrom} ინვესტიცია არ განხორციელდა.`])
+        : summaryProseParagraph(D, [`In `, B(`${year}`), `, no investment was conducted from ${country}.`]);
 
     if (inv.latestYear) {
       const s = yearSentence(inv.latestYear, inv.latestYearValue, inv.latestYearRank);
@@ -801,7 +904,7 @@
 
     // Drop the rank column entirely when no year reaches the top 20.
     const TOP_RANK_LIMIT = 20;
-    const showRank = data.some(r => r.valueMln > 0 && r.rank && r.rank <= TOP_RANK_LIMIT);
+    const showRank = data.some((r) => r.valueMln > 0 && r.rank && r.rank <= TOP_RANK_LIMIT);
 
     // FDI table must not cut across pages (same approach as Tourism).
     const headerCells = [headerCell(D, t.year, { keepWithNext: true })];
@@ -809,7 +912,7 @@
     headerCells.push(
       headerCell(D, t.volumeHeader, { align: 'right', keepWithNext: true }),
       headerCell(D, t.changeHeader, { align: 'right', keepWithNext: true }),
-      headerCell(D, shareHeader,    { align: 'right', keepWithNext: true }),
+      headerCell(D, shareHeader, { align: 'right', keepWithNext: true })
     );
     const rows = [new D.TableRow({ children: headerCells })];
 
@@ -824,18 +927,19 @@
       let changeColor = COLOR.text;
       if (!(isCurNeg || isPrevNeg)) {
         const pct = ((r.valueMln - r.prevMln) / r.prevMln) * 100;
-        changeColor = pct > 0 ? COLOR.positive : (pct < 0 ? COLOR.negative : COLOR.headerText);
+        changeColor = pct > 0 ? COLOR.positive : pct < 0 ? COLOR.negative : COLOR.headerText;
         const sign = pct > 0 ? '+' : '';
         changeText = `${sign}${formatPct(pct)}`;
       }
-      const rankText = (!isCurNeg && r.rank) ? String(r.rank) : '-';
-      const shareText = (!isCurNeg && r.share != null) ? `${(Math.round(r.share * 10) / 10).toFixed(1)}%` : '-';
+      const rankText = !isCurNeg && r.rank ? String(r.rank) : '-';
+      const shareText = !isCurNeg && r.share != null ? `${(Math.round(r.share * 10) / 10).toFixed(1)}%` : '-';
       const cells = [dataCell(D, String(r.year), { rowIdx, isLastRow: isLast, keepWithNext: keep })];
-      if (showRank) cells.push(dataCell(D, rankText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }));
+      if (showRank)
+        cells.push(dataCell(D, rankText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }));
       cells.push(
         dataCell(D, valueText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
         dataCell(D, changeText, { align: 'right', color: changeColor, rowIdx, isLastRow: isLast, keepWithNext: keep }),
-        dataCell(D, shareText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep }),
+        dataCell(D, shareText, { align: 'right', rowIdx, isLastRow: isLast, keepWithNext: keep })
       );
       rows.push(new D.TableRow({ cantSplit: true, children: cells }));
     });
@@ -883,7 +987,7 @@
     const totalRows = 1 + 1 + sectorNames.length; // header + totals + sector rows
     const headerCells = [
       headerCell(D, sectorHeader),
-      ...years.map(y => headerCell(D, String(y), { align: 'right' })),
+      ...years.map((y) => headerCell(D, String(y), { align: 'right' })),
     ];
     const rows = [new D.TableRow({ children: headerCells })];
 
@@ -891,10 +995,16 @@
     const totalCells = [dataCell(D, totalLabel, { bold: true, shading: COLOR.groupFill, rowIdx: 1, isLastRow: false })];
     for (const y of years) {
       const v = data.totals ? data.totals[y] : null;
-      totalCells.push(dataCell(D, fmt(v), {
-        align: 'right', bold: true, color: colorOf(v),
-        shading: COLOR.groupFill, rowIdx: 1, isLastRow: false,
-      }));
+      totalCells.push(
+        dataCell(D, fmt(v), {
+          align: 'right',
+          bold: true,
+          color: colorOf(v),
+          shading: COLOR.groupFill,
+          rowIdx: 1,
+          isLastRow: false,
+        })
+      );
     }
     rows.push(new D.TableRow({ cantSplit: true, children: totalCells }));
 
@@ -902,7 +1012,7 @@
     sectorNames.forEach((sector, sIdx) => {
       const rowIdx = 2 + sIdx;
       const isLast = rowIdx === totalRows - 1;
-      const displayName = isKa ? sector : (nameMap[sector] || sector);
+      const displayName = isKa ? sector : nameMap[sector] || sector;
       const cells = [dataCell(D, displayName, { rowIdx, isLastRow: isLast })];
       const vals = data.sectors[sector] || {};
       for (const y of years) {
@@ -956,9 +1066,7 @@
   function buildCompaniesSection(D, state, t, country, lang, countryNameEn) {
     if (!state || !state.hasData) return [];
     const isKa = lang === 'ka';
-    const displayCountry = isKa
-      ? (state.countryKa || country)
-      : (state.countryEn || countryNameEn || country);
+    const displayCountry = isKa ? state.countryKa || country : state.countryEn || countryNameEn || country;
     const c = state.counts || {};
     const B = (s) => ({ text: s, bold: true });
     const fmt = (n) => Number(n || 0).toLocaleString();
@@ -968,52 +1076,81 @@
     out.push(sectionTitleP(D, title));
 
     if (isKa) {
-      out.push(summaryProseParagraph(D, [
-        `${displayCountry}-ის კაპიტალის მონაწილეობით დარეგისტრირებული მოქმედი კომპანიები:`,
-      ]));
-      out.push(summaryProseParagraph(D, [
-        B(fmt(c.total)), ` მოქმედი კომპანია ${displayCountry}-ის კაპიტალის მონაწილეობით.`,
-      ]));
+      out.push(
+        summaryProseParagraph(D, [`${displayCountry}-ის კაპიტალის მონაწილეობით დარეგისტრირებული მოქმედი კომპანიები:`])
+      );
+      out.push(
+        summaryProseParagraph(D, [B(fmt(c.total)), ` მოქმედი კომპანია ${displayCountry}-ის კაპიტალის მონაწილეობით.`])
+      );
     } else {
-      out.push(summaryProseParagraph(D, [
-        `Active companies with capital originating from ${displayCountry}:`,
-      ]));
-      out.push(summaryProseParagraph(D, [
-        B(fmt(c.total)), ` active companies with capital originating from ${displayCountry}.`,
-      ]));
+      out.push(summaryProseParagraph(D, [`Active companies with capital originating from ${displayCountry}:`]));
+      out.push(
+        summaryProseParagraph(D, [
+          B(fmt(c.total)),
+          ` active companies with capital originating from ${displayCountry}.`,
+        ])
+      );
     }
 
     // Bulleted list — docx bullets via numbering. Use a built-in
     // bullet style instead of declaring our own. Each bullet is one
     // Paragraph with bullet: { level: 0 }.
-    const bullet = (parts) => new D.Paragraph({
-      bullet: { level: 0 },
-      spacing: { after: pt(2), line: 312, lineRule: 'auto' },
-      children: parts.flatMap(p => {
-        if (p == null) return [];
-        if (typeof p === 'string') {
-          return tr(D, { text: p, size: hp(10), color: COLOR.text });
-        }
-        return tr(D, {
-          text: String(p.text || ''),
-          size: hp(10),
-          color: p.color || COLOR.text,
-          bold: !!p.bold,
-          italics: !!p.italics,
-        });
-      }),
-    });
+    const bullet = (parts) =>
+      new D.Paragraph({
+        bullet: { level: 0 },
+        spacing: { after: pt(2), line: 312, lineRule: 'auto' },
+        children: parts.flatMap((p) => {
+          if (p == null) return [];
+          if (typeof p === 'string') {
+            return tr(D, { text: p, size: hp(10), color: COLOR.text });
+          }
+          return tr(D, {
+            text: String(p.text || ''),
+            size: hp(10),
+            color: p.color || COLOR.text,
+            bold: !!p.bold,
+            italics: !!p.italics,
+          });
+        }),
+      });
 
     if (isKa) {
       out.push(bullet([B(fmt(c.solo)), ` კომპანია - ${displayCountry}-ის კაპიტალით შექმნილი;`]));
-      out.push(bullet([B(fmt(c.withGeorgia)), ` კომპანია - ${displayCountry} - საქართველოს წილობრივი კაპიტალით შექმნილი;`]));
-      out.push(bullet([B(fmt(c.withGeorgiaAndThird)), ` კომპანია - ${displayCountry}, საქართველოსა და მესამე ქვეყნის კაპიტალით შექმნილი;`]));
-      out.push(bullet([B(fmt(c.withThirdOnly)), ` კომპანია - ${displayCountry}-ის და მესამე ქვეყნების წილობრივი კაპიტალით შექმნილი.`]));
+      out.push(
+        bullet([B(fmt(c.withGeorgia)), ` კომპანია - ${displayCountry} - საქართველოს წილობრივი კაპიტალით შექმნილი;`])
+      );
+      out.push(
+        bullet([
+          B(fmt(c.withGeorgiaAndThird)),
+          ` კომპანია - ${displayCountry}, საქართველოსა და მესამე ქვეყნის კაპიტალით შექმნილი;`,
+        ])
+      );
+      out.push(
+        bullet([
+          B(fmt(c.withThirdOnly)),
+          ` კომპანია - ${displayCountry}-ის და მესამე ქვეყნების წილობრივი კაპიტალით შექმნილი.`,
+        ])
+      );
     } else {
       out.push(bullet([B(fmt(c.solo)), ` companies - established with capital from only ${displayCountry};`]));
-      out.push(bullet([B(fmt(c.withGeorgia)), ` companies - established with joint capital from ${displayCountry} and Georgia;`]));
-      out.push(bullet([B(fmt(c.withGeorgiaAndThird)), ` companies - established with joint capital from ${displayCountry}, Georgia and the third country;`]));
-      out.push(bullet([B(fmt(c.withThirdOnly)), ` companies - established with joint capital from ${displayCountry} and third countries.`]));
+      out.push(
+        bullet([
+          B(fmt(c.withGeorgia)),
+          ` companies - established with joint capital from ${displayCountry} and Georgia;`,
+        ])
+      );
+      out.push(
+        bullet([
+          B(fmt(c.withGeorgiaAndThird)),
+          ` companies - established with joint capital from ${displayCountry}, Georgia and the third country;`,
+        ])
+      );
+      out.push(
+        bullet([
+          B(fmt(c.withThirdOnly)),
+          ` companies - established with joint capital from ${displayCountry} and third countries.`,
+        ])
+      );
     }
 
     return out;
@@ -1028,7 +1165,7 @@
   // content.
   function buildAppendixSection(D, appendix, t, country, lang) {
     if (!appendix || !Array.isArray(appendix.columns) || !appendix.columns.length) return [];
-    const hasAny = (appendix.data || []).some(d => d && d.totals);
+    const hasAny = (appendix.data || []).some((d) => d && d.totals);
     if (!hasAny) return [];
 
     const cols = appendix.columns;
@@ -1037,7 +1174,8 @@
 
     function canCompareChange(i) {
       if (i === 0) return false;
-      const a = cols[i - 1], b = cols[i];
+      const a = cols[i - 1],
+        b = cols[i];
       if (a.kind !== b.kind) return false;
       if (b.year - a.year !== 1) return false;
       if (b.kind === 'ytd' && a.months.length !== b.months.length) return false;
@@ -1052,10 +1190,12 @@
       return d && d.totals ? d.totals[flow] : null;
     };
 
-    function formatNumOr(v) { return v == null || !isFinite(v) ? '-' : formatMln2(v); }
+    function formatNumOr(v) {
+      return v == null || !isFinite(v) ? '-' : formatMln2(v);
+    }
     function pctColored(v, signed) {
       if (v == null || !isFinite(v)) return { text: '-', color: COLOR.text };
-      const color = v > 0 ? COLOR.positive : (v < 0 ? COLOR.negative : COLOR.headerText);
+      const color = v > 0 ? COLOR.positive : v < 0 ? COLOR.negative : COLOR.headerText;
       const sign = signed && v > 0 ? '+' : '';
       return { text: `${sign}${formatPct(v)}`, color };
     }
@@ -1067,22 +1207,24 @@
     // Tiny appendix-only cell helpers — 7pt body / 7.5pt header. The
     // global dataCell defaults are 9pt so we override in opts.
     const APP_BODY = 7;
-    const APP_HDR  = 7.5;
+    const APP_HDR = 7.5;
     function appCell(text, opts) {
       const { rowIdx, isLastRow, align, color, bold, shading, keepWithNext } = opts || {};
-      const al = align === 'right' ? D.AlignmentType.RIGHT
-               : align === 'center' ? D.AlignmentType.CENTER
-               : D.AlignmentType.LEFT;
+      const al =
+        align === 'right' ? D.AlignmentType.RIGHT : align === 'center' ? D.AlignmentType.CENTER : D.AlignmentType.LEFT;
       return makeCell(D, {
-        children: [new D.Paragraph({
-          alignment: al,
-          keepNext: !!keepWithNext,
-          children: tr(D, {
-            text: String(text),
-            size: hp(opts && opts.size ? opts.size : APP_BODY),
-            color: color || COLOR.text, bold: !!bold,
+        children: [
+          new D.Paragraph({
+            alignment: al,
+            keepNext: !!keepWithNext,
+            children: tr(D, {
+              text: String(text),
+              size: hp(opts && opts.size ? opts.size : APP_BODY),
+              color: color || COLOR.text,
+              bold: !!bold,
+            }),
           }),
-        })],
+        ],
         rowIdx,
         isLastRow,
         shading,
@@ -1090,14 +1232,18 @@
     }
     function appHeaderCell(text, opts) {
       return makeCell(D, {
-        children: [new D.Paragraph({
-          alignment: opts && opts.align === 'left' ? D.AlignmentType.LEFT : D.AlignmentType.RIGHT,
-          keepNext: !!(opts && opts.keepWithNext),
-          children: tr(D, {
-            text: String(text),
-            size: hp(APP_HDR), color: COLOR.headerText, bold: true,
+        children: [
+          new D.Paragraph({
+            alignment: opts && opts.align === 'left' ? D.AlignmentType.LEFT : D.AlignmentType.RIGHT,
+            keepNext: !!(opts && opts.keepWithNext),
+            children: tr(D, {
+              text: String(text),
+              size: hp(APP_HDR),
+              color: COLOR.headerText,
+              bold: true,
+            }),
           }),
-        })],
+        ],
         rowIdx: 0,
         shading: COLOR.headerFill,
       });
@@ -1110,8 +1256,9 @@
     // rows gets keepNext: true so Word treats the whole table as a
     // single block.
     const headerRow = new D.TableRow({
-      children: [appHeaderCell('', { align: 'left', keepWithNext: true })]
-        .concat(cols.map(c => appHeaderCell(c.label, { keepWithNext: true }))),
+      children: [appHeaderCell('', { align: 'left', keepWithNext: true })].concat(
+        cols.map((c) => appHeaderCell(c.label, { keepWithNext: true }))
+      ),
     });
     const rows = [headerRow];
 
@@ -1119,16 +1266,31 @@
     function pushGroupRow(grpLabel, flow, rowIdx) {
       const isLast = rowIdx === totalRows - 1;
       const keep = !isLast;
-      const cells = [appCell(grpLabel, {
-        rowIdx, isLastRow: isLast, bold: true, size: APP_HDR,
-        shading: COLOR.groupFill, color: COLOR.titleDark, keepWithNext: keep,
-      })];
+      const cells = [
+        appCell(grpLabel, {
+          rowIdx,
+          isLastRow: isLast,
+          bold: true,
+          size: APP_HDR,
+          shading: COLOR.groupFill,
+          color: COLOR.titleDark,
+          keepWithNext: keep,
+        }),
+      ];
       cols.forEach((_, i) => {
         const v = getTotal(i, flow);
-        cells.push(appCell(formatNumOr(v), {
-          rowIdx, isLastRow: isLast, align: 'right', bold: true, size: APP_HDR,
-          shading: COLOR.groupFill, color: COLOR.titleDark, keepWithNext: keep,
-        }));
+        cells.push(
+          appCell(formatNumOr(v), {
+            rowIdx,
+            isLastRow: isLast,
+            align: 'right',
+            bold: true,
+            size: APP_HDR,
+            shading: COLOR.groupFill,
+            color: COLOR.titleDark,
+            keepWithNext: keep,
+          })
+        );
       });
       rows.push(new D.TableRow({ cantSplit: true, children: cells }));
     }
@@ -1137,9 +1299,14 @@
       const keep = !isLast;
       const cells = [appCell(label, { rowIdx, isLastRow: isLast, color: COLOR.headerText, keepWithNext: keep })];
       cols.forEach((_, i) => {
-        cells.push(appCell(formatNumOr(getCountry(i, flow)), {
-          rowIdx, isLastRow: isLast, align: 'right', keepWithNext: keep,
-        }));
+        cells.push(
+          appCell(formatNumOr(getCountry(i, flow)), {
+            rowIdx,
+            isLastRow: isLast,
+            align: 'right',
+            keepWithNext: keep,
+          })
+        );
       });
       rows.push(new D.TableRow({ cantSplit: true, children: cells }));
     }
@@ -1156,9 +1323,15 @@
           if (cur == null || prev == null || prev === 0) cell = { text: '-', color: COLOR.text };
           else cell = pctColored(((cur - prev) / prev) * 100, true);
         }
-        cells.push(appCell(cell.text, {
-          rowIdx, isLastRow: isLast, align: 'right', color: cell.color, keepWithNext: keep,
-        }));
+        cells.push(
+          appCell(cell.text, {
+            rowIdx,
+            isLastRow: isLast,
+            align: 'right',
+            color: cell.color,
+            keepWithNext: keep,
+          })
+        );
       });
       rows.push(new D.TableRow({ cantSplit: true, children: cells }));
     }
@@ -1172,9 +1345,14 @@
         let cell;
         if (cur == null || !tot) cell = { text: '-' };
         else cell = pctPlain((cur / tot) * 100);
-        cells.push(appCell(cell.text, {
-          rowIdx, isLastRow: isLast, align: 'right', keepWithNext: keep,
-        }));
+        cells.push(
+          appCell(cell.text, {
+            rowIdx,
+            isLastRow: isLast,
+            align: 'right',
+            keepWithNext: keep,
+          })
+        );
       });
       rows.push(new D.TableRow({ cantSplit: true, children: cells }));
     }
@@ -1186,29 +1364,42 @@
     }
 
     pushFlowBlock(t.appTurnoverGrp, 'turnover', 1);
-    pushFlowBlock(t.appExportGrp,   'export',   5);
-    pushFlowBlock(t.appImportGrp,   'import',   9);
+    pushFlowBlock(t.appExportGrp, 'export', 5);
+    pushFlowBlock(t.appImportGrp, 'import', 9);
 
     // Balance row (last)
     const balRowIdx = totalRows - 1;
-    const balCells = [appCell(t.appBalanceGrp, {
-      rowIdx: balRowIdx, isLastRow: true, bold: true, size: APP_HDR,
-      shading: COLOR.groupFill, color: COLOR.titleDark,
-    })];
+    const balCells = [
+      appCell(t.appBalanceGrp, {
+        rowIdx: balRowIdx,
+        isLastRow: true,
+        bold: true,
+        size: APP_HDR,
+        shading: COLOR.groupFill,
+        color: COLOR.titleDark,
+      }),
+    ];
     cols.forEach((_, i) => {
       const c = appendix.data[i] && appendix.data[i].country;
       let text = '-';
       let color = COLOR.titleDark;
       if (c) {
         const bal = (c.export || 0) - (c.import || 0);
-        color = bal > 0 ? COLOR.positive : (bal < 0 ? COLOR.negative : COLOR.titleDark);
+        color = bal > 0 ? COLOR.positive : bal < 0 ? COLOR.negative : COLOR.titleDark;
         const sign = bal < 0 ? '-' : '';
         text = `${sign}${formatMln2(Math.abs(bal))}`;
       }
-      balCells.push(appCell(text, {
-        rowIdx: balRowIdx, isLastRow: true, align: 'right', bold: true, size: APP_HDR,
-        shading: COLOR.groupFill, color,
-      }));
+      balCells.push(
+        appCell(text, {
+          rowIdx: balRowIdx,
+          isLastRow: true,
+          align: 'right',
+          bold: true,
+          size: APP_HDR,
+          shading: COLOR.groupFill,
+          color,
+        })
+      );
     });
     rows.push(new D.TableRow({ cantSplit: true, children: balCells }));
 
@@ -1222,7 +1413,6 @@
     ];
   }
 
-
   // ── Multi-run data cell ────────────────────────────────────────────────
   // Some trade-overview cells need two coloured runs in the same cell,
   // e.g. "1,234.56 mln $, increase 12%" where the value is black and the
@@ -1230,21 +1420,28 @@
   // takes an array of `{ text, color, bold }` descriptors.
   function dataCellRuns(D, runDescs, opts = {}) {
     const align = opts.align || 'left';
-    const runs = runDescs.flatMap(r => tr(D, {
-      text: String(r.text || ''),
-      size: hp(r.size || 9),
-      color: r.color || COLOR.text,
-      bold: !!r.bold,
-      italics: !!r.italics,
-    }));
+    const runs = runDescs.flatMap((r) =>
+      tr(D, {
+        text: String(r.text || ''),
+        size: hp(r.size || 9),
+        color: r.color || COLOR.text,
+        bold: !!r.bold,
+        italics: !!r.italics,
+      })
+    );
     return makeCell(D, {
-      children: [new D.Paragraph({
-        alignment: align === 'right' ? D.AlignmentType.RIGHT
-                 : align === 'center' ? D.AlignmentType.CENTER
-                 : D.AlignmentType.LEFT,
-        keepNext: !!opts.keepWithNext,
-        children: runs,
-      })],
+      children: [
+        new D.Paragraph({
+          alignment:
+            align === 'right'
+              ? D.AlignmentType.RIGHT
+              : align === 'center'
+                ? D.AlignmentType.CENTER
+                : D.AlignmentType.LEFT,
+          keepNext: !!opts.keepWithNext,
+          children: runs,
+        }),
+      ],
       rowIdx: opts.rowIdx,
       isLastRow: opts.isLastRow,
       shading: opts.shading,
@@ -1261,14 +1458,14 @@
   // sentinel.
   function buildOverviewTable(D, trade, t, periodLabel, lang) {
     const data = trade.overview;
-    const colFull  = String(trade.prevYear);
+    const colFull = String(trade.prevYear);
     const colMonth = `${periodLabel} ${trade.latestYear}`;
 
     const rows = [
       { key: 'turnover', label: t.turnover },
-      { key: 'export',   label: t.export   },
-      { key: 'import',   label: t.import   },
-      { key: 'balance',  label: t.balance  },
+      { key: 'export', label: t.export },
+      { key: 'import', label: t.import },
+      { key: 'balance', label: t.balance },
     ];
     const zeroMsg = { turnover: t.noTrade, export: t.noExports, import: t.noImports };
 
@@ -1279,29 +1476,44 @@
       }
       // Centered grey sentinel for zero export/import/turnover.
       if (value === 0 && !isBalance && zeroMsg[key]) {
-        return dataCellRuns(D, [{ text: zeroMsg[key], color: '94A3B8', size: 8.5 }], { align: 'center', rowIdx, isLastRow });
+        return dataCellRuns(D, [{ text: zeroMsg[key], color: '94A3B8', size: 8.5 }], {
+          align: 'center',
+          rowIdx,
+          isLastRow,
+        });
       }
       if (isBalance) {
-        const sign  = value < 0 ? t.negative : t.positive;
+        const sign = value < 0 ? t.negative : t.positive;
         const color = value < 0 ? COLOR.negative : COLOR.positive;
-        return dataCellRuns(D, [{
-          text: `${sign} ${formatMln2(Math.abs(value))} ${t.mln}`, color,
-        }], { align: 'center', rowIdx, isLastRow });
+        return dataCellRuns(
+          D,
+          [
+            {
+              text: `${sign} ${formatMln2(Math.abs(value))} ${t.mln}`,
+              color,
+            },
+          ],
+          { align: 'center', rowIdx, isLastRow }
+        );
       }
       const pct = calcChange(value, prev);
       const dir = pct >= 0 ? t.increase : t.decrease;
       const changeColor = pct >= 0 ? COLOR.positive : COLOR.negative;
-      return dataCellRuns(D, [
-        { text: `${formatMln2(value)} ${t.mln}`, color: COLOR.titleDark },
-        { text: `, ${dir} ${formatPct(pct)}`, color: changeColor },
-      ], { align: 'center', rowIdx, isLastRow });
+      return dataCellRuns(
+        D,
+        [
+          { text: `${formatMln2(value)} ${t.mln}`, color: COLOR.titleDark },
+          { text: `, ${dir} ${formatPct(pct)}`, color: changeColor },
+        ],
+        { align: 'center', rowIdx, isLastRow }
+      );
     }
 
     const totalRows = rows.length + 1; // header + data
     const headerRow = new D.TableRow({
       children: [
         headerCell(D, ''),
-        headerCell(D, colFull,  { align: 'center' }),
+        headerCell(D, colFull, { align: 'center' }),
         headerCell(D, colMonth, { align: 'center' }),
       ],
     });
@@ -1317,7 +1529,7 @@
         cantSplit: true,
         children: [
           dataCell(D, r.label, { bold: true, rowIdx, isLastRow: isLast }),
-          buildCell(fullVal,  fullPrev,  isBalance, r.key, data.fullYear,     rowIdx, isLast),
+          buildCell(fullVal, fullPrev, isBalance, r.key, data.fullYear, rowIdx, isLast),
           buildCell(monthVal, monthPrev, isBalance, r.key, data.latestPeriod, rowIdx, isLast),
         ],
       });
@@ -1339,7 +1551,7 @@
   // `parts` is an array of either plain strings or { text, bold,
   // italics, color } descriptors. `prose(parts)` returns one Paragraph.
   function summaryProseParagraph(D, parts, opts = {}) {
-    const runs = parts.flatMap(p => {
+    const runs = parts.flatMap((p) => {
       if (p == null) return [];
       if (typeof p === 'string') {
         return tr(D, { text: p, size: hp(10), color: COLOR.text });
@@ -1363,8 +1575,10 @@
     return new D.Paragraph({
       spacing: { before: pt(2), after: pt(4) },
       children: tr(D, {
-        text, bold: true,
-        size: hp(11), color: COLOR.titleDark,
+        text,
+        bold: true,
+        size: hp(11),
+        color: COLOR.titleDark,
       }),
     });
   }
@@ -1385,7 +1599,7 @@
     const isKa = lang === 'ka';
     const periodGen = isKa ? gePeriodGen(trade.latestYear, trade.latestMonth) : null;
     const periodLoc = isKa ? gePeriodLoc(trade.latestYear, trade.latestMonth) : null;
-    const periodEn  = !isKa ? enPeriod(trade.latestYear, trade.latestMonth)  : null;
+    const periodEn = !isKa ? enPeriod(trade.latestYear, trade.latestMonth) : null;
     const rank = trade.ranking && trade.ranking.country ? trade.ranking.country : null;
     // Hide rank-prose when the country sits outside the top 20 — bare
     // ordinals like "47th" don't add value. Volumes still render.
@@ -1415,7 +1629,7 @@
       const unit = isKa ? 'მლნ. $' : 'mln $';
       items.forEach((p, i) => {
         const sign = p.change > 0 ? '+' : '';
-        const name = isKa ? p.name : (p.nameEn || p.name);
+        const name = isKa ? p.name : p.nameEn || p.name;
         parts.push(name + ' ');
         parts.push(I(`(${formatMln(p.valueMln)} ${unit}, ${sign}${formatPct(p.change)})`));
         parts.push(i < items.length - 1 ? ', ' : '.');
@@ -1425,53 +1639,67 @@
 
     const out = [];
 
-    const curTurn  = trade.overview.latestPeriod.turnover;
+    const curTurn = trade.overview.latestPeriod.turnover;
     const prevTurn = trade.overview.latestPeriod.turnoverPrev;
-    const curExp   = trade.overview.latestPeriod.export;
-    const prevExp  = trade.overview.latestPeriod.exportPrev;
-    const curImp   = trade.overview.latestPeriod.import;
-    const prevImp  = trade.overview.latestPeriod.importPrev;
+    const curExp = trade.overview.latestPeriod.export;
+    const prevExp = trade.overview.latestPeriod.exportPrev;
+    const curImp = trade.overview.latestPeriod.import;
+    const prevImp = trade.overview.latestPeriod.importPrev;
 
     // ── Turnover ──────────────────────────────────────────────────────
     out.push(summaryHeadingParagraph(D, isKa ? 'სავაჭრო ბრუნვა' : 'Trade Turnover'));
     if (curTurn < 0.01) {
       const widen = trade.hasAnyTrade === false && trade.fiveYearStart;
-      const kaLabel = widen
-        ? gePeriodGenRange(trade.fiveYearStart, trade.latestYear, trade.latestMonth)
-        : periodGen;
-      const enLabel = widen
-        ? enPeriodRange(trade.fiveYearStart, trade.latestYear, trade.latestMonth)
-        : periodEn;
-      out.push(summaryProseParagraph(D, [
-        isKa
-          ? `${kaLabel} მონაცემებით, ვაჭრობა არ განხორციელდა.`
-          : `For ${enLabel}, no trade was conducted.`,
-      ]));
+      const kaLabel = widen ? gePeriodGenRange(trade.fiveYearStart, trade.latestYear, trade.latestMonth) : periodGen;
+      const enLabel = widen ? enPeriodRange(trade.fiveYearStart, trade.latestYear, trade.latestMonth) : periodEn;
+      out.push(
+        summaryProseParagraph(D, [
+          isKa ? `${kaLabel} მონაცემებით, ვაჭრობა არ განხორციელდა.` : `For ${enLabel}, no trade was conducted.`,
+        ])
+      );
       return out;
     }
     if (isKa) {
-      out.push(summaryProseParagraph(D, [
-        `${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიურ პერიოდთან შედარებით, `,
-        changeVerbParts(curTurn, prevTurn),
-        ` და `, B(`${formatMln(curTurn)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
-      ]));
+      out.push(
+        summaryProseParagraph(D, [
+          `${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიურ პერიოდთან შედარებით, `,
+          changeVerbParts(curTurn, prevTurn),
+          ` და `,
+          B(`${formatMln(curTurn)} მლნ. აშშ დოლარი`),
+          ` შეადგინა.`,
+        ])
+      );
       if (inTop(rank && rank.turnover)) {
-        out.push(summaryProseParagraph(D, [
-          `${country} აღნიშნულ პერიოდში სავაჭრო ბრუნვის მოცულობის მიხედვით არის `,
-          B(`${gePlace(rank.turnover.rank)} ადგილზე`), `, წილი `, B(`${pctOne(rank.turnover.sharePct)}%`), `.`,
-        ]));
+        out.push(
+          summaryProseParagraph(D, [
+            `${country} აღნიშნულ პერიოდში სავაჭრო ბრუნვის მოცულობის მიხედვით არის `,
+            B(`${gePlace(rank.turnover.rank)} ადგილზე`),
+            `, წილი `,
+            B(`${pctOne(rank.turnover.sharePct)}%`),
+            `.`,
+          ])
+        );
       }
     } else {
-      out.push(summaryProseParagraph(D, [
-        `For ${periodEn}, trade turnover `,
-        changeVerbParts(curTurn, prevTurn),
-        ` compared to the same period last year, amounting to `, B(`${formatMln(curTurn)} mln USD`), `.`,
-      ]));
+      out.push(
+        summaryProseParagraph(D, [
+          `For ${periodEn}, trade turnover `,
+          changeVerbParts(curTurn, prevTurn),
+          ` compared to the same period last year, amounting to `,
+          B(`${formatMln(curTurn)} mln USD`),
+          `.`,
+        ])
+      );
       if (inTop(rank && rank.turnover)) {
-        out.push(summaryProseParagraph(D, [
-          `${country} ranks `, B(enOrdinal(rank.turnover.rank)),
-          ` by trade turnover with a `, B(`${pctOne(rank.turnover.sharePct)}%`), ` share.`,
-        ]));
+        out.push(
+          summaryProseParagraph(D, [
+            `${country} ranks `,
+            B(enOrdinal(rank.turnover.rank)),
+            ` by trade turnover with a `,
+            B(`${pctOne(rank.turnover.sharePct)}%`),
+            ` share.`,
+          ])
+        );
       }
     }
 
@@ -1479,72 +1707,113 @@
     out.push(summaryDividerParagraph(D));
     out.push(summaryHeadingParagraph(D, isKa ? 'ექსპორტი' : 'Export'));
     if (!trade.hasExport || curExp < 0.01) {
-      out.push(summaryProseParagraph(D, [
-        isKa ? `ექსპორტი ${periodLoc} არ განხორციელდა.` : `No exports were conducted in ${periodEn}.`,
-      ]));
+      out.push(
+        summaryProseParagraph(D, [
+          isKa ? `ექსპორტი ${periodLoc} არ განხორციელდა.` : `No exports were conducted in ${periodEn}.`,
+        ])
+      );
     } else {
       if (isKa) {
-        out.push(summaryProseParagraph(D, [
-          `ექსპორტი ${periodLoc} `,
-          changeVerbParts(curExp, prevExp),
-          ` და `, B(`${formatMln(curExp)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
-          ...(inTop(rank && rank.export) ? [
-            ` საქართველოსთვის ექსპორტის მიხედვით ${country} არის `,
-            B(`${gePlace(rank.export.rank)} ადგილზე`),
-            ` საქართველოს სავაჭრო პარტნიორებს შორის, წილი `,
-            B(`${pctOne(rank.export.sharePct)}%`), `.`,
-          ] : []),
-        ]));
+        out.push(
+          summaryProseParagraph(D, [
+            `ექსპორტი ${periodLoc} `,
+            changeVerbParts(curExp, prevExp),
+            ` და `,
+            B(`${formatMln(curExp)} მლნ. აშშ დოლარი`),
+            ` შეადგინა.`,
+            ...(inTop(rank && rank.export)
+              ? [
+                  ` საქართველოსთვის ექსპორტის მიხედვით ${country} არის `,
+                  B(`${gePlace(rank.export.rank)} ადგილზე`),
+                  ` საქართველოს სავაჭრო პარტნიორებს შორის, წილი `,
+                  B(`${pctOne(rank.export.sharePct)}%`),
+                  `.`,
+                ]
+              : []),
+          ])
+        );
       } else {
-        out.push(summaryProseParagraph(D, [
-          `Exports in ${periodEn} `,
-          changeVerbParts(curExp, prevExp),
-          `, amounting to `, B(`${formatMln(curExp)} mln USD`), `.`,
-          ...(inTop(rank && rank.export) ? [
-            ` ${country} ranks `, B(enOrdinal(rank.export.rank)),
-            ` by export volume with a `, B(`${pctOne(rank.export.sharePct)}%`), ` share.`,
-          ] : []),
-        ]));
+        out.push(
+          summaryProseParagraph(D, [
+            `Exports in ${periodEn} `,
+            changeVerbParts(curExp, prevExp),
+            `, amounting to `,
+            B(`${formatMln(curExp)} mln USD`),
+            `.`,
+            ...(inTop(rank && rank.export)
+              ? [
+                  ` ${country} ranks `,
+                  B(enOrdinal(rank.export.rank)),
+                  ` by export volume with a `,
+                  B(`${pctOne(rank.export.sharePct)}%`),
+                  ` share.`,
+                ]
+              : []),
+          ])
+        );
       }
       if (rank && rank.domesticExport && curExp > 0) {
         const domVal = rank.domesticExport.valueMln;
-        const domPct = (100 * domVal / curExp).toFixed(0);
-        const reVal = rank.reExport ? rank.reExport.valueMln : (curExp - domVal);
-        const rePct = (100 * reVal / curExp).toFixed(0);
+        const domPct = ((100 * domVal) / curExp).toFixed(0);
+        const reVal = rank.reExport ? rank.reExport.valueMln : curExp - domVal;
+        const rePct = ((100 * reVal) / curExp).toFixed(0);
         const showDomRank = inTop(rank.domesticExport);
         if (isKa) {
-          out.push(summaryProseParagraph(D, [
-            `${periodGen} პერიოდში განხორციელდა `,
-            B(`${formatMln(domVal)} მლნ. აშშ დოლარის`),
-            ` `, B('ადგილობრივი ექსპორტი'), `, რაც შეადგენს `, B(`${domPct}%-ს`), ` სრული ექსპორტის. `,
-            ...(showDomRank ? [
-              `ადგილობრივი ექსპორტით ${country} იკავებს `,
-              B(`${gePlace(rank.domesticExport.rank)} ადგილს`),
-              ` საქართველოს სავაჭრო პარტნიორებს შორის. `,
-            ] : []),
-            `რე-ექსპორტმა იმავე პერიოდში შეადგინა `,
-            B(`${formatMln(reVal)} მლნ. აშშ დოლარი`), ` `, I(`(წილი ${rePct}%)`), `.`,
-          ]));
+          out.push(
+            summaryProseParagraph(D, [
+              `${periodGen} პერიოდში განხორციელდა `,
+              B(`${formatMln(domVal)} მლნ. აშშ დოლარის`),
+              ` `,
+              B('ადგილობრივი ექსპორტი'),
+              `, რაც შეადგენს `,
+              B(`${domPct}%-ს`),
+              ` სრული ექსპორტის. `,
+              ...(showDomRank
+                ? [
+                    `ადგილობრივი ექსპორტით ${country} იკავებს `,
+                    B(`${gePlace(rank.domesticExport.rank)} ადგილს`),
+                    ` საქართველოს სავაჭრო პარტნიორებს შორის. `,
+                  ]
+                : []),
+              `რე-ექსპორტმა იმავე პერიოდში შეადგინა `,
+              B(`${formatMln(reVal)} მლნ. აშშ დოლარი`),
+              ` `,
+              I(`(წილი ${rePct}%)`),
+              `.`,
+            ])
+          );
         } else {
-          out.push(summaryProseParagraph(D, [
-            `In the given period, domestic exports amounted to `,
-            B(`${formatMln(domVal)} mln USD`),
-            `, comprising `, B(`${domPct}%`), ` of total exports. `,
-            ...(showDomRank ? [
-              `By domestic exports, ${country} ranks `, B(enOrdinal(rank.domesticExport.rank)),
-              ` among Georgia's trading partners. `,
-            ] : []),
-            `Re-exports in the same period amounted to `,
-            B(`${formatMln(reVal)} mln USD`), ` `, I(`(${rePct}% share)`), `.`,
-          ]));
+          out.push(
+            summaryProseParagraph(D, [
+              `In the given period, domestic exports amounted to `,
+              B(`${formatMln(domVal)} mln USD`),
+              `, comprising `,
+              B(`${domPct}%`),
+              ` of total exports. `,
+              ...(showDomRank
+                ? [
+                    `By domestic exports, ${country} ranks `,
+                    B(enOrdinal(rank.domesticExport.rank)),
+                    ` among Georgia's trading partners. `,
+                  ]
+                : []),
+              `Re-exports in the same period amounted to `,
+              B(`${formatMln(reVal)} mln USD`),
+              ` `,
+              I(`(${rePct}% share)`),
+              `.`,
+            ])
+          );
         }
       }
       const expParts = productListParts(trade.exportProducts);
       if (expParts.length) {
-        out.push(summaryProseParagraph(D, [
-          B(isKa ? 'ძირითადი საექსპორტო პროდუქცია: ' : 'Main export products: '),
-          ...expParts,
-        ]));
+        out.push(
+          summaryProseParagraph(D, [
+            B(isKa ? 'ძირითადი საექსპორტო პროდუქცია: ' : 'Main export products: '),
+            ...expParts,
+          ])
+        );
       }
     }
 
@@ -1552,39 +1821,56 @@
     out.push(summaryDividerParagraph(D));
     out.push(summaryHeadingParagraph(D, isKa ? 'იმპორტი' : 'Import'));
     if (!trade.hasImport || curImp < 0.01) {
-      out.push(summaryProseParagraph(D, [
-        isKa ? `იმპორტი ${periodLoc} არ განხორციელდა.` : `No imports were conducted in ${periodEn}.`,
-      ]));
+      out.push(
+        summaryProseParagraph(D, [
+          isKa ? `იმპორტი ${periodLoc} არ განხორციელდა.` : `No imports were conducted in ${periodEn}.`,
+        ])
+      );
     } else {
       if (isKa) {
-        out.push(summaryProseParagraph(D, [
-          `იმპორტი ${periodLoc} `,
-          changeVerbParts(curImp, prevImp),
-          ` და `, B(`${formatMln(curImp)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
-          ...(inTop(rank && rank.import) ? [
-            ` იმპორტის მიხედვით ${country} არის `,
-            B(`${gePlace(rank.import.rank)} ადგილზე`),
-            ` საქართველოს სავაჭრო პარტნიორებს შორის, წილი `,
-            B(`${pctOne(rank.import.sharePct)}%`), `.`,
-          ] : []),
-        ]));
+        out.push(
+          summaryProseParagraph(D, [
+            `იმპორტი ${periodLoc} `,
+            changeVerbParts(curImp, prevImp),
+            ` და `,
+            B(`${formatMln(curImp)} მლნ. აშშ დოლარი`),
+            ` შეადგინა.`,
+            ...(inTop(rank && rank.import)
+              ? [
+                  ` იმპორტის მიხედვით ${country} არის `,
+                  B(`${gePlace(rank.import.rank)} ადგილზე`),
+                  ` საქართველოს სავაჭრო პარტნიორებს შორის, წილი `,
+                  B(`${pctOne(rank.import.sharePct)}%`),
+                  `.`,
+                ]
+              : []),
+          ])
+        );
       } else {
-        out.push(summaryProseParagraph(D, [
-          `Imports in ${periodEn} `,
-          changeVerbParts(curImp, prevImp),
-          `, amounting to `, B(`${formatMln(curImp)} mln USD`), `.`,
-          ...(inTop(rank && rank.import) ? [
-            ` ${country} ranks `, B(enOrdinal(rank.import.rank)),
-            ` by import volume with a `, B(`${pctOne(rank.import.sharePct)}%`), ` share.`,
-          ] : []),
-        ]));
+        out.push(
+          summaryProseParagraph(D, [
+            `Imports in ${periodEn} `,
+            changeVerbParts(curImp, prevImp),
+            `, amounting to `,
+            B(`${formatMln(curImp)} mln USD`),
+            `.`,
+            ...(inTop(rank && rank.import)
+              ? [
+                  ` ${country} ranks `,
+                  B(enOrdinal(rank.import.rank)),
+                  ` by import volume with a `,
+                  B(`${pctOne(rank.import.sharePct)}%`),
+                  ` share.`,
+                ]
+              : []),
+          ])
+        );
       }
       const impParts = productListParts(trade.importProducts);
       if (impParts.length) {
-        out.push(summaryProseParagraph(D, [
-          B(isKa ? 'ძირითადი საიმპორტო პროდუქცია: ' : 'Main import products: '),
-          ...impParts,
-        ]));
+        out.push(
+          summaryProseParagraph(D, [B(isKa ? 'ძირითადი საიმპორტო პროდუქცია: ' : 'Main import products: '), ...impParts])
+        );
       }
     }
 
@@ -1600,15 +1886,17 @@
     return new D.Paragraph({
       spacing: { before: pt(4), after: pt(8) },
       children: tr(D, {
-        text: customText || t.noData, italics: true,
-        size: hp(9), color: '94A3B8',
+        text: customText || t.noData,
+        italics: true,
+        size: hp(9),
+        color: '94A3B8',
       }),
     });
   }
 
   function buildProductsTable(D, products, t, lang) {
     if (!products || products.length === 0) return emptyTablePlaceholder(D, t);
-    const showReexport = products.some(p => p.reexportShare !== undefined);
+    const showReexport = products.some((p) => p.reexportShare !== undefined);
     const totalRows = 1 + products.length;
 
     const headerCells = [
@@ -1621,7 +1909,7 @@
 
     products.forEach((p, idx) => {
       const change = p.change;
-      const changeColor = change > 0 ? COLOR.positive : (change < 0 ? COLOR.negative : COLOR.headerText);
+      const changeColor = change > 0 ? COLOR.positive : change < 0 ? COLOR.negative : COLOR.headerText;
       const sign = change > 0 ? '+' : '';
       const rowIdx = idx + 1;
       const isLast = rowIdx === totalRows - 1;
@@ -1631,10 +1919,13 @@
         dataCell(D, `${sign}${formatPct(change)}`, { align: 'right', color: changeColor, rowIdx, isLastRow: isLast }),
       ];
       if (showReexport) {
-        cells.push(dataCell(D,
-          p.reexportShare === 0 || p.reexportShare == null ? '-' : formatPct(p.reexportShare),
-          { align: 'right', rowIdx, isLastRow: isLast },
-        ));
+        cells.push(
+          dataCell(D, p.reexportShare === 0 || p.reexportShare == null ? '-' : formatPct(p.reexportShare), {
+            align: 'right',
+            rowIdx,
+            isLastRow: isLast,
+          })
+        );
       }
       rows.push(new D.TableRow({ cantSplit: true, children: cells }));
     });
@@ -1647,7 +1938,7 @@
     return new D.Table({
       borders: tableBorders(),
       width: { size: 100, type: D.WidthType.PERCENTAGE },
-      columnWidths: cols.map(c => c.size === '*' ? pt(280) : c.size),
+      columnWidths: cols.map((c) => (c.size === '*' ? pt(280) : c.size)),
       rows,
     });
   }
@@ -1671,15 +1962,27 @@
       const valueText = p.valueMln > 0 ? formatMln(p.valueMln) : '-';
       const rowIdx = idx + 1;
       const isLast = rowIdx === totalRows - 1;
-      rows.push(new D.TableRow({
-        cantSplit: true,
-        children: [
-          dataCell(D, lang === 'en' && p.nameEn ? p.nameEn : p.name, { rowIdx, isLastRow: isLast }),
-          dataCell(D, valueText, { align: 'right', rowIdx, isLastRow: isLast }),
-          dataCell(D, `${changeSign}${formatPct(p.changePct)}`, { align: 'right', color: changeColor, rowIdx, isLastRow: isLast }),
-          dataCell(D, `${diffSign}${formatMln(Math.abs(p.diffMln))}`, { align: 'right', color: diffColor, rowIdx, isLastRow: isLast }),
-        ],
-      }));
+      rows.push(
+        new D.TableRow({
+          cantSplit: true,
+          children: [
+            dataCell(D, lang === 'en' && p.nameEn ? p.nameEn : p.name, { rowIdx, isLastRow: isLast }),
+            dataCell(D, valueText, { align: 'right', rowIdx, isLastRow: isLast }),
+            dataCell(D, `${changeSign}${formatPct(p.changePct)}`, {
+              align: 'right',
+              color: changeColor,
+              rowIdx,
+              isLastRow: isLast,
+            }),
+            dataCell(D, `${diffSign}${formatMln(Math.abs(p.diffMln))}`, {
+              align: 'right',
+              color: diffColor,
+              rowIdx,
+              isLastRow: isLast,
+            }),
+          ],
+        })
+      );
     });
 
     return new D.Table({
@@ -1718,25 +2021,27 @@
       // line breaks, all wrapped in keepLines: true.
       const bytes = dataUrlToBytes(charts.dynamics);
       if (bytes) {
-        blocks.push(new D.Paragraph({
-          alignment: D.AlignmentType.CENTER,
-          spacing: { before: pt(2), after: pt(8) },
-          keepLines: true,
-          keepNext: true,
-          children: [
-            ...tr(D, { text: t.dynamics, bold: true, size: hp(9.5), color: COLOR.text }),
-            new D.TextRun({ text: '', break: 1 }),
-            ...tr(D, { text: '■ ', size: hp(8), color: COLOR.positive }),
-            ...tr(D, { text: `${t.export}    `, size: hp(8), color: COLOR.text }),
-            ...tr(D, { text: '■ ', size: hp(8), color: COLOR.negative }),
-            ...tr(D, { text: t.import, size: hp(8), color: COLOR.text }),
-            new D.TextRun({ text: '', break: 1 }),
-            new D.ImageRun({
-              data: bytes,
-              transformation: { width: px(500), height: px(153) },
-            }),
-          ],
-        }));
+        blocks.push(
+          new D.Paragraph({
+            alignment: D.AlignmentType.CENTER,
+            spacing: { before: pt(2), after: pt(8) },
+            keepLines: true,
+            keepNext: true,
+            children: [
+              ...tr(D, { text: t.dynamics, bold: true, size: hp(9.5), color: COLOR.text }),
+              new D.TextRun({ text: '', break: 1 }),
+              ...tr(D, { text: '■ ', size: hp(8), color: COLOR.positive }),
+              ...tr(D, { text: `${t.export}    `, size: hp(8), color: COLOR.text }),
+              ...tr(D, { text: '■ ', size: hp(8), color: COLOR.negative }),
+              ...tr(D, { text: t.import, size: hp(8), color: COLOR.text }),
+              new D.TextRun({ text: '', break: 1 }),
+              new D.ImageRun({
+                data: bytes,
+                transformation: { width: px(500), height: px(153) },
+              }),
+            ],
+          })
+        );
       }
     }
 
@@ -1807,15 +2112,17 @@
     const fontBytes = await ensureFontBytes();
     const lang = (opts && opts.lang) || 'en';
     const t = T[lang] || T.en;
-    const country = lang === 'en' && opts && opts.countryNameEn ? opts.countryNameEn : (opts && opts.country) || 'Country';
+    const country =
+      lang === 'en' && opts && opts.countryNameEn ? opts.countryNameEn : (opts && opts.country) || 'Country';
 
     // Section content — Trade is fully wired (overview + chart embeds);
     // the rest are placeholders until subsequent commits.
     const tradeCharts = (opts && opts.charts) || {};
     const grammar = state && state.countryGrammar;
-    const investmentsState = state && state.investments
-      ? Object.assign({}, state.investments, { sectors: state.investmentsSectors || null })
-      : state && state.investments;
+    const investmentsState =
+      state && state.investments
+        ? Object.assign({}, state.investments, { sectors: state.investmentsSectors || null })
+        : state && state.investments;
     const children = [
       ...buildTradeSection(D, state && state.trade, tradeCharts, t, country, lang),
       ...buildTourismSection(D, state && state.tourism, tradeCharts, t, country, lang, grammar),

@@ -6,6 +6,7 @@ const express = require('express');
 const XLSX = require('xlsx');
 const https = require('node:https');
 const config = require('../config');
+const logger = require('../logger');
 const router = express.Router();
 
 const GEOSTAT_BASE = 'https://ex-trade-api.geostat.ge/api/trade';
@@ -17,9 +18,7 @@ const GEOSTAT_BASE = 'https://ex-trade-api.geostat.ge/api/trade';
 // GEOSTAT_TLS_MODE=no-verify scopes permissive TLS to *.geostat.ge only.
 // Switch to GEOSTAT_TLS_MODE=strict after the buyer installs the missing
 // intermediate certificate through NODE_EXTRA_CA_CERTS or system trust.
-const geostatAgent = config.geostatTlsMode === 'no-verify'
-  ? new https.Agent({ rejectUnauthorized: false })
-  : undefined;
+const geostatAgent = config.geostatTlsMode === 'no-verify' ? new https.Agent({ rejectUnauthorized: false }) : undefined;
 
 // Lightweight fetch-shaped wrapper around https.request — native fetch
 // (undici) can't accept an https.Agent, and pulling undici as a direct
@@ -32,34 +31,37 @@ function geostatHttp(url, opts = {}) {
       reject(new Error(`geostatHttp refused: ${u.hostname} is not a geostat.ge host`));
       return;
     }
-    const req = https.request({
-      hostname: u.hostname,
-      port: u.port || 443,
-      path: u.pathname + u.search,
-      method: opts.method || 'GET',
-      headers: opts.headers || {},
-      agent: geostatAgent,
-    }, (res) => {
-      // Optional manual redirect handling (FDI XLSX path).
-      if (opts.followRedirects && [301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
-        res.resume();
-        const next = new URL(res.headers.location, url).toString();
-        resolve(geostatHttp(next, opts));
-        return;
-      }
-      const chunks = [];
-      res.on('data', (c) => chunks.push(c));
-      res.on('end', () => {
-        const buf = Buffer.concat(chunks);
-        resolve({
-          ok: res.statusCode >= 200 && res.statusCode < 300,
-          status: res.statusCode,
-          text: async () => buf.toString('utf8'),
-          json: async () => JSON.parse(buf.toString('utf8')),
-          buffer: () => buf,
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        port: u.port || 443,
+        path: u.pathname + u.search,
+        method: opts.method || 'GET',
+        headers: opts.headers || {},
+        agent: geostatAgent,
+      },
+      (res) => {
+        // Optional manual redirect handling (FDI XLSX path).
+        if (opts.followRedirects && [301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+          res.resume();
+          const next = new URL(res.headers.location, url).toString();
+          resolve(geostatHttp(next, opts));
+          return;
+        }
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          const buf = Buffer.concat(chunks);
+          resolve({
+            ok: res.statusCode >= 200 && res.statusCode < 300,
+            status: res.statusCode,
+            text: async () => buf.toString('utf8'),
+            json: async () => JSON.parse(buf.toString('utf8')),
+            buffer: () => buf,
+          });
         });
-      });
-    });
+      }
+    );
     req.on('error', reject);
     if (opts.timeout) {
       req.setTimeout(opts.timeout, () => req.destroy(new Error('Geostat request timeout')));
@@ -79,7 +81,7 @@ async function geostatFetch(path, options = {}) {
     timeout: 30_000,
     headers: {
       'Content-Type': 'application/json',
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'User-Agent': 'VectorPortal/1.0',
       ...(options.headers || {}),
     },
@@ -108,9 +110,9 @@ router.get('/classificatory', async (req, res) => {
     classCache.ts = Date.now();
     res.json(data);
   } catch (err) {
-    console.error('Statistics classificatory error:', err.message);
+    logger.error('Statistics classificatory error: %s', err.message);
     if (classCache[lang]) {
-      console.warn(`Serving stale classificatory (${lang}) from ${new Date(classCache.ts).toISOString()}`);
+      logger.warn(`Serving stale classificatory (${lang}) from ${new Date(classCache.ts).toISOString()}`);
       return res.json(classCache[lang]);
     }
     res.status(502).json({ error: 'Failed to fetch classificatory data from Geostat' });
@@ -128,7 +130,7 @@ router.post('/trade-data', async (req, res) => {
     });
     res.json(data);
   } catch (err) {
-    console.error('Statistics trade-data error:', err.message);
+    logger.error('Statistics trade-data error: %s', err.message);
     res.status(502).json({ error: 'Failed to fetch trade data from Geostat' });
   }
 });
@@ -181,7 +183,7 @@ router.post('/export-report', async (req, res) => {
       ...(res._meta || {}),
     });
   } catch (err) {
-    console.error('Statistics export-report error:', err.message);
+    logger.error('Statistics export-report error: %s', err.message);
     res.status(502).json({ error: 'Failed to fetch full report from Geostat' });
   }
 });
@@ -198,7 +200,10 @@ const rankingCache = new Map(); // key -> { data, ts }
 function rankingCacheGet(key) {
   const entry = rankingCache.get(key);
   if (!entry) return null;
-  if (Date.now() - entry.ts > RANKING_TTL) { rankingCache.delete(key); return null; }
+  if (Date.now() - entry.ts > RANKING_TTL) {
+    rankingCache.delete(key);
+    return null;
+  }
   return entry.data;
 }
 
@@ -262,7 +267,10 @@ async function fetchFlowRanking(tradeFlowCode, year, months, allCountryIds) {
         // Try every plausible field name for the country identifier.
         let cid = null;
         for (const f of ['country', 'country_id', 'countryId', 'country_code', 'countries']) {
-          if (row[f] != null && row[f] !== '') { cid = row[f]; break; }
+          if (row[f] != null && row[f] !== '') {
+            cid = row[f];
+            break;
+          }
         }
         if (cid == null) {
           if (!rawResponse.sampleRowKeys) {
@@ -291,12 +299,14 @@ async function fetchFlowRanking(tradeFlowCode, year, months, allCountryIds) {
     map[e.cid] = {
       valueMln: e.valueMln,
       rank: idx + 1,
-      sharePct: total > 0 ? (100 * e.valueMln / total) : 0,
+      sharePct: total > 0 ? (100 * e.valueMln) / total : 0,
     };
   });
 
   const stats = { withTrade: countryCount, totalMln: total, rawResponse };
-  console.log(`country-ranking [flow=${tradeFlowCode} ${year}/m${months.join(',')}]: ${countryCount} countries, total $${total.toFixed(1)}M`);
+  logger.info(
+    `country-ranking [flow=${tradeFlowCode} ${year}/m${months.join(',')}]: ${countryCount} countries, total $${total.toFixed(1)}M`
+  );
   return { total, perCountry: map, stats };
 }
 
@@ -351,7 +361,9 @@ router.post('/country-ranking', async (req, res) => {
       const t0 = Date.now();
       const allCountryIds = await getAllCountryIds();
       debug.classificatoryCountries = allCountryIds.length;
-      console.log(`country-ranking: computing for ${year}/m${sortedMonths.join(',')}, ${allCountryIds.length} countries`);
+      logger.info(
+        `country-ranking: computing for ${year}/m${sortedMonths.join(',')}, ${allCountryIds.length} countries`
+      );
 
       // 4 parallel Geostat calls: export + import + domestic export + re-export.
       // Each passes ALL country IDs + full months array + sum=true.
@@ -371,21 +383,32 @@ router.post('/country-ranking', async (req, res) => {
         if (val > 0) turnoverMap[cid] = val;
       }
       // Sort and assign ranks for turnover
-      const turnoverEntries = Object.entries(turnoverMap)
-        .sort(([, a], [, b]) => b - a);
+      const turnoverEntries = Object.entries(turnoverMap).sort(([, a], [, b]) => b - a);
       turnoverTotal = turnoverEntries.reduce((s, [, v]) => s + v, 0);
       const turnoverRanked = {};
       turnoverEntries.forEach(([cid, valueMln], idx) => {
         turnoverRanked[cid] = {
           valueMln,
           rank: idx + 1,
-          sharePct: turnoverTotal > 0 ? (100 * valueMln / turnoverTotal) : 0,
+          sharePct: turnoverTotal > 0 ? (100 * valueMln) / turnoverTotal : 0,
         };
       });
 
       cached = {
-        totals: { turnover: turnoverTotal, export: exp.total, import: imp.total, domesticExport: domExp.total, reExport: reExp.total },
-        flows: { turnover: turnoverRanked, export: exp.perCountry, import: imp.perCountry, domesticExport: domExp.perCountry, reExport: reExp.perCountry },
+        totals: {
+          turnover: turnoverTotal,
+          export: exp.total,
+          import: imp.total,
+          domesticExport: domExp.total,
+          reExport: reExp.total,
+        },
+        flows: {
+          turnover: turnoverRanked,
+          export: exp.perCountry,
+          import: imp.perCountry,
+          domesticExport: domExp.perCountry,
+          reExport: reExp.perCountry,
+        },
         flowStats: { export: exp.stats, import: imp.stats, domesticExport: domExp.stats, reExport: reExp.stats },
       };
       // Only cache if we got meaningful data; never cache failures.
@@ -393,7 +416,9 @@ router.post('/country-ranking', async (req, res) => {
       if (hasData) rankingCacheSet(cacheKey, cached);
       debug.computedMs = Date.now() - t0;
       debug.cached = hasData;
-      console.log(`country-ranking: completed in ${(debug.computedMs / 1000).toFixed(1)}s — exp:${exp.stats.withTrade} imp:${imp.stats.withTrade} countries`);
+      logger.info(
+        `country-ranking: completed in ${(debug.computedMs / 1000).toFixed(1)}s — exp:${exp.stats.withTrade} imp:${imp.stats.withTrade} countries`
+      );
     }
 
     debug.flowStats = cached.flowStats || null;
@@ -414,7 +439,7 @@ router.post('/country-ranking', async (req, res) => {
 
     res.json({ success: true, totals: cached.totals, country, _debug: debug });
   } catch (err) {
-    console.error('Statistics country-ranking error:', err.message);
+    logger.error('Statistics country-ranking error: %s', err.message);
     res.status(502).json({ error: 'Failed to fetch country ranking', reason: err.message, _debug: debug });
   }
 });
@@ -454,8 +479,13 @@ router.post('/country-ranking/debug', async (req, res) => {
     let extractionPath = null;
     if (raw && Array.isArray(raw.data)) {
       const summary = raw.data.find((r) => r.isGroupSummary);
-      if (summary) { extracted = extractRowValue(summary); extractionPath = 'isGroupSummary'; }
-      else { extracted = raw.data.reduce((s, r) => s + extractRowValue(r), 0); extractionPath = 'sum-all-rows'; }
+      if (summary) {
+        extracted = extractRowValue(summary);
+        extractionPath = 'isGroupSummary';
+      } else {
+        extracted = raw.data.reduce((s, r) => s + extractRowValue(r), 0);
+        extractionPath = 'sum-all-rows';
+      }
     }
 
     res.json({
@@ -465,7 +495,7 @@ router.post('/country-ranking/debug', async (req, res) => {
       extracted: { valueThd: extracted, valueMln: extracted / 1000, path: extractionPath },
     });
   } catch (err) {
-    console.error('country-ranking/debug error:', err.message);
+    logger.error('country-ranking/debug error: %s', err.message);
     res.status(502).json({ error: err.message });
   }
 });
@@ -487,7 +517,10 @@ const aggregateInflight = new Map(); // key -> Promise<{ totals, flows }>
 function aggregateCacheGet(key) {
   const entry = aggregateCache.get(key);
   if (!entry) return null;
-  if (Date.now() - entry.ts > AGGREGATE_TTL) { aggregateCache.delete(key); return null; }
+  if (Date.now() - entry.ts > AGGREGATE_TTL) {
+    aggregateCache.delete(key);
+    return null;
+  }
   return entry.data;
 }
 
@@ -529,8 +562,11 @@ async function computeAggregate(year, sortedMonths) {
   })();
 
   aggregateInflight.set(key, promise);
-  try { return await promise; }
-  finally { aggregateInflight.delete(key); }
+  try {
+    return await promise;
+  } finally {
+    aggregateInflight.delete(key);
+  }
 }
 
 router.post('/country-aggregate', async (req, res) => {
@@ -539,8 +575,7 @@ router.post('/country-aggregate', async (req, res) => {
     if (!Number.isInteger(year) || year < 1990 || year > 2100) {
       return res.status(400).json({ error: 'Invalid year' });
     }
-    if (!Array.isArray(months) || months.length === 0 ||
-        months.some((m) => !Number.isInteger(m) || m < 1 || m > 12)) {
+    if (!Array.isArray(months) || months.length === 0 || months.some((m) => !Number.isInteger(m) || m < 1 || m > 12)) {
       return res.status(400).json({ error: 'Invalid months' });
     }
     if (countryId == null || countryId === '') {
@@ -555,13 +590,11 @@ router.post('/country-aggregate', async (req, res) => {
     const impEntry = data.flows.import[idKey];
     const expVal = expEntry ? expEntry.valueMln : 0;
     const impVal = impEntry ? impEntry.valueMln : 0;
-    const country = (expVal > 0 || impVal > 0)
-      ? { export: expVal, import: impVal, turnover: expVal + impVal }
-      : null;
+    const country = expVal > 0 || impVal > 0 ? { export: expVal, import: impVal, turnover: expVal + impVal } : null;
 
     res.json({ success: true, totals: data.totals, country });
   } catch (err) {
-    console.error('Statistics country-aggregate error:', err.message);
+    logger.error('Statistics country-aggregate error: %s', err.message);
     res.status(502).json({ error: 'Failed to fetch country aggregate', reason: err.message });
   }
 });
@@ -586,7 +619,9 @@ function parseFdiWorkbook(wb) {
 
   const years = [];
   for (let c = 2; c < headerRow.length; c++) {
-    const raw = String(headerRow[c] || '').replace('*', '').trim();
+    const raw = String(headerRow[c] || '')
+      .replace('*', '')
+      .trim();
     const yr = parseInt(raw, 10);
     if (yr >= 1996 && yr <= 2100) {
       years.push({ col: c, year: yr });
@@ -599,15 +634,23 @@ function parseFdiWorkbook(wb) {
     const row = rows[r];
     if (!row) continue;
     const code = parseInt(row[0], 10);
-    const label = String(row[0] || row[1] || '').trim().toLowerCase();
+    const label = String(row[0] || row[1] || '')
+      .trim()
+      .toLowerCase();
 
     // Capture the totals row (no numeric country code; label contains "სულ" or "total")
-    if ((!code || isNaN(code)) && !totals &&
-        (label.includes('სულ') || label.includes('total') || label.includes('ჯამი'))) {
+    if (
+      (!code || isNaN(code)) &&
+      !totals &&
+      (label.includes('სულ') || label.includes('total') || label.includes('ჯამი'))
+    ) {
       const t = {};
       for (const { col, year } of years) {
         const val = row[col];
-        if (val === null || val === undefined || val === '-' || val === '') { t[year] = 0; continue; }
+        if (val === null || val === undefined || val === '-' || val === '') {
+          t[year] = 0;
+          continue;
+        }
         const num = parseFloat(val);
         t[year] = isNaN(num) ? 0 : num; // Thsd. USD
       }
@@ -630,7 +673,7 @@ function parseFdiWorkbook(wb) {
     countries[code] = values;
   }
 
-  return { success: true, years: years.map(y => y.year), countries, totals };
+  return { success: true, years: years.map((y) => y.year), countries, totals };
 }
 
 router.get('/fdi', async (req, res) => {
@@ -654,10 +697,10 @@ router.get('/fdi', async (req, res) => {
 
       // Save fresh copy locally for future fallback
       require('fs').writeFileSync(FDI_LOCAL, buffer);
-      console.log('FDI data refreshed from geostat.ge');
+      logger.info('FDI data refreshed from geostat.ge');
     } catch (dlErr) {
       // Fall back to local file
-      console.log('FDI download failed, using local copy:', dlErr.message);
+      logger.info('FDI download failed, using local copy: %s', dlErr.message);
       wb = XLSX.readFile(FDI_LOCAL);
     }
 
@@ -665,7 +708,7 @@ router.get('/fdi', async (req, res) => {
     fdiCache = { data: result, ts: Date.now() };
     res.json(result);
   } catch (err) {
-    console.error('FDI data error:', err.message);
+    logger.error('FDI data error: %s', err.message);
     res.status(502).json({ error: 'Failed to load FDI data' });
   }
 });
@@ -711,7 +754,9 @@ function parseHistoricalWorkbook(wb) {
 
   const years = [];
   for (let c = 1; c < headerRow.length; c++) {
-    const raw = String(headerRow[c] || '').replace('*', '').trim();
+    const raw = String(headerRow[c] || '')
+      .replace('*', '')
+      .trim();
     const yr = parseInt(raw, 10);
     if (yr >= 2000 && yr <= 2100) years.push({ col: c, year: yr });
   }
@@ -731,15 +776,23 @@ function parseHistoricalWorkbook(wb) {
       const t = {};
       for (const { col, year } of years) {
         const v = row[col];
-        if (v === null || v === undefined || v === '-' || v === '') { t[year] = 0; continue; }
+        if (v === null || v === undefined || v === '-' || v === '') {
+          t[year] = 0;
+          continue;
+        }
         const num = parseFloat(String(v).replace(/,/g, ''));
         t[year] = isNaN(num) ? 0 : Math.round(num);
       }
-      if (Object.values(t).some(v => v > 0)) totals = t;
+      if (Object.values(t).some((v) => v > 0)) totals = t;
     }
 
-    if (name.startsWith('მათ შორის') || name.startsWith('საერთაშორისო') ||
-        name.startsWith('სხვა ვიზიტ') || name.startsWith('წყარო')) continue;
+    if (
+      name.startsWith('მათ შორის') ||
+      name.startsWith('საერთაშორისო') ||
+      name.startsWith('სხვა ვიზიტ') ||
+      name.startsWith('წყარო')
+    )
+      continue;
 
     const values = {};
     let hasAnyValue = false;
@@ -756,7 +809,7 @@ function parseHistoricalWorkbook(wb) {
     if (hasAnyValue) countries[name] = values;
   }
 
-  return { years: years.map(y => y.year), countries, totals };
+  return { years: years.map((y) => y.year), countries, totals };
 }
 
 // Check if a workbook matches the quarterly file fingerprint.
@@ -775,7 +828,7 @@ function parseQuarterlyWorkbook(wb) {
     const colD = String(header[3] || '').trim();
     if (colB !== 'ქვეყანა') continue;
 
-    const isPeriodLabel = s => /^\d{4}(\s+[IVX]+\s+კვ)?$/.test(s);
+    const isPeriodLabel = (s) => /^\d{4}(\s+[IVX]+\s+კვ)?$/.test(s);
     if (!isPeriodLabel(colC) || !isPeriodLabel(colD)) continue;
 
     // Matched! Extract data.
@@ -799,8 +852,13 @@ function parseQuarterlyWorkbook(wb) {
         if (t.compare > 0 || t.current > 0) periodTotals = t;
       }
 
-      if (name.startsWith('მათ შორის') || name.startsWith('საერთაშორისო') ||
-          name.startsWith('სხვა ვიზიტ') || name.startsWith('წყარო')) continue;
+      if (
+        name.startsWith('მათ შორის') ||
+        name.startsWith('საერთაშორისო') ||
+        name.startsWith('სხვა ვიზიტ') ||
+        name.startsWith('წყარო')
+      )
+        continue;
 
       const compare = parseVal(row[2]);
       const current = parseVal(row[3]);
@@ -847,7 +905,9 @@ async function findLatestQuarterlyFile(lastKnownId) {
         bestMatch = { id, buffer, parsed };
         break; // highest-ID match found
       }
-    } catch (_) { /* skip */ }
+    } catch (_) {
+      /* skip */
+    }
   }
   return bestMatch;
 }
@@ -857,11 +917,17 @@ function readCachedQuarterlyId() {
     const txt = fs.readFileSync(TOURISM_QUARTERLY_ID_FILE, 'utf8').trim();
     const id = parseInt(txt, 10);
     return isNaN(id) ? null : id;
-  } catch (_) { return null; }
+  } catch (_) {
+    return null;
+  }
 }
 
 function writeCachedQuarterlyId(id) {
-  try { fs.writeFileSync(TOURISM_QUARTERLY_ID_FILE, String(id)); } catch (_) {}
+  try {
+    fs.writeFileSync(TOURISM_QUARTERLY_ID_FILE, String(id));
+  } catch (_) {
+    /* ignore write failures */
+  }
 }
 
 // ── Refresh tourism data: fetch, parse, merge, save to disk ──────────
@@ -872,7 +938,7 @@ async function refreshTourismData() {
   if (tourismRefreshRunning) return;
   tourismRefreshRunning = true;
   const t0 = Date.now();
-  console.log('tourism: refreshing data...');
+  logger.info('tourism: refreshing data...');
 
   try {
     // 1. Fetch historical file (stable ID)
@@ -887,7 +953,7 @@ async function refreshTourismData() {
       histWb = XLSX.read(buf, { type: 'buffer' });
       fs.writeFileSync(TOURISM_HISTORICAL_LOCAL, buf);
     } catch (err) {
-      console.log('tourism: historical download failed, using local:', err.message);
+      logger.info('tourism: historical download failed, using local: %s', err.message);
       histWb = XLSX.readFile(TOURISM_HISTORICAL_LOCAL);
     }
     const historical = parseHistoricalWorkbook(histWb);
@@ -904,17 +970,19 @@ async function refreshTourismData() {
         quarterlyId = match.id;
         fs.writeFileSync(TOURISM_QUARTERLY_LOCAL, match.buffer);
         writeCachedQuarterlyId(match.id);
-        console.log(`tourism: quarterly file discovered: ID ${match.id} (${match.parsed.currentLabel})`);
+        logger.info(`tourism: quarterly file discovered: ID ${match.id} (${match.parsed.currentLabel})`);
       } else if (quarterlyId) {
         const localWb = XLSX.readFile(TOURISM_QUARTERLY_LOCAL);
         quarterly = parseQuarterlyWorkbook(localWb);
       }
     } catch (err) {
-      console.log('tourism: quarterly discovery failed, trying local:', err.message);
+      logger.info('tourism: quarterly discovery failed, trying local: %s', err.message);
       try {
         const localWb = XLSX.readFile(TOURISM_QUARTERLY_LOCAL);
         quarterly = parseQuarterlyWorkbook(localWb);
-      } catch (_) { /* no local either */ }
+      } catch (_) {
+        /* no local either */
+      }
     }
 
     // 3. Merge
@@ -957,11 +1025,16 @@ async function refreshTourismData() {
     // Save to disk + memory cache
     fs.writeFileSync(TOURISM_DATA_FILE, JSON.stringify(result));
     tourismCache = { data: result, ts: Date.now() };
-    console.log(`tourism: refresh completed in ${((Date.now() - t0) / 1000).toFixed(1)}s — ${Object.keys(countries).length} countries`);
-    console.log(`tourism: annual totals sample:`, JSON.stringify(historical.totals ? Object.entries(historical.totals).slice(-3) : 'null'));
-    console.log(`tourism: quarterly totals:`, JSON.stringify(quarterly?.periodTotals || 'null'));
+    logger.info(
+      `tourism: refresh completed in ${((Date.now() - t0) / 1000).toFixed(1)}s — ${Object.keys(countries).length} countries`
+    );
+    logger.info(
+      'tourism: annual totals sample: %s',
+      JSON.stringify(historical.totals ? Object.entries(historical.totals).slice(-3) : 'null')
+    );
+    logger.info('tourism: quarterly totals: %s', JSON.stringify(quarterly?.periodTotals || 'null'));
   } catch (err) {
-    console.error('tourism: refresh failed:', err.message);
+    logger.error('tourism: refresh failed: %s', err.message);
   } finally {
     tourismRefreshRunning = false;
   }
@@ -975,11 +1048,13 @@ function loadTourismFromDisk() {
       const data = JSON.parse(raw);
       if (data && data.success) {
         tourismCache = { data, ts: Date.now() };
-        console.log('tourism: loaded from disk cache');
+        logger.info('tourism: loaded from disk cache');
         return true;
       }
     }
-  } catch (_) {}
+  } catch (_) {
+    /* ignore cache read failures */
+  }
   return false;
 }
 
@@ -991,7 +1066,7 @@ function scheduleTourismRefresh() {
   next.setHours(HOUR, 0, 0, 0);
   if (next <= now) next.setDate(next.getDate() + 1);
   const delay = next - now;
-  console.log(`tourism: next scheduled refresh in ${(delay / 3600000).toFixed(1)}h (${next.toISOString()})`);
+  logger.info(`tourism: next scheduled refresh in ${(delay / 3600000).toFixed(1)}h (${next.toISOString()})`);
   const timer = setTimeout(() => {
     refreshTourismData();
     const interval = setInterval(refreshTourismData, 24 * 60 * 60 * 1000);
@@ -1013,7 +1088,7 @@ router.get('/tourism', async (req, res) => {
     }
     res.status(502).json({ error: 'Tourism data not available yet' });
   } catch (err) {
-    console.error('Tourism data error:', err.message);
+    logger.error('Tourism data error: %s', err.message);
     res.status(502).json({ error: 'Failed to load tourism data' });
   }
 });
@@ -1029,23 +1104,41 @@ let fdiSectorsCache = { data: null };
 
 // Sector name mapping: full Georgian name → { short (Georgian), en (English) }
 const SECTOR_NAMES = {
-  'სულ': { short: 'სულ', en: 'Total' },
+  სულ: { short: 'სულ', en: 'Total' },
   'სოფლის, სატყეო და თევზის მეურნეობა': { short: 'სოფლის მეურნეობა', en: 'Agriculture' },
   'დამამუშავებელი მრეწველობა': { short: 'დამამუშავებელი მრეწველობა', en: 'Manufacturing' },
   'ელექტროენერგიის, აირის, ორთქლის და კონდიცირებული ჰაერის მიწოდება': { short: 'ენერგეტიკა', en: 'Energy' },
-  'მშენებლობა': { short: 'მშენებლობა', en: 'Construction' },
-  'საბითუმო და საცალო ვაჭრობა; ავტომობილების და მოტოციკლების რემონტი': { short: 'საბითუმო და საცალო ვაჭრობა', en: 'Wholesale and Retail Trade' },
+  მშენებლობა: { short: 'მშენებლობა', en: 'Construction' },
+  'საბითუმო და საცალო ვაჭრობა; ავტომობილების და მოტოციკლების რემონტი': {
+    short: 'საბითუმო და საცალო ვაჭრობა',
+    en: 'Wholesale and Retail Trade',
+  },
   'ტრანსპორტი და დასაწყობება': { short: 'ტრანსპორტი', en: 'Transport' },
-  'განთავსების საშუალებებით უზრუნველყოფის და საკვების მიწოდების საქმიანობები': { short: 'სასტუმროები და რესტორნები', en: 'Hotels and Restaurants' },
+  'განთავსების საშუალებებით უზრუნველყოფის და საკვების მიწოდების საქმიანობები': {
+    short: 'სასტუმროები და რესტორნები',
+    en: 'Hotels and Restaurants',
+  },
   'ინფორმაცია და კომუნიკაცია': { short: 'ინფორმაცია და კომუნიკაცია', en: 'Information and Communication' },
-  'საფინანსო და სადაზღვევო საქმიანობები': { short: 'საფინანსო და სადაზღვევო საქმიანობები', en: 'Financial and Insurance Activities' },
+  'საფინანსო და სადაზღვევო საქმიანობები': {
+    short: 'საფინანსო და სადაზღვევო საქმიანობები',
+    en: 'Financial and Insurance Activities',
+  },
   'უძრავ ქონებასთან დაკავშირებული საქმიანობები': { short: 'უძრავი ქონება', en: 'Real Estate' },
   'პროფესიული, სამეცნიერო და ტექნიკური საქმიანობები': { short: 'სამეცნიერო საქმიანობები', en: 'Scientific Activities' },
-  'ადმინისტრაციული და დამხმარე მომსახურების საქმიანობები': { short: 'ადმინისტრაციული საქმიანობები', en: 'Administrative Activities' },
-  'განათლება': { short: 'განათლება', en: 'Education' },
+  'ადმინისტრაციული და დამხმარე მომსახურების საქმიანობები': {
+    short: 'ადმინისტრაციული საქმიანობები',
+    en: 'Administrative Activities',
+  },
+  განათლება: { short: 'განათლება', en: 'Education' },
   'ჯანდაცვა და სოციალური მომსახურების საქმიანობები': { short: 'ჯანდაცვა', en: 'Healthcare' },
-  'სამთომოპოვებითი მრეწველობა და კარიერების დამუშავება': { short: 'სამთომოპოვებითი მრეწველობა', en: 'Mining and Quarrying' },
-  'წყალმომარაგება; კანალიზაცია, ნარჩენების მართვა და დაბინძურებისაგან გასუფთავების საქმიანობები': { short: 'წყალმომარაგება', en: 'Water Supply' },
+  'სამთომოპოვებითი მრეწველობა და კარიერების დამუშავება': {
+    short: 'სამთომოპოვებითი მრეწველობა',
+    en: 'Mining and Quarrying',
+  },
+  'წყალმომარაგება; კანალიზაცია, ნარჩენების მართვა და დაბინძურებისაგან გასუფთავების საქმიანობები': {
+    short: 'წყალმომარაგება',
+    en: 'Water Supply',
+  },
   'სხვა სახის მომსახურება': { short: 'სხვა სახის მომსახურება', en: 'Other Services' },
   'ხელოვნება, გართობა და დასვენება': { short: 'ხელოვნება', en: 'Arts' },
 };
@@ -1069,7 +1162,10 @@ function parseFdiSectorsWorkbook(wb) {
   let headerIdx = -1;
   for (let i = 0; i < Math.min(rows.length, 20); i++) {
     const row = rows[i] || [];
-    if (String(row[0] || '').trim() === 'ქვეყნის კოდი') { headerIdx = i; break; }
+    if (String(row[0] || '').trim() === 'ქვეყნის კოდი') {
+      headerIdx = i;
+      break;
+    }
   }
   if (headerIdx < 0) throw new Error('Header row with "ქვეყნის კოდი" not found');
 
@@ -1084,7 +1180,9 @@ function parseFdiSectorsWorkbook(wb) {
   const header = rows[headerIdx];
   const periodCols = [];
   for (let c = 3; c < header.length; c++) {
-    const raw = String(header[c] || '').replace(/\*/g, '').trim();
+    const raw = String(header[c] || '')
+      .replace(/\*/g, '')
+      .trim();
     if (!raw) continue;
     const m = /\b(20\d{2}|21\d{2})\b/.exec(raw);
     if (!m) continue;
@@ -1093,11 +1191,14 @@ function parseFdiSectorsWorkbook(wb) {
     periodCols.push({ col: c, label: raw });
   }
   if (!periodCols.length) throw new Error('No year/period columns found in header');
-  const years = periodCols.map(p => p.label); // strings (may include quarter suffix)
+  const years = periodCols.map((p) => p.label); // strings (may include quarter suffix)
 
   function parseNum(v) {
     if (v === null || v === undefined || v === '-' || v === '') return null;
-    const s = String(v).replace(/,/g, '').replace(/\s/g, '').replace(/\u00A0/g, '');
+    const s = String(v)
+      .replace(/,/g, '')
+      .replace(/\s/g, '')
+      .replace(/\u00A0/g, '');
     const n = parseFloat(s);
     if (isNaN(n)) return null;
     return n / 1000; // thousand USD → mln USD
@@ -1143,7 +1244,10 @@ function parseFdiSectorsWorkbook(wb) {
   for (const s of sectorsSet) {
     // Find the English name by checking all mappings
     for (const [full, m] of Object.entries(SECTOR_NAMES)) {
-      if (m.short === s) { sectorNameMap[s] = m.en; break; }
+      if (m.short === s) {
+        sectorNameMap[s] = m.en;
+        break;
+      }
     }
     if (!sectorNameMap[s]) sectorNameMap[s] = s;
   }
@@ -1161,7 +1265,9 @@ async function loadFdiSectorsFromDb() {
   const parsed = await loadParsed('fdi-sectors');
   if (parsed) {
     fdiSectorsCache.data = parsed;
-    console.log(`fdi-sectors: loaded from DB (${Object.keys(parsed.countries || {}).length} countries, years ${parsed.years?.join(',')})`);
+    logger.info(
+      `fdi-sectors: loaded from DB (${Object.keys(parsed.countries || {}).length} countries, years ${parsed.years?.join(',')})`
+    );
   }
 }
 
@@ -1190,7 +1296,9 @@ router.post('/fdi-sectors/upload', ...adminOnly, handleAdminUpload('file'), asyn
     if (!countryCount) return res.status(400).json({ error: 'No country data found in file' });
     await saveParsedAndRaw('fdi-sectors', parsed, req.file.buffer);
     fdiSectorsCache.data = parsed;
-    console.log(`fdi-sectors: uploaded (${countryCount} countries, ${parsed.sectors.length} sectors, years ${parsed.years.join(',')})`);
+    logger.info(
+      `fdi-sectors: uploaded (${countryCount} countries, ${parsed.sectors.length} sectors, years ${parsed.years.join(',')})`
+    );
     res.json({
       success: true,
       uploadedAt: parsed.uploadedAt,
@@ -1199,7 +1307,7 @@ router.post('/fdi-sectors/upload', ...adminOnly, handleAdminUpload('file'), asyn
       sectorCount: parsed.sectors.length,
     });
   } catch (err) {
-    console.error('fdi-sectors upload error:', err.message);
+    logger.error('fdi-sectors upload error: %s', err.message);
     res.status(400).json({ error: err.message || 'Failed to parse uploaded file' });
   }
 });
@@ -1218,7 +1326,9 @@ async function loadCompaniesFromDb() {
   const parsed = await loadParsed('companies');
   if (parsed) {
     companiesCache.data = parsed;
-    console.log(`companies: loaded from DB (${Object.keys(parsed.countries || {}).length} countries, ${parsed.activeCount || 0} active)`);
+    logger.info(
+      `companies: loaded from DB (${Object.keys(parsed.countries || {}).length} countries, ${parsed.activeCount || 0} active)`
+    );
   }
 }
 router.get('/companies', (req, res) => {
@@ -1263,7 +1373,7 @@ router.post('/companies/data', ...adminOnly, async (req, res) => {
     };
     await saveParsedAndRaw('companies', parsed);
     companiesCache.data = parsed;
-    console.log(`companies: data saved (${Object.keys(clean).length} countries, ${parsed.activeCount} active)`);
+    logger.info(`companies: data saved (${Object.keys(clean).length} countries, ${parsed.activeCount} active)`);
     res.json({
       success: true,
       uploadedAt: parsed.uploadedAt,
@@ -1271,7 +1381,7 @@ router.post('/companies/data', ...adminOnly, async (req, res) => {
       activeCount: parsed.activeCount,
     });
   } catch (err) {
-    console.error('companies data save error:', err.message);
+    logger.error('companies data save error: %s', err.message);
     res.status(400).json({ error: err.message || 'Failed to save companies data' });
   }
 });
@@ -1284,8 +1394,8 @@ function initializeStatisticsData() {
 
   loadTourismFromDisk();
   scheduleTourismRefresh();
-  loadFdiSectorsFromDb().catch((err) => console.warn('fdi-sectors load failed:', err.message));
-  loadCompaniesFromDb().catch((err) => console.warn('companies load failed:', err.message));
+  loadFdiSectorsFromDb().catch((err) => logger.warn('fdi-sectors load failed: %s', err.message));
+  loadCompaniesFromDb().catch((err) => logger.warn('companies load failed: %s', err.message));
 }
 
 router.initializeStatisticsData = initializeStatisticsData;

@@ -6,13 +6,11 @@ const db = require('../db');
 const libraryRouter = require('./library');
 
 function findRoute(method, path) {
-  const layer = libraryRouter.stack.find((item) => (
-    item.route
-    && item.route.path === path
-    && item.route.methods[method.toLowerCase()]
-  ));
+  const layer = libraryRouter.stack.find(
+    (item) => item.route && item.route.path === path && item.route.methods[method.toLowerCase()]
+  );
   assert.ok(layer, `${method} ${path} should be registered`);
-  return layer.route.stack.map(item => item.handle);
+  return layer.route.stack.map((item) => item.handle);
 }
 
 function mockResponse() {
@@ -64,12 +62,16 @@ function createLibraryQueryMock(overrides = {}) {
     }
     if (/SELECT e.title, e.language/.test(sql)) {
       return {
-        rows: overrides.missingDocument ? [] : [{
-          title: 'Published brief',
-          language: 'EN',
-          ended_at: '2026-05-01',
-          country_name: 'France',
-        }],
+        rows: overrides.missingDocument
+          ? []
+          : [
+              {
+                title: 'Published brief',
+                language: 'EN',
+                ended_at: '2026-05-01',
+                country_name: 'France',
+              },
+            ],
       };
     }
     if (/SELECT s.id, s.title/.test(sql)) {
@@ -77,10 +79,14 @@ function createLibraryQueryMock(overrides = {}) {
     }
     if (/SELECT document_submitter_id, status FROM events/.test(sql)) {
       return {
-        rows: overrides.missingEvent ? [] : [{
-          document_submitter_id: overrides.documentSubmitterId ?? 7,
-          status: overrides.status || 'COMPLETED',
-        }],
+        rows: overrides.missingEvent
+          ? []
+          : [
+              {
+                document_submitter_id: overrides.documentSubmitterId ?? 7,
+                status: overrides.status || 'COMPLETED',
+              },
+            ],
       };
     }
     if (/UPDATE events/.test(sql)) return { rows: [], rowCount: 1 };
@@ -143,7 +149,10 @@ test('POST /api/library/:eventId/reopen blocks non-document-submitters', async (
 
     assert.equal(res.statusCode, 403);
     assert.equal(res.body.error, 'Only the Document Submitter can reopen a published event');
-    assert.equal(mock.calls.some(call => /UPDATE events/.test(call.sql)), false);
+    assert.equal(
+      mock.calls.some((call) => /UPDATE events/.test(call.sql)),
+      false
+    );
   });
 });
 
@@ -162,7 +171,7 @@ test('POST /api/library/:eventId/reopen reactivates completed events for documen
 
     assert.equal(res.statusCode, 200);
     assert.deepEqual(res.body, { success: true });
-    const update = mock.calls.find(call => /UPDATE events/.test(call.sql));
+    const update = mock.calls.find((call) => /UPDATE events/.test(call.sql));
     assert.deepEqual(update.params, [10]);
   });
 });

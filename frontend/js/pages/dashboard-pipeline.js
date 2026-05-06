@@ -31,17 +31,20 @@
     return;
   }
 
-  const activeEvents = events.filter(e => e.isActive);
+  const activeEvents = events.filter((e) => e.isActive);
 
   if (activeEvents.length === 0) {
     eventSelect.innerHTML = '<option value="">No events</option>';
   } else {
-    eventSelect.innerHTML = '<option value="">Select event...</option>' +
-      activeEvents.map(e => {
-        const deadline = e.deadlineDate ? formatDate(e.deadlineDate) : '';
-        const label = `${e.title} (${e.countryName}${deadline ? ', ' + deadline : ''})`;
-        return `<option value="${e.id}">${escapeHtml(label)}</option>`;
-      }).join('');
+    eventSelect.innerHTML =
+      '<option value="">Select event...</option>' +
+      activeEvents
+        .map((e) => {
+          const deadline = e.deadlineDate ? formatDate(e.deadlineDate) : '';
+          const label = `${e.title} (${e.countryName}${deadline ? ', ' + deadline : ''})`;
+          return `<option value="${e.id}">${escapeHtml(label)}</option>`;
+        })
+        .join('');
   }
 
   // Preview button
@@ -59,7 +62,7 @@
   if (miniCalendarEl) renderMiniCalendar(new Date());
 
   function renderUpcomingEvents() {
-    const upcoming = activeEvents.filter(e => e.deadlineDate);
+    const upcoming = activeEvents.filter((e) => e.deadlineDate);
     upcoming.sort((a, b) => new Date(a.deadlineDate) - new Date(b.deadlineDate));
 
     if (upcoming.length === 0) {
@@ -67,7 +70,10 @@
       return;
     }
 
-    upcomingListEl.innerHTML = upcoming.slice(0, 5).map(e => `
+    upcomingListEl.innerHTML = upcoming
+      .slice(0, 5)
+      .map(
+        (e) => `
       <div class="dp-upcoming-event" data-event-id="${e.id}" style="cursor:pointer;">
         <h4 class="dp-upcoming-event__title">${escapeHtml(e.title)}</h4>
         <div class="dp-upcoming-event__pills">
@@ -78,9 +84,11 @@
         </div>
         ${e.occasion ? `<div class="dp-upcoming-event__desc">${e.occasion}</div>` : ''}
       </div>
-    `).join('');
+    `
+      )
+      .join('');
 
-    upcomingListEl.querySelectorAll('[data-event-id]').forEach(card => {
+    upcomingListEl.querySelectorAll('[data-event-id]').forEach((card) => {
       card.addEventListener('click', () => {
         const id = card.dataset.eventId;
         eventSelect.value = id;
@@ -95,7 +103,7 @@
     const today = new Date();
 
     const eventDates = new Set();
-    activeEvents.forEach(e => {
+    activeEvents.forEach((e) => {
       if (e.deadlineDate) {
         const d = new Date(e.deadlineDate);
         if (d.getFullYear() === year && d.getMonth() === month) {
@@ -104,8 +112,20 @@
       }
     });
 
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
     const dayNames = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
     const firstDay = new Date(year, month, 1);
@@ -113,7 +133,7 @@
     if (startDay < 0) startDay = 6;
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    let daysHtml = dayNames.map(d => `<span class="dp-cal-grid__day-name">${d}</span>`).join('');
+    let daysHtml = dayNames.map((d) => `<span class="dp-cal-grid__day-name">${d}</span>`).join('');
     for (let i = 0; i < startDay; i++) {
       daysHtml += '<span class="dp-cal-grid__day dp-cal-grid__day--empty"></span>';
     }
@@ -123,7 +143,9 @@
       let cls = 'dp-cal-grid__day';
       if (isToday) cls += ' dp-cal-grid__day--today';
       if (hasEvent) cls += ' dp-cal-grid__day--has-event';
-      const dateAttr = hasEvent ? ` data-cal-date="${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}"` : '';
+      const dateAttr = hasEvent
+        ? ` data-cal-date="${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}"`
+        : '';
       daysHtml += `<span class="${cls}"${dateAttr}>${d}</span>`;
     }
 
@@ -144,14 +166,14 @@
     });
 
     // Click a date with events → highlight matching upcoming event cards
-    miniCalendarEl.querySelectorAll('[data-cal-date]').forEach(day => {
+    miniCalendarEl.querySelectorAll('[data-cal-date]').forEach((day) => {
       day.addEventListener('click', () => {
         const clickedDate = day.dataset.calDate;
         const matchingIds = activeEvents
-          .filter(e => e.deadlineDate && e.deadlineDate.startsWith(clickedDate))
-          .map(e => String(e.id));
+          .filter((e) => e.deadlineDate && e.deadlineDate.startsWith(clickedDate))
+          .map((e) => String(e.id));
         if (!matchingIds.length) return;
-        document.querySelectorAll('.dp-upcoming-event[data-event-id]').forEach(card => {
+        document.querySelectorAll('.dp-upcoming-event[data-event-id]').forEach((card) => {
           if (matchingIds.includes(card.dataset.eventId)) {
             card.classList.add('dp-upcoming-event--highlight');
             card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -175,7 +197,7 @@
 
     if (previewBtn) previewBtn.style.display = '';
 
-    const ev = activeEvents.find(e => String(e.id) === String(eventId));
+    const ev = activeEvents.find((e) => String(e.id) === String(eventId));
 
     try {
       const grid = await Api.get(`/api/workflow/status-grid?event_id=${eventId}`);
@@ -211,26 +233,34 @@
       //  - Curator deputy: sections where their effective role is
       //    CURATOR (server resolves this per-section from
       //    deputy_department_links + section_departments).
-      const visibleSections = (isDS || isResponsibleDeputy)
-        ? (grid.sections || [])
-        : (grid.sections || []).filter(s => {
-            if (s.departmentIds && s.departmentIds.includes(user.departmentId)) return true;
-            if (s.userEffectiveRole && s.userEffectiveRole.startsWith('RECEIVING_') && s.chain && s.chain.includes(s.userEffectiveRole)) return true;
-            if (s.userEffectiveRole === 'CURATOR') return true;
-            return false;
-          });
+      const visibleSections =
+        isDS || isResponsibleDeputy
+          ? grid.sections || []
+          : (grid.sections || []).filter((s) => {
+              if (s.departmentIds && s.departmentIds.includes(user.departmentId)) return true;
+              if (
+                s.userEffectiveRole &&
+                s.userEffectiveRole.startsWith('RECEIVING_') &&
+                s.chain &&
+                s.chain.includes(s.userEffectiveRole)
+              )
+                return true;
+              if (s.userEffectiveRole === 'CURATOR') return true;
+              return false;
+            });
 
       if (visibleSections.length === 0) {
         if (container) {
           container.style.display = '';
-          container.innerHTML = '<div class="card"><div class="empty-state"><p>No sections for this event</p></div></div>';
+          container.innerHTML =
+            '<div class="card"><div class="empty-state"><p>No sections for this event</p></div></div>';
         }
         return;
       }
 
-      const allApproved = visibleSections.every(s => s.status && s.status.startsWith('approved_by_'));
+      const allApproved = visibleSections.every((s) => s.status && s.status.startsWith('approved_by_'));
 
-      const sectionsToApprove = visibleSections.filter(s => {
+      const sectionsToApprove = visibleSections.filter((s) => {
         const uer = s.userEffectiveRole || user.role;
         const expectedStatus = 'submitted_to_' + uer.toLowerCase();
         return s.status === expectedStatus && s.currentHolderRole === uer;
@@ -280,7 +310,6 @@
       bindApproveAll(eventId, sectionsToApprove);
       bindSendToLibrary(eventId);
       bindHistoryToggles();
-
     } catch (e) {
       const container = sectionsCardEl || legacyContainer;
       if (container) {
@@ -296,9 +325,10 @@
     const lastUpdated = section.lastUpdatedAt ? formatDateTime(section.lastUpdatedAt) : '';
     const lastUpdatedBy = section.lastUpdatedBy ? escapeHtml(section.lastUpdatedBy) : '';
 
-    const deptInfo = (section.departmentNames && section.departmentNames.length > 0)
-      ? section.departmentNames.map(n => escapeHtml(n)).join('<br>')
-      : '';
+    const deptInfo =
+      section.departmentNames && section.departmentNames.length > 0
+        ? section.departmentNames.map((n) => escapeHtml(n)).join('<br>')
+        : '';
 
     // Build notification banners
     let noticeBanners = '';
@@ -343,33 +373,36 @@
 
     let activeIdx = stepStates.indexOf('active');
     if (activeIdx === -1) activeIdx = doneCount - 1;
-    const fillPct = steps.length > 1
-      ? Math.max(0, Math.min(100, ((activeIdx >= 0 ? activeIdx : 0) / (steps.length - 1)) * 100))
-      : 0;
+    const fillPct =
+      steps.length > 1 ? Math.max(0, Math.min(100, ((activeIdx >= 0 ? activeIdx : 0) / (steps.length - 1)) * 100)) : 0;
 
-    const stepsHtml = steps.map((step, i) => {
-      const state = stepStates[i];
-      const skipped = state === 'done' && !step.acted;
-      const name = step.actorName || roleLabel(step.role);
-      const subtitle = step.departmentName || (step.role === 'CURATOR' || step.role === 'DEPUTY' ? roleLabel(step.role) : '');
-      return `
+    const stepsHtml = steps
+      .map((step, i) => {
+        const state = stepStates[i];
+        const skipped = state === 'done' && !step.acted;
+        const name = step.actorName || roleLabel(step.role);
+        const subtitle =
+          step.departmentName || (step.role === 'CURATOR' || step.role === 'DEPUTY' ? roleLabel(step.role) : '');
+        return `
         <div class="dp-pipeline__step dp-pipeline__step--${state}${skipped ? ' dp-pipeline__step--skipped' : ''}">
           <span class="dp-pipeline__dot" data-stage-action="show-users" data-stage-event="${eventId}" data-stage-section="${section.sectionId}" data-stage-role="${step.role}">${i + 1}</span>
           <span class="dp-pipeline__name" title="${escapeHtml(name)}${subtitle ? ' (' + escapeHtml(subtitle) + ')' : ''}">${escapeHtml(name)}</span>
           ${subtitle ? `<span class="dp-pipeline__dept">${escapeHtml(subtitle)}</span>` : ''}
         </div>
       `;
-    }).join('');
+      })
+      .join('');
 
     // While the section is in amendment, surface a separate banner so
     // the chain bar (showing the original approval history) doesn't get
     // hijacked into showing the DS as a chain role.
-    const amendmentBanner = currentStatus === 'submitted_to_amending_ds'
-      ? `<div class="dp-amendment-banner" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;padding:6px 10px;margin:0 0 8px;font-size:12px;">
+    const amendmentBanner =
+      currentStatus === 'submitted_to_amending_ds'
+        ? `<div class="dp-amendment-banner" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;padding:6px 10px;margin:0 0 8px;font-size:12px;">
            <strong>Amendment in progress</strong>
            — the Document Submitter is editing this section. The chain below shows the previous approval history.
          </div>`
-      : '';
+        : '';
 
     return `
       ${amendmentBanner}
@@ -497,17 +530,21 @@
       return '<div class="dp-popover__empty">No eligible users</div>';
     }
     const label = roleLabel(data.role);
-    const rows = data.users.map(u => `
+    const rows = data.users
+      .map(
+        (u) => `
       <div class="dp-popover__user">
         <span class="dp-popover__user-name">${escapeHtml(u.fullName)}</span>
         ${u.departmentName ? `<span class="dp-popover__user-dept">${escapeHtml(u.departmentName)}</span>` : ''}
       </div>
-    `).join('');
+    `
+      )
+      .join('');
     return `<div class="dp-popover__role-title">${escapeHtml(label)}</div>${rows}`;
   }
 
   function bindStagePopover() {
-    document.querySelectorAll('[data-stage-action="show-users"]').forEach(dot => {
+    document.querySelectorAll('[data-stage-action="show-users"]').forEach((dot) => {
       dot.addEventListener('click', async (e) => {
         e.stopPropagation();
         closeStagePopover();
@@ -516,10 +553,13 @@
         const role = dot.dataset.stageRole;
         const popover = createStagePopover(dot, '<div class="dp-popover__loading">Loading…</div>');
         try {
-          const data = await Api.get(`/api/workflow/stage-users?event_id=${eventId}&section_id=${sectionId}&role=${encodeURIComponent(role)}`);
+          const data = await Api.get(
+            `/api/workflow/stage-users?event_id=${eventId}&section_id=${sectionId}&role=${encodeURIComponent(role)}`
+          );
           popover.querySelector('.dp-popover__body').innerHTML = renderStageUsers(data);
         } catch (err) {
-          popover.querySelector('.dp-popover__body').innerHTML = `<div class="dp-popover__empty">${escapeHtml(err.message)}</div>`;
+          popover.querySelector('.dp-popover__body').innerHTML =
+            `<div class="dp-popover__empty">${escapeHtml(err.message)}</div>`;
         }
       });
     });
@@ -565,7 +605,7 @@
   }
 
   function bindActions(eventId, grid) {
-    document.querySelectorAll('[data-action]').forEach(btn => {
+    document.querySelectorAll('[data-action]').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         e.preventDefault();
         const action = btn.dataset.action;
@@ -574,24 +614,56 @@
 
         try {
           if (action === 'submit') {
-            if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmSubmit'), { confirmLabel: I18n.tr('common.submit'), confirmColor: '#3b82f6' })) return;
+            if (
+              !(await GCP.ActionDialog.confirm(I18n.tr('editor.confirmSubmit'), {
+                confirmLabel: I18n.tr('common.submit'),
+                confirmColor: '#3b82f6',
+              }))
+            )
+              return;
             await Api.post('/api/workflow/submit', { eventId: evId, sectionId });
           } else if (action === 'approve') {
-            if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmApprove'), { confirmLabel: I18n.tr('common.approve'), confirmColor: '#16a34a' })) return;
+            if (
+              !(await GCP.ActionDialog.confirm(I18n.tr('editor.confirmApprove'), {
+                confirmLabel: I18n.tr('common.approve'),
+                confirmColor: '#16a34a',
+              }))
+            )
+              return;
             await Api.post('/api/workflow/approve', { eventId: evId, sectionId });
           } else if (action === 'return') {
-            const comment = await GCP.ActionDialog.popoverPrompt(btn, I18n.tr('editor.returnTitle'), { placeholder: I18n.tr('editor.returnPlaceholderOptional'), confirmLabel: I18n.tr('common.return'), confirmColor: '#6d28d9' });
+            const comment = await GCP.ActionDialog.popoverPrompt(btn, I18n.tr('editor.returnTitle'), {
+              placeholder: I18n.tr('editor.returnPlaceholderOptional'),
+              confirmLabel: I18n.tr('common.return'),
+              confirmColor: '#6d28d9',
+            });
             if (comment === null) return;
             await Api.post('/api/workflow/return', { eventId: evId, sectionId, comment: comment || undefined });
           } else if (action === 'ask-to-return') {
-            const note = await GCP.ActionDialog.popoverPrompt(btn, I18n.tr('editor.askReturnTitle'), { placeholder: I18n.tr('editor.askReturnPlaceholder'), confirmLabel: I18n.tr('editor.sendRequest'), confirmColor: '#a16207' });
+            const note = await GCP.ActionDialog.popoverPrompt(btn, I18n.tr('editor.askReturnTitle'), {
+              placeholder: I18n.tr('editor.askReturnPlaceholder'),
+              confirmLabel: I18n.tr('editor.sendRequest'),
+              confirmColor: '#a16207',
+            });
             if (note === null) return;
             await Api.post('/api/workflow/ask-to-return', { eventId: evId, sectionId, note: note || undefined });
           } else if (action === 'push-section') {
-            if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPush'), { confirmLabel: I18n.tr('editor.pushSection'), confirmColor: '#6d28d9' })) return;
+            if (
+              !(await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPush'), {
+                confirmLabel: I18n.tr('editor.pushSection'),
+                confirmColor: '#6d28d9',
+              }))
+            )
+              return;
             await Api.post('/api/workflow/push-section', { eventId: evId, sectionId });
           } else if (action === 'pull-section') {
-            if (!await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPull'), { confirmLabel: I18n.tr('editor.pullSection'), confirmColor: '#7c3aed' })) return;
+            if (
+              !(await GCP.ActionDialog.confirm(I18n.tr('editor.confirmPull'), {
+                confirmLabel: I18n.tr('editor.pullSection'),
+                confirmColor: '#7c3aed',
+              }))
+            )
+              return;
             await Api.post('/api/workflow/pull-section', { eventId: evId, sectionId });
           }
           loadSections(evId);
@@ -606,7 +678,13 @@
     const btn = document.getElementById('approveAllBtn');
     if (!btn) return;
     btn.addEventListener('click', async () => {
-      if (!await GCP.ActionDialog.confirm(I18n.tr('dashboard.confirmApproveAll').replace('{n}', sectionsToApprove.length), { confirmLabel: I18n.tr('dashboard.approveAll'), confirmColor: '#16a34a' })) return;
+      if (
+        !(await GCP.ActionDialog.confirm(
+          I18n.tr('dashboard.confirmApproveAll').replace('{n}', sectionsToApprove.length),
+          { confirmLabel: I18n.tr('dashboard.approveAll'), confirmColor: '#16a34a' }
+        ))
+      )
+        return;
       try {
         for (const s of sectionsToApprove) {
           await Api.post('/api/workflow/approve', { eventId: parseInt(eventId), sectionId: s.sectionId });
@@ -633,21 +711,24 @@
   ];
 
   const ACTION_COLORS = {
-    saved:           { bg: '#ede9fe', color: '#5b21b6', label: 'Edited' },
-    submitted:       { bg: '#dbeafe', color: '#1d4ed8', label: 'Submitted' },
-    approved:        { bg: '#dcfce7', color: '#15803d', label: 'Approved' },
-    returned:        { bg: '#fee2e2', color: '#b91c1c', label: 'Returned' },
+    saved: { bg: '#ede9fe', color: '#5b21b6', label: 'Edited' },
+    submitted: { bg: '#dbeafe', color: '#1d4ed8', label: 'Submitted' },
+    approved: { bg: '#dcfce7', color: '#15803d', label: 'Approved' },
+    returned: { bg: '#fee2e2', color: '#b91c1c', label: 'Returned' },
     asked_to_return: { bg: '#fef3c7', color: '#92400e', label: 'Asked to Return' },
-    pushed:          { bg: '#e0e7ff', color: '#4338ca', label: 'Pushed' },
-    pulled:          { bg: '#e0e7ff', color: '#4338ca', label: 'Pulled' },
+    pushed: { bg: '#e0e7ff', color: '#4338ca', label: 'Pushed' },
+    pulled: { bg: '#e0e7ff', color: '#4338ca', label: 'Pulled' },
   };
 
   function formatHistoryDate(dateStr) {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
     return d.toLocaleString('en-GB', {
-      day: '2-digit', month: 'short', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   }
 
@@ -679,7 +760,7 @@
       return collapsed;
     }
 
-    const stageOrder = HISTORY_STAGES.map(s => s.role);
+    const stageOrder = HISTORY_STAGES.map((s) => s.role);
     const orderedRoles = [];
     for (const stage of HISTORY_STAGES) {
       if (byRole[stage.role]) orderedRoles.push(stage);
@@ -690,20 +771,23 @@
       }
     }
 
-    return '<div class="sh-timeline">' + orderedRoles.map(stage => {
-      const entries = collapseEntries(byRole[stage.role]);
-      const eventsHtml = entries.map(h => {
-        const ac = ACTION_COLORS[h.action] || { bg: '#f1f5f9', color: '#475569', label: h.action };
-        const actor = escapeHtml(h.userName || 'Unknown');
-        const date = formatHistoryDate(h.actedAt);
-        const label = h.action === 'saved' && h._count > 1
-          ? `${ac.label} (\u00d7${h._count})` : ac.label;
+    return (
+      '<div class="sh-timeline">' +
+      orderedRoles
+        .map((stage) => {
+          const entries = collapseEntries(byRole[stage.role]);
+          const eventsHtml = entries
+            .map((h) => {
+              const ac = ACTION_COLORS[h.action] || { bg: '#f1f5f9', color: '#475569', label: h.action };
+              const actor = escapeHtml(h.userName || 'Unknown');
+              const date = formatHistoryDate(h.actedAt);
+              const label = h.action === 'saved' && h._count > 1 ? `${ac.label} (\u00d7${h._count})` : ac.label;
 
-        if (h.action === 'returned' || h.action === 'asked_to_return') {
-          const noteHtml = h.note
-            ? escapeHtml(h.note)
-            : '<span class="sh-return-note__empty">No comment provided</span>';
-          return `<div class="sh-event">
+              if (h.action === 'returned' || h.action === 'asked_to_return') {
+                const noteHtml = h.note
+                  ? escapeHtml(h.note)
+                  : '<span class="sh-return-note__empty">No comment provided</span>';
+                return `<div class="sh-event">
             <span class="sh-actor">${actor}</span>
             <details class="sh-return-details${h.action === 'asked_to_return' ? ' sh-return-details--ask' : ''}">
               <summary>${escapeHtml(label)}</summary>
@@ -711,27 +795,31 @@
             </details>
             <span class="sh-date">${date}</span>
           </div>`;
-        }
+              }
 
-        return `<div class="sh-event">
+              return `<div class="sh-event">
           <span class="sh-actor">${actor}</span>
           <span class="sh-action-tag" style="background:${ac.bg};color:${ac.color}">${escapeHtml(label)}</span>
           <span class="sh-date">${date}</span>
         </div>`;
-      }).join('');
+            })
+            .join('');
 
-      return `<div class="sh-stage">
+          return `<div class="sh-stage">
         <div class="sh-dot"></div>
         <div class="sh-body">
           <div class="sh-stage-label">${escapeHtml(stage.label.toUpperCase())}</div>
           <div class="sh-events">${eventsHtml}</div>
         </div>
       </div>`;
-    }).join('') + '</div>';
+        })
+        .join('') +
+      '</div>'
+    );
   }
 
   function bindHistoryToggles() {
-    document.querySelectorAll('.dp-history-toggle').forEach(btn => {
+    document.querySelectorAll('.dp-history-toggle').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const sectionId = btn.dataset.sectionId;
         const eventId = btn.dataset.eventId;
@@ -763,7 +851,13 @@
     const btn = document.getElementById('sendToLibraryBtn');
     if (!btn) return;
     btn.addEventListener('click', async () => {
-      if (!await GCP.ActionDialog.confirm(I18n.tr('dashboard.sendToLibrary'), { confirmLabel: I18n.tr('dashboard.sendToLibrary'), confirmColor: '#3b82f6' })) return;
+      if (
+        !(await GCP.ActionDialog.confirm(I18n.tr('dashboard.sendToLibrary'), {
+          confirmLabel: I18n.tr('dashboard.sendToLibrary'),
+          confirmColor: '#3b82f6',
+        }))
+      )
+        return;
       try {
         await Api.post('/api/workflow/send-to-library', { eventId: parseInt(eventId) });
         toast.success(I18n.tr('dashboard.sentToLibrary'));

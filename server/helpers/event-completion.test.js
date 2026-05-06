@@ -31,9 +31,7 @@ test('checkEventCompletion completes simple events when every section is approve
 });
 
 test('checkEventCompletion leaves advanced events behind the manual library gate', async () => {
-  const db = mockDb([
-    { rows: [{ workflow_type: 'advanced', status: 'IN_PROGRESS' }] },
-  ]);
+  const db = mockDb([{ rows: [{ workflow_type: 'advanced', status: 'IN_PROGRESS' }] }]);
 
   const completed = await checkEventCompletion(db, 42);
 
@@ -58,16 +56,11 @@ test('checkEventCompletion ignores missing, empty, and already completed events'
   assert.equal(await checkEventCompletion(missingDb, 1), false);
   assert.equal(missingDb.calls.length, 1);
 
-  const emptyDb = mockDb([
-    { rows: [{ workflow_type: 'simple', status: 'IN_PROGRESS' }] },
-    { rows: [] },
-  ]);
+  const emptyDb = mockDb([{ rows: [{ workflow_type: 'simple', status: 'IN_PROGRESS' }] }, { rows: [] }]);
   assert.equal(await checkEventCompletion(emptyDb, 2), false);
   assert.equal(emptyDb.calls.length, 2);
 
-  const completedDb = mockDb([
-    { rows: [{ workflow_type: 'simple', status: 'COMPLETED' }] },
-  ]);
+  const completedDb = mockDb([{ rows: [{ workflow_type: 'simple', status: 'COMPLETED' }] }]);
   assert.equal(await checkEventCompletion(completedDb, 3), false);
   assert.equal(completedDb.calls.length, 1);
 });

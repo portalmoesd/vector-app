@@ -14,7 +14,7 @@ body.gp-shell-ready .sidebar.gp-sidebar {
   box-shadow: none;
   overflow: visible;
   z-index: 120;
-  transition: width .24s ease;
+  transition: width 0.24s ease;
 }
 
 body.gp-shell-ready.gp-sidebar-expanded .sidebar.gp-sidebar {
@@ -41,7 +41,7 @@ body.gp-shell-ready .gp-sidebar__panel {
 }
 
 body.gp-shell-ready .gp-sidebar__panel::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   right: 0;
@@ -91,7 +91,9 @@ body.gp-shell-ready .gp-brand__logo-img {
 body.gp-shell-ready .gp-brand__text {
   opacity: 0;
   transform: translateX(-8px);
-  transition: opacity .16s ease, transform .16s ease;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
   pointer-events: none;
   white-space: nowrap;
 }
@@ -107,12 +109,14 @@ body.gp-shell-ready .gp-brand__title {
   font-weight: 700;
   color: #111827;
   line-height: 1.12;
-  letter-spacing: -.01em;
+  letter-spacing: -0.01em;
   display: flex;
   flex-direction: column;
 }
 
-body.gp-shell-ready .gp-brand__title-main { display: block; }
+body.gp-shell-ready .gp-brand__title-main {
+  display: block;
+}
 
 body.gp-shell-ready .gp-brand__title-sub {
   display: block;
@@ -149,14 +153,16 @@ body.gp-shell-ready .dm-toggle {
   cursor: pointer;
   font-family: inherit;
   font-size: 16px;
-  transition: background .16s ease, color .16s ease;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease;
 }
 
 body.gp-shell-ready .gp-nav__link:hover,
 body.gp-shell-ready .gp-logout:hover,
 body.gp-shell-ready .dm-toggle:hover,
 body.gp-shell-ready .gp-nav__link.active {
-  background: rgba(255,255,255,.56);
+  background: rgba(255, 255, 255, 0.56);
   color: #1f3346;
   text-decoration: none;
 }
@@ -190,7 +196,9 @@ body.gp-shell-ready .gp-nav__label {
   font-weight: 500;
   opacity: 0;
   transform: translateX(-8px);
-  transition: opacity .16s ease, transform .16s ease;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
   pointer-events: none;
   white-space: nowrap;
 }
@@ -239,7 +247,9 @@ body.gp-shell-ready .gp-profile__avatar {
 body.gp-shell-ready .gp-profile__text {
   opacity: 0;
   transform: translateX(-8px);
-  transition: opacity .16s ease, transform .16s ease;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
   pointer-events: none;
   white-space: nowrap;
 }
@@ -270,7 +280,7 @@ body.gp-shell-ready .gp-sidebar__footer {
 }
 
 body.gp-shell-ready .gp-logout:hover {
-  background: rgba(255,255,255,.56);
+  background: rgba(255, 255, 255, 0.56);
   color: #1f3346;
 }
 
@@ -294,12 +304,15 @@ body.gp-shell-ready .gp-lang-switch__opt {
   letter-spacing: 0.5px;
   cursor: pointer;
   color: #64748b;
-  transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 body.gp-shell-ready .gp-lang-switch__opt:hover {
   color: #1f3346;
 }
-body.gp-shell-ready .gp-lang-switch__opt[aria-pressed="true"] {
+body.gp-shell-ready .gp-lang-switch__opt[aria-pressed='true'] {
   background: #ffffff;
   color: #1f3346;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
@@ -321,7 +334,7 @@ body.gp-shell-ready .gp-sidebar__scrim {
 body.gp-shell-ready .main {
   margin-left: calc(var(--gp-sidebar-collapsed) + 28px);
   padding: 24px 32px;
-  transition: margin-left .24s ease;
+  transition: margin-left 0.24s ease;
 }
 
 body.gp-shell-ready.gp-sidebar-expanded .main {
@@ -376,16 +389,16 @@ body.gp-shell-ready .topbar {
     width: min(320px, calc(100vw - 28px));
     max-width: calc(100vw - 28px);
     padding: 18px 16px 18px;
-    background: rgba(255,255,255,.98);
-    border-right: 1px solid rgba(17,24,39,.08);
+    background: rgba(255, 255, 255, 0.98);
+    border-right: 1px solid rgba(17, 24, 39, 0.08);
     border-radius: 0 28px 28px 0;
-    box-shadow: 0 24px 48px rgba(15,23,42,.18);
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
     transform: translateX(calc(-100% - 16px));
-    transition: transform .24s ease;
+    transition: transform 0.24s ease;
     z-index: 142;
     overflow: hidden;
     display: grid;
-    grid-template-rows: auto auto minmax(0,1fr) auto;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
     gap: 10px;
     pointer-events: auto;
   }
@@ -402,10 +415,10 @@ body.gp-shell-ready .topbar {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(15,23,42,.28);
+    background: rgba(15, 23, 42, 0.28);
     opacity: 0;
     pointer-events: none;
-    transition: opacity .2s ease;
+    transition: opacity 0.2s ease;
     z-index: 141;
   }
 
@@ -423,10 +436,10 @@ body.gp-shell-ready .topbar {
     width: 46px;
     height: 46px;
     border-radius: 16px;
-    border: 1px solid rgba(17,24,39,.08);
-    background: rgba(255,255,255,.92);
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    background: rgba(255, 255, 255, 0.92);
     color: #1f3346;
-    box-shadow: 0 12px 26px rgba(15,23,42,.12);
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
     z-index: 145;
     pointer-events: auto;
     cursor: pointer;
@@ -444,8 +457,8 @@ body.gp-shell-ready .topbar {
     width: 40px;
     height: 40px;
     border-radius: 14px;
-    border: 1px solid rgba(17,24,39,.08);
-    background: rgba(255,255,255,.92);
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    background: rgba(255, 255, 255, 0.92);
     color: #1f3346;
     flex: 0 0 auto;
     cursor: pointer;
@@ -465,7 +478,9 @@ body.gp-shell-ready .topbar {
     pointer-events: auto;
   }
 
-  body.gp-shell-ready .gp-profile { margin-top: 0; }
+  body.gp-shell-ready .gp-profile {
+    margin-top: 0;
+  }
 
   body.gp-shell-ready .gp-nav {
     overflow-y: auto;
@@ -473,12 +488,14 @@ body.gp-shell-ready .topbar {
     padding-bottom: 12px;
   }
 
-  body.gp-shell-ready .gp-sidebar__spacer { display: none; }
+  body.gp-shell-ready .gp-sidebar__spacer {
+    display: none;
+  }
 
   body.gp-shell-ready .gp-sidebar__footer {
     padding: 8px 0 0;
     margin-top: 4px;
-    border-top: 1px solid rgba(17,24,39,.06);
+    border-top: 1px solid rgba(17, 24, 39, 0.06);
     background: transparent;
   }
 }
@@ -529,8 +546,12 @@ body.gp-shell-ready .topbar {
     gap: 8px;
   }
 
-  body.gp-shell-ready .gp-profile--top { margin-bottom: 2px; }
-  body.gp-shell-ready .gp-nav { gap: 6px; }
+  body.gp-shell-ready .gp-profile--top {
+    margin-bottom: 2px;
+  }
+  body.gp-shell-ready .gp-nav {
+    gap: 6px;
+  }
 
   body.gp-shell-ready .gp-nav__link,
   body.gp-shell-ready .gp-logout {
@@ -538,5 +559,7 @@ body.gp-shell-ready .topbar {
     border-radius: 14px;
   }
 
-  body.gp-shell-ready .gp-profile__role { margin-top: 1px; }
+  body.gp-shell-ready .gp-profile__role {
+    margin-top: 1px;
+  }
 }

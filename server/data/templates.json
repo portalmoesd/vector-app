@@ -1,0 +1,105 @@
+[
+  {
+    "name": "Nino Enukidze — Standard",
+    "createdByUsername": "nenukidze",
+    "dsRole": "DEPUTY",
+    "curatorRequired": false,
+    "sections": [
+      { "title": "Legal", "depts": ["Legal Department"] },
+      { "title": "State Property", "depts": ["National Agency of State Property"] },
+      { "title": "Spatial & Urban Development", "depts": ["Spatial and Urban Development Agency"] }
+    ]
+  },
+  {
+    "name": "Genadi Arveladze — Standard",
+    "createdByUsername": "garveladze",
+    "dsRole": "DEPUTY",
+    "curatorRequired": false,
+    "sections": [
+      { "title": "Foreign Trade Policy", "depts": ["Foreign Trade Policy Department"] },
+      {
+        "title": "Foreign Trade & Economic Relations",
+        "depts": ["Department of Trade Development and International Economic Relations"]
+      },
+      {
+        "title": "Construction",
+        "depts": ["Construction Policy Department", "Technical and Constructions Supervision Agency"]
+      },
+      {
+        "title": "Market Surveillance",
+        "depts": [
+          "Georgian National Agency for Standarts and Metrology",
+          "The Unified National Body of Accreditation",
+          "Market Surveillance Agency"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Inga Pkhaladze — Standard",
+    "createdByUsername": "ipkhaladze",
+    "dsRole": "DEPUTY",
+    "curatorRequired": false,
+    "sections": [
+      {
+        "title": "Energy",
+        "depts": [
+          "Energy Reforms Department",
+          "Energy Efficiency and Renewable Energy Policy and Sustainable Development Department",
+          "Energy Policy and Investment Projects Department",
+          "Department of Energy Enterprises Management",
+          "State Agency of Oil and Gas"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Tamar Ioseliani — Standard",
+    "createdByUsername": "tioseliani",
+    "dsRole": "DEPUTY",
+    "curatorRequired": false,
+    "sections": [
+      {
+        "title": "Transport",
+        "depts": [
+          "Transport and Logistics Development Policy Department",
+          "Road Safety Department",
+          "Land Transport Agency",
+          "Maritime Transport Agency",
+          "Civil Aviation Agency",
+          "Anaklia Deep Sea Port Development Agency",
+          "Rail Transport Agency"
+        ]
+      },
+      {
+        "title": "Communications, Information Technology and Post",
+        "depts": ["Communications, Information and Modern Technologies Department"]
+      }
+    ]
+  },
+  {
+    "name": "Vakhtang Tsintsadze — Standard",
+    "createdByUsername": "vtsitsadze",
+    "dsRole": "DEPUTY",
+    "curatorRequired": false,
+    "sections": [
+      {
+        "title": "Economic Analysis, Policy & Reforms",
+        "depts": ["Economic Analysis and Reforms Department", "Economic Policy Department"]
+      },
+      { "title": "Administration", "depts": ["Administrative Department", "Strategic Development Department"] }
+    ]
+  },
+  {
+    "name": "Irakli Nadareishvili — Standard",
+    "createdByUsername": "inadareishvili",
+    "dsRole": "DEPUTY",
+    "curatorRequired": false,
+    "sections": [
+      { "title": "Capital Markets", "depts": ["Capital Market Development and Pension Reform Department"] },
+      { "title": "Investments", "depts": ["Investment Policy and Support Department"] },
+      { "title": "Tourism", "depts": ["Georgian National Tourism Administration"] },
+      { "title": "Innovation", "depts": ["Georgia's Innovation and Technology Agency", "Enterprise Georgia"] }
+    ]
+  }
+]

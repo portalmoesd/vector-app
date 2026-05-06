@@ -145,7 +145,7 @@ GCP.ActionDialog = (() => {
 
     return new Promise((resolve) => {
       // Remove any existing popover
-      document.querySelectorAll('.action-popover').forEach(el => el.remove());
+      document.querySelectorAll('.action-popover').forEach((el) => el.remove());
 
       const pop = document.createElement('div');
       pop.className = 'action-popover';
@@ -154,7 +154,7 @@ GCP.ActionDialog = (() => {
       if (opts.fixed) {
         const rect = anchorBtn.getBoundingClientRect();
         pop.style.position = 'fixed';
-        pop.style.top = (rect.bottom + 6) + 'px';
+        pop.style.top = rect.bottom + 6 + 'px';
         pop.style.left = rect.left + 'px';
         pop.style.right = 'auto';
         document.body.appendChild(pop);

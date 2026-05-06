@@ -1,147 +1,230 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en-GB">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Vector Portal — Events</title>
-  <link rel="stylesheet" href="/css/variables.css" />
-  <link rel="stylesheet" href="/css/base.css" />
-  <link rel="stylesheet" href="/css/sidebar.css" />
-  <link rel="stylesheet" href="/css/components.css" />
-  <link rel="stylesheet" href="/css/georgian-fonts.css" />
-  <link rel="stylesheet" href="/css/apple.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
-  <style>
-    .event-tabs {
-      display: flex; gap: 4px; margin-bottom: 20px;
-      border-bottom: 2px solid var(--border, var(--border-color));
-    }
-    .event-tab {
-      padding: 10px 20px; border: none; background: none;
-      font-size: 14px; font-weight: 700; color: var(--muted, var(--text-secondary));
-      cursor: pointer; border-bottom: 2px solid transparent;
-      margin-bottom: -2px; border-radius: 0;
-      transition: color .18s ease;
-    }
-    .event-tab:hover { color: var(--text, var(--text-primary)); }
-    .event-tab.active {
-      color: var(--primary, var(--accent-blue));
-      border-bottom-color: var(--primary, var(--accent-blue));
-    }
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vector Portal — Events</title>
+    <link rel="stylesheet" href="/css/variables.css" />
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/sidebar.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/georgian-fonts.css" />
+    <link rel="stylesheet" href="/css/apple.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+    <style>
+      .event-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid var(--border, var(--border-color));
+      }
+      .event-tab {
+        padding: 10px 20px;
+        border: none;
+        background: none;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--muted, var(--text-secondary));
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        border-radius: 0;
+        transition: color 0.18s ease;
+      }
+      .event-tab:hover {
+        color: var(--text, var(--text-primary));
+      }
+      .event-tab.active {
+        color: var(--primary, var(--accent-blue));
+        border-bottom-color: var(--primary, var(--accent-blue));
+      }
 
-    .filter-bar {
-      display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-end;
-    }
-    .filter-bar .form-group { margin-bottom: 0; flex: 1; min-width: 160px; max-width: 250px; }
-    .filter-bar .form-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+      .filter-bar {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+      }
+      .filter-bar .form-group {
+        margin-bottom: 0;
+        flex: 1;
+        min-width: 160px;
+        max-width: 250px;
+      }
+      .filter-bar .form-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
 
-    .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
-    .pagination button {
-      padding: 8px 16px;
-      border: 1px solid var(--border, var(--border-color));
-      background: rgba(255,255,255,.72);
-      color: var(--text, var(--text-primary));
-      border-radius: 999px; cursor: pointer; font-size: 13px; font-weight: 600;
-      transition: transform .18s ease, box-shadow .18s ease;
-    }
-    .pagination button:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,.08); }
-    .pagination button.active {
-      background: linear-gradient(180deg, var(--primary, var(--accent-blue)), var(--primary-2, var(--accent-blue)));
-      color: #fff;
-      border-color: rgba(10,132,255,.55);
-    }
-    .pagination button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+      .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 16px;
+      }
+      .pagination button {
+        padding: 8px 16px;
+        border: 1px solid var(--border, var(--border-color));
+        background: rgba(255, 255, 255, 0.72);
+        color: var(--text, var(--text-primary));
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        transition:
+          transform 0.18s ease,
+          box-shadow 0.18s ease;
+      }
+      .pagination button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+      }
+      .pagination button.active {
+        background: linear-gradient(180deg, var(--primary, var(--accent-blue)), var(--primary-2, var(--accent-blue)));
+        color: #fff;
+        border-color: rgba(10, 132, 255, 0.55);
+      }
+      .pagination button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
 
-    .event-card + .event-card { margin-top: 12px; }
-    .event-card { display: flex; align-items: center; justify-content: space-between; }
-    .event-card-info { flex: 1; min-width: 0; }
-    .event-card-info h4 { margin: 0 0 4px 0; font-size: 1rem; font-weight: 900; }
-    .event-card-meta { font-size: 12px; color: var(--muted, var(--text-secondary)); display: flex; gap: 12px; flex-wrap: wrap; }
-    .event-card-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; margin-left: 20px; }
-  </style>
-</head>
-<body>
-  <div class="layout">
-    <aside class="sidebar"></aside>
-    <main class="main">
-      <div class="topbar" style="display:flex;justify-content:space-between;align-items:center;">
-        <div class="page-title" data-i18n="calendar.pageTitle">Events</div>
-        <button class="btn btn-primary" id="createEventBtn" style="display:none;"><span data-i18n="calendar.createEvent">+ Create Event</span></button>
-      </div>
-
-      <div class="event-tabs">
-        <button class="event-tab active" data-tab="upcoming" data-i18n="calendar.tabs.upcoming">Upcoming</button>
-        <button class="event-tab" data-tab="completed" data-i18n="calendar.tabs.completed">Completed Events</button>
-        <button class="event-tab" data-tab="archived" data-i18n="calendar.tabs.archived">Archived Events</button>
-      </div>
-
-      <div class="filter-bar">
-        <div class="form-group">
-          <label class="form-label" data-i18n="common.search">Search</label>
-          <input class="form-input" id="filterKeyword" data-i18n-placeholder="calendar.filter.keywordPlaceholder" placeholder="Title or occasion..." />
+      .event-card + .event-card {
+        margin-top: 12px;
+      }
+      .event-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .event-card-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .event-card-info h4 {
+        margin: 0 0 4px 0;
+        font-size: 1rem;
+        font-weight: 900;
+      }
+      .event-card-meta {
+        font-size: 12px;
+        color: var(--muted, var(--text-secondary));
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .event-card-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex-shrink: 0;
+        margin-left: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar"></aside>
+      <main class="main">
+        <div class="topbar" style="display: flex; justify-content: space-between; align-items: center">
+          <div class="page-title" data-i18n="calendar.pageTitle">Events</div>
+          <button class="btn btn-primary" id="createEventBtn" style="display: none">
+            <span data-i18n="calendar.createEvent">+ Create Event</span>
+          </button>
         </div>
-        <div class="form-group">
-          <label class="form-label" data-i18n="statistics.country">Country</label>
-          <select class="form-select" id="filterCountry"><option value="" data-i18n="calendar.filter.allCountries">All countries</option></select>
-        </div>
-        <div class="form-group">
-          <label class="form-label" data-i18n="common.from">From</label>
-          <input class="form-input" type="text" id="filterDateFrom" placeholder="dd/mm/yyyy" />
-        </div>
-        <div class="form-group">
-          <label class="form-label" data-i18n="common.to">To</label>
-          <input class="form-input" type="text" id="filterDateTo" placeholder="dd/mm/yyyy" />
-        </div>
-      </div>
 
-      <div id="eventsList"></div>
-      <div class="pagination" id="pagination"></div>
-
-      <!-- My Templates section -->
-      <div class="card" id="templatesCard" style="margin-top:32px;display:none;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-          <h3 data-i18n="calendar.templates.title">My Templates</h3>
-          <button class="btn btn-primary" id="createTemplateBtn"><span data-i18n="calendar.templates.create">+ New Template</span></button>
+        <div class="event-tabs">
+          <button class="event-tab active" data-tab="upcoming" data-i18n="calendar.tabs.upcoming">Upcoming</button>
+          <button class="event-tab" data-tab="completed" data-i18n="calendar.tabs.completed">Completed Events</button>
+          <button class="event-tab" data-tab="archived" data-i18n="calendar.tabs.archived">Archived Events</button>
         </div>
-        <div id="templatesContainer">
-          <div class="empty-state"><p data-i18n="calendar.templates.empty">No templates yet</p></div>
-        </div>
-      </div>
 
-      <!-- Create / View / Edit Event Modal -->
-      <div id="eventModal" class="modal-overlay" style="display:none;">
-        <div class="modal-card" style="max-width:900px;max-height:90vh;display:flex;flex-direction:column;">
-          <h3 id="eventModalTitle" style="flex-shrink:0;" data-i18n="calendar.modal.createTitle">Create Event</h3>
-          <div id="eventModalBody" style="overflow-y:auto;flex:1;min-height:0;padding-right:8px;"></div>
-          <div class="modal-footer" style="flex-shrink:0;">
-            <button class="btn btn-outline" id="eventModalCancel" data-i18n="common.cancel">Cancel</button>
-            <button class="btn btn-primary" id="eventModalSave" data-i18n="common.create">Create</button>
+        <div class="filter-bar">
+          <div class="form-group">
+            <label class="form-label" data-i18n="common.search">Search</label>
+            <input
+              class="form-input"
+              id="filterKeyword"
+              data-i18n-placeholder="calendar.filter.keywordPlaceholder"
+              placeholder="Title or occasion..."
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="statistics.country">Country</label>
+            <select class="form-select" id="filterCountry">
+              <option value="" data-i18n="calendar.filter.allCountries">All countries</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="common.from">From</label>
+            <input class="form-input" type="text" id="filterDateFrom" placeholder="dd/mm/yyyy" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="common.to">To</label>
+            <input class="form-input" type="text" id="filterDateTo" placeholder="dd/mm/yyyy" />
           </div>
         </div>
-      </div>
 
-      <!-- Template Modal -->
-      <div class="modal-overlay" id="templateModal" style="display:none;">
-        <div class="modal-card" style="max-width:1100px;max-height:90vh;display:flex;flex-direction:column;overflow:visible;">
-          <h3 id="templateModalTitle" style="flex-shrink:0;" data-i18n="calendar.templates.modalCreate">Create Template</h3>
-          <div id="templateModalBody" style="overflow-y:auto;flex:1;min-height:0;padding-right:8px;"></div>
-          <div class="modal-footer" style="flex-shrink:0;">
-            <button class="btn btn-outline" id="templateModalCancel" data-i18n="common.cancel">Cancel</button>
-            <button class="btn btn-primary" id="templateModalSave" data-i18n="common.save">Save</button>
+        <div id="eventsList"></div>
+        <div class="pagination" id="pagination"></div>
+
+        <!-- My Templates section -->
+        <div class="card" id="templatesCard" style="margin-top: 32px; display: none">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
+            <h3 data-i18n="calendar.templates.title">My Templates</h3>
+            <button class="btn btn-primary" id="createTemplateBtn">
+              <span data-i18n="calendar.templates.create">+ New Template</span>
+            </button>
+          </div>
+          <div id="templatesContainer">
+            <div class="empty-state"><p data-i18n="calendar.templates.empty">No templates yet</p></div>
           </div>
         </div>
-      </div>
-    </main>
-  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-  <script src="/js/core/config.js"></script>
-  <script src="/js/core/api.js"></script>
-  <script src="/js/core/i18n.js"></script>
-  <script src="/js/core/utils.js"></script>
-  <script src="/js/core/app.js"></script>
-  <script src="/js/simple-editor.js"></script>
-  <script src="/js/pages/calendar.js"></script>
-  <script src="/js/pages/calendar-templates.js"></script>
-</body>
+        <!-- Create / View / Edit Event Modal -->
+        <div id="eventModal" class="modal-overlay" style="display: none">
+          <div class="modal-card" style="max-width: 900px; max-height: 90vh; display: flex; flex-direction: column">
+            <h3 id="eventModalTitle" style="flex-shrink: 0" data-i18n="calendar.modal.createTitle">Create Event</h3>
+            <div id="eventModalBody" style="overflow-y: auto; flex: 1; min-height: 0; padding-right: 8px"></div>
+            <div class="modal-footer" style="flex-shrink: 0">
+              <button class="btn btn-outline" id="eventModalCancel" data-i18n="common.cancel">Cancel</button>
+              <button class="btn btn-primary" id="eventModalSave" data-i18n="common.create">Create</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Template Modal -->
+        <div class="modal-overlay" id="templateModal" style="display: none">
+          <div
+            class="modal-card"
+            style="max-width: 1100px; max-height: 90vh; display: flex; flex-direction: column; overflow: visible"
+          >
+            <h3 id="templateModalTitle" style="flex-shrink: 0" data-i18n="calendar.templates.modalCreate">
+              Create Template
+            </h3>
+            <div id="templateModalBody" style="overflow-y: auto; flex: 1; min-height: 0; padding-right: 8px"></div>
+            <div class="modal-footer" style="flex-shrink: 0">
+              <button class="btn btn-outline" id="templateModalCancel" data-i18n="common.cancel">Cancel</button>
+              <button class="btn btn-primary" id="templateModalSave" data-i18n="common.save">Save</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="/js/core/config.js"></script>
+    <script src="/js/core/api.js"></script>
+    <script src="/js/core/i18n.js"></script>
+    <script src="/js/core/utils.js"></script>
+    <script src="/js/core/app.js"></script>
+    <script src="/js/simple-editor.js"></script>
+    <script src="/js/pages/calendar.js"></script>
+    <script src="/js/pages/calendar-templates.js"></script>
+  </body>
 </html>

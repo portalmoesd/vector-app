@@ -16,46 +16,41 @@ const {
 } = require('./pipeline');
 
 test('buildChain creates advanced home and cross-department chains', () => {
-  assert.deepEqual(
-    buildChain('DEPUTY', false, false, 'advanced'),
-    ['COLLABORATOR', 'SUPER_COLLABORATOR', 'SUPERVISOR', 'DEPUTY']
-  );
+  assert.deepEqual(buildChain('DEPUTY', false, false, 'advanced'), [
+    'COLLABORATOR',
+    'SUPER_COLLABORATOR',
+    'SUPERVISOR',
+    'DEPUTY',
+  ]);
 
-  assert.deepEqual(
-    buildChain('DEPUTY', true, true, 'advanced'),
-    [
-      'COLLABORATOR',
-      'SUPER_COLLABORATOR',
-      'SUPERVISOR',
-      'CURATOR',
-      'RECEIVING_SUPER_COLLABORATOR',
-      'RECEIVING_SUPERVISOR',
-      'DEPUTY',
-    ]
-  );
+  assert.deepEqual(buildChain('DEPUTY', true, true, 'advanced'), [
+    'COLLABORATOR',
+    'SUPER_COLLABORATOR',
+    'SUPERVISOR',
+    'CURATOR',
+    'RECEIVING_SUPER_COLLABORATOR',
+    'RECEIVING_SUPERVISOR',
+    'DEPUTY',
+  ]);
 
-  assert.deepEqual(
-    buildChain('SUPERVISOR', false, true, 'advanced'),
-    [
-      'COLLABORATOR',
-      'SUPER_COLLABORATOR',
-      'SUPERVISOR',
-      'RECEIVING_SUPER_COLLABORATOR',
-      'RECEIVING_SUPERVISOR',
-    ]
-  );
+  assert.deepEqual(buildChain('SUPERVISOR', false, true, 'advanced'), [
+    'COLLABORATOR',
+    'SUPER_COLLABORATOR',
+    'SUPERVISOR',
+    'RECEIVING_SUPER_COLLABORATOR',
+    'RECEIVING_SUPERVISOR',
+  ]);
 });
 
 test('buildChain creates simple workflow chain with optional curator final step', () => {
-  assert.deepEqual(
-    buildChain('DEPUTY', false, true, 'simple'),
-    ['COLLABORATOR', 'SUPER_COLLABORATOR', 'SUPERVISOR']
-  );
+  assert.deepEqual(buildChain('DEPUTY', false, true, 'simple'), ['COLLABORATOR', 'SUPER_COLLABORATOR', 'SUPERVISOR']);
 
-  assert.deepEqual(
-    buildChain('SUPERVISOR', true, false, 'simple'),
-    ['COLLABORATOR', 'SUPER_COLLABORATOR', 'SUPERVISOR', 'CURATOR']
-  );
+  assert.deepEqual(buildChain('SUPERVISOR', true, false, 'simple'), [
+    'COLLABORATOR',
+    'SUPER_COLLABORATOR',
+    'SUPERVISOR',
+    'CURATOR',
+  ]);
 });
 
 test('status helpers and role navigation preserve workflow naming', () => {
@@ -79,7 +74,10 @@ test('currentHolderRole resolves draft, submitted, returned, and approved states
   assert.equal(currentHolderRole(STATUS.DRAFT, null, null, chain), 'COLLABORATOR');
   assert.equal(currentHolderRole(STATUS.DRAFT, 'SUPER_COLLABORATOR', null, chain), 'SUPER_COLLABORATOR');
   assert.equal(currentHolderRole('submitted_to_supervisor', null, null, chain), 'SUPERVISOR');
-  assert.equal(currentHolderRole('returned_by_deputy', 'COLLABORATOR', 'SUPER_COLLABORATOR', chain), 'SUPER_COLLABORATOR');
+  assert.equal(
+    currentHolderRole('returned_by_deputy', 'COLLABORATOR', 'SUPER_COLLABORATOR', chain),
+    'SUPER_COLLABORATOR'
+  );
   assert.equal(currentHolderRole('approved_by_super_collaborator', null, null, chain), 'SUPERVISOR');
   assert.equal(currentHolderRole('approved_by_deputy', null, null, chain), null);
 });
@@ -119,5 +117,12 @@ test('canPullSection allows simple document submitter amendment override only wh
   assert.equal(canPullSection('DEPUTY', chain, 'SUPERVISOR', { ...opts, status: 'submitted_to_supervisor' }), true);
   assert.equal(canPullSection('DEPUTY', chain, 'SUPERVISOR', { ...opts, status: 'approved_by_supervisor' }), true);
   assert.equal(canPullSection('DEPUTY', chain, 'SUPERVISOR', { ...opts, status: 'submitted_to_amending_ds' }), false);
-  assert.equal(canPullSection('DEPUTY', chain, 'SUPERVISOR', { ...opts, eventStatus: 'COMPLETED', status: 'approved_by_supervisor' }), false);
+  assert.equal(
+    canPullSection('DEPUTY', chain, 'SUPERVISOR', {
+      ...opts,
+      eventStatus: 'COMPLETED',
+      status: 'approved_by_supervisor',
+    }),
+    false
+  );
 });

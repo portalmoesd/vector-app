@@ -1,0 +1,74 @@
+[
+  {
+    "deputy": "mkvrivishvili",
+    "supervisorDepts": [
+      "Internal Audit Department",
+      "Human Resources Management Department",
+      "Department of Strategic Communication",
+      "Protocol Department",
+      "Transportation Safety Investigation Bureau"
+    ]
+  },
+  {
+    "deputy": "nenukidze",
+    "supervisorDepts": [
+      "Legal Department",
+      "National Agency of State Property",
+      "Spatial and Urban Development Agency"
+    ]
+  },
+  {
+    "deputy": "garveladze",
+    "supervisorDepts": [
+      "Foreign Trade Policy Department",
+      "Department of Trade Development and International Economic Relations",
+      "Construction Policy Department",
+      "Georgian National Agency for Standarts and Metrology",
+      "The Unified National Body of Accreditation",
+      "Technical and Constructions Supervision Agency",
+      "Market Surveillance Agency"
+    ]
+  },
+  {
+    "deputy": "ipkhaladze",
+    "supervisorDepts": [
+      "Energy Reforms Department",
+      "Energy Efficiency and Renewable Energy Policy and Sustainable Development Department",
+      "Energy Policy and Investment Projects Department",
+      "Department of Energy Enterprises Management",
+      "State Agency of Oil and Gas"
+    ]
+  },
+  {
+    "deputy": "tioseliani",
+    "supervisorDepts": [
+      "Transport and Logistics Development Policy Department",
+      "Communications, Information and Modern Technologies Department",
+      "Road Safety Department",
+      "Land Transport Agency",
+      "Maritime Transport Agency",
+      "Civil Aviation Agency",
+      "Anaklia Deep Sea Port Development Agency",
+      "Rail Transport Agency"
+    ]
+  },
+  {
+    "deputy": "vtsitsadze",
+    "supervisorDepts": [
+      "Economic Analysis and Reforms Department",
+      "Economic Policy Department",
+      "Administrative Department",
+      "Strategic Development Department"
+    ]
+  },
+  {
+    "deputy": "inadareishvili",
+    "supervisorDepts": [
+      "Capital Market Development and Pension Reform Department",
+      "Investment Policy and Support Department",
+      "Georgia's Innovation and Technology Agency",
+      "Enterprise Georgia",
+      "Georgian National Tourism Administration"
+    ]
+  }
+]

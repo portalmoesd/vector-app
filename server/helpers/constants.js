@@ -1,0 +1,3 @@
+const MAX_EDITOR_HTML_LENGTH = 2_000_000;
+
+module.exports = { MAX_EDITOR_HTML_LENGTH };

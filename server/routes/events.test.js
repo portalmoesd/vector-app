@@ -6,13 +6,11 @@ const db = require('../db');
 const eventsRouter = require('./events');
 
 function findRoute(method, path) {
-  const layer = eventsRouter.stack.find((item) => (
-    item.route
-    && item.route.path === path
-    && item.route.methods[method.toLowerCase()]
-  ));
+  const layer = eventsRouter.stack.find(
+    (item) => item.route && item.route.path === path && item.route.methods[method.toLowerCase()]
+  );
   assert.ok(layer, `${method} ${path} should be registered`);
-  return layer.route.stack.map(item => item.handle);
+  return layer.route.stack.map((item) => item.handle);
 }
 
 function mockResponse() {
@@ -142,19 +140,23 @@ test('POST /api/events rejects document submitter role mismatches', async () => 
   const queryMock = createEventsQueryMock({ documentSubmitterRole: 'SUPERVISOR' });
   const tx = createTransactionMock();
 
-  await withMockDb(queryMock.query, async () => tx.client, async () => {
-    const req = {
-      headers: { authorization: authHeader({ id: 1, username: 'admin', role: 'ADMIN' }) },
-      body: validCreateBody(),
-    };
-    const res = mockResponse();
+  await withMockDb(
+    queryMock.query,
+    async () => tx.client,
+    async () => {
+      const req = {
+        headers: { authorization: authHeader({ id: 1, username: 'admin', role: 'ADMIN' }) },
+        body: validCreateBody(),
+      };
+      const res = mockResponse();
 
-    await runHandlers(handlers, req, res);
+      await runHandlers(handlers, req, res);
 
-    assert.equal(res.statusCode, 422);
-    assert.equal(res.body.error, 'Document submitter does not match the selected role');
-    assert.equal(tx.calls.length, 0);
-  });
+      assert.equal(res.statusCode, 422);
+      assert.equal(res.body.error, 'Document submitter does not match the selected role');
+      assert.equal(tx.calls.length, 0);
+    }
+  );
 });
 
 test('POST /api/events requires responsible supervisor for advanced deputy workflows', async () => {
@@ -162,19 +164,23 @@ test('POST /api/events requires responsible supervisor for advanced deputy workf
   const queryMock = createEventsQueryMock();
   const tx = createTransactionMock();
 
-  await withMockDb(queryMock.query, async () => tx.client, async () => {
-    const req = {
-      headers: { authorization: authHeader({ id: 1, username: 'admin', role: 'ADMIN' }) },
-      body: validCreateBody({ workflowType: 'advanced', supervisorId: null }),
-    };
-    const res = mockResponse();
+  await withMockDb(
+    queryMock.query,
+    async () => tx.client,
+    async () => {
+      const req = {
+        headers: { authorization: authHeader({ id: 1, username: 'admin', role: 'ADMIN' }) },
+        body: validCreateBody({ workflowType: 'advanced', supervisorId: null }),
+      };
+      const res = mockResponse();
 
-    await runHandlers(handlers, req, res);
+      await runHandlers(handlers, req, res);
 
-    assert.equal(res.statusCode, 400);
-    assert.equal(res.body.error, 'supervisorId is required for advanced deputy workflows');
-    assert.equal(tx.calls.length, 0);
-  });
+      assert.equal(res.statusCode, 400);
+      assert.equal(res.body.error, 'supervisorId is required for advanced deputy workflows');
+      assert.equal(tx.calls.length, 0);
+    }
+  );
 });
 
 test('POST /api/events creates simple event sections in one transaction', async () => {
@@ -182,40 +188,44 @@ test('POST /api/events creates simple event sections in one transaction', async 
   const queryMock = createEventsQueryMock();
   const tx = createTransactionMock();
 
-  await withMockDb(queryMock.query, async () => tx.client, async () => {
-    const req = {
-      headers: { authorization: authHeader({ id: 1, username: 'admin', role: 'ADMIN' }) },
-      body: validCreateBody({ supervisorId: 55 }),
-    };
-    const res = mockResponse();
+  await withMockDb(
+    queryMock.query,
+    async () => tx.client,
+    async () => {
+      const req = {
+        headers: { authorization: authHeader({ id: 1, username: 'admin', role: 'ADMIN' }) },
+        body: validCreateBody({ supervisorId: 55 }),
+      };
+      const res = mockResponse();
 
-    await runHandlers(handlers, req, res);
+      await runHandlers(handlers, req, res);
 
-    assert.equal(res.statusCode, 201);
-    assert.deepEqual(res.body, { id: 100, success: true });
-    assert.equal(tx.calls[0].sql, 'BEGIN');
-    assert.equal(tx.calls.at(-1).sql, 'COMMIT');
-    assert.equal(tx.client.releaseCalled, true);
+      assert.equal(res.statusCode, 201);
+      assert.deepEqual(res.body, { id: 100, success: true });
+      assert.equal(tx.calls[0].sql, 'BEGIN');
+      assert.equal(tx.calls.at(-1).sql, 'COMMIT');
+      assert.equal(tx.client.releaseCalled, true);
 
-    const eventInsert = tx.calls.find(call => /INSERT INTO events/.test(call.sql));
-    assert.ok(eventInsert, 'event should be inserted');
-    assert.deepEqual(eventInsert.params, [
-      'Ministerial briefing',
-      1,
-      'DEPUTY',
-      99,
-      99,
-      null,
-      false,
-      'simple',
-      'EN',
-      '2026-05-20',
-      '<p>Prepare country brief.</p>',
-      1,
-    ]);
+      const eventInsert = tx.calls.find((call) => /INSERT INTO events/.test(call.sql));
+      assert.ok(eventInsert, 'event should be inserted');
+      assert.deepEqual(eventInsert.params, [
+        'Ministerial briefing',
+        1,
+        'DEPUTY',
+        99,
+        99,
+        null,
+        false,
+        'simple',
+        'EN',
+        '2026-05-20',
+        '<p>Prepare country brief.</p>',
+        1,
+      ]);
 
-    assert.equal(tx.calls.filter(call => /INSERT INTO sections/.test(call.sql)).length, 2);
-    assert.equal(tx.calls.filter(call => /INSERT INTO section_departments/.test(call.sql)).length, 3);
-    assert.equal(tx.calls.filter(call => /INSERT INTO section_content/.test(call.sql)).length, 2);
-  });
+      assert.equal(tx.calls.filter((call) => /INSERT INTO sections/.test(call.sql)).length, 2);
+      assert.equal(tx.calls.filter((call) => /INSERT INTO section_departments/.test(call.sql)).length, 3);
+      assert.equal(tx.calls.filter((call) => /INSERT INTO section_content/.test(call.sql)).length, 2);
+    }
+  );
 });

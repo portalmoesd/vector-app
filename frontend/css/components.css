@@ -21,22 +21,39 @@
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
+  transition:
+    background 0.15s,
+    transform 0.1s;
   font-family: var(--font-primary);
 }
 
-.btn:hover { filter: brightness(1.1); }
-.btn:active { transform: scale(0.98); }
+.btn:hover {
+  filter: brightness(1.1);
+}
+.btn:active {
+  transform: scale(0.98);
+}
 
-.btn-primary { background: var(--accent-blue); color: white; }
-.btn-success { background: var(--accent-green); color: white; }
-.btn-danger { background: var(--accent-red); color: white; }
+.btn-primary {
+  background: var(--accent-blue);
+  color: white;
+}
+.btn-success {
+  background: var(--accent-green);
+  color: white;
+}
+.btn-danger {
+  background: var(--accent-red);
+  color: white;
+}
 .btn-outline {
   background: transparent;
   border: 1px solid var(--border-color);
   color: var(--text-primary);
 }
-.btn-outline:hover { background: var(--bg-hover); }
+.btn-outline:hover {
+  background: var(--bg-hover);
+}
 
 /* ─── Forms ───────────────────────────────────────────────────────────────── */
 
@@ -69,7 +86,7 @@
 .form-select:focus {
   outline: none;
   border-color: var(--accent-blue);
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
 /* ─── Tables ──────────────────────────────────────────────────────────────── */
@@ -83,7 +100,8 @@ table {
   border-collapse: collapse;
 }
 
-th, td {
+th,
+td {
   padding: 10px 14px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
@@ -114,19 +132,45 @@ tr:hover td {
   white-space: nowrap;
 }
 
-.pill-blue { background: rgba(59,130,246,0.12); color: var(--accent-blue); }
-.pill-green { background: rgba(22,163,74,0.12); color: var(--accent-green); }
-.pill-red { background: rgba(220,38,38,0.12); color: var(--accent-red); }
-.pill-yellow { background: rgba(234,179,8,0.12); color: #a16207; }
-.pill-purple { background: rgba(124,58,237,0.12); color: #7c3aed; }
-.pill-gray { background: rgba(100,116,139,0.12); color: var(--text-secondary); }
+.pill-blue {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--accent-blue);
+}
+.pill-green {
+  background: rgba(22, 163, 74, 0.12);
+  color: var(--accent-green);
+}
+.pill-red {
+  background: rgba(220, 38, 38, 0.12);
+  color: var(--accent-red);
+}
+.pill-yellow {
+  background: rgba(234, 179, 8, 0.12);
+  color: #a16207;
+}
+.pill-purple {
+  background: rgba(124, 58, 237, 0.12);
+  color: #7c3aed;
+}
+.pill-gray {
+  background: rgba(100, 116, 139, 0.12);
+  color: var(--text-secondary);
+}
 
 /* ─── Status Indicators ──────────────────────────────────────────────────── */
 
-.status-draft { color: var(--text-muted); }
-.status-submitted { color: var(--accent-blue); }
-.status-returned { color: var(--accent-red); }
-.status-approved { color: var(--accent-green); }
+.status-draft {
+  color: var(--text-muted);
+}
+.status-submitted {
+  color: var(--accent-blue);
+}
+.status-returned {
+  color: var(--accent-red);
+}
+.status-approved {
+  color: var(--accent-green);
+}
 
 /* ─── Select Dropdown ─────────────────────────────────────────────────────── */
 
@@ -202,15 +246,23 @@ tr:hover td {
   margin-bottom: 16px;
 }
 
-.msg-error { background: rgba(220,38,38,0.1); color: var(--accent-red); border: 1px solid rgba(220,38,38,0.2); }
-.msg-success { background: rgba(22,163,74,0.1); color: var(--accent-green); border: 1px solid rgba(22,163,74,0.2); }
+.msg-error {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--accent-red);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+.msg-success {
+  background: rgba(22, 163, 74, 0.1);
+  color: var(--accent-green);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+}
 
 /* ─── Modal ───────────────────────────────────────────────────────────────── */
 
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -280,8 +332,14 @@ tr:hover td {
   animation: popoverFadeIn 0.15s ease;
 }
 @keyframes popoverFadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .action-popover__title {
   font-size: 0.9rem;
@@ -340,11 +398,18 @@ tr:hover td {
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
   font-family: var(--font-primary);
-  transition: color 0.15s, border-color 0.15s;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
 }
 
-.admin-tab:hover { color: var(--text-primary); }
-.admin-tab.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+.admin-tab:hover {
+  color: var(--text-primary);
+}
+.admin-tab.active {
+  color: var(--accent-blue);
+  border-bottom-color: var(--accent-blue);
+}
 
 /* ─── Progress Bar ─────────────────────────────────────────────────────────── */
 
@@ -381,7 +446,7 @@ tr:hover td {
 .progress-step.active .step-dot {
   background: var(--accent-blue);
   border-color: var(--accent-blue);
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 .progress-step.todo .step-dot {
@@ -396,8 +461,13 @@ tr:hover td {
   color: var(--text-secondary);
 }
 
-.progress-step.done .step-label { color: var(--accent-green); }
-.progress-step.active .step-label { color: var(--accent-blue); font-weight: 600; }
+.progress-step.done .step-label {
+  color: var(--accent-green);
+}
+.progress-step.active .step-label {
+  color: var(--accent-blue);
+  font-weight: 600;
+}
 
 .step-arrow {
   color: var(--text-muted);
@@ -413,9 +483,21 @@ tr:hover td {
   align-items: center;
 }
 
-.action-submit .icon { background-color: var(--accent-blue) !important; }
-.action-approve .icon { background-color: var(--accent-green) !important; }
-.action-return .icon { background-color: var(--accent-red) !important; }
-.action-ask-return .icon { background-color: #a16207 !important; }
-.action-pull { color: #7c3aed; }
-.action-pull:hover { color: #6d28d9; }
+.action-submit .icon {
+  background-color: var(--accent-blue) !important;
+}
+.action-approve .icon {
+  background-color: var(--accent-green) !important;
+}
+.action-return .icon {
+  background-color: var(--accent-red) !important;
+}
+.action-ask-return .icon {
+  background-color: #a16207 !important;
+}
+.action-pull {
+  color: #7c3aed;
+}
+.action-pull:hover {
+  color: #6d28d9;
+}

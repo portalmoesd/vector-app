@@ -47,12 +47,30 @@
   }
 
   var COLORS = [
-    '#22395a', '#000000', '#4a4a4a', '#7f8c8d',
-    '#c0392b', '#e74c3c', '#e67e22', '#f39c12',
-    '#27ae60', '#2ecc71', '#2980b9', '#3498db',
-    '#8e44ad', '#9b59b6', '#1abc9c', '#16a085',
-    '#d35400', '#e84393', '#6c5ce7', '#00b894',
-    '#fd79a8', '#a29bfe', '#fdcb6e', '#636e72',
+    '#22395a',
+    '#000000',
+    '#4a4a4a',
+    '#7f8c8d',
+    '#c0392b',
+    '#e74c3c',
+    '#e67e22',
+    '#f39c12',
+    '#27ae60',
+    '#2ecc71',
+    '#2980b9',
+    '#3498db',
+    '#8e44ad',
+    '#9b59b6',
+    '#1abc9c',
+    '#16a085',
+    '#d35400',
+    '#e84393',
+    '#6c5ce7',
+    '#00b894',
+    '#fd79a8',
+    '#a29bfe',
+    '#fdcb6e',
+    '#636e72',
   ];
 
   function createSimpleEditor(container, opts) {
@@ -71,7 +89,9 @@
       btn.type = 'button';
       btn.innerHTML = label;
       btn.title = title;
-      btn.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      btn.addEventListener('mousedown', function (e) {
+        e.preventDefault();
+      });
       btn.addEventListener('click', function () {
         document.execCommand(cmd, false, null);
         body.focus();
@@ -127,11 +147,15 @@
       cb.style.background = c;
       cb.title = c;
       if (c === currentColor) cb.classList.add('sel');
-      cb.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      cb.addEventListener('mousedown', function (e) {
+        e.preventDefault();
+      });
       cb.addEventListener('click', function () {
         currentColor = c;
         swatch.style.background = c;
-        palette.querySelectorAll('button').forEach(function (b) { b.classList.remove('sel'); });
+        palette.querySelectorAll('button').forEach(function (b) {
+          b.classList.remove('sel');
+        });
         cb.classList.add('sel');
         document.execCommand('foreColor', false, c);
         palette.classList.remove('open');
@@ -141,7 +165,9 @@
     });
     colorWrap.appendChild(palette);
 
-    colorBtn.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    colorBtn.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+    });
     colorBtn.addEventListener('click', function () {
       palette.classList.toggle('open');
     });
@@ -195,7 +221,7 @@
       focus: function () {
         body.focus();
       },
-      el: body
+      el: body,
     };
   }
 

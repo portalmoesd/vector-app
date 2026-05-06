@@ -1,95 +1,450 @@
 [
-  {"fullName":"Mariam Kvrivishvili","email":"mkvrivishvili@moesd.gov.ge","role":"DEPUTY","dept":"Internal Audit Department"},
-  {"fullName":"Nino Enukidze","email":"nenukidze@moesd.gov.ge","role":"DEPUTY","dept":"Legal Department"},
-  {"fullName":"Genadi Arveladze","email":"garveladze@moesd.gov.ge","role":"DEPUTY","dept":"Foreign Trade Policy Department"},
-  {"fullName":"Inga Pkhaladze","email":"ipkhaladze@moesd.gov.ge","role":"DEPUTY","dept":"Energy Reforms Department"},
-  {"fullName":"Tamar Ioseliani","email":"tioseliani@moesd.gov.ge","role":"DEPUTY","dept":"Transport and Logistics Development Policy Department"},
-  {"fullName":"Vakhtang Tsitsadze","email":"vtsitsadze@moesd.gov.ge","role":"DEPUTY","dept":"Economic Analysis and Reforms Department"},
-  {"fullName":"Irakli Nadareishvili","email":"inadareishvili@moesd.gov.ge","role":"DEPUTY","dept":"Capital Market Development and Pension Reform Department"},
+  {
+    "fullName": "Mariam Kvrivishvili",
+    "email": "mkvrivishvili@moesd.gov.ge",
+    "role": "DEPUTY",
+    "dept": "Internal Audit Department"
+  },
+  { "fullName": "Nino Enukidze", "email": "nenukidze@moesd.gov.ge", "role": "DEPUTY", "dept": "Legal Department" },
+  {
+    "fullName": "Genadi Arveladze",
+    "email": "garveladze@moesd.gov.ge",
+    "role": "DEPUTY",
+    "dept": "Foreign Trade Policy Department"
+  },
+  {
+    "fullName": "Inga Pkhaladze",
+    "email": "ipkhaladze@moesd.gov.ge",
+    "role": "DEPUTY",
+    "dept": "Energy Reforms Department"
+  },
+  {
+    "fullName": "Tamar Ioseliani",
+    "email": "tioseliani@moesd.gov.ge",
+    "role": "DEPUTY",
+    "dept": "Transport and Logistics Development Policy Department"
+  },
+  {
+    "fullName": "Vakhtang Tsitsadze",
+    "email": "vtsitsadze@moesd.gov.ge",
+    "role": "DEPUTY",
+    "dept": "Economic Analysis and Reforms Department"
+  },
+  {
+    "fullName": "Irakli Nadareishvili",
+    "email": "inadareishvili@moesd.gov.ge",
+    "role": "DEPUTY",
+    "dept": "Capital Market Development and Pension Reform Department"
+  },
 
-  {"fullName":"Beglar Kapanadze","email":"bkapanadze@moesd.gov.ge","role":"SUPERVISOR","dept":"Internal Audit Department"},
-  {"fullName":"Tamar Kalandia","email":"tkalandia@moesd.gov.ge","role":"SUPERVISOR","dept":"Internal Audit Department"},
-  {"fullName":"Eter Matiashvili","email":"ematiashvili@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Internal Audit Department"},
-  {"fullName":"Levan Kvakhatchelidze","email":"lkvakhatchelidze@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Internal Audit Department"},
+  {
+    "fullName": "Beglar Kapanadze",
+    "email": "bkapanadze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Internal Audit Department"
+  },
+  {
+    "fullName": "Tamar Kalandia",
+    "email": "tkalandia@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Internal Audit Department"
+  },
+  {
+    "fullName": "Eter Matiashvili",
+    "email": "ematiashvili@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Internal Audit Department"
+  },
+  {
+    "fullName": "Levan Kvakhatchelidze",
+    "email": "lkvakhatchelidze@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Internal Audit Department"
+  },
 
-  {"fullName":"Tamar Karchkhadze","email":"tkarchkhadze@moesd.gov.ge","role":"SUPERVISOR","dept":"Human Resources Management Department"},
-  {"fullName":"Tamar Jandieri","email":"tjandieri@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Human Resources Management Department"},
-  {"fullName":"Nino Murjikneli","email":"n.murjikneli@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Human Resources Management Department"},
+  {
+    "fullName": "Tamar Karchkhadze",
+    "email": "tkarchkhadze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Human Resources Management Department"
+  },
+  {
+    "fullName": "Tamar Jandieri",
+    "email": "tjandieri@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Human Resources Management Department"
+  },
+  {
+    "fullName": "Nino Murjikneli",
+    "email": "n.murjikneli@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Human Resources Management Department"
+  },
 
-  {"fullName":"Natia Kaidarashvili","email":"nkaidarashvili@moesd.gov.ge","role":"SUPERVISOR","dept":"Department of Strategic Communication"},
-  {"fullName":"Giorgi Kalandadze","email":"gkalandadze@moesd.gov.ge","role":"SUPERVISOR","dept":"Department of Strategic Communication"},
-  {"fullName":"David Gongadze","email":"dgongadze@moesd.gov.ge","role":"SUPERVISOR","dept":"Department of Strategic Communication"},
+  {
+    "fullName": "Natia Kaidarashvili",
+    "email": "nkaidarashvili@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Department of Strategic Communication"
+  },
+  {
+    "fullName": "Giorgi Kalandadze",
+    "email": "gkalandadze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Department of Strategic Communication"
+  },
+  {
+    "fullName": "David Gongadze",
+    "email": "dgongadze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Department of Strategic Communication"
+  },
 
-  {"fullName":"Bacho Rusishvili","email":"brusishvili@moesd.gov.ge","role":"PROTOCOL","dept":"Protocol Department"},
+  {
+    "fullName": "Bacho Rusishvili",
+    "email": "brusishvili@moesd.gov.ge",
+    "role": "PROTOCOL",
+    "dept": "Protocol Department"
+  },
 
-  {"fullName":"Kakhaber Gudiashvili","email":"kgudiashvili@moesd.gov.ge","role":"SUPERVISOR","dept":"Transportation Safety Investigation Bureau"},
+  {
+    "fullName": "Kakhaber Gudiashvili",
+    "email": "kgudiashvili@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Transportation Safety Investigation Bureau"
+  },
 
-  {"fullName":"Tea Gvaramia","email":"tgvaramia@moesd.gov.ge","role":"SUPERVISOR","dept":"Legal Department"},
-  {"fullName":"Teimuraz Mishveliani","email":"tmishveliani@moesd.gov.ge","role":"SUPERVISOR","dept":"Legal Department"},
-  {"fullName":"Sofio Akhaladze-Gulordava","email":"sakhaladze@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Legal Department"},
-  {"fullName":"Inga Gabisonia","email":"igabisonia@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Legal Department"},
-  {"fullName":"Mariam Adeishvili","email":"madeishvili@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Legal Department"},
+  { "fullName": "Tea Gvaramia", "email": "tgvaramia@moesd.gov.ge", "role": "SUPERVISOR", "dept": "Legal Department" },
+  {
+    "fullName": "Teimuraz Mishveliani",
+    "email": "tmishveliani@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Legal Department"
+  },
+  {
+    "fullName": "Sofio Akhaladze-Gulordava",
+    "email": "sakhaladze@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Legal Department"
+  },
+  {
+    "fullName": "Inga Gabisonia",
+    "email": "igabisonia@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Legal Department"
+  },
+  {
+    "fullName": "Mariam Adeishvili",
+    "email": "madeishvili@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Legal Department"
+  },
 
-  {"fullName":"Mariam Gabunia","email":"mgabunia@moesd.gov.ge","role":"SUPERVISOR","dept":"Foreign Trade Policy Department"},
-  {"fullName":"Tea Kunchulia","email":"kunchulia@moesd.gov.ge","role":"SUPERVISOR","dept":"Foreign Trade Policy Department"},
-  {"fullName":"Marina Macharashvili","email":"macharashvili@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Foreign Trade Policy Department"},
-  {"fullName":"Tamar Nikolozashvili","email":"tnikolozashvili@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Foreign Trade Policy Department"},
+  {
+    "fullName": "Mariam Gabunia",
+    "email": "mgabunia@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Foreign Trade Policy Department"
+  },
+  {
+    "fullName": "Tea Kunchulia",
+    "email": "kunchulia@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Foreign Trade Policy Department"
+  },
+  {
+    "fullName": "Marina Macharashvili",
+    "email": "macharashvili@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Foreign Trade Policy Department"
+  },
+  {
+    "fullName": "Tamar Nikolozashvili",
+    "email": "tnikolozashvili@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Foreign Trade Policy Department"
+  },
 
-  {"fullName":"Givi Zedelashvili","email":"gzedelashvili@moesd.gov.ge","role":"SUPERVISOR","dept":"Department of Trade Development and International Economic Relations"},
-  {"fullName":"Nino Tsetskhladze","email":"ntsetskhladze@moesd.gov.ge","role":"SUPERVISOR","dept":"Department of Trade Development and International Economic Relations"},
-  {"fullName":"Nana Shavidze","email":"nshavidze@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Department of Trade Development and International Economic Relations"},
-  {"fullName":"Mariam Managadze","email":"mmanagadze@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Department of Trade Development and International Economic Relations"},
-  {"fullName":"Inga Akhobadze","email":"iakhobadze@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Department of Trade Development and International Economic Relations"},
-  {"fullName":"Salome Gagua","email":"sgagua@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Department of Trade Development and International Economic Relations"},
+  {
+    "fullName": "Givi Zedelashvili",
+    "email": "gzedelashvili@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Department of Trade Development and International Economic Relations"
+  },
+  {
+    "fullName": "Nino Tsetskhladze",
+    "email": "ntsetskhladze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Department of Trade Development and International Economic Relations"
+  },
+  {
+    "fullName": "Nana Shavidze",
+    "email": "nshavidze@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Department of Trade Development and International Economic Relations"
+  },
+  {
+    "fullName": "Mariam Managadze",
+    "email": "mmanagadze@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Department of Trade Development and International Economic Relations"
+  },
+  {
+    "fullName": "Inga Akhobadze",
+    "email": "iakhobadze@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Department of Trade Development and International Economic Relations"
+  },
+  {
+    "fullName": "Salome Gagua",
+    "email": "sgagua@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Department of Trade Development and International Economic Relations"
+  },
 
-  {"fullName":"Rusudan Sulamanidze","email":"rsulamanidze@moesd.gov.ge","role":"SUPERVISOR","dept":"Construction Policy Department"},
-  {"fullName":"Zura Meskhi","email":"zmeskhi@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Construction Policy Department"},
+  {
+    "fullName": "Rusudan Sulamanidze",
+    "email": "rsulamanidze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Construction Policy Department"
+  },
+  {
+    "fullName": "Zura Meskhi",
+    "email": "zmeskhi@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Construction Policy Department"
+  },
 
-  {"fullName":"Ana Gogoladze","email":"agogoladzei@moesd.gov.ge","role":"SUPERVISOR","dept":"Energy Reforms Department"},
-  {"fullName":"Nana Imedashvili","email":"nimedashvili@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Energy Reforms Department"},
+  {
+    "fullName": "Ana Gogoladze",
+    "email": "agogoladzei@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Energy Reforms Department"
+  },
+  {
+    "fullName": "Nana Imedashvili",
+    "email": "nimedashvili@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Energy Reforms Department"
+  },
 
-  {"fullName":"Margalita Arabidze","email":"marabidze@moesd.gov.ge","role":"SUPERVISOR","dept":"Energy Efficiency and Renewable Energy Policy and Sustainable Development Department"},
-  {"fullName":"Omar Tsereteli","email":"otsereteli@moesd.gov.ge","role":"SUPERVISOR","dept":"Energy Efficiency and Renewable Energy Policy and Sustainable Development Department"},
-  {"fullName":"David Advadze","email":"dadvadze@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Energy Efficiency and Renewable Energy Policy and Sustainable Development Department"},
+  {
+    "fullName": "Margalita Arabidze",
+    "email": "marabidze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Energy Efficiency and Renewable Energy Policy and Sustainable Development Department"
+  },
+  {
+    "fullName": "Omar Tsereteli",
+    "email": "otsereteli@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Energy Efficiency and Renewable Energy Policy and Sustainable Development Department"
+  },
+  {
+    "fullName": "David Advadze",
+    "email": "dadvadze@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Energy Efficiency and Renewable Energy Policy and Sustainable Development Department"
+  },
 
-  {"fullName":"Aleksandre Sokhadze","email":"asokhadze@moesd.gov.ge","role":"SUPERVISOR","dept":"Energy Policy and Investment Projects Department"},
-  {"fullName":"Vladimer Firadashvili","email":"vfiradashvili@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Energy Policy and Investment Projects Department"},
-  {"fullName":"Zurabi Arveladze","email":"zarveladze@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Energy Policy and Investment Projects Department"},
-  {"fullName":"Elene Goksadze","email":"egoksadze@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Energy Policy and Investment Projects Department"},
+  {
+    "fullName": "Aleksandre Sokhadze",
+    "email": "asokhadze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Energy Policy and Investment Projects Department"
+  },
+  {
+    "fullName": "Vladimer Firadashvili",
+    "email": "vfiradashvili@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Energy Policy and Investment Projects Department"
+  },
+  {
+    "fullName": "Zurabi Arveladze",
+    "email": "zarveladze@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Energy Policy and Investment Projects Department"
+  },
+  {
+    "fullName": "Elene Goksadze",
+    "email": "egoksadze@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Energy Policy and Investment Projects Department"
+  },
 
-  {"fullName":"Ketevan Salukvadze","email":"ksalukvadze@moesd.gov.ge","role":"SUPERVISOR","dept":"Transport and Logistics Development Policy Department"},
-  {"fullName":"Aleksandra Suladze","email":"asuladze@moesd.gov.ge","role":"SUPERVISOR","dept":"Transport and Logistics Development Policy Department"},
-  {"fullName":"Merab Kadjaia","email":"mkadjaia@moesd.gov.ge","role":"SUPERVISOR","dept":"Transport and Logistics Development Policy Department"},
-  {"fullName":"Koba Metreveli","email":"kmetreveli@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Transport and Logistics Development Policy Department"},
-  {"fullName":"Lika Bitsadze","email":"lbitsadze@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Transport and Logistics Development Policy Department"},
-  {"fullName":"Nino Patsatsia","email":"npatsatsia@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Transport and Logistics Development Policy Department"},
-  {"fullName":"Tamar Gelashvili","email":"tgelashvili@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Transport and Logistics Development Policy Department"},
+  {
+    "fullName": "Ketevan Salukvadze",
+    "email": "ksalukvadze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Transport and Logistics Development Policy Department"
+  },
+  {
+    "fullName": "Aleksandra Suladze",
+    "email": "asuladze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Transport and Logistics Development Policy Department"
+  },
+  {
+    "fullName": "Merab Kadjaia",
+    "email": "mkadjaia@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Transport and Logistics Development Policy Department"
+  },
+  {
+    "fullName": "Koba Metreveli",
+    "email": "kmetreveli@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Transport and Logistics Development Policy Department"
+  },
+  {
+    "fullName": "Lika Bitsadze",
+    "email": "lbitsadze@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Transport and Logistics Development Policy Department"
+  },
+  {
+    "fullName": "Nino Patsatsia",
+    "email": "npatsatsia@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Transport and Logistics Development Policy Department"
+  },
+  {
+    "fullName": "Tamar Gelashvili",
+    "email": "tgelashvili@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Transport and Logistics Development Policy Department"
+  },
 
-  {"fullName":"Eka Kubusidze","email":"ekubusidze@moesd.gov.ge","role":"SUPERVISOR","dept":"Communications, Information and Modern Technologies Department"},
-  {"fullName":"Sopio Tvalavadze","email":"stvalavadze@moesd.gov.ge","role":"SUPERVISOR","dept":"Communications, Information and Modern Technologies Department"},
-  {"fullName":"Giorgi Dapkviashvili","email":"gdapkviashvili@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Communications, Information and Modern Technologies Department"},
-  {"fullName":"Marine Rukhadze","email":"mrukhadze@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Communications, Information and Modern Technologies Department"},
+  {
+    "fullName": "Eka Kubusidze",
+    "email": "ekubusidze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Communications, Information and Modern Technologies Department"
+  },
+  {
+    "fullName": "Sopio Tvalavadze",
+    "email": "stvalavadze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Communications, Information and Modern Technologies Department"
+  },
+  {
+    "fullName": "Giorgi Dapkviashvili",
+    "email": "gdapkviashvili@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Communications, Information and Modern Technologies Department"
+  },
+  {
+    "fullName": "Marine Rukhadze",
+    "email": "mrukhadze@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Communications, Information and Modern Technologies Department"
+  },
 
-  {"fullName":"Ketevan Chapidze","email":"kchapidze@moesd.gov.ge","role":"SUPERVISOR","dept":"Economic Analysis and Reforms Department"},
-  {"fullName":"Nino Lobjanidze","email":"nlobjanidze@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Economic Analysis and Reforms Department"},
+  {
+    "fullName": "Ketevan Chapidze",
+    "email": "kchapidze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Economic Analysis and Reforms Department"
+  },
+  {
+    "fullName": "Nino Lobjanidze",
+    "email": "nlobjanidze@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Economic Analysis and Reforms Department"
+  },
 
-  {"fullName":"Tsisnami Sabadze","email":"tsisnami@moesd.gov.ge","role":"SUPERVISOR","dept":"Economic Policy Department"},
-  {"fullName":"Tea Loladze","email":"tloladze@moesd.gov.ge","role":"SUPERVISOR","dept":"Economic Policy Department"},
-  {"fullName":"Nino Berianidze","email":"nberianidze@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Economic Policy Department"},
-  {"fullName":"Giorgi Gamkrelidze","email":"ggamkrelidze@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Economic Policy Department"},
+  {
+    "fullName": "Tsisnami Sabadze",
+    "email": "tsisnami@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Economic Policy Department"
+  },
+  {
+    "fullName": "Tea Loladze",
+    "email": "tloladze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Economic Policy Department"
+  },
+  {
+    "fullName": "Nino Berianidze",
+    "email": "nberianidze@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Economic Policy Department"
+  },
+  {
+    "fullName": "Giorgi Gamkrelidze",
+    "email": "ggamkrelidze@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Economic Policy Department"
+  },
 
-  {"fullName":"Nino Murjikneli (Admin)","email":"murjikneli@moesd.gov.ge","role":"SUPERVISOR","dept":"Administrative Department"},
-  {"fullName":"Zurab Kekelia","email":"zkekelia@moesd.gov.ge","role":"SUPERVISOR","dept":"Administrative Department"},
-  {"fullName":"Sopio Magraqvelidze","email":"smagrakvelidze@moesd.gov.ge","role":"SUPERVISOR","dept":"Administrative Department"},
-  {"fullName":"Mikheil Khutsidze","email":"mkhutsidze@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Administrative Department"},
-  {"fullName":"Levan Lobjhanidze","email":"llobjhanidze@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Administrative Department"},
-  {"fullName":"Zviad Gogilava","email":"zgogilava@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Administrative Department"},
-  {"fullName":"Nino Lomineishvili","email":"nlomineshvili@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Administrative Department"},
-  {"fullName":"Tinatin Pipia","email":"tpipia@moesd.gov.ge","role":"SUPER_COLLABORATOR","dept":"Administrative Department"},
+  {
+    "fullName": "Nino Murjikneli (Admin)",
+    "email": "murjikneli@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Administrative Department"
+  },
+  {
+    "fullName": "Zurab Kekelia",
+    "email": "zkekelia@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Administrative Department"
+  },
+  {
+    "fullName": "Sopio Magraqvelidze",
+    "email": "smagrakvelidze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Administrative Department"
+  },
+  {
+    "fullName": "Mikheil Khutsidze",
+    "email": "mkhutsidze@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Administrative Department"
+  },
+  {
+    "fullName": "Levan Lobjhanidze",
+    "email": "llobjhanidze@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Administrative Department"
+  },
+  {
+    "fullName": "Zviad Gogilava",
+    "email": "zgogilava@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Administrative Department"
+  },
+  {
+    "fullName": "Nino Lomineishvili",
+    "email": "nlomineshvili@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Administrative Department"
+  },
+  {
+    "fullName": "Tinatin Pipia",
+    "email": "tpipia@moesd.gov.ge",
+    "role": "SUPER_COLLABORATOR",
+    "dept": "Administrative Department"
+  },
 
-  {"fullName":"Mariam Begoidze","email":"mbegoidze@moesd.gov.ge","role":"SUPERVISOR","dept":"Strategic Development Department"},
+  {
+    "fullName": "Mariam Begoidze",
+    "email": "mbegoidze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Strategic Development Department"
+  },
 
-  {"fullName":"Giorgi Gurgenidze","email":"ggurgenidze@moesd.gov.ge","role":"SUPERVISOR","dept":"Capital Market Development and Pension Reform Department"},
+  {
+    "fullName": "Giorgi Gurgenidze",
+    "email": "ggurgenidze@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Capital Market Development and Pension Reform Department"
+  },
 
-  {"fullName":"Tamar Ghughunishvili","email":"tghughunishvili@moesd.gov.ge","role":"SUPERVISOR","dept":"Investment Policy and Support Department"}
+  {
+    "fullName": "Tamar Ghughunishvili",
+    "email": "tghughunishvili@moesd.gov.ge",
+    "role": "SUPERVISOR",
+    "dept": "Investment Policy and Support Department"
+  }
 ]

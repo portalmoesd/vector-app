@@ -1,0 +1,1 @@
+ALTER TABLE departments ADD COLUMN IF NOT EXISTS name_en VARCHAR(500);

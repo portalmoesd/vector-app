@@ -1,0 +1,6 @@
+node_modules
+frontend/fonts
+frontend/data
+frontend/assets
+docs
+*.md

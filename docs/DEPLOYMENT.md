@@ -16,7 +16,9 @@ Set these variables before starting the service:
 - `ADMIN_UPLOAD_MAX_MB=50`
 - `JSON_BODY_LIMIT_MB=10`
 - `GEOSTAT_TLS_MODE=no-verify`
+- `LOG_LEVEL=info`
 - `LOG_FORMAT=text`
+- `STORAGE_BACKEND=database`
 - `JWT_SECRET=<strong random value>`
 - `CORS_ORIGINS=https://your-domain.example`
 - `ALLOW_DEFAULT_SEED_USERS=false`
@@ -29,7 +31,11 @@ It also refuses to start in production if `ALLOW_DEFAULT_SEED_USERS=true`.
 
 For 500-1000 live users, tune `DATABASE_POOL_MAX` together with the PostgreSQL server's connection limit and the number of Node processes. For example, two Node processes with `DATABASE_POOL_MAX=20` can open up to 40 application connections.
 
+Set `LOG_LEVEL` to control Pino log verbosity (`debug`, `info`, `warn`, `error`, `fatal`). Default is `info`.
+
 Set `LOG_FORMAT=json` when the buyer's hosting platform or log collector expects structured request logs. The default `text` format is easier to read during local development.
+
+`STORAGE_BACKEND` selects the file storage implementation. The default `database` backend stores uploads as PostgreSQL BYTEA columns. The storage interface is pluggable — an S3 backend can be added by implementing three methods in `server/storage/`.
 
 The login route is rate limited by IP address. Keep the default `AUTH_RATE_LIMIT_MAX=20` per `AUTH_RATE_LIMIT_WINDOW_MS=900000` unless the buyer's network has a shared proxy that requires a carefully reviewed adjustment.
 
@@ -41,6 +47,7 @@ The login route is rate limited by IP address. Keep the default `AUTH_RATE_LIMIT
 
 ```bash
 npm ci --omit=dev
+npm run migrate   # apply any pending database migrations
 npm start
 ```
 

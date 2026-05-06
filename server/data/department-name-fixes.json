@@ -1,0 +1,33 @@
+[
+  { "old_en": "Protocol Service", "name": "პროტოკოლის სამსახური", "name_en": "Protocol Department" },
+  {
+    "old_en": "Transport Safety Investigation Bureau",
+    "name": "სატრანსპორტო უსაფრთხოების მოკვლევის ბიურო",
+    "name_en": "Transportation Safety Investigation Bureau"
+  },
+  {
+    "old_en": "Strategic Communications Department",
+    "name": "სტრატეგიული კომუნიკაციის დეპარტამენტი",
+    "name_en": "Department of Strategic Communication"
+  },
+  {
+    "old_en": "Capital Market Development and Pension Reform Department",
+    "name": "კაპიტალის ბაზრის განვითარებისა და საპენსიო რეფორმის დეპარტამენტი",
+    "name_en": "Capital Market Development and Pension Reform Department"
+  },
+  {
+    "old_en": "Investment Policy and Support Department",
+    "name": "საინვესტიციო პოლიტიკისა და ინვესტიციების მხარდაჭერის დეპარტამენტი",
+    "name_en": "Investment Policy and Support Department"
+  },
+  {
+    "old_en": "Unified National Accreditation Body - Accreditation Center",
+    "name": "აკრედიტაციის ერთიანი ეროვნული ორგანო",
+    "name_en": "The Unified National Body of Accreditation"
+  },
+  {
+    "old_en": "Georgian National Agency for Standards and Metrology",
+    "name": "საქართველოს სტანდარტებისა და მეტროლოგიის ეროვნული სააგენტო",
+    "name_en": "Georgian National Agency for Standarts and Metrology"
+  }
+]

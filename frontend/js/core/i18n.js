@@ -52,13 +52,13 @@ const I18n = {
   // inserted card rows, etc.).
   translateRoot(root) {
     if (!root) return;
-    root.querySelectorAll('[data-i18n]').forEach(el => {
+    root.querySelectorAll('[data-i18n]').forEach((el) => {
       el.textContent = this.t(el.dataset.i18n);
     });
-    root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    root.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
       el.placeholder = this.t(el.dataset.i18nPlaceholder);
     });
-    root.querySelectorAll('[data-i18n-title]').forEach(el => {
+    root.querySelectorAll('[data-i18n-title]').forEach((el) => {
       el.title = this.t(el.dataset.i18nTitle);
     });
   },
