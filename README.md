@@ -27,6 +27,7 @@ The server applies the database schema on startup. Demo/default users are blocke
 - Operations: `docs/OPERATIONS.md`
 - Database: `docs/DATABASE.md`
 - Buyer handoff: `docs/BUYER_HANDOFF.md`
+- Final acceptance: `docs/FINAL_ACCEPTANCE.md`
 - App readiness: `docs/APP_READINESS.md`
 - Event email drafts: `docs/event-email-drafts.md`
 

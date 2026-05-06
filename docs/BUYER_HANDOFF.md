@@ -91,6 +91,7 @@ Recommended production shape:
 
 ## Acceptance checklist
 
+- Complete the detailed final checklist in `docs/FINAL_ACCEPTANCE.md`.
 - `npm test` passes.
 - `GET /api/health` returns `ok: true`.
 - `GET /api/ready` returns `ok: true` and `database: true`.
