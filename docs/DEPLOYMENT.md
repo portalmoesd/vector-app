@@ -15,6 +15,7 @@ Set these variables before starting the service:
 - `WORKFLOW_UPLOAD_MAX_MB=50`
 - `ADMIN_UPLOAD_MAX_MB=50`
 - `JSON_BODY_LIMIT_MB=10`
+- `GEOSTAT_TLS_MODE=no-verify`
 - `LOG_FORMAT=text`
 - `JWT_SECRET=<strong random value>`
 - `CORS_ORIGINS=https://your-domain.example`
@@ -33,6 +34,8 @@ Set `LOG_FORMAT=json` when the buyer's hosting platform or log collector expects
 The login route is rate limited by IP address. Keep the default `AUTH_RATE_LIMIT_MAX=20` per `AUTH_RATE_LIMIT_WINDOW_MS=900000` unless the buyer's network has a shared proxy that requires a carefully reviewed adjustment.
 
 `WORKFLOW_UPLOAD_MAX_MB` controls each workflow file upload. `ADMIN_UPLOAD_MAX_MB` controls the statistics source-file uploads. `JSON_BODY_LIMIT_MB` controls JSON request payloads such as editor autosaves. Raising these limits increases database storage and memory pressure.
+
+`GEOSTAT_TLS_MODE` accepts `no-verify` or `strict`. Use `no-verify` only while Geostat's missing intermediate certificate is not available to the Node runtime. After the buyer installs the certificate through system trust or `NODE_EXTRA_CA_CERTS`, switch to `strict`.
 
 ## Standard Node deployment
 

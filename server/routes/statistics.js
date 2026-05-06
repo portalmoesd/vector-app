@@ -5,6 +5,7 @@
 const express = require('express');
 const XLSX = require('xlsx');
 const https = require('node:https');
+const config = require('../config');
 const router = express.Router();
 
 const GEOSTAT_BASE = 'https://ex-trade-api.geostat.ge/api/trade';
@@ -13,16 +14,12 @@ const GEOSTAT_BASE = 'https://ex-trade-api.geostat.ge/api/trade';
 // Browsers cache intermediates and paper over this; Node does not, and
 // every request fails with UNABLE_TO_VERIFY_LEAF_SIGNATURE.
 //
-// Scope a permissive agent to *.geostat.ge ONLY — the rest of the
-// process keeps full TLS verification. The route is locked down by
-// hostname check inside `geostatHttp` so the agent can't accidentally
-// be used elsewhere.
-//
-// Long-term: retrieve Geostat's missing intermediate cert and set
-// NODE_EXTRA_CA_CERTS in Render to its path. Then this agent + the
-// env-level NODE_TLS_REJECT_UNAUTHORIZED=0 can both be removed and
-// verification is fully strict again.
-const geostatAgent = new https.Agent({ rejectUnauthorized: false });
+// GEOSTAT_TLS_MODE=no-verify scopes permissive TLS to *.geostat.ge only.
+// Switch to GEOSTAT_TLS_MODE=strict after the buyer installs the missing
+// intermediate certificate through NODE_EXTRA_CA_CERTS or system trust.
+const geostatAgent = config.geostatTlsMode === 'no-verify'
+  ? new https.Agent({ rejectUnauthorized: false })
+  : undefined;
 
 // Lightweight fetch-shaped wrapper around https.request — native fetch
 // (undici) can't accept an https.Agent, and pulling undici as a direct

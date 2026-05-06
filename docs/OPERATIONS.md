@@ -38,6 +38,8 @@ Recommended backup expectations:
 
 The statistics setup is intentionally isolated from the event workflow. Current uploaded/packaged datasets continue to work. Direct Geostat integration should be completed only after the required intermediate certificate is available.
 
+Until that certificate is trusted by the Node runtime, keep `GEOSTAT_TLS_MODE=no-verify`. Once the buyer installs the certificate through system trust or `NODE_EXTRA_CA_CERTS`, switch to `GEOSTAT_TLS_MODE=strict` and verify statistics refreshes.
+
 On real server startup, the application explicitly starts statistics background loaders. They load cached tourism, FDI-sector, and companies datasets, then schedule the daily tourism refresh. Test and tooling imports do not start these background jobs.
 
 Admin statistics uploads accept XLSX, XLS, and CSV files up to 50MB. Unsupported file types are rejected before parsing.

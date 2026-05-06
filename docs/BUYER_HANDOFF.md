@@ -59,7 +59,7 @@ Recipients are placed in BCC for privacy. Users without email addresses are skip
 
 Statistics integration is intentionally environment-specific. The current implementation supports the portal screens and local data processing, but final direct pulling from Geostat depends on the buyer's certificate and network configuration.
 
-When the intermediate certificate is available, configure and test the statistics source in the buyer environment before relying on scheduled or live updates.
+While the intermediate certificate is unavailable to Node.js, use `GEOSTAT_TLS_MODE=no-verify`. When the certificate is available, install it through system trust or `NODE_EXTRA_CA_CERTS`, switch to `GEOSTAT_TLS_MODE=strict`, and test the statistics source in the buyer environment before relying on scheduled or live updates.
 
 The production server starts statistics cache loaders explicitly during application startup. These loaders read cached tourism, FDI-sector, and companies datasets, then schedule the tourism refresh. Importing the API module for tests or tooling does not start background timers.
 

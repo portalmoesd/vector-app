@@ -30,3 +30,7 @@ test('upload limit defaults preserve current buyer capacity', () => {
   assert.equal(config.jsonBodyLimitMb, 10);
   assert.equal(config.megabytesToBytes(50), 50 * 1024 * 1024);
 });
+
+test('geostat TLS mode defaults to the current certificate workaround', () => {
+  assert.equal(config.geostatTlsMode, 'no-verify');
+});

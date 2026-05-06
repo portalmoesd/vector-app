@@ -46,6 +46,7 @@ module.exports = {
   workflowUploadMaxMb: parsePositiveInt(process.env.WORKFLOW_UPLOAD_MAX_MB, 50),
   adminUploadMaxMb: parsePositiveInt(process.env.ADMIN_UPLOAD_MAX_MB, 50),
   jsonBodyLimitMb: parsePositiveInt(process.env.JSON_BODY_LIMIT_MB, 10),
+  geostatTlsMode: process.env.GEOSTAT_TLS_MODE === 'strict' ? 'strict' : 'no-verify',
   jwtSecret,
   port: parseInt(process.env.PORT, 10) || 3000,
   corsOrigins: parseOrigins(process.env.CORS_ORIGINS),

@@ -20,6 +20,7 @@ Create `.env` from `.env.example` and set:
 - `WORKFLOW_UPLOAD_MAX_MB` - maximum size for each workflow attachment.
 - `ADMIN_UPLOAD_MAX_MB` - maximum size for each admin statistics upload.
 - `JSON_BODY_LIMIT_MB` - maximum JSON request size for editor saves and API requests.
+- `GEOSTAT_TLS_MODE` - `no-verify` for the current missing-intermediate workaround or `strict` after the certificate chain is trusted.
 - `LOG_FORMAT` - `text` for local development or `json` for structured production logs.
 - `JWT_SECRET` - long random secret used for login tokens.
 - `PORT` - server port, usually `3000`.
