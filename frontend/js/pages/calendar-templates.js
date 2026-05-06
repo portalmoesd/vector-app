@@ -39,7 +39,9 @@
   }
 
   const deptById = {};
-  departments.forEach(d => { deptById[d.id] = d; });
+  departments.forEach((d) => {
+    deptById[d.id] = d;
+  });
 
   // Build set of department IDs assigned to deputies
   const assignedDeptIds = new Set();
@@ -49,8 +51,8 @@
     }
   }
 
-  const internalDepts = departments.filter(d => !d.isExternal && assignedDeptIds.has(d.id));
-  const externalDepts = departments.filter(d => d.isExternal && assignedDeptIds.has(d.id));
+  const internalDepts = departments.filter((d) => !d.isExternal && assignedDeptIds.has(d.id));
+  const externalDepts = departments.filter((d) => d.isExternal && assignedDeptIds.has(d.id));
 
   /* ── Custom Department Picker ─────────────────────────────────────────── */
 
@@ -62,12 +64,14 @@
     const trigger = document.createElement('button');
     trigger.type = 'button';
     trigger.className = 'form-input tpl-dept-picker-trigger';
-    trigger.style.cssText = 'width:100%;text-align:left;cursor:pointer;font-size:13px;color:#666;display:flex;align-items:center;justify-content:space-between;padding:6px 10px;';
+    trigger.style.cssText =
+      'width:100%;text-align:left;cursor:pointer;font-size:13px;color:#666;display:flex;align-items:center;justify-content:space-between;padding:6px 10px;';
     trigger.innerHTML = '+ Add department... <span style="font-size:10px;opacity:.5;">\u25BC</span>';
 
     const panel = document.createElement('div');
     panel.className = 'tpl-dept-picker-panel';
-    panel.style.cssText = 'display:none;position:fixed;background:var(--bg-card,#fff);border:1px solid var(--border-color,#ddd);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:9999;max-height:420px;overflow:hidden;flex-direction:column;';
+    panel.style.cssText =
+      'display:none;position:fixed;background:var(--bg-card,#fff);border:1px solid var(--border-color,#ddd);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:9999;max-height:420px;overflow:hidden;flex-direction:column;';
 
     // Search input
     const searchWrap = document.createElement('div');
@@ -100,9 +104,9 @@
       if (groupedData && groupedData.deputies) {
         for (const deputy of groupedData.deputies) {
           const deptItems = deputy.departmentIds
-            .map(id => deptById[id])
+            .map((id) => deptById[id])
             .filter(Boolean)
-            .filter(d => !q || (d.nameEn || d.name).toLowerCase().includes(q));
+            .filter((d) => !q || (d.nameEn || d.name).toLowerCase().includes(q));
           if (deptItems.length === 0) continue;
 
           html += `<div class="tpl-pick-group" style="padding:4px 0;">
@@ -128,14 +132,18 @@
       itemsWrap.innerHTML = html;
 
       // Attach click handlers
-      itemsWrap.querySelectorAll('.tpl-pick-item:not(.tpl-pick-disabled)').forEach(el => {
+      itemsWrap.querySelectorAll('.tpl-pick-item:not(.tpl-pick-disabled)').forEach((el) => {
         el.addEventListener('click', () => {
           const id = parseInt(el.dataset.deptId);
           onAdd(id);
           buildItems(searchInput.value);
         });
-        el.addEventListener('mouseenter', () => { el.style.background = 'rgba(10,132,255,.08)'; });
-        el.addEventListener('mouseleave', () => { el.style.background = ''; });
+        el.addEventListener('mouseenter', () => {
+          el.style.background = 'rgba(10,132,255,.08)';
+        });
+        el.addEventListener('mouseleave', () => {
+          el.style.background = '';
+        });
       });
     }
 
@@ -145,7 +153,7 @@
       // Position fixed panel below the trigger button
       const rect = trigger.getBoundingClientRect();
       panel.style.left = rect.left + 'px';
-      panel.style.top = (rect.bottom + 4) + 'px';
+      panel.style.top = rect.bottom + 4 + 'px';
       panel.style.width = rect.width + 'px';
       panel.style.display = 'flex';
       searchInput.value = '';
@@ -161,7 +169,8 @@
 
     trigger.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (isOpen) close(); else open();
+      if (isOpen) close();
+      else open();
     });
 
     searchInput.addEventListener('input', () => buildItems(searchInput.value));
@@ -177,7 +186,13 @@
       if (panel.parentNode) panel.parentNode.removeChild(panel);
     }
 
-    return { wrapper, refresh: () => { if (isOpen) buildItems(searchInput.value); }, destroy };
+    return {
+      wrapper,
+      refresh: () => {
+        if (isOpen) buildItems(searchInput.value);
+      },
+      destroy,
+    };
   }
 
   /* ── Section Row Logic ────────────────────────────────────────────────── */
@@ -187,10 +202,7 @@
     let picker = null;
 
     function getSelectedIds() {
-      return new Set(
-        Array.from(row.querySelectorAll('.tpl-dept-pill'))
-          .map(p => parseInt(p.dataset.deptId))
-      );
+      return new Set(Array.from(row.querySelectorAll('.tpl-dept-pill')).map((p) => parseInt(p.dataset.deptId)));
     }
 
     function addDeptPill(deptId) {
@@ -200,7 +212,8 @@
       const pill = document.createElement('span');
       pill.className = d.isExternal ? 'pill pill-yellow tpl-dept-pill' : 'pill pill-blue tpl-dept-pill';
       pill.dataset.deptId = deptId;
-      pill.style.cssText = 'cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:3px 10px;margin:2px;';
+      pill.style.cssText =
+        'cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:3px 10px;margin:2px;';
       pill.title = 'Click to remove';
       pill.innerHTML = `${escapeHtml(d.nameEn || d.name)} <span style="font-size:14px;line-height:1;opacity:0.6;">\u00d7</span>`;
       pill.addEventListener('click', () => {
@@ -218,20 +231,24 @@
 
     // Create custom picker
     const pickerContainer = row.querySelector('.tpl-dept-picker-slot');
-    picker = createDeptPicker(row, (deptId) => {
-      addDeptPill(deptId);
-      updateCount();
-    }, getSelectedIds);
+    picker = createDeptPicker(
+      row,
+      (deptId) => {
+        addDeptPill(deptId);
+        updateCount();
+      },
+      getSelectedIds
+    );
     pickerContainer.appendChild(picker.wrapper);
 
     // Quick-add buttons
     row.querySelector('.tpl-add-all-depts').addEventListener('click', () => {
-      internalDepts.forEach(d => addDeptPill(d.id));
+      internalDepts.forEach((d) => addDeptPill(d.id));
       updateCount();
       if (picker) picker.refresh();
     });
     row.querySelector('.tpl-add-all-agencies').addEventListener('click', () => {
-      externalDepts.forEach(d => addDeptPill(d.id));
+      externalDepts.forEach((d) => addDeptPill(d.id));
       updateCount();
       if (picker) picker.refresh();
     });
@@ -243,36 +260,40 @@
 
   function renderTemplates() {
     if (templates.length === 0) {
-      container.innerHTML = '<div class="empty-state"><p>No templates yet. Create one to preset sections for your events.</p></div>';
+      container.innerHTML =
+        '<div class="empty-state"><p>No templates yet. Create one to preset sections for your events.</p></div>';
       return;
     }
 
-    container.innerHTML = templates.map(t => {
-      const totalDepts = t.sections.reduce((sum, s) => sum + (s.departmentIds || []).length, 0);
+    container.innerHTML = templates
+      .map((t) => {
+        const totalDepts = t.sections.reduce((sum, s) => sum + (s.departmentIds || []).length, 0);
 
-      const sectionsList = t.sections.map(s => {
-        const deptNames = (s.departmentIds || [])
-          .map(id => {
-            const d = deptById[id];
-            return d ? escapeHtml(d.nameEn || d.name) : '';
-          })
-          .filter(Boolean)
-          .join(', ');
-        return `<li style="margin-bottom:6px;">
+        const sectionsList = t.sections
+          .map((s) => {
+            const deptNames = (s.departmentIds || [])
+              .map((id) => {
+                const d = deptById[id];
+                return d ? escapeHtml(d.nameEn || d.name) : '';
+              })
+              .filter(Boolean)
+              .join(', ');
+            return `<li style="margin-bottom:6px;">
           <strong>${escapeHtml(s.title)}</strong>
           ${deptNames ? `<span style="color:#666;font-size:12px;"> \u2014 ${deptNames}</span>` : ''}
         </li>`;
-      }).join('');
+          })
+          .join('');
 
-      const badge = t.isDefault
-        ? '<span class="pill pill-green" style="margin-left:8px;font-size:11px;">Default</span>'
-        : '';
+        const badge = t.isDefault
+          ? '<span class="pill pill-green" style="margin-left:8px;font-size:11px;">Default</span>'
+          : '';
 
-      const deleteBtn = t.isDefault
-        ? ''
-        : `<button class="btn btn-danger" style="font-size:12px;padding:5px 14px;" onclick="event.stopPropagation();deleteTemplate(${t.id})">Delete</button>`;
+        const deleteBtn = t.isDefault
+          ? ''
+          : `<button class="btn btn-danger" style="font-size:12px;padding:5px 14px;" onclick="event.stopPropagation();deleteTemplate(${t.id})">Delete</button>`;
 
-      return `
+        return `
         <div class="tpl-expand-card" style="border:1px solid var(--border,rgba(0,0,0,.10));border-radius:16px;margin-bottom:10px;background:rgba(255,255,255,.62);backdrop-filter:blur(12px);box-shadow:0 2px 8px rgba(0,0,0,.04);transition:box-shadow .2s,border-color .2s;overflow:hidden;">
           <div class="tpl-expand-header" style="display:flex;align-items:center;gap:10px;padding:14px 18px;cursor:pointer;user-select:none;">
             <span class="tpl-expand-arrow" style="font-size:11px;color:#888;transition:transform .2s;flex-shrink:0;">\u25b6</span>
@@ -292,10 +313,11 @@
           </div>
         </div>
       `;
-    }).join('');
+      })
+      .join('');
 
     // Attach expand/collapse handlers
-    container.querySelectorAll('.tpl-expand-card').forEach(card => {
+    container.querySelectorAll('.tpl-expand-card').forEach((card) => {
       const header = card.querySelector('.tpl-expand-header');
       const body = card.querySelector('.tpl-expand-body');
       const arrow = card.querySelector('.tpl-expand-arrow');
@@ -307,7 +329,9 @@
         card.style.borderColor = open ? '' : 'rgba(10,132,255,.18)';
       });
       // Hover effect
-      header.addEventListener('mouseenter', () => { card.style.boxShadow = '0 4px 14px rgba(0,0,0,.07)'; });
+      header.addEventListener('mouseenter', () => {
+        card.style.boxShadow = '0 4px 14px rgba(0,0,0,.07)';
+      });
       header.addEventListener('mouseleave', () => {
         const open = body.style.display !== 'none';
         card.style.boxShadow = open ? '0 4px 16px rgba(0,0,0,.08)' : '0 2px 8px rgba(0,0,0,.04)';
@@ -315,13 +339,15 @@
     });
   }
 
-  window.deleteTemplate = async function(id) {
+  window.deleteTemplate = async function (id) {
     if (!confirm(I18n.tr('calendar.templates.confirmDelete'))) return;
     try {
       await Api.delete(`/api/templates/${id}`);
-      templates = templates.filter(t => t.id !== id);
+      templates = templates.filter((t) => t.id !== id);
       renderTemplates();
-    } catch (e) { toast.error(e.message); }
+    } catch (e) {
+      toast.error(e.message);
+    }
   };
 
   /* ── Modal Helpers ────────────────────────────────────────────────────── */
@@ -335,15 +361,22 @@
     modal.style.display = 'flex';
   }
 
-  function hideTemplateModal() { modal.style.display = 'none'; onModalSave = null; }
+  function hideTemplateModal() {
+    modal.style.display = 'none';
+    onModalSave = null;
+  }
 
   modalCancel.addEventListener('click', hideTemplateModal);
-  modalSave.addEventListener('click', () => { if (onModalSave) onModalSave(); });
+  modalSave.addEventListener('click', () => {
+    if (onModalSave) onModalSave();
+  });
 
   /* ── Create Template ──────────────────────────────────────────────────── */
 
   createBtn.addEventListener('click', () => {
-    showTemplateModal(I18n.tr('calendar.templates.modalCreate'), `
+    showTemplateModal(
+      I18n.tr('calendar.templates.modalCreate'),
+      `
       <div class="form-group">
         <label class="form-label">${escapeHtml(I18n.tr('calendar.templates.nameLabel'))}</label>
         <input class="form-input" id="tplName" placeholder="${escapeHtml(I18n.tr('calendar.templates.namePlaceholder'))}" />
@@ -353,27 +386,39 @@
         <div id="tplSectionRows"></div>
         <button class="btn btn-outline" type="button" id="tplAddSection" style="margin-top:8px;">${escapeHtml(I18n.tr('calendar.form.addSection'))}</button>
       </div>
-    `, I18n.tr('common.create'), async () => {
-      const name = document.getElementById('tplName').value.trim();
-      if (!name) { toast.warn(I18n.tr('calendar.templates.warnName')); return; }
+    `,
+      I18n.tr('common.create'),
+      async () => {
+        const name = document.getElementById('tplName').value.trim();
+        if (!name) {
+          toast.warn(I18n.tr('calendar.templates.warnName'));
+          return;
+        }
 
-      const sections = [];
-      document.querySelectorAll('#tplSectionRows .tpl-section-row').forEach((row, i) => {
-        const title = row.querySelector('.tpl-sec-title').value.trim();
-        const deptIds = Array.from(row.querySelectorAll('.tpl-dept-pill'))
-          .map(pill => parseInt(pill.dataset.deptId));
-        if (title) sections.push({ title, sortOrder: i, departmentIds: deptIds });
-      });
+        const sections = [];
+        document.querySelectorAll('#tplSectionRows .tpl-section-row').forEach((row, i) => {
+          const title = row.querySelector('.tpl-sec-title').value.trim();
+          const deptIds = Array.from(row.querySelectorAll('.tpl-dept-pill')).map((pill) =>
+            parseInt(pill.dataset.deptId)
+          );
+          if (title) sections.push({ title, sortOrder: i, departmentIds: deptIds });
+        });
 
-      if (sections.length === 0) { toast.warn(I18n.tr('calendar.warn.missingSection')); return; }
+        if (sections.length === 0) {
+          toast.warn(I18n.tr('calendar.warn.missingSection'));
+          return;
+        }
 
-      try {
-        await Api.post('/api/templates', { name, sections });
-        hideTemplateModal();
-        templates = await Api.get('/api/templates');
-        renderTemplates();
-      } catch (err) { toast.error(err.message); }
-    });
+        try {
+          await Api.post('/api/templates', { name, sections });
+          hideTemplateModal();
+          templates = await Api.get('/api/templates');
+          renderTemplates();
+        } catch (err) {
+          toast.error(err.message);
+        }
+      }
+    );
 
     const rowsContainer = document.getElementById('tplSectionRows');
     const addBtn = document.getElementById('tplAddSection');

@@ -9,6 +9,7 @@ const {
   asBoolean,
   validationError,
 } = require('../helpers/validation');
+const logger = require('../logger');
 
 const router = express.Router();
 const DS_ROLES = ['DEPUTY', 'SUPERVISOR', 'SUPER_COLLABORATOR'];
@@ -44,7 +45,7 @@ router.get('/', requireAuth, async (req, res) => {
       [req.user.id]
     );
 
-    const templateIds = templates.map(t => t.id);
+    const templateIds = templates.map((t) => t.id);
     const sectionsByTemplate = new Map();
 
     if (templateIds.length > 0) {
@@ -72,21 +73,21 @@ router.get('/', requireAuth, async (req, res) => {
       }
     }
 
-    const result = templates.map(t => ({
-        id: t.id,
-        name: t.name,
-        documentSubmitterRole: t.document_submitter_role,
-        curatorRequired: t.curator_required,
-        isDefault: t.is_default,
-        createdAt: t.created_at,
-        createdById: t.created_by_id,
-        createdByName: t.created_by_name,
-        sections: sectionsByTemplate.get(t.id) || [],
-      }));
+    const result = templates.map((t) => ({
+      id: t.id,
+      name: t.name,
+      documentSubmitterRole: t.document_submitter_role,
+      curatorRequired: t.curator_required,
+      isDefault: t.is_default,
+      createdAt: t.created_at,
+      createdById: t.created_by_id,
+      createdByName: t.created_by_name,
+      sections: sectionsByTemplate.get(t.id) || [],
+    }));
 
     res.json(result);
   } catch (err) {
-    console.error('List templates error:', err);
+    logger.error({ err }, 'List templates error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -96,7 +97,9 @@ router.post('/', requireAuth, denyAnalyst, async (req, res) => {
   try {
     const name = asTrimmedString(req.body.name, 'name', { required: true, max: 300 });
     if (name.error) return validationError(res, name.error);
-    const documentSubmitterRole = asEnum(req.body.documentSubmitterRole, 'documentSubmitterRole', DS_ROLES, { default: 'DEPUTY' });
+    const documentSubmitterRole = asEnum(req.body.documentSubmitterRole, 'documentSubmitterRole', DS_ROLES, {
+      default: 'DEPUTY',
+    });
     if (documentSubmitterRole.error) return validationError(res, documentSubmitterRole.error);
     const curatorRequired = asBoolean(req.body.curatorRequired, 'curatorRequired');
     if (curatorRequired.error) return validationError(res, curatorRequired.error);
@@ -107,7 +110,9 @@ router.post('/', requireAuth, denyAnalyst, async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      const { rows: [template] } = await client.query(
+      const {
+        rows: [template],
+      } = await client.query(
         `INSERT INTO event_templates (name, created_by_id, document_submitter_role, curator_required, is_default)
          VALUES ($1, $2, $3, $4, false) RETURNING id`,
         [name.value, req.user.id, documentSubmitterRole.value, curatorRequired.value]
@@ -116,7 +121,9 @@ router.post('/', requireAuth, denyAnalyst, async (req, res) => {
       if (sections.value.length > 0) {
         for (let i = 0; i < sections.value.length; i++) {
           const sec = sections.value[i];
-          const { rows: [tplSec] } = await client.query(
+          const {
+            rows: [tplSec],
+          } = await client.query(
             `INSERT INTO event_template_sections (template_id, title, sort_order)
              VALUES ($1, $2, $3) RETURNING id`,
             [template.id, sec.title, i]
@@ -143,7 +150,7 @@ router.post('/', requireAuth, denyAnalyst, async (req, res) => {
       client.release();
     }
   } catch (err) {
-    console.error('Create template error:', err);
+    logger.error({ err }, 'Create template error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -160,7 +167,7 @@ router.delete('/:id', requireAuth, denyAnalyst, async (req, res) => {
     if (result.rowCount === 0) return res.status(404).json({ error: 'Template not found or cannot be deleted' });
     res.json({ success: true });
   } catch (err) {
-    console.error('Delete template error:', err);
+    logger.error({ err }, 'Delete template error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

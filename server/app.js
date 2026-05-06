@@ -7,6 +7,7 @@ const securityHeaders = require('./middleware/security-headers');
 const requestLogger = require('./middleware/request-logger');
 const corsErrorHandler = require('./middleware/cors-error');
 const jsonErrorHandler = require('./middleware/json-error');
+const logger = require('./logger');
 
 function createApp(options = {}) {
   const app = express();
@@ -17,19 +18,21 @@ function createApp(options = {}) {
   app.use(securityHeaders);
   app.use(requestLogger);
 
-  app.use(cors({
-    origin(origin, callback) {
-      if (!origin || !config.isProduction || config.corsOrigins.length === 0) {
-        return callback(null, true);
-      }
-      if (config.corsOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      const err = new Error('Origin not allowed by CORS');
-      err.code = 'CORS_ORIGIN_DENIED';
-      return callback(err);
-    },
-  }));
+  app.use(
+    cors({
+      origin(origin, callback) {
+        if (!origin || !config.isProduction || config.corsOrigins.length === 0) {
+          return callback(null, true);
+        }
+        if (config.corsOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        const err = new Error('Origin not allowed by CORS');
+        err.code = 'CORS_ORIGIN_DENIED';
+        return callback(err);
+      },
+    })
+  );
   app.use(corsErrorHandler);
   app.use(express.json({ limit: `${config.jsonBodyLimitMb}mb` }));
   app.use(jsonErrorHandler);
@@ -64,6 +67,21 @@ function createApp(options = {}) {
 
   app.use(express.static(path.join(__dirname, '../frontend')));
 
+  // Dev-mode Swagger UI — serves the OpenAPI spec at /api-docs
+  if (!config.isProduction) {
+    try {
+      const swaggerUi = require('swagger-ui-express');
+      const jsYaml = require('js-yaml');
+      const fs = require('fs');
+      const specPath = path.join(__dirname, '../docs/openapi.yaml');
+      const spec = jsYaml.load(fs.readFileSync(specPath, 'utf8'));
+      app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(spec));
+      logger.info('Swagger UI available at /api-docs');
+    } catch (err) {
+      logger.info('Swagger UI not loaded (install swagger-ui-express and js-yaml as devDependencies)');
+    }
+  }
+
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/users', require('./routes/users'));
   app.use('/api/departments', require('./routes/departments'));
@@ -88,7 +106,7 @@ function createApp(options = {}) {
   });
 
   app.use((err, req, res, next) => {
-    console.error('Unhandled request error:', err);
+    logger.error({ err }, 'Unhandled request error');
     if (res.headersSent) return next(err);
     res.status(500).json({ error: 'Internal server error' });
   });

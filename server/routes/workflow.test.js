@@ -6,13 +6,11 @@ const db = require('../db');
 const workflowRouter = require('./workflow');
 
 function findRoute(method, path) {
-  const layer = workflowRouter.stack.find((item) => (
-    item.route
-    && item.route.path === path
-    && item.route.methods[method.toLowerCase()]
-  ));
+  const layer = workflowRouter.stack.find(
+    (item) => item.route && item.route.path === path && item.route.methods[method.toLowerCase()]
+  );
   assert.ok(layer, `${method} ${path} should be registered`);
-  return layer.route.stack.map(item => item.handle);
+  return layer.route.stack.map((item) => item.handle);
 }
 
 function mockResponse() {
@@ -90,13 +88,15 @@ function createWorkflowQueryMock(overrides = {}) {
       return { rows: overrides.forbidden ? [] : [{ '?column?': 1 }] };
     }
     if (/SELECT full_name, department_id FROM users/.test(sql)) {
-      return { rows: [{ full_name: overrides.fullName || 'Test User', department_id: overrides.userDepartmentId || 5 }] };
+      return {
+        rows: [{ full_name: overrides.fullName || 'Test User', department_id: overrides.userDepartmentId || 5 }],
+      };
     }
     if (/SELECT department_id FROM users/.test(sql)) {
       return { rows: [{ department_id: overrides.dsDepartmentId || 5 }] };
     }
     if (/SELECT department_id FROM section_departments/.test(sql)) {
-      return { rows: (overrides.sectionDepartmentIds || [5]).map(department_id => ({ department_id })) };
+      return { rows: (overrides.sectionDepartmentIds || [5]).map((department_id) => ({ department_id })) };
     }
     if (/UPDATE section_content/.test(sql)) return { rows: [], rowCount: 1 };
     if (/UPDATE events SET status = 'IN_PROGRESS'/.test(sql)) return { rows: [], rowCount: 1 };
@@ -133,7 +133,10 @@ test('POST /submit rejects a user who is not the current section holder', async 
 
     assert.equal(res.statusCode, 403);
     assert.match(res.body.error, /Section is held by SUPER_COLLABORATOR/);
-    assert.equal(mock.calls.some(call => /UPDATE section_content/.test(call.sql)), false);
+    assert.equal(
+      mock.calls.some((call) => /UPDATE section_content/.test(call.sql)),
+      false
+    );
   });
 });
 
@@ -152,11 +155,17 @@ test('POST /submit advances a draft section to the next workflow holder', async 
 
     assert.equal(res.statusCode, 200);
     assert.deepEqual(res.body, { success: true, newStatus: 'submitted_to_super_collaborator' });
-    const update = mock.calls.find(call => /UPDATE section_content/.test(call.sql));
+    const update = mock.calls.find((call) => /UPDATE section_content/.test(call.sql));
     assert.ok(update, 'section_content should be updated');
     assert.deepEqual(update.params, ['submitted_to_super_collaborator', 'COLLABORATOR', 7, 10, 20]);
-    assert.equal(mock.calls.some(call => /INSERT INTO section_history/.test(call.sql)), true);
-    assert.equal(mock.calls.some(call => /DELETE FROM section_return_requests/.test(call.sql)), true);
+    assert.equal(
+      mock.calls.some((call) => /INSERT INTO section_history/.test(call.sql)),
+      true
+    );
+    assert.equal(
+      mock.calls.some((call) => /DELETE FROM section_return_requests/.test(call.sql)),
+      true
+    );
   });
 });
 
@@ -196,7 +205,10 @@ test('POST /approve rejects a section that is not submitted to the user role', a
 
     assert.equal(res.statusCode, 400);
     assert.match(res.body.error, /Cannot approve/);
-    assert.equal(mock.calls.some(call => /UPDATE section_content/.test(call.sql)), false);
+    assert.equal(
+      mock.calls.some((call) => /UPDATE section_content/.test(call.sql)),
+      false
+    );
   });
 });
 
@@ -220,12 +232,21 @@ test('POST /approve advances a submitted section to the next holder', async () =
 
     assert.equal(res.statusCode, 200);
     assert.deepEqual(res.body, { success: true, newStatus: 'submitted_to_supervisor' });
-    const update = mock.calls.find(call => /UPDATE section_content/.test(call.sql));
+    const update = mock.calls.find((call) => /UPDATE section_content/.test(call.sql));
     assert.ok(update, 'section_content should be updated');
     assert.deepEqual(update.params, ['submitted_to_supervisor', 'Approved', 8, 10, 20]);
-    const history = mock.calls.find(call => /INSERT INTO section_history/.test(call.sql));
+    const history = mock.calls.find((call) => /INSERT INTO section_history/.test(call.sql));
     assert.ok(history, 'section_history should be inserted');
-    assert.deepEqual(history.params, [10, 20, 'submitted_to_super_collaborator', 'submitted_to_supervisor', 8, 'Test User', 'SUPER_COLLABORATOR', 'Approved']);
+    assert.deepEqual(history.params, [
+      10,
+      20,
+      'submitted_to_super_collaborator',
+      'submitted_to_supervisor',
+      8,
+      'Test User',
+      'SUPER_COLLABORATOR',
+      'Approved',
+    ]);
   });
 });
 
@@ -256,10 +277,19 @@ test('POST /approve lets the document submitter finalize an amendment', async ()
 
     assert.equal(res.statusCode, 200);
     assert.deepEqual(res.body, { success: true, newStatus: 'approved_by_ds_amendment' });
-    const update = mock.calls.find(call => /UPDATE section_content/.test(call.sql));
+    const update = mock.calls.find((call) => /UPDATE section_content/.test(call.sql));
     assert.deepEqual(update.params, ['approved_by_ds_amendment', 'Amendment approved', 99, 10, 20]);
-    const history = mock.calls.find(call => /INSERT INTO section_history/.test(call.sql));
-    assert.deepEqual(history.params, [10, 20, 'submitted_to_amending_ds', 'approved_by_ds_amendment', 99, 'Test User', 'AMENDING_DS', 'Amendment approved']);
+    const history = mock.calls.find((call) => /INSERT INTO section_history/.test(call.sql));
+    assert.deepEqual(history.params, [
+      10,
+      20,
+      'submitted_to_amending_ds',
+      'approved_by_ds_amendment',
+      99,
+      'Test User',
+      'AMENDING_DS',
+      'Amendment approved',
+    ]);
   });
 });
 
@@ -287,7 +317,7 @@ test('POST /return sends submitted sections back to the first editor role', asyn
       newStatus: 'returned_by_super_collaborator',
       returnTargetRole: 'COLLABORATOR',
     });
-    const update = mock.calls.find(call => /UPDATE section_content/.test(call.sql));
+    const update = mock.calls.find((call) => /UPDATE section_content/.test(call.sql));
     assert.deepEqual(update.params, ['returned_by_super_collaborator', 'Please revise', 'COLLABORATOR', 8, 10, 20]);
   });
 });
@@ -316,6 +346,9 @@ test('POST /return rejects document submitter amendment sections', async () => {
 
     assert.equal(res.statusCode, 400);
     assert.match(res.body.error, /Cannot return an amendment/);
-    assert.equal(mock.calls.some(call => /UPDATE section_content/.test(call.sql)), false);
+    assert.equal(
+      mock.calls.some((call) => /UPDATE section_content/.test(call.sql)),
+      false
+    );
   });
 });

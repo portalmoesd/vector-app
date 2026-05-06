@@ -27,6 +27,7 @@ const multer = require('multer');
 const config = require('../config');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const logger = require('../logger');
 
 // Legacy disk path — used only for one-shot migration of previously
 // uploaded files the first time the DB-backed version boots.
@@ -89,13 +90,10 @@ async function saveParsedAndRaw(kind, parsed, buffer) {
 
 async function loadParsed(kind) {
   try {
-    const { rows } = await db.query(
-      'SELECT parsed_json FROM admin_uploads WHERE kind = $1',
-      [kind]
-    );
+    const { rows } = await db.query('SELECT parsed_json FROM admin_uploads WHERE kind = $1', [kind]);
     return rows.length ? rows[0].parsed_json : null;
   } catch (err) {
-    console.error(`admin-uploads: loadParsed(${kind}) failed:`, err.message);
+    logger.error('admin-uploads: loadParsed(%s) failed: %s', kind, err.message);
     return null;
   }
 }
@@ -108,24 +106,23 @@ async function migrateLegacyDiskUploadsOnce() {
   let entries;
   try {
     entries = fs.readdirSync(LEGACY_DATA_DIR);
-  } catch (_) { return; }
+  } catch (_) {
+    return;
+  }
   for (const file of entries) {
     if (!file.endsWith('.json')) continue;
     const kind = file.slice(0, -5);
     try {
-      const { rows } = await db.query(
-        'SELECT 1 FROM admin_uploads WHERE kind = $1',
-        [kind]
-      );
+      const { rows } = await db.query('SELECT 1 FROM admin_uploads WHERE kind = $1', [kind]);
       if (rows.length) continue; // already in DB
       const jsonPath = path.join(LEGACY_DATA_DIR, `${kind}.json`);
       const xlsxPath = path.join(LEGACY_DATA_DIR, `${kind}.xlsx`);
       const parsed = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
       const buffer = fs.existsSync(xlsxPath) ? fs.readFileSync(xlsxPath) : null;
       await saveParsedAndRaw(kind, parsed, buffer);
-      console.log(`admin-uploads: migrated "${kind}" from disk to DB`);
+      logger.info(`admin-uploads: migrated "${kind}" from disk to DB`);
     } catch (err) {
-      console.warn(`admin-uploads: legacy migration for "${kind}" failed:`, err.message);
+      logger.warn(`admin-uploads: legacy migration for "${kind}" failed: %s`, err.message);
     }
   }
 }

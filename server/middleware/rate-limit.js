@@ -1,7 +1,16 @@
 function createRateLimit({ windowMs, max, keyPrefix = 'rate' }) {
   const hits = new Map();
 
-  return (req, res, next) => {
+  // Evict expired entries periodically to prevent memory leaks
+  const cleanup = setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of hits) {
+      if (entry.resetAt <= now) hits.delete(key);
+    }
+  }, windowMs);
+  cleanup.unref();
+
+  const middleware = (req, res, next) => {
     const now = Date.now();
     const ip = req.ip || req.socket?.remoteAddress || 'unknown';
     const key = `${keyPrefix}:${ip}`;
@@ -21,6 +30,10 @@ function createRateLimit({ windowMs, max, keyPrefix = 'rate' }) {
 
     return next();
   };
+
+  middleware.size = () => hits.size;
+
+  return middleware;
 }
 
 module.exports = { createRateLimit };

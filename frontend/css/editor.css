@@ -17,7 +17,11 @@
   flex-shrink: 0;
 }
 
-.gcp-avatar-sm { width: 18px; height: 18px; font-size: 10px; }
+.gcp-avatar-sm {
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+}
 
 /* ─── SimpleEditor (lightweight inline editor) ──────────────────────────── */
 
@@ -69,7 +73,10 @@
   transition: background 0.15s;
   flex-shrink: 0;
 }
-.gcp-fmt-btn:hover { background: var(--bg-hover); border-color: var(--border-color); }
+.gcp-fmt-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-color);
+}
 
 .gcp-color-picker {
   width: 28px;

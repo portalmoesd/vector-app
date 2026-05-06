@@ -3,6 +3,7 @@ const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { canAccessSection } = require('../helpers/access');
 const { asPositiveInt, validationError } = require('../helpers/validation');
+const logger = require('../logger');
 
 const router = express.Router();
 
@@ -26,7 +27,7 @@ router.get('/section-history', requireAuth, async (req, res) => {
     );
 
     res.json({
-      history: rows.map(r => ({
+      history: rows.map((r) => ({
         id: r.id,
         action: r.action,
         fromStatus: r.from_status,
@@ -38,7 +39,7 @@ router.get('/section-history', requireAuth, async (req, res) => {
       })),
     });
   } catch (err) {
-    console.error('Section history error:', err);
+    logger.error({ err }, 'Section history error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

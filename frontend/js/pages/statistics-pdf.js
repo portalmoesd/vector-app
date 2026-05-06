@@ -32,9 +32,9 @@
     if (fontsPromise) return fontsPromise;
     fontsPromise = (async () => {
       const [arialReg, arialBold, sylfaen] = await Promise.all([
-        fetch('/fonts/Arial-Regular.ttf').then(r => r.arrayBuffer()),
-        fetch('/fonts/Arial-Bold.ttf').then(r => r.arrayBuffer()),
-        fetch('/fonts/Sylfaen.ttf').then(r => r.arrayBuffer()),
+        fetch('/fonts/Arial-Regular.ttf').then((r) => r.arrayBuffer()),
+        fetch('/fonts/Arial-Bold.ttf').then((r) => r.arrayBuffer()),
+        fetch('/fonts/Sylfaen.ttf').then((r) => r.arrayBuffer()),
       ]);
       pdfMake.vfs = Object.assign({}, pdfMake.vfs || {}, {
         'Arial-Regular.ttf': abToB64(arialReg),
@@ -87,13 +87,13 @@
   // walked the doc tree). Returns an array suitable for pdfmake's
   // `text: [...]` form.
   function splitText(s) {
-    return window.FontUtils.splitByScript(s).map(seg => ({ text: seg.text, font: seg.font }));
+    return window.FontUtils.splitByScript(s).map((seg) => ({ text: seg.text, font: seg.font }));
   }
 
   function scriptifyTextValue(value) {
     if (typeof value === 'string') {
       if (!window.FontUtils.hasGeorgian(value)) return value;
-      return window.FontUtils.splitByScript(value).map(seg => ({ text: seg.text, font: seg.font }));
+      return window.FontUtils.splitByScript(value).map((seg) => ({ text: seg.text, font: seg.font }));
     }
     if (Array.isArray(value)) {
       const flat = [];
@@ -227,35 +227,61 @@
   // (e.g. "იანვარ" in "იანვარ-თებერვლის"), `gen` is the genitive form used
   // in "…მონაცემებით" sentences, `loc` is the locative used in "…ში" form.
   const KA_MONTHS = {
-    1:  { stem: 'იანვარ',     gen: 'იანვრის',     loc: 'იანვარში'    },
-    2:  { stem: 'თებერვალ',   gen: 'თებერვლის',   loc: 'თებერვალში'  },
-    3:  { stem: 'მარტ',       gen: 'მარტის',      loc: 'მარტში'      },
-    4:  { stem: 'აპრილ',      gen: 'აპრილის',     loc: 'აპრილში'     },
-    5:  { stem: 'მაის',       gen: 'მაისის',      loc: 'მაისში'      },
-    6:  { stem: 'ივნის',      gen: 'ივნისის',     loc: 'ივნისში'     },
-    7:  { stem: 'ივლის',      gen: 'ივლისის',     loc: 'ივლისში'     },
-    8:  { stem: 'აგვისტო',    gen: 'აგვისტოს',    loc: 'აგვისტოში'   },
-    9:  { stem: 'სექტემბერ',  gen: 'სექტემბრის',  loc: 'სექტემბერში' },
-    10: { stem: 'ოქტომბერ',   gen: 'ოქტომბრის',   loc: 'ოქტომბერში'  },
-    11: { stem: 'ნოემბერ',    gen: 'ნოემბრის',    loc: 'ნოემბერში'   },
-    12: { stem: 'დეკემბერ',   gen: 'დეკემბრის',   loc: 'დეკემბერში'  },
+    1: { stem: 'იანვარ', gen: 'იანვრის', loc: 'იანვარში' },
+    2: { stem: 'თებერვალ', gen: 'თებერვლის', loc: 'თებერვალში' },
+    3: { stem: 'მარტ', gen: 'მარტის', loc: 'მარტში' },
+    4: { stem: 'აპრილ', gen: 'აპრილის', loc: 'აპრილში' },
+    5: { stem: 'მაის', gen: 'მაისის', loc: 'მაისში' },
+    6: { stem: 'ივნის', gen: 'ივნისის', loc: 'ივნისში' },
+    7: { stem: 'ივლის', gen: 'ივლისის', loc: 'ივლისში' },
+    8: { stem: 'აგვისტო', gen: 'აგვისტოს', loc: 'აგვისტოში' },
+    9: { stem: 'სექტემბერ', gen: 'სექტემბრის', loc: 'სექტემბერში' },
+    10: { stem: 'ოქტომბერ', gen: 'ოქტომბრის', loc: 'ოქტომბერში' },
+    11: { stem: 'ნოემბერ', gen: 'ნოემბრის', loc: 'ნოემბერში' },
+    12: { stem: 'დეკემბერ', gen: 'დეკემბრის', loc: 'დეკემბერში' },
   };
 
   function gePeriodGen(year, latestMonth) {
     if (latestMonth === 12) return `${year} წლის`;
-    if (latestMonth === 1)  return `${year} წლის ${KA_MONTHS[1].gen}`;
+    if (latestMonth === 1) return `${year} წლის ${KA_MONTHS[1].gen}`;
     return `${year} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].gen}`;
   }
 
   function gePeriodLoc(year, latestMonth) {
     if (latestMonth === 12) return `${year} წელს`;
-    if (latestMonth === 1)  return `${year} წლის ${KA_MONTHS[1].loc}`;
+    if (latestMonth === 1) return `${year} წლის ${KA_MONTHS[1].loc}`;
     return `${year} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].loc}`;
   }
 
-  const EN_MONTHS = { 1:'Jan', 2:'Feb', 3:'Mar', 4:'Apr', 5:'May', 6:'Jun', 7:'Jul', 8:'Aug', 9:'Sep', 10:'Oct', 11:'Nov', 12:'Dec' };
+  const EN_MONTHS = {
+    1: 'Jan',
+    2: 'Feb',
+    3: 'Mar',
+    4: 'Apr',
+    5: 'May',
+    6: 'Jun',
+    7: 'Jul',
+    8: 'Aug',
+    9: 'Sep',
+    10: 'Oct',
+    11: 'Nov',
+    12: 'Dec',
+  };
 
-  const KA_MONTHS_SHORT = { 1:'იან', 2:'თებ', 3:'მარ', 4:'აპრ', 5:'მაი', 6:'ივნ', 7:'ივლ', 8:'აგვ', 9:'სექ', 10:'ოქტ', 11:'ნოე', 12:'დეკ' };
+  const KA_MONTHS_SHORT = {
+    1: 'იან',
+    2: 'თებ',
+    3: 'მარ',
+    4: 'აპრ',
+    5: 'მაი',
+    6: 'ივნ',
+    7: 'ივლ',
+    8: 'აგვ',
+    9: 'სექ',
+    10: 'ოქტ',
+    11: 'ნოე',
+    12: 'დეკ',
+  };
 
   // Derive the short period label ("Jan-Feb" / "იან-თებ") from latestMonth +
   // the PDF's language. trade.periodLabel is baked from the page locale at
@@ -278,7 +304,7 @@
   function gePeriodGenRange(startYear, endYear, latestMonth) {
     const years = `${startYear}-${endYear}`;
     if (latestMonth === 12) return `${years} წლების`;
-    if (latestMonth === 1)  return `${years} წლის ${KA_MONTHS[1].gen}`;
+    if (latestMonth === 1) return `${years} წლის ${KA_MONTHS[1].gen}`;
     return `${years} წლის ${KA_MONTHS[1].stem}-${KA_MONTHS[latestMonth].gen}`;
   }
   function enPeriodRange(startYear, endYear, latestMonth) {
@@ -301,10 +327,14 @@
     const mod100 = n % 100;
     if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
     switch (n % 10) {
-      case 1: return `${n}st`;
-      case 2: return `${n}nd`;
-      case 3: return `${n}rd`;
-      default: return `${n}th`;
+      case 1:
+        return `${n}st`;
+      case 2:
+        return `${n}nd`;
+      case 3:
+        return `${n}rd`;
+      default:
+        return `${n}th`;
     }
   }
 
@@ -409,7 +439,7 @@
     const prevYear = periodMeta.prevYear;
     const latestYear = periodMeta.latestYear;
     const colFull = String(prevYear);
-    const monthLbl = monthNames.find(m => m.value === latestMonth)?.label || '';
+    const monthLbl = monthNames.find((m) => m.value === latestMonth)?.label || '';
     const colMonth = `${periodMeta.periodLabel} ${latestYear}`;
 
     const rows = [
@@ -427,7 +457,8 @@
 
     function cell(value, prev, isBalance, key, periodData) {
       if (isBalance && periodData.turnover === 0) return { text: '-', alignment: 'center' };
-      if (value === 0 && !isBalance && zeroMsg[key]) return { text: zeroMsg[key], alignment: 'center', color: '#94a3b8', fontSize: 8.5 };
+      if (value === 0 && !isBalance && zeroMsg[key])
+        return { text: zeroMsg[key], alignment: 'center', color: '#94a3b8', fontSize: 8.5 };
       if (isBalance) {
         const sign = value < 0 ? t.negative : t.positive;
         const color = value < 0 ? '#dc2626' : '#16a34a';
@@ -445,9 +476,7 @@
       };
     }
 
-    const body = [
-      [th(''), thCenter(colFull), thCenter(colMonth)],
-    ];
+    const body = [[th(''), thCenter(colFull), thCenter(colMonth)]];
 
     for (const r of rows) {
       const isBalance = r.key === 'balance';
@@ -478,17 +507,13 @@
     if (!products || products.length === 0) {
       return { text: t.noData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] };
     }
-    const header = [
-      th(t.hsProduct),
-      thRight(t.volumeHeader),
-      thRight(t.changeHeader),
-    ];
+    const header = [th(t.hsProduct), thRight(t.volumeHeader), thRight(t.changeHeader)];
     if (showReexport) header.push(thRight(t.reexportShareShort));
 
     const body = [header];
     for (const p of products) {
       const change = p.change;
-      const changeColor = change > 0 ? '#16a34a' : (change < 0 ? '#dc2626' : '#475569');
+      const changeColor = change > 0 ? '#16a34a' : change < 0 ? '#dc2626' : '#475569';
       const changeSign = change > 0 ? '+' : '';
       const row = [
         tdText(lang === 'en' && p.nameEn ? p.nameEn : p.name),
@@ -518,14 +543,7 @@
     if (!products || products.length === 0) {
       return { text: t.noData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] };
     }
-    const body = [
-      [
-        th(t.hsProduct),
-        thRight(t.volumeHeader),
-        thRight(t.changeHeader),
-        thRight(t.differenceHeader),
-      ],
-    ];
+    const body = [[th(t.hsProduct), thRight(t.volumeHeader), thRight(t.changeHeader), thRight(t.differenceHeader)]];
     for (const p of products) {
       const changeColor = p.changePct > 0 ? '#16a34a' : '#dc2626';
       const diffColor = p.diffMln > 0 ? '#16a34a' : '#dc2626';
@@ -556,7 +574,7 @@
     const isKa = lang === 'ka';
     const periodGen = isKa ? gePeriodGen(trade.latestYear, trade.latestMonth) : null;
     const periodLoc = isKa ? gePeriodLoc(trade.latestYear, trade.latestMonth) : null;
-    const periodEn  = !isKa ? enPeriod(trade.latestYear, trade.latestMonth) : null;
+    const periodEn = !isKa ? enPeriod(trade.latestYear, trade.latestMonth) : null;
     const rank = trade.ranking && trade.ranking.country ? trade.ranking.country : null;
     // Hide rank-prose when the country sits outside the top 20 — bare
     // ordinals like "47th" don't add value. Volumes still render.
@@ -566,11 +584,24 @@
     const B = (s) => ({ text: s, bold: true });
     const I = (s) => ({ text: s, italics: true });
 
-    const heading = (ka, en) => ({ text: isKa ? ka : en, bold: true, fontSize: 11, color: '#0f172a', margin: [0, 0, 0, 4] });
-    const divider = () => ({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 531, y2: 0, lineWidth: 0.5, lineColor: '#d1d5db' }], margin: [0, 6, 0, 6] });
+    const heading = (ka, en) => ({
+      text: isKa ? ka : en,
+      bold: true,
+      fontSize: 11,
+      color: '#0f172a',
+      margin: [0, 0, 0, 4],
+    });
+    const divider = () => ({
+      canvas: [{ type: 'line', x1: 0, y1: 0, x2: 531, y2: 0, lineWidth: 0.5, lineColor: '#d1d5db' }],
+      margin: [0, 6, 0, 6],
+    });
 
-    function pctInt(x) { return Math.round(Math.abs(x)); }
-    function pctOne(x) { return (Math.round(x * 10) / 10).toFixed(1); }
+    function pctInt(x) {
+      return Math.round(Math.abs(x));
+    }
+    function pctOne(x) {
+      return (Math.round(x * 10) / 10).toFixed(1);
+    }
 
     function changeVerbParts(current, prev) {
       const c = calcChange(current, prev);
@@ -590,7 +621,7 @@
       const unit = isKa ? 'მლნ. $' : 'mln $';
       items.forEach((p, i) => {
         const changeSign = p.change > 0 ? '+' : '';
-        const name = isKa ? p.name : (p.nameEn || p.name);
+        const name = isKa ? p.name : p.nameEn || p.name;
         parts.push(name + ' ');
         parts.push(I(`(${formatMln(p.valueMln)} ${unit}, ${changeSign}${formatPct(p.change)})`));
         parts.push(i < items.length - 1 ? ', ' : '.');
@@ -601,12 +632,12 @@
     const paraStyle = { fontSize: 10, lineHeight: 1.3, alignment: 'justify', margin: [0, 0, 0, 4] };
     const nodes = [];
 
-    const curTurn  = trade.overview.latestPeriod.turnover;
+    const curTurn = trade.overview.latestPeriod.turnover;
     const prevTurn = trade.overview.latestPeriod.turnoverPrev;
-    const curExp   = trade.overview.latestPeriod.export;
-    const prevExp  = trade.overview.latestPeriod.exportPrev;
-    const curImp   = trade.overview.latestPeriod.import;
-    const prevImp  = trade.overview.latestPeriod.importPrev;
+    const curExp = trade.overview.latestPeriod.export;
+    const prevExp = trade.overview.latestPeriod.exportPrev;
+    const curImp = trade.overview.latestPeriod.import;
+    const prevImp = trade.overview.latestPeriod.importPrev;
 
     // ── Turnover ─────────────────────────────────────────────────────────
     nodes.push(heading('სავაჭრო ბრუნვა', 'Trade Turnover'));
@@ -614,40 +645,59 @@
       // Widen the "no trade" period from the latest period alone to the
       // full 5-year + latest window when there's zero trade everywhere.
       const widen = trade.hasAnyTrade === false && trade.fiveYearStart;
-      const kaLabel = widen
-        ? gePeriodGenRange(trade.fiveYearStart, trade.latestYear, trade.latestMonth)
-        : periodGen;
-      const enLabel = widen
-        ? enPeriodRange(trade.fiveYearStart, trade.latestYear, trade.latestMonth)
-        : periodEn;
-      nodes.push({ text: isKa
-        ? `${kaLabel} მონაცემებით, ვაჭრობა არ განხორციელდა.`
-        : `For ${enLabel}, no trade was conducted.`, ...paraStyle });
+      const kaLabel = widen ? gePeriodGenRange(trade.fiveYearStart, trade.latestYear, trade.latestMonth) : periodGen;
+      const enLabel = widen ? enPeriodRange(trade.fiveYearStart, trade.latestYear, trade.latestMonth) : periodEn;
+      nodes.push({
+        text: isKa ? `${kaLabel} მონაცემებით, ვაჭრობა არ განხორციელდა.` : `For ${enLabel}, no trade was conducted.`,
+        ...paraStyle,
+      });
       return nodes;
     }
     if (isKa) {
-      nodes.push({ text: [
-        `${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიურ პერიოდთან შედარებით, `,
-        changeVerbParts(curTurn, prevTurn),
-        ` და `, B(`${formatMln(curTurn)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
-      ], ...paraStyle });
+      nodes.push({
+        text: [
+          `${periodGen} მონაცემებით, სავაჭრო ბრუნვა, წინა წლის ანალოგიურ პერიოდთან შედარებით, `,
+          changeVerbParts(curTurn, prevTurn),
+          ` და `,
+          B(`${formatMln(curTurn)} მლნ. აშშ დოლარი`),
+          ` შეადგინა.`,
+        ],
+        ...paraStyle,
+      });
       if (inTop(rank && rank.turnover)) {
-        nodes.push({ text: [
-          `${country} აღნიშნულ პერიოდში სავაჭრო ბრუნვის მოცულობის მიხედვით არის `,
-          B(`${gePlace(rank.turnover.rank)} ადგილზე`), `, წილი `, B(`${pctOne(rank.turnover.sharePct)}%`), `.`,
-        ], ...paraStyle });
+        nodes.push({
+          text: [
+            `${country} აღნიშნულ პერიოდში სავაჭრო ბრუნვის მოცულობის მიხედვით არის `,
+            B(`${gePlace(rank.turnover.rank)} ადგილზე`),
+            `, წილი `,
+            B(`${pctOne(rank.turnover.sharePct)}%`),
+            `.`,
+          ],
+          ...paraStyle,
+        });
       }
     } else {
-      nodes.push({ text: [
-        `For ${periodEn}, trade turnover `,
-        changeVerbParts(curTurn, prevTurn),
-        ` compared to the same period last year, amounting to `, B(`${formatMln(curTurn)} mln USD`), `.`,
-      ], ...paraStyle });
+      nodes.push({
+        text: [
+          `For ${periodEn}, trade turnover `,
+          changeVerbParts(curTurn, prevTurn),
+          ` compared to the same period last year, amounting to `,
+          B(`${formatMln(curTurn)} mln USD`),
+          `.`,
+        ],
+        ...paraStyle,
+      });
       if (inTop(rank && rank.turnover)) {
-        nodes.push({ text: [
-          `${country} ranks `, B(enOrdinal(rank.turnover.rank)),
-          ` by trade turnover with a `, B(`${pctOne(rank.turnover.sharePct)}%`), ` share.`,
-        ], ...paraStyle });
+        nodes.push({
+          text: [
+            `${country} ranks `,
+            B(enOrdinal(rank.turnover.rank)),
+            ` by trade turnover with a `,
+            B(`${pctOne(rank.turnover.sharePct)}%`),
+            ` share.`,
+          ],
+          ...paraStyle,
+        });
       }
     }
 
@@ -655,74 +705,122 @@
     nodes.push(divider());
     nodes.push(heading('ექსპორტი', 'Export'));
     if (!trade.hasExport || curExp < 0.01) {
-      nodes.push({ text: isKa ? `ექსპორტი ${periodLoc} არ განხორციელდა.` : `No exports were conducted in ${periodEn}.`, ...paraStyle, margin: [0, 6, 0, 4] });
+      nodes.push({
+        text: isKa ? `ექსპორტი ${periodLoc} არ განხორციელდა.` : `No exports were conducted in ${periodEn}.`,
+        ...paraStyle,
+        margin: [0, 6, 0, 4],
+      });
     } else {
       if (isKa) {
-        nodes.push({ text: [
-          `ექსპორტი ${periodLoc} `,
-          changeVerbParts(curExp, prevExp),
-          ` და `, B(`${formatMln(curExp)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
-          ...(inTop(rank && rank.export) ? [
-            ` საქართველოსთვის ექსპორტის მიხედვით ${country} არის `,
-            B(`${gePlace(rank.export.rank)} ადგილზე`), ` საქართველოს სავაჭრო პარტნიორებს შორის, წილი `, B(`${pctOne(rank.export.sharePct)}%`), `.`,
-          ] : []),
-        ], ...paraStyle, margin: [0, 6, 0, 4] });
+        nodes.push({
+          text: [
+            `ექსპორტი ${periodLoc} `,
+            changeVerbParts(curExp, prevExp),
+            ` და `,
+            B(`${formatMln(curExp)} მლნ. აშშ დოლარი`),
+            ` შეადგინა.`,
+            ...(inTop(rank && rank.export)
+              ? [
+                  ` საქართველოსთვის ექსპორტის მიხედვით ${country} არის `,
+                  B(`${gePlace(rank.export.rank)} ადგილზე`),
+                  ` საქართველოს სავაჭრო პარტნიორებს შორის, წილი `,
+                  B(`${pctOne(rank.export.sharePct)}%`),
+                  `.`,
+                ]
+              : []),
+          ],
+          ...paraStyle,
+          margin: [0, 6, 0, 4],
+        });
       } else {
-        nodes.push({ text: [
-          `Exports in ${periodEn} `,
-          changeVerbParts(curExp, prevExp),
-          `, amounting to `, B(`${formatMln(curExp)} mln USD`), `.`,
-          ...(inTop(rank && rank.export) ? [
-            ` ${country} ranks `, B(enOrdinal(rank.export.rank)),
-            ` by export volume with a `, B(`${pctOne(rank.export.sharePct)}%`), ` share.`,
-          ] : []),
-        ], ...paraStyle, margin: [0, 6, 0, 4] });
+        nodes.push({
+          text: [
+            `Exports in ${periodEn} `,
+            changeVerbParts(curExp, prevExp),
+            `, amounting to `,
+            B(`${formatMln(curExp)} mln USD`),
+            `.`,
+            ...(inTop(rank && rank.export)
+              ? [
+                  ` ${country} ranks `,
+                  B(enOrdinal(rank.export.rank)),
+                  ` by export volume with a `,
+                  B(`${pctOne(rank.export.sharePct)}%`),
+                  ` share.`,
+                ]
+              : []),
+          ],
+          ...paraStyle,
+          margin: [0, 6, 0, 4],
+        });
       }
 
       // Domestic export + re-export
       if (rank && rank.domesticExport && curExp > 0) {
         const domVal = rank.domesticExport.valueMln;
-        const domPct = (100 * domVal / curExp).toFixed(0);
-        const reVal = rank.reExport ? rank.reExport.valueMln : (curExp - domVal);
-        const rePct = (100 * reVal / curExp).toFixed(0);
+        const domPct = ((100 * domVal) / curExp).toFixed(0);
+        const reVal = rank.reExport ? rank.reExport.valueMln : curExp - domVal;
+        const rePct = ((100 * reVal) / curExp).toFixed(0);
         const showDomRank = inTop(rank.domesticExport);
 
         if (isKa) {
-          nodes.push({ text: [
-            `${periodGen} პერიოდში განხორციელდა `,
-            B(`${formatMln(domVal)} მლნ. აშშ დოლარის`),
-            ` `, B('ადგილობრივი ექსპორტი'), `, რაც შეადგენს `, B(`${domPct}%-ს`), ` სრული ექსპორტის. `,
-            ...(showDomRank ? [
-              `ადგილობრივი ექსპორტით ${country} იკავებს `,
-              B(`${gePlace(rank.domesticExport.rank)} ადგილს`),
-              ` საქართველოს სავაჭრო პარტნიორებს შორის. `,
-            ] : []),
-            `რე-ექსპორტმა იმავე პერიოდში შეადგინა `,
-            B(`${formatMln(reVal)} მლნ. აშშ დოლარი`), ` `, I(`(წილი ${rePct}%)`), `.`,
-          ], ...paraStyle });
+          nodes.push({
+            text: [
+              `${periodGen} პერიოდში განხორციელდა `,
+              B(`${formatMln(domVal)} მლნ. აშშ დოლარის`),
+              ` `,
+              B('ადგილობრივი ექსპორტი'),
+              `, რაც შეადგენს `,
+              B(`${domPct}%-ს`),
+              ` სრული ექსპორტის. `,
+              ...(showDomRank
+                ? [
+                    `ადგილობრივი ექსპორტით ${country} იკავებს `,
+                    B(`${gePlace(rank.domesticExport.rank)} ადგილს`),
+                    ` საქართველოს სავაჭრო პარტნიორებს შორის. `,
+                  ]
+                : []),
+              `რე-ექსპორტმა იმავე პერიოდში შეადგინა `,
+              B(`${formatMln(reVal)} მლნ. აშშ დოლარი`),
+              ` `,
+              I(`(წილი ${rePct}%)`),
+              `.`,
+            ],
+            ...paraStyle,
+          });
         } else {
-          nodes.push({ text: [
-            `In the given period, domestic exports amounted to `,
-            B(`${formatMln(domVal)} mln USD`),
-            `, comprising `, B(`${domPct}%`), ` of total exports. `,
-            ...(showDomRank ? [
-              `By domestic exports, ${country} ranks `,
-              B(enOrdinal(rank.domesticExport.rank)),
-              ` among Georgia's trading partners. `,
-            ] : []),
-            `Re-exports in the same period amounted to `,
-            B(`${formatMln(reVal)} mln USD`), ` `, I(`(${rePct}% share)`), `.`,
-          ], ...paraStyle });
+          nodes.push({
+            text: [
+              `In the given period, domestic exports amounted to `,
+              B(`${formatMln(domVal)} mln USD`),
+              `, comprising `,
+              B(`${domPct}%`),
+              ` of total exports. `,
+              ...(showDomRank
+                ? [
+                    `By domestic exports, ${country} ranks `,
+                    B(enOrdinal(rank.domesticExport.rank)),
+                    ` among Georgia's trading partners. `,
+                  ]
+                : []),
+              `Re-exports in the same period amounted to `,
+              B(`${formatMln(reVal)} mln USD`),
+              ` `,
+              I(`(${rePct}% share)`),
+              `.`,
+            ],
+            ...paraStyle,
+          });
         }
       }
 
       // Product list
       const expParts = productListParts(trade.exportProducts);
       if (expParts.length) {
-        nodes.push({ text: [
-          B(isKa ? 'ძირითადი საექსპორტო პროდუქცია: ' : 'Main export products: '),
-          ...expParts,
-        ], ...paraStyle });
+        nodes.push({
+          text: [B(isKa ? 'ძირითადი საექსპორტო პროდუქცია: ' : 'Main export products: '), ...expParts],
+          ...paraStyle,
+        });
       }
     }
 
@@ -730,36 +828,62 @@
     nodes.push(divider());
     nodes.push(heading('იმპორტი', 'Import'));
     if (!trade.hasImport || curImp < 0.01) {
-      nodes.push({ text: isKa ? `იმპორტი ${periodLoc} არ განხორციელდა.` : `No imports were conducted in ${periodEn}.`, ...paraStyle, margin: [0, 6, 0, 4] });
+      nodes.push({
+        text: isKa ? `იმპორტი ${periodLoc} არ განხორციელდა.` : `No imports were conducted in ${periodEn}.`,
+        ...paraStyle,
+        margin: [0, 6, 0, 4],
+      });
     } else {
       if (isKa) {
-        nodes.push({ text: [
-          `იმპორტი ${periodLoc} `,
-          changeVerbParts(curImp, prevImp),
-          ` და `, B(`${formatMln(curImp)} მლნ. აშშ დოლარი`), ` შეადგინა.`,
-          ...(inTop(rank && rank.import) ? [
-            ` იმპორტის მიხედვით ${country} არის `,
-            B(`${gePlace(rank.import.rank)} ადგილზე`), ` საქართველოს სავაჭრო პარტნიორებს შორის, წილი `, B(`${pctOne(rank.import.sharePct)}%`), `.`,
-          ] : []),
-        ], ...paraStyle, margin: [0, 6, 0, 4] });
+        nodes.push({
+          text: [
+            `იმპორტი ${periodLoc} `,
+            changeVerbParts(curImp, prevImp),
+            ` და `,
+            B(`${formatMln(curImp)} მლნ. აშშ დოლარი`),
+            ` შეადგინა.`,
+            ...(inTop(rank && rank.import)
+              ? [
+                  ` იმპორტის მიხედვით ${country} არის `,
+                  B(`${gePlace(rank.import.rank)} ადგილზე`),
+                  ` საქართველოს სავაჭრო პარტნიორებს შორის, წილი `,
+                  B(`${pctOne(rank.import.sharePct)}%`),
+                  `.`,
+                ]
+              : []),
+          ],
+          ...paraStyle,
+          margin: [0, 6, 0, 4],
+        });
       } else {
-        nodes.push({ text: [
-          `Imports in ${periodEn} `,
-          changeVerbParts(curImp, prevImp),
-          `, amounting to `, B(`${formatMln(curImp)} mln USD`), `.`,
-          ...(inTop(rank && rank.import) ? [
-            ` ${country} ranks `, B(enOrdinal(rank.import.rank)),
-            ` by import volume with a `, B(`${pctOne(rank.import.sharePct)}%`), ` share.`,
-          ] : []),
-        ], ...paraStyle, margin: [0, 6, 0, 4] });
+        nodes.push({
+          text: [
+            `Imports in ${periodEn} `,
+            changeVerbParts(curImp, prevImp),
+            `, amounting to `,
+            B(`${formatMln(curImp)} mln USD`),
+            `.`,
+            ...(inTop(rank && rank.import)
+              ? [
+                  ` ${country} ranks `,
+                  B(enOrdinal(rank.import.rank)),
+                  ` by import volume with a `,
+                  B(`${pctOne(rank.import.sharePct)}%`),
+                  ` share.`,
+                ]
+              : []),
+          ],
+          ...paraStyle,
+          margin: [0, 6, 0, 4],
+        });
       }
 
       const impParts = productListParts(trade.importProducts);
       if (impParts.length) {
-        nodes.push({ text: [
-          B(isKa ? 'ძირითადი საიმპორტო პროდუქცია: ' : 'Main import products: '),
-          ...impParts,
-        ], ...paraStyle });
+        nodes.push({
+          text: [B(isKa ? 'ძირითადი საიმპორტო პროდუქცია: ' : 'Main import products: '), ...impParts],
+          ...paraStyle,
+        });
       }
     }
 
@@ -778,15 +902,19 @@
     const blocks = [];
     const title = `${country} - ${t.tradeOverview}, ${periodLabel} ${trade.latestYear}`;
     const summary = buildTradeSummary(trade, t, country, lang);
-    blocks.push(withTitle(
-      sectionTitle(title),
-      ...summary,
-      buildOverviewTable(
-        trade.overview,
-        { prevYear: trade.prevYear, latestYear: trade.latestYear, periodLabel },
-        t, trade.latestMonth, trade.monthNames,
-      ),
-    ));
+    blocks.push(
+      withTitle(
+        sectionTitle(title),
+        ...summary,
+        buildOverviewTable(
+          trade.overview,
+          { prevYear: trade.prevYear, latestYear: trade.latestYear, periodLabel },
+          t,
+          trade.latestMonth,
+          trade.monthNames
+        )
+      )
+    );
 
     // Charts — turnover + dynamics, stacked full-width so every chart in the
     // document has identical width (500pt) and uniform height (≈150pt).
@@ -823,10 +951,12 @@
 
     // Export products + changes
     if (trade.hasExport) {
-      blocks.push(withTitle(
-        subTitle(`${t.mainExport}, ${periodLabel} ${trade.latestYear}`),
-        buildProductsTable(trade.exportProducts, t, periodLabel, trade.latestYear, true, lang),
-      ));
+      blocks.push(
+        withTitle(
+          subTitle(`${t.mainExport}, ${periodLabel} ${trade.latestYear}`),
+          buildProductsTable(trade.exportProducts, t, periodLabel, trade.latestYear, true, lang)
+        )
+      );
 
       const incLabel = trade.exportGrowing ? t.exportIncrease : t.exportDrop;
       const dropLabel = trade.exportGrowing ? t.exportDrop : t.exportIncrease;
@@ -834,25 +964,31 @@
       const dropProds = trade.exportGrowing ? trade.exportChange.drop : trade.exportChange.increase;
 
       if (incProds && incProds.length) {
-        blocks.push(withTitle(
-          subTitle(`${incLabel}, ${periodLabel} ${trade.latestYear}`),
-          buildChangeTable(incProds, t, periodLabel, trade.latestYear, lang),
-        ));
+        blocks.push(
+          withTitle(
+            subTitle(`${incLabel}, ${periodLabel} ${trade.latestYear}`),
+            buildChangeTable(incProds, t, periodLabel, trade.latestYear, lang)
+          )
+        );
       }
       if (dropProds && dropProds.length) {
-        blocks.push(withTitle(
-          subTitle(`${dropLabel}, ${periodLabel} ${trade.latestYear}`),
-          buildChangeTable(dropProds, t, periodLabel, trade.latestYear, lang),
-        ));
+        blocks.push(
+          withTitle(
+            subTitle(`${dropLabel}, ${periodLabel} ${trade.latestYear}`),
+            buildChangeTable(dropProds, t, periodLabel, trade.latestYear, lang)
+          )
+        );
       }
     }
 
     // Import products + changes
     if (trade.hasImport) {
-      blocks.push(withTitle(
-        subTitle(`${t.mainImport}, ${periodLabel} ${trade.latestYear}`),
-        buildProductsTable(trade.importProducts, t, periodLabel, trade.latestYear, false, lang),
-      ));
+      blocks.push(
+        withTitle(
+          subTitle(`${t.mainImport}, ${periodLabel} ${trade.latestYear}`),
+          buildProductsTable(trade.importProducts, t, periodLabel, trade.latestYear, false, lang)
+        )
+      );
 
       const incLabel = trade.importGrowing ? t.importIncrease : t.importDrop;
       const dropLabel = trade.importGrowing ? t.importDrop : t.importIncrease;
@@ -860,16 +996,20 @@
       const dropProds = trade.importGrowing ? trade.importChange.drop : trade.importChange.increase;
 
       if (incProds && incProds.length) {
-        blocks.push(withTitle(
-          subTitle(`${incLabel}, ${periodLabel} ${trade.latestYear}`),
-          buildChangeTable(incProds, t, periodLabel, trade.latestYear, lang),
-        ));
+        blocks.push(
+          withTitle(
+            subTitle(`${incLabel}, ${periodLabel} ${trade.latestYear}`),
+            buildChangeTable(incProds, t, periodLabel, trade.latestYear, lang)
+          )
+        );
       }
       if (dropProds && dropProds.length) {
-        blocks.push(withTitle(
-          subTitle(`${dropLabel}, ${periodLabel} ${trade.latestYear}`),
-          buildChangeTable(dropProds, t, periodLabel, trade.latestYear, lang),
-        ));
+        blocks.push(
+          withTitle(
+            subTitle(`${dropLabel}, ${periodLabel} ${trade.latestYear}`),
+            buildChangeTable(dropProds, t, periodLabel, trade.latestYear, lang)
+          )
+        );
       }
     }
 
@@ -885,7 +1025,7 @@
     const fmt = (n) => Number(n).toLocaleString();
     // Prefer the Georgian ablative from the grammar sheet ("…იდან"), which
     // handles cases like "ავსტრია → ავსტრიიდან" that naive "+დან" gets wrong.
-    const kaFrom = (name) => (grammar && grammar.from) || (name + 'დან');
+    const kaFrom = (name) => (grammar && grammar.from) || name + 'დან';
 
     function formatPeriodKa(label) {
       const m = /^(\d{4})\s+([IVX]+)\s+კვ$/.exec(label || '');
@@ -902,30 +1042,50 @@
     const nodes = [];
     if (tourism.fiveYearSum > 0) {
       if (isKa) {
-        nodes.push({ text: [
-          B(`${tourism.fiveYearStart} - ${tourism.fiveYearEnd}`),
-          ` წლებში ${kaFrom(country)} საქართველოში შემოვიდა `,
-          B(fmt(tourism.fiveYearSum)), ` ვიზიტორი.`,
-        ], ...paraStyle });
+        nodes.push({
+          text: [
+            B(`${tourism.fiveYearStart} - ${tourism.fiveYearEnd}`),
+            ` წლებში ${kaFrom(country)} საქართველოში შემოვიდა `,
+            B(fmt(tourism.fiveYearSum)),
+            ` ვიზიტორი.`,
+          ],
+          ...paraStyle,
+        });
       } else {
-        nodes.push({ text: [
-          `Between `, B(`${tourism.fiveYearStart}-${tourism.fiveYearEnd}`),
-          `, `, B(fmt(tourism.fiveYearSum)), ` visitors came to Georgia from ${country}.`,
-        ], ...paraStyle });
+        nodes.push({
+          text: [
+            `Between `,
+            B(`${tourism.fiveYearStart}-${tourism.fiveYearEnd}`),
+            `, `,
+            B(fmt(tourism.fiveYearSum)),
+            ` visitors came to Georgia from ${country}.`,
+          ],
+          ...paraStyle,
+        });
       }
     }
     if (tourism.currentRank && tourism.currentPeriodLabel) {
       if (isKa) {
-        nodes.push({ text: [
-          B(formatPeriodKa(tourism.currentPeriodLabel)),
-          ` მონაცემებით ვიზიტორების რაოდენობის მიხედვით ${country} არის `,
-          B(`${gePlace(tourism.currentRank)} ადგილზე`), `.`,
-        ], ...paraStyle });
+        nodes.push({
+          text: [
+            B(formatPeriodKa(tourism.currentPeriodLabel)),
+            ` მონაცემებით ვიზიტორების რაოდენობის მიხედვით ${country} არის `,
+            B(`${gePlace(tourism.currentRank)} ადგილზე`),
+            `.`,
+          ],
+          ...paraStyle,
+        });
       } else {
-        nodes.push({ text: [
-          `By visitor count in `, B(formatPeriodEn(tourism.currentPeriodLabel)),
-          `, ${country} ranks `, B(enOrdinal(tourism.currentRank)), `.`,
-        ], ...paraStyle });
+        nodes.push({
+          text: [
+            `By visitor count in `,
+            B(formatPeriodEn(tourism.currentPeriodLabel)),
+            `, ${country} ranks `,
+            B(enOrdinal(tourism.currentRank)),
+            `.`,
+          ],
+          ...paraStyle,
+        });
       }
     }
     return nodes;
@@ -938,10 +1098,9 @@
     const title = sectionTitle(`${country} - ${t.internationalVisitors}`);
 
     if (!tourism.hasData) {
-      blocks.push(withTitle(
-        title,
-        { text: t.noTourismData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] },
-      ));
+      blocks.push(
+        withTitle(title, { text: t.noTourismData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] })
+      );
       return blocks;
     }
 
@@ -953,7 +1112,7 @@
 
     // Drop the rank column entirely when no row reaches the top 20.
     const TOP_RANK_LIMIT = 20;
-    const showRank = rows.some(r => r.rank && r.rank <= TOP_RANK_LIMIT);
+    const showRank = rows.some((r) => r.rank && r.rank <= TOP_RANK_LIMIT);
 
     const headerRow = [th(t.period)];
     if (showRank) headerRow.push(thRight(rankHeader));
@@ -964,21 +1123,15 @@
       if (r.changePct === null || r.changePct === undefined) {
         changeCell = tdNum('-');
       } else {
-        const color = r.changePct > 0 ? '#16a34a' : (r.changePct < 0 ? '#dc2626' : '#475569');
+        const color = r.changePct > 0 ? '#16a34a' : r.changePct < 0 ? '#dc2626' : '#475569';
         const sign = r.changePct > 0 ? '+' : '';
         changeCell = tdNum(`${sign}${formatPct(r.changePct)}`, { color });
       }
       const rankCell = r.rank ? tdNum(String(r.rank)) : tdNum('-');
-      const shareCell = (r.share != null)
-        ? tdNum(`${(Math.round(r.share * 10) / 10).toFixed(1)}%`)
-        : tdNum('-');
+      const shareCell = r.share != null ? tdNum(`${(Math.round(r.share * 10) / 10).toFixed(1)}%`) : tdNum('-');
       const row = [tdText(r.label, r.isCurrent ? { bold: true } : {})];
       if (showRank) row.push(rankCell);
-      row.push(
-        tdNum(r.visitors.toLocaleString()),
-        changeCell,
-        shareCell,
-      );
+      row.push(tdNum(r.visitors.toLocaleString()), changeCell, shareCell);
       body.push(row);
     }
 
@@ -1019,7 +1172,7 @@
     const paraStyle = { fontSize: 10, lineHeight: 1.3, alignment: 'justify', margin: [0, 0, 0, 4] };
     const fmt = (n) => (Math.round(Math.abs(n) * 100) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     // Prefer the Georgian ablative from the grammar sheet ("…იდან").
-    const kaFrom = (name) => (grammar && grammar.from) || (name + 'დან');
+    const kaFrom = (name) => (grammar && grammar.from) || name + 'დან';
     const countryFrom = isKa ? kaFrom(country) : country;
 
     const nodes = [];
@@ -1029,23 +1182,29 @@
       if (isKa) {
         const parts = [
           `${countryFrom} საქართველოში პირდაპირი უცხოური ინვესტიცია პირველად `,
-          B(`${inv.firstYear}`), ` წელს განხორციელდა. ჯამური განხორციელებული პირდაპირი უცხოური ინვესტიცია შეადგენს `,
-          B(`${fmt(inv.totalSum)} მლნ. აშშ დოლარს`), `.`,
+          B(`${inv.firstYear}`),
+          ` წელს განხორციელდა. ჯამური განხორციელებული პირდაპირი უცხოური ინვესტიცია შეადგენს `,
+          B(`${fmt(inv.totalSum)} მლნ. აშშ დოლარს`),
+          `.`,
         ];
         if (inv.totalRank) {
-          parts.push(` ${country} იკავებს `, B(`${gePlace(inv.totalRank)} ადგილს`),
-            ` ჯამური განხორციელებული ინვესტიციის მოცულობით საქართველოში.`);
+          parts.push(
+            ` ${country} იკავებს `,
+            B(`${gePlace(inv.totalRank)} ადგილს`),
+            ` ჯამური განხორციელებული ინვესტიციის მოცულობით საქართველოში.`
+          );
         }
         nodes.push({ text: parts, ...paraStyle });
       } else {
         const parts = [
           `Foreign direct investment from ${country} to Georgia was first made in `,
-          B(`${inv.firstYear}`), `. Total FDI amounts to `,
-          B(`${fmt(inv.totalSum)} mln USD`), `.`,
+          B(`${inv.firstYear}`),
+          `. Total FDI amounts to `,
+          B(`${fmt(inv.totalSum)} mln USD`),
+          `.`,
         ];
         if (inv.totalRank) {
-          parts.push(` ${country} ranks `, B(enOrdinal(inv.totalRank)),
-            ` by total FDI volume in Georgia.`);
+          parts.push(` ${country} ranks `, B(enOrdinal(inv.totalRank)), ` by total FDI volume in Georgia.`);
         }
         nodes.push({ text: parts, ...paraStyle });
       }
@@ -1054,17 +1213,26 @@
     // Sentence 2: last 5 years sum
     if (inv.fiveYearSum > 0) {
       if (isKa) {
-        nodes.push({ text: [
-          B(`${inv.fiveYearStart} - ${inv.fiveYearEnd}`),
-          ` წლებში ${countryFrom} საქართველოში შემოსული ინვესტიციების მოცულობამ შეადგინა `,
-          B(`${fmt(inv.fiveYearSum)} მლნ. აშშ დოლარი`), `.`,
-        ], ...paraStyle });
+        nodes.push({
+          text: [
+            B(`${inv.fiveYearStart} - ${inv.fiveYearEnd}`),
+            ` წლებში ${countryFrom} საქართველოში შემოსული ინვესტიციების მოცულობამ შეადგინა `,
+            B(`${fmt(inv.fiveYearSum)} მლნ. აშშ დოლარი`),
+            `.`,
+          ],
+          ...paraStyle,
+        });
       } else {
-        nodes.push({ text: [
-          `Between `, B(`${inv.fiveYearStart}-${inv.fiveYearEnd}`),
-          `, investments from ${country} to Georgia amounted to `,
-          B(`${fmt(inv.fiveYearSum)} mln USD`), `.`,
-        ], ...paraStyle });
+        nodes.push({
+          text: [
+            `Between `,
+            B(`${inv.fiveYearStart}-${inv.fiveYearEnd}`),
+            `, investments from ${country} to Georgia amounted to `,
+            B(`${fmt(inv.fiveYearSum)} mln USD`),
+            `.`,
+          ],
+          ...paraStyle,
+        });
       }
     }
 
@@ -1073,17 +1241,26 @@
       if (!(value > 0) || !year) return null;
       if (isKa) {
         const parts = [
-          B(`${year} წელს`), ` ${countryFrom} საქართველოში განხორციელდა `,
-          B(`${fmt(value)} მლნ. აშშ დოლარის`), ` პირდაპირი უცხოური ინვესტიცია.`,
+          B(`${year} წელს`),
+          ` ${countryFrom} საქართველოში განხორციელდა `,
+          B(`${fmt(value)} მლნ. აშშ დოლარის`),
+          ` პირდაპირი უცხოური ინვესტიცია.`,
         ];
         if (rank) {
-          parts.push(` ${country} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით `,
-            `${year} წელს `, B(`${gePlace(rank)} ადგილს`), ` იკავებს.`);
+          parts.push(
+            ` ${country} განხორციელებული პირდაპირი უცხოური ინვესტიციის მოცულობით `,
+            `${year} წელს `,
+            B(`${gePlace(rank)} ადგილს`),
+            ` იკავებს.`
+          );
         }
         return { text: parts, ...paraStyle };
       }
       const parts = [
-        `In `, B(`${year}`), `, `, B(`${fmt(value)} mln USD`),
+        `In `,
+        B(`${year}`),
+        `, `,
+        B(`${fmt(value)} mln USD`),
         ` of foreign direct investment came to Georgia from ${country}.`,
       ];
       if (rank) {
@@ -1114,7 +1291,7 @@
   function buildCompaniesSection(state, t, country, lang, countryNameEn) {
     if (!state || !state.hasData) return [];
     const isKa = lang === 'ka';
-    const displayCountry = isKa ? (state.countryKa || country) : (state.countryEn || countryNameEn || country);
+    const displayCountry = isKa ? state.countryKa || country : state.countryEn || countryNameEn || country;
     const c = state.counts;
     const B = (s) => ({ text: s, bold: true });
     const fmt = (n) => Number(n || 0).toLocaleString();
@@ -1126,25 +1303,67 @@
     const nodes = [];
 
     if (isKa) {
-      nodes.push({ text: `${displayCountry}-ის კაპიტალის მონაწილეობით დარეგისტრირებული მოქმედი კომპანიები:`, ...paraStyle });
-      nodes.push({ text: [B(fmt(c.total)), ` მოქმედი კომპანია ${displayCountry}-ის კაპიტალის მონაწილეობით.`], ...paraStyle });
+      nodes.push({
+        text: `${displayCountry}-ის კაპიტალის მონაწილეობით დარეგისტრირებული მოქმედი კომპანიები:`,
+        ...paraStyle,
+      });
+      nodes.push({
+        text: [B(fmt(c.total)), ` მოქმედი კომპანია ${displayCountry}-ის კაპიტალის მონაწილეობით.`],
+        ...paraStyle,
+      });
       nodes.push({
         ul: [
           { text: [B(fmt(c.solo)), ` კომპანია - ${displayCountry}-ის კაპიტალით შექმნილი;`], ...liStyle },
-          { text: [B(fmt(c.withGeorgia)), ` კომპანია - ${displayCountry} - საქართველოს წილობრივი კაპიტალით შექმნილი;`], ...liStyle },
-          { text: [B(fmt(c.withGeorgiaAndThird)), ` კომპანია - ${displayCountry}, საქართველოსა და მესამე ქვეყნის კაპიტალით შექმნილი;`], ...liStyle },
-          { text: [B(fmt(c.withThirdOnly)), ` კომპანია - ${displayCountry}-ის და მესამე ქვეყნების წილობრივი კაპიტალით შექმნილი.`], ...liStyle },
+          {
+            text: [B(fmt(c.withGeorgia)), ` კომპანია - ${displayCountry} - საქართველოს წილობრივი კაპიტალით შექმნილი;`],
+            ...liStyle,
+          },
+          {
+            text: [
+              B(fmt(c.withGeorgiaAndThird)),
+              ` კომპანია - ${displayCountry}, საქართველოსა და მესამე ქვეყნის კაპიტალით შექმნილი;`,
+            ],
+            ...liStyle,
+          },
+          {
+            text: [
+              B(fmt(c.withThirdOnly)),
+              ` კომპანია - ${displayCountry}-ის და მესამე ქვეყნების წილობრივი კაპიტალით შექმნილი.`,
+            ],
+            ...liStyle,
+          },
         ],
       });
     } else {
       nodes.push({ text: `Active companies with capital originating from ${displayCountry}:`, ...paraStyle });
-      nodes.push({ text: [B(fmt(c.total)), ` active companies with capital originating from ${displayCountry}.`], ...paraStyle });
+      nodes.push({
+        text: [B(fmt(c.total)), ` active companies with capital originating from ${displayCountry}.`],
+        ...paraStyle,
+      });
       nodes.push({
         ul: [
           { text: [B(fmt(c.solo)), ` companies - established with capital from only ${displayCountry};`], ...liStyle },
-          { text: [B(fmt(c.withGeorgia)), ` companies - established with joint capital from ${displayCountry} and Georgia;`], ...liStyle },
-          { text: [B(fmt(c.withGeorgiaAndThird)), ` companies - established with joint capital from ${displayCountry}, Georgia and the third country;`], ...liStyle },
-          { text: [B(fmt(c.withThirdOnly)), ` companies - established with joint capital from ${displayCountry} and third countries.`], ...liStyle },
+          {
+            text: [
+              B(fmt(c.withGeorgia)),
+              ` companies - established with joint capital from ${displayCountry} and Georgia;`,
+            ],
+            ...liStyle,
+          },
+          {
+            text: [
+              B(fmt(c.withGeorgiaAndThird)),
+              ` companies - established with joint capital from ${displayCountry}, Georgia and the third country;`,
+            ],
+            ...liStyle,
+          },
+          {
+            text: [
+              B(fmt(c.withThirdOnly)),
+              ` companies - established with joint capital from ${displayCountry} and third countries.`,
+            ],
+            ...liStyle,
+          },
         ],
       });
     }
@@ -1158,10 +1377,9 @@
     const title = sectionTitle(`${country} - ${t.fdi}`);
 
     if (!inv.hasData) {
-      blocks.push(withTitle(
-        title,
-        { text: t.noFdiData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] },
-      ));
+      blocks.push(
+        withTitle(title, { text: t.noFdiData, italics: true, color: '#94a3b8', fontSize: 9, margin: [0, 4, 0, 8] })
+      );
       return blocks;
     }
 
@@ -1173,7 +1391,7 @@
 
     // Drop the rank column entirely when no year reaches the top 20.
     const TOP_RANK_LIMIT = 20;
-    const showRank = data.some(r => r.valueMln > 0 && r.rank && r.rank <= TOP_RANK_LIMIT);
+    const showRank = data.some((r) => r.valueMln > 0 && r.rank && r.rank <= TOP_RANK_LIMIT);
 
     const headerRow = [th(t.year)];
     if (showRank) headerRow.push(thRight(rankHeader));
@@ -1188,14 +1406,13 @@
         changeCell = tdNum('-');
       } else {
         const pct = ((r.valueMln - r.prevMln) / r.prevMln) * 100;
-        const color = pct > 0 ? '#16a34a' : (pct < 0 ? '#dc2626' : '#475569');
+        const color = pct > 0 ? '#16a34a' : pct < 0 ? '#dc2626' : '#475569';
         const sign = pct > 0 ? '+' : '';
         changeCell = tdNum(`${sign}${formatPct(pct)}`, { color });
       }
-      const rankCell = (!isCurNeg && r.rank) ? tdNum(String(r.rank)) : tdNum('-');
-      const shareCell = (!isCurNeg && r.share != null)
-        ? tdNum(`${(Math.round(r.share * 10) / 10).toFixed(1)}%`)
-        : tdNum('-');
+      const rankCell = !isCurNeg && r.rank ? tdNum(String(r.rank)) : tdNum('-');
+      const shareCell =
+        !isCurNeg && r.share != null ? tdNum(`${(Math.round(r.share * 10) / 10).toFixed(1)}%`) : tdNum('-');
       const row = [tdText(String(r.year))];
       if (showRank) row.push(rankCell);
       row.push(valueCell, changeCell, shareCell);
@@ -1263,13 +1480,20 @@
     }
 
     const body = [];
-    body.push([th(sectorHeader), ...years.map(y => thRight(String(y)))]);
+    body.push([th(sectorHeader), ...years.map((y) => thRight(String(y)))]);
 
     // Totals row (bold)
     const totalCells = [{ text: totalLabel, bold: true, fontSize: 8, color: '#0f172a', fillColor: '#f1f5f9' }];
     for (const y of years) {
       const v = data.totals ? data.totals[y] : null;
-      totalCells.push({ text: fmt(v), alignment: 'right', bold: true, fontSize: 9, color: cellColor(v), fillColor: '#f1f5f9' });
+      totalCells.push({
+        text: fmt(v),
+        alignment: 'right',
+        bold: true,
+        fontSize: 9,
+        color: cellColor(v),
+        fillColor: '#f1f5f9',
+      });
     }
     body.push(totalCells);
 
@@ -1283,7 +1507,7 @@
     });
     const nameMap = sectors.sectorNameMap || {};
     for (const sector of sectorNames) {
-      const displayName = isKa ? sector : (nameMap[sector] || sector);
+      const displayName = isKa ? sector : nameMap[sector] || sector;
       const row = [{ text: displayName, fontSize: 8 }];
       const vals = data.sectors[sector] || {};
       for (const y of years) {
@@ -1319,7 +1543,8 @@
 
     function canCompareChange(i) {
       if (i === 0) return false;
-      const a = cols[i - 1], b = cols[i];
+      const a = cols[i - 1],
+        b = cols[i];
       if (a.kind !== b.kind) return false;
       if (b.year - a.year !== 1) return false;
       if (b.kind === 'ytd' && a.months.length !== b.months.length) return false;
@@ -1352,7 +1577,7 @@
     }
     function pctCellColored(v, signed) {
       if (v == null || !isFinite(v)) return dashCell();
-      const color = v > 0 ? '#16a34a' : (v < 0 ? '#dc2626' : '#475569');
+      const color = v > 0 ? '#16a34a' : v < 0 ? '#dc2626' : '#475569';
       const sign = signed && v > 0 ? '+' : '';
       return { text: `${sign}${formatPct(v)}`, alignment: 'right', fontSize: fontSmall, color };
     }
@@ -1378,8 +1603,7 @@
     // first column and Georgia's grand totals in the period columns.
     const groupOpts = { bold: true, fillColor: '#f1f5f9', color: '#1f2937', fontSize: fontHdr };
 
-    const header = [hdrCell('', { alignment: 'left' })]
-      .concat(cols.map((c) => hdrCell(c.label)));
+    const header = [hdrCell('', { alignment: 'left' })].concat(cols.map((c) => hdrCell(c.label)));
 
     function flowRows(grpLabel, flow) {
       const totals = cols.map((_, i) => numCell(getTotal(i, flow), groupOpts));
@@ -1409,7 +1633,7 @@
       const c = appendix.data[i] && appendix.data[i].country;
       if (!c) return { ...dashCell(), ...groupOpts };
       const bal = (c.export || 0) - (c.import || 0);
-      const color = bal > 0 ? '#16a34a' : (bal < 0 ? '#dc2626' : '#1f2937');
+      const color = bal > 0 ? '#16a34a' : bal < 0 ? '#dc2626' : '#1f2937';
       const sign = bal < 0 ? '-' : '';
       return { text: `${sign}${formatMln2(Math.abs(bal))}`, alignment: 'right', ...groupOpts, color };
     });
@@ -1454,7 +1678,7 @@
   function buildDocDefinition(state, opts) {
     const lang = opts.lang || 'en';
     const t = T[lang] || T.en;
-    const country = lang === 'en' && opts.countryNameEn ? opts.countryNameEn : (opts.country || '');
+    const country = lang === 'en' && opts.countryNameEn ? opts.countryNameEn : opts.country || '';
     const dateStr = formatDate(lang);
     const charts = opts.charts || {};
 
@@ -1500,7 +1724,13 @@
         return {
           columns: [
             { text: splitText(country), fontSize: 8.5, color: '#94a3b8', margin: [32, 18, 0, 0] },
-            { text: splitText(`${t.generated}: ${dateStr}`), fontSize: 8.5, color: '#94a3b8', alignment: 'right', margin: [0, 18, 32, 0] },
+            {
+              text: splitText(`${t.generated}: ${dateStr}`),
+              fontSize: 8.5,
+              color: '#94a3b8',
+              alignment: 'right',
+              margin: [0, 18, 32, 0],
+            },
           ],
         };
       },

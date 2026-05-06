@@ -89,10 +89,30 @@ Recommended production shape:
 - Readiness checks against `GET /api/ready` where the hosting platform supports them.
 - Log collection for application errors and access patterns.
 
+## Engineering quality
+
+The codebase includes:
+
+- **Automated testing**: 103+ backend tests and frontend unit tests using Node's built-in test runner.
+- **CI/CD**: GitHub Actions runs lint, format check, and tests on every push/PR.
+- **Linting and formatting**: ESLint and Prettier enforce consistent code style.
+- **Structured logging**: Pino logger with JSON output for production log aggregation.
+- **Security**: Content Security Policy, security headers, server-side HTML sanitization, rate limiting, parameterized SQL queries.
+- **Database migrations**: Versioned SQL files in `server/migrations/` with a migration runner.
+- **Storage abstraction**: File storage is behind a pluggable interface (`server/storage/`). Currently uses PostgreSQL BYTEA; an S3 backend can be added by implementing three methods.
+- **API documentation**: OpenAPI 3.0 specification in `docs/openapi.yaml`.
+
+### Known gaps
+
+- **Dark mode** is declared in the design document but not implemented in CSS variables.
+- **No E2E tests** (Playwright/Cypress) — the test suite covers unit and integration tests only.
+- **No TypeScript** — the codebase is plain JavaScript. A TypeScript migration would improve maintainability for a larger team.
+
 ## Acceptance checklist
 
 - Complete the detailed final checklist in `docs/FINAL_ACCEPTANCE.md`.
 - `npm test` passes.
+- `npm run lint` passes with no errors.
 - `GET /api/health` returns `ok: true`.
 - `GET /api/ready` returns `ok: true` and `database: true`.
 - Production starts without default seed users.

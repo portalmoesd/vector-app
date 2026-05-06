@@ -6,13 +6,11 @@ const db = require('../db');
 const sectionsRouter = require('./sections');
 
 function findRoute(method, path) {
-  const layer = sectionsRouter.stack.find((item) => (
-    item.route
-    && item.route.path === path
-    && item.route.methods[method.toLowerCase()]
-  ));
+  const layer = sectionsRouter.stack.find(
+    (item) => item.route && item.route.path === path && item.route.methods[method.toLowerCase()]
+  );
   assert.ok(layer, `${method} ${path} should be registered`);
-  return layer.route.stack.map(item => item.handle);
+  return layer.route.stack.map((item) => item.handle);
 }
 
 function mockResponse() {
@@ -160,7 +158,7 @@ test('PATCH /api/sections/:id/label trims and updates accessible section title',
 
     assert.equal(res.statusCode, 200);
     assert.deepEqual(res.body, { success: true });
-    const update = mock.calls.find(call => /UPDATE sections SET title/.test(call.sql));
+    const update = mock.calls.find((call) => /UPDATE sections SET title/.test(call.sql));
     assert.deepEqual(update.params, ['Updated title', 20]);
   });
 });

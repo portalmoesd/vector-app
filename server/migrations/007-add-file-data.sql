@@ -1,0 +1,1 @@
+ALTER TABLE section_files ADD COLUMN IF NOT EXISTS file_data BYTEA;

@@ -1,135 +1,172 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en-GB">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Vector Portal — Admin Panel</title>
-  <link rel="stylesheet" href="/css/variables.css" />
-  <link rel="stylesheet" href="/css/base.css" />
-  <link rel="stylesheet" href="/css/sidebar.css" />
-  <link rel="stylesheet" href="/css/components.css" />
-  <link rel="stylesheet" href="/css/georgian-fonts.css" />
-  <link rel="stylesheet" href="/css/apple.css" />
-</head>
-<body>
-  <div class="layout">
-    <aside class="sidebar"></aside>
-    <main class="main">
-      <div class="topbar">
-        <div class="page-title" data-i18n="nav.admin">Admin Panel</div>
-      </div>
-
-      <!-- Tabs -->
-      <div class="admin-tabs">
-        <button class="admin-tab active" data-tab="departments" data-i18n="admin.tabs.departments">Departments</button>
-        <button class="admin-tab" data-tab="users" data-i18n="admin.tabs.users">Users</button>
-        <button class="admin-tab" data-tab="links" data-i18n="admin.tabs.links">Deputy–Supervisor Links</button>
-        <button class="admin-tab" data-tab="hierarchy" data-i18n="admin.tabs.hierarchy">Department Hierarchy</button>
-        <button class="admin-tab" data-tab="uploads" data-i18n="admin.tabs.uploads">Data Uploads</button>
-      </div>
-
-      <!-- Departments Tab -->
-      <div class="admin-panel" id="tab-departments">
-        <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <h3 data-i18n="admin.dept.title">Departments</h3>
-            <button class="btn btn-primary" id="addDeptBtn" data-i18n="admin.dept.add">+ Add Department</button>
-          </div>
-          <div id="deptList"><div class="empty-state"><p data-i18n="common.loading">Loading...</p></div></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vector Portal — Admin Panel</title>
+    <link rel="stylesheet" href="/css/variables.css" />
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/sidebar.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/georgian-fonts.css" />
+    <link rel="stylesheet" href="/css/apple.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar"></aside>
+      <main class="main">
+        <div class="topbar">
+          <div class="page-title" data-i18n="nav.admin">Admin Panel</div>
         </div>
-      </div>
 
-      <!-- Users Tab -->
-      <div class="admin-panel" id="tab-users" style="display:none;">
-        <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <h3 data-i18n="admin.user.title">Users</h3>
-            <button class="btn btn-primary" id="addUserBtn" data-i18n="admin.user.add">+ Add User</button>
-          </div>
-          <div id="userList"><div class="empty-state"><p data-i18n="common.loading">Loading...</p></div></div>
+        <!-- Tabs -->
+        <div class="admin-tabs">
+          <button class="admin-tab active" data-tab="departments" data-i18n="admin.tabs.departments">
+            Departments
+          </button>
+          <button class="admin-tab" data-tab="users" data-i18n="admin.tabs.users">Users</button>
+          <button class="admin-tab" data-tab="links" data-i18n="admin.tabs.links">Deputy–Supervisor Links</button>
+          <button class="admin-tab" data-tab="hierarchy" data-i18n="admin.tabs.hierarchy">Department Hierarchy</button>
+          <button class="admin-tab" data-tab="uploads" data-i18n="admin.tabs.uploads">Data Uploads</button>
         </div>
-      </div>
 
-      <!-- Links Tab -->
-      <div class="admin-panel" id="tab-links" style="display:none;">
-        <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <h3 data-i18n="admin.link.title">Deputy–Supervisor Links</h3>
-            <button class="btn btn-primary" id="addLinkBtn" data-i18n="admin.link.add">+ Add Link</button>
-          </div>
-          <div id="linksList"><div class="empty-state"><p data-i18n="common.loading">Loading...</p></div></div>
-        </div>
-      </div>
-
-      <!-- Department Hierarchy Tab -->
-      <div class="admin-panel" id="tab-hierarchy" style="display:none;">
-        <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <h3 data-i18n="admin.hier.title">Department Hierarchy</h3>
-          </div>
-          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:18px;" data-i18n="admin.hier.desc">
-            Shows how Supervisors, Super-Collaborators, and Collaborators are grouped within each department.
-          </p>
-          <div id="hierarchyList"><div class="empty-state"><p data-i18n="common.loading">Loading...</p></div></div>
-        </div>
-      </div>
-
-      <!-- Data Uploads Tab -->
-      <div class="admin-panel" id="tab-uploads" style="display:none;">
-        <section class="card admin-upload-panel" id="panel-fdi-sectors">
-          <h3 data-i18n="admin.upload.fdiTitle">FDI Sectors</h3>
-          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;" data-i18n="admin.upload.fdiDesc">
-            Upload the Georgian FDI-by-country-by-sector XLSX file. The file
-            must have a header row with "ქვეყნის კოდი" in column A, then one
-            block per country (code, name, "სულ" row, sector sub-rows).
-          </p>
-          <div class="upload-status" style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:10px;" data-i18n="admin.upload.loading">Loading…</div>
-          <form class="upload-form" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;">
-            <input type="file" name="file" accept=".xlsx,.xls" required>
-            <button type="submit" class="btn btn-primary" data-i18n="admin.upload.btn">Upload</button>
-          </form>
-          <div class="upload-feedback" style="margin-top:10px;font-size:0.9rem;"></div>
-        </section>
-
-        <section class="card admin-upload-panel" id="panel-companies" style="margin-top:16px;">
-          <h3 data-i18n="admin.upload.companiesTitle">Companies</h3>
-          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;" data-i18n="admin.upload.companiesDesc">
-            Upload the active-companies XLSX file. Column S contains the active
-            flag (blank = inactive), column V lists the capital-origin countries
-            separated by " / ". The file is parsed in your browser; only the
-            small aggregated summary is sent to the server.
-          </p>
-          <div class="upload-status" style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:10px;" data-i18n="admin.upload.loading">Loading…</div>
-          <form class="upload-form" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;">
-            <input type="file" name="file" accept=".xlsx,.xls" required>
-            <button type="submit" class="btn btn-primary" data-i18n="admin.upload.btn">Upload</button>
-          </form>
-          <div class="upload-feedback" style="margin-top:10px;font-size:0.9rem;"></div>
-        </section>
-      </div>
-
-      <!-- Modal overlay -->
-      <div id="modal" class="modal-overlay" style="display:none;">
-        <div class="modal-card" style="max-width:680px;max-height:90vh;display:flex;flex-direction:column;">
-          <h3 id="modalTitle"></h3>
-          <div id="modalBody" style="overflow-y:auto;flex:1;min-height:0;padding-right:4px;"></div>
-          <div class="modal-footer">
-            <button class="btn btn-outline" id="modalCancel" data-i18n="common.cancel">Cancel</button>
-            <button class="btn btn-primary" id="modalSave" data-i18n="common.save">Save</button>
+        <!-- Departments Tab -->
+        <div class="admin-panel" id="tab-departments">
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
+              <h3 data-i18n="admin.dept.title">Departments</h3>
+              <button class="btn btn-primary" id="addDeptBtn" data-i18n="admin.dept.add">+ Add Department</button>
+            </div>
+            <div id="deptList">
+              <div class="empty-state"><p data-i18n="common.loading">Loading...</p></div>
+            </div>
           </div>
         </div>
-      </div>
-    </main>
-  </div>
 
-  <script src="/js/core/config.js"></script>
-  <script src="/js/core/api.js"></script>
-  <script src="/js/core/i18n.js"></script>
-  <script src="/js/core/utils.js"></script>
-  <script src="/js/core/app.js"></script>
-  <!-- SheetJS: parses the 27 MB companies XLSX in-browser so the server
+        <!-- Users Tab -->
+        <div class="admin-panel" id="tab-users" style="display: none">
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
+              <h3 data-i18n="admin.user.title">Users</h3>
+              <button class="btn btn-primary" id="addUserBtn" data-i18n="admin.user.add">+ Add User</button>
+            </div>
+            <div id="userList">
+              <div class="empty-state"><p data-i18n="common.loading">Loading...</p></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Links Tab -->
+        <div class="admin-panel" id="tab-links" style="display: none">
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
+              <h3 data-i18n="admin.link.title">Deputy–Supervisor Links</h3>
+              <button class="btn btn-primary" id="addLinkBtn" data-i18n="admin.link.add">+ Add Link</button>
+            </div>
+            <div id="linksList">
+              <div class="empty-state"><p data-i18n="common.loading">Loading...</p></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Department Hierarchy Tab -->
+        <div class="admin-panel" id="tab-hierarchy" style="display: none">
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
+              <h3 data-i18n="admin.hier.title">Department Hierarchy</h3>
+            </div>
+            <p
+              style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 18px"
+              data-i18n="admin.hier.desc"
+            >
+              Shows how Supervisors, Super-Collaborators, and Collaborators are grouped within each department.
+            </p>
+            <div id="hierarchyList">
+              <div class="empty-state"><p data-i18n="common.loading">Loading...</p></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data Uploads Tab -->
+        <div class="admin-panel" id="tab-uploads" style="display: none">
+          <section class="card admin-upload-panel" id="panel-fdi-sectors">
+            <h3 data-i18n="admin.upload.fdiTitle">FDI Sectors</h3>
+            <p
+              style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px"
+              data-i18n="admin.upload.fdiDesc"
+            >
+              Upload the Georgian FDI-by-country-by-sector XLSX file. The file must have a header row with "ქვეყნის
+              კოდი" in column A, then one block per country (code, name, "სულ" row, sector sub-rows).
+            </p>
+            <div
+              class="upload-status"
+              style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 10px"
+              data-i18n="admin.upload.loading"
+            >
+              Loading…
+            </div>
+            <form
+              class="upload-form"
+              enctype="multipart/form-data"
+              style="display: flex; gap: 8px; align-items: center"
+            >
+              <input type="file" name="file" accept=".xlsx,.xls" required />
+              <button type="submit" class="btn btn-primary" data-i18n="admin.upload.btn">Upload</button>
+            </form>
+            <div class="upload-feedback" style="margin-top: 10px; font-size: 0.9rem"></div>
+          </section>
+
+          <section class="card admin-upload-panel" id="panel-companies" style="margin-top: 16px">
+            <h3 data-i18n="admin.upload.companiesTitle">Companies</h3>
+            <p
+              style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px"
+              data-i18n="admin.upload.companiesDesc"
+            >
+              Upload the active-companies XLSX file. Column S contains the active flag (blank = inactive), column V
+              lists the capital-origin countries separated by " / ". The file is parsed in your browser; only the small
+              aggregated summary is sent to the server.
+            </p>
+            <div
+              class="upload-status"
+              style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 10px"
+              data-i18n="admin.upload.loading"
+            >
+              Loading…
+            </div>
+            <form
+              class="upload-form"
+              enctype="multipart/form-data"
+              style="display: flex; gap: 8px; align-items: center"
+            >
+              <input type="file" name="file" accept=".xlsx,.xls" required />
+              <button type="submit" class="btn btn-primary" data-i18n="admin.upload.btn">Upload</button>
+            </form>
+            <div class="upload-feedback" style="margin-top: 10px; font-size: 0.9rem"></div>
+          </section>
+        </div>
+
+        <!-- Modal overlay -->
+        <div id="modal" class="modal-overlay" style="display: none">
+          <div class="modal-card" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column">
+            <h3 id="modalTitle"></h3>
+            <div id="modalBody" style="overflow-y: auto; flex: 1; min-height: 0; padding-right: 4px"></div>
+            <div class="modal-footer">
+              <button class="btn btn-outline" id="modalCancel" data-i18n="common.cancel">Cancel</button>
+              <button class="btn btn-primary" id="modalSave" data-i18n="common.save">Save</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="/js/core/config.js"></script>
+    <script src="/js/core/api.js"></script>
+    <script src="/js/core/i18n.js"></script>
+    <script src="/js/core/utils.js"></script>
+    <script src="/js/core/app.js"></script>
+    <!-- SheetJS: parses the 27 MB companies XLSX in-browser so the server
        never has to touch the raw file (previously caused OOM / 502). -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="/js/pages/admin.js"></script>
-</body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="/js/pages/admin.js"></script>
+  </body>
 </html>

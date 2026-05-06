@@ -4,6 +4,7 @@ const { requireAuth, denyAnalyst } = require('../middleware/auth');
 const { canCreateEvent } = require('../helpers/roles');
 const { canAccessEvent, canAccessSection } = require('../helpers/access');
 const { asPositiveInt, asTrimmedString, validationError } = require('../helpers/validation');
+const logger = require('../logger');
 
 const router = express.Router();
 
@@ -27,14 +28,16 @@ router.get('/', requireAuth, async (req, res) => {
       [eventId.value]
     );
 
-    res.json(rows.map(r => ({
-      id: r.id,
-      title: r.title,
-      sortOrder: r.sort_order,
-      departmentIds: (r.department_ids || []).filter(Boolean),
-    })));
+    res.json(
+      rows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        sortOrder: r.sort_order,
+        departmentIds: (r.department_ids || []).filter(Boolean),
+      }))
+    );
   } catch (err) {
-    console.error('List sections error:', err);
+    logger.error({ err }, 'List sections error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -50,23 +53,19 @@ router.patch('/:id/label', requireAuth, denyAnalyst, async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to rename sections' });
     }
 
-    const { rows: [section] } = await db.query(
-      'SELECT event_id FROM sections WHERE id = $1',
-      [sectionId.value]
-    );
+    const {
+      rows: [section],
+    } = await db.query('SELECT event_id FROM sections WHERE id = $1', [sectionId.value]);
     if (!section) return res.status(404).json({ error: 'Section not found' });
     if (!(await canAccessSection(req.user, section.event_id, sectionId.value))) {
       return res.status(403).json({ error: 'Not authorized to access this section' });
     }
 
-    await db.query(
-      'UPDATE sections SET title = $1, updated_at = now() WHERE id = $2',
-      [title.value, sectionId.value]
-    );
+    await db.query('UPDATE sections SET title = $1, updated_at = now() WHERE id = $2', [title.value, sectionId.value]);
 
     res.json({ success: true });
   } catch (err) {
-    console.error('Rename section error:', err);
+    logger.error({ err }, 'Rename section error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

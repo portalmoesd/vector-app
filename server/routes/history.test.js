@@ -6,13 +6,11 @@ const db = require('../db');
 const historyRouter = require('./history');
 
 function findRoute(method, path) {
-  const layer = historyRouter.stack.find((item) => (
-    item.route
-    && item.route.path === path
-    && item.route.methods[method.toLowerCase()]
-  ));
+  const layer = historyRouter.stack.find(
+    (item) => item.route && item.route.path === path && item.route.methods[method.toLowerCase()]
+  );
   assert.ok(layer, `${method} ${path} should be registered`);
-  return layer.route.stack.map(item => item.handle);
+  return layer.route.stack.map((item) => item.handle);
 }
 
 function mockResponse() {

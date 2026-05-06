@@ -4,7 +4,9 @@ const { ROLES } = require('./roles');
 const MAILTO_URL_LIMIT = 1800;
 
 function normalizeEmail(email) {
-  return String(email || '').trim().toLowerCase();
+  return String(email || '')
+    .trim()
+    .toLowerCase();
 }
 
 function stripHtml(html) {
@@ -23,15 +25,19 @@ function stripHtml(html) {
 }
 
 function roleLabel(role) {
-  return {
-    [ROLES.DEPUTY]: 'Deputy',
-    [ROLES.SUPERVISOR]: 'Supervisor',
-    [ROLES.SUPER_COLLABORATOR]: 'Super-Collaborator',
-    [ROLES.COLLABORATOR]: 'Collaborator',
-    CURATOR: 'Curator',
-    RECEIVING_SUPER_COLLABORATOR: 'Receiving Super-Collaborator',
-    RECEIVING_SUPERVISOR: 'Receiving Supervisor',
-  }[role] || role || 'Participant';
+  return (
+    {
+      [ROLES.DEPUTY]: 'Deputy',
+      [ROLES.SUPERVISOR]: 'Supervisor',
+      [ROLES.SUPER_COLLABORATOR]: 'Super-Collaborator',
+      [ROLES.COLLABORATOR]: 'Collaborator',
+      CURATOR: 'Curator',
+      RECEIVING_SUPER_COLLABORATOR: 'Receiving Super-Collaborator',
+      RECEIVING_SUPERVISOR: 'Receiving Supervisor',
+    }[role] ||
+    role ||
+    'Participant'
+  );
 }
 
 function addParticipant(participants, user, sourceRole) {
@@ -54,7 +60,9 @@ function addParticipant(participants, user, sourceRole) {
 }
 
 async function getEvent(db, eventId) {
-  const { rows: [event] } = await db.query(
+  const {
+    rows: [event],
+  } = await db.query(
     `SELECT e.id, e.title, e.country_id, e.document_submitter_role,
             e.document_submitter_id, e.deputy_id, e.supervisor_id,
             e.curator_required, e.workflow_type, e.language, e.deadline_date,
@@ -93,7 +101,7 @@ async function getEventSections(db, eventId) {
     [eventId]
   );
 
-  return rows.map(row => ({
+  return rows.map((row) => ({
     id: row.id,
     title: row.title,
     sortOrder: row.sort_order,
@@ -103,7 +111,9 @@ async function getEventSections(db, eventId) {
 
 async function getUserById(db, userId) {
   if (!userId) return null;
-  const { rows: [user] } = await db.query(
+  const {
+    rows: [user],
+  } = await db.query(
     `SELECT u.id, u.full_name, u.email, u.role, d.name_en AS department_name, u.department_id
      FROM users u
      LEFT JOIN departments d ON d.id = u.department_id
@@ -209,10 +219,10 @@ function splitRecipients(participants) {
 
 function buildEmailBody(event, sections, recipients, missingEmails) {
   const sectionLines = sections.length
-    ? sections.map(section => {
-      const departmentNames = section.departments.map(department => department.name).filter(Boolean);
-      return `- ${section.title}${departmentNames.length ? ` (${departmentNames.join(', ')})` : ''}`;
-    })
+    ? sections.map((section) => {
+        const departmentNames = section.departments.map((department) => department.name).filter(Boolean);
+        return `- ${section.title}${departmentNames.length ? ` (${departmentNames.join(', ')})` : ''}`;
+      })
     : ['- No sections selected'];
 
   const submitterLine = `${event.document_submitter_name || 'Unknown'} (${roleLabel(event.document_submitter_role)})`;
@@ -236,7 +246,9 @@ function buildEmailBody(event, sections, recipients, missingEmails) {
     '',
     `Recipients prepared: ${recipients.length}`,
     missingEmails.length ? `Skipped users without email: ${missingEmails.length}` : null,
-  ].filter(line => line !== null).join('\n');
+  ]
+    .filter((line) => line !== null)
+    .join('\n');
 }
 
 async function resolveEventNotificationDraft(db, eventId) {
@@ -253,8 +265,8 @@ async function resolveEventNotificationDraft(db, eventId) {
   }
 
   for (const section of sections) {
-    const sectionDeptIds = section.departments.map(department => department.id).filter(Boolean);
-    const isCrossDept = sectionDeptIds.some(departmentId => departmentId !== homeDepartmentId);
+    const sectionDeptIds = section.departments.map((department) => department.id).filter(Boolean);
+    const isCrossDept = sectionDeptIds.some((departmentId) => departmentId !== homeDepartmentId);
     const chain = buildChain(
       event.document_submitter_role,
       event.curator_required,

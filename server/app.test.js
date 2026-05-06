@@ -5,11 +5,9 @@ const db = require('./db');
 const securityHeaders = require('./middleware/security-headers');
 
 function findRoute(app, method, path) {
-  return app._router.stack.find((layer) => (
-    layer.route
-    && layer.route.path === path
-    && layer.route.methods[method.toLowerCase()]
-  ));
+  return app._router.stack.find(
+    (layer) => layer.route && layer.route.path === path && layer.route.methods[method.toLowerCase()]
+  );
 }
 
 function mockResponse() {
@@ -60,33 +58,39 @@ test('readiness endpoint confirms database connectivity', async () => {
   const route = findRoute(app, 'GET', '/api/ready');
   assert.ok(route, 'GET /api/ready route should be registered');
 
-  await withMockDbQuery(async (sql) => {
-    assert.equal(sql, 'SELECT 1');
-    return { rows: [{ '?column?': 1 }] };
-  }, async () => {
-    const res = mockResponse();
-    await route.route.stack[0].handle({}, res);
+  await withMockDbQuery(
+    async (sql) => {
+      assert.equal(sql, 'SELECT 1');
+      return { rows: [{ '?column?': 1 }] };
+    },
+    async () => {
+      const res = mockResponse();
+      await route.route.stack[0].handle({}, res);
 
-    assert.equal(res.statusCode, 200);
-    assert.equal(res.body.ok, true);
-    assert.equal(res.body.database, true);
-  });
+      assert.equal(res.statusCode, 200);
+      assert.equal(res.body.ok, true);
+      assert.equal(res.body.database, true);
+    }
+  );
 });
 
 test('readiness endpoint reports unavailable database', async () => {
   const app = createApp();
   const route = findRoute(app, 'GET', '/api/ready');
 
-  await withMockDbQuery(async () => {
-    throw new Error('database unavailable');
-  }, async () => {
-    const res = mockResponse();
-    await route.route.stack[0].handle({}, res);
+  await withMockDbQuery(
+    async () => {
+      throw new Error('database unavailable');
+    },
+    async () => {
+      const res = mockResponse();
+      await route.route.stack[0].handle({}, res);
 
-    assert.equal(res.statusCode, 503);
-    assert.equal(res.body.ok, false);
-    assert.equal(res.body.database, false);
-  });
+      assert.equal(res.statusCode, 503);
+      assert.equal(res.body.ok, false);
+      assert.equal(res.body.database, false);
+    }
+  );
 });
 
 test('security headers middleware sets browser hardening headers', () => {

@@ -1,0 +1,2500 @@
+openapi: 3.0.3
+info:
+  title: Vector Portal API
+  version: 1.0.0
+  description: |
+    Document-workflow portal for multi-role approval chains.
+    Manages events (document packages), their sections, and a
+    role-based submit/approve/return pipeline with file attachments,
+    inline comments, and a completed-document library.
+
+    **Roles** (highest to lowest): ADMIN, PROTOCOL, DEPUTY, SUPERVISOR,
+    SUPER_COLLABORATOR, COLLABORATOR, ANALYST.
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: health
+    description: Liveness and readiness probes
+  - name: auth
+    description: Login, password management, session
+  - name: users
+    description: User CRUD (admin only)
+  - name: departments
+    description: Department lookup and creation
+  - name: countries
+    description: Country list
+  - name: events
+    description: Event (document package) CRUD
+  - name: sections
+    description: Section listing and renaming
+  - name: workflow
+    description: Section content editing and approval pipeline
+  - name: comments
+    description: Inline comments on section content
+  - name: files
+    description: File attachments on sections
+  - name: library
+    description: Completed-document archive
+  - name: templates
+    description: Event templates
+  - name: admin
+    description: Admin configuration (links, hierarchies, dropdowns)
+  - name: statistics
+    description: Trade, FDI, tourism, and company statistics (Geostat proxy)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT returned by POST /api/auth/login (24 h expiry)
+
+  schemas:
+    # ── Common ────────────────────────────────────────────────────────
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+
+    # ── Auth ──────────────────────────────────────────────────────────
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        fullName:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+        departmentId:
+          type: integer
+          nullable: true
+        departmentName:
+          type: string
+          nullable: true
+        isExternal:
+          type: boolean
+        entityName:
+          type: string
+          nullable: true
+        mustChangePassword:
+          type: boolean
+
+    UserRole:
+      type: string
+      enum: [ADMIN, PROTOCOL, DEPUTY, SUPERVISOR, SUPER_COLLABORATOR, COLLABORATOR, ANALYST]
+
+    DocumentSubmitterRole:
+      type: string
+      enum: [DEPUTY, SUPERVISOR, SUPER_COLLABORATOR]
+
+    Language:
+      type: string
+      enum: [EN, FR, AR, ES, RU, ZH, PT, DE, KA]
+
+    WorkflowType:
+      type: string
+      enum: [advanced, simple]
+
+    EventStatus:
+      type: string
+      enum: [DRAFT, IN_PROGRESS, COMPLETED, ARCHIVED]
+
+    # ── Events ────────────────────────────────────────────────────────
+    EventSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        countryId:
+          type: integer
+        countryName:
+          type: string
+        countryCode:
+          type: string
+        documentSubmitterRole:
+          $ref: '#/components/schemas/DocumentSubmitterRole'
+        documentSubmitterId:
+          type: integer
+        documentSubmitterName:
+          type: string
+        deputyId:
+          type: integer
+          nullable: true
+        supervisorId:
+          type: integer
+          nullable: true
+        supervisorName:
+          type: string
+          nullable: true
+        curatorRequired:
+          type: boolean
+        workflowType:
+          $ref: '#/components/schemas/WorkflowType'
+        language:
+          $ref: '#/components/schemas/Language'
+        deadlineDate:
+          type: string
+          format: date
+        occasion:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: '#/components/schemas/EventStatus'
+        createdAt:
+          type: string
+          format: date-time
+
+    EventDetail:
+      allOf:
+        - $ref: '#/components/schemas/EventSummary'
+        - type: object
+          properties:
+            description:
+              type: string
+              nullable: true
+            deputyName:
+              type: string
+              nullable: true
+            sections:
+              type: array
+              items:
+                $ref: '#/components/schemas/SectionSummary'
+
+    SectionSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        sortOrder:
+          type: integer
+        departmentIds:
+          type: array
+          items:
+            type: integer
+
+    SectionInput:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          maxLength: 500
+        departmentIds:
+          type: array
+          items:
+            type: integer
+
+    # ── Workflow ───────────────────────────────────────────────────────
+    StatusGridResponse:
+      type: object
+      properties:
+        event_id:
+          type: integer
+        documentSubmitterRole:
+          $ref: '#/components/schemas/DocumentSubmitterRole'
+        documentSubmitterId:
+          type: integer
+        deputyId:
+          type: integer
+          nullable: true
+        curatorRequired:
+          type: boolean
+        workflowType:
+          $ref: '#/components/schemas/WorkflowType'
+        homeDepartmentId:
+          type: integer
+          nullable: true
+        sections:
+          type: array
+          items:
+            type: object
+            properties:
+              sectionId:
+                type: integer
+              sectionLabel:
+                type: string
+              status:
+                type: string
+              statusComment:
+                type: string
+                nullable: true
+              lastUpdatedAt:
+                type: string
+                format: date-time
+                nullable: true
+              lastUpdatedBy:
+                type: string
+                nullable: true
+              currentHolderRole:
+                type: string
+              userEffectiveRole:
+                type: string
+              departmentIds:
+                type: array
+                items:
+                  type: integer
+              isCrossDept:
+                type: boolean
+              chain:
+                type: array
+                items:
+                  type: string
+              steps:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    role:
+                      type: string
+                    actorName:
+                      type: string
+                      nullable: true
+                    actorId:
+                      type: integer
+                      nullable: true
+                    departmentName:
+                      type: string
+                      nullable: true
+                    acted:
+                      type: boolean
+              canPush:
+                type: boolean
+              canPull:
+                type: boolean
+
+    SectionContent:
+      type: object
+      properties:
+        htmlContent:
+          type: string
+          nullable: true
+        status:
+          type: string
+        lastEditedAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastEditedBy:
+          type: string
+          nullable: true
+
+    HistoryEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        action:
+          type: string
+        fromStatus:
+          type: string
+        toStatus:
+          type: string
+        userName:
+          type: string
+        userRole:
+          type: string
+        note:
+          type: string
+          nullable: true
+        actedAt:
+          type: string
+          format: date-time
+
+    ReturnRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        eventId:
+          type: integer
+        sectionId:
+          type: integer
+        requestedByUserId:
+          type: integer
+        requestedByName:
+          type: string
+        requestedByRole:
+          type: string
+        broadcastAboveRole:
+          type: string
+        note:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── Comments ──────────────────────────────────────────────────────
+    Comment:
+      type: object
+      properties:
+        id:
+          type: integer
+        anchorId:
+          type: string
+          nullable: true
+        parentId:
+          type: integer
+          nullable: true
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        userId:
+          type: integer
+        userName:
+          type: string
+        username:
+          type: string
+
+    # ── Files ─────────────────────────────────────────────────────────
+    FileMetadata:
+      type: object
+      properties:
+        id:
+          type: integer
+        original_name:
+          type: string
+        stored_name:
+          type: string
+        mime_type:
+          type: string
+        size:
+          type: integer
+        uploaded_by_id:
+          type: integer
+        uploaded_by_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    # ── Library ───────────────────────────────────────────────────────
+    LibraryEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        language:
+          $ref: '#/components/schemas/Language'
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        countryName:
+          type: string
+        countryCode:
+          type: string
+        documentSubmitterName:
+          type: string
+        documentSubmitterId:
+          type: integer
+
+    LibraryDocument:
+      type: object
+      properties:
+        eventId:
+          type: integer
+        title:
+          type: string
+        language:
+          $ref: '#/components/schemas/Language'
+        countryName:
+          type: string
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        sections:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              title:
+                type: string
+              sortOrder:
+                type: integer
+              htmlContent:
+                type: string
+                nullable: true
+
+    # ── Templates ─────────────────────────────────────────────────────
+    Template:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        documentSubmitterRole:
+          $ref: '#/components/schemas/DocumentSubmitterRole'
+        curatorRequired:
+          type: boolean
+        isDefault:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        createdById:
+          type: integer
+          nullable: true
+        createdByName:
+          type: string
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/SectionSummary'
+
+    # ── Admin ─────────────────────────────────────────────────────────
+    DeputySupervisorLink:
+      type: object
+      properties:
+        id:
+          type: integer
+        deputyId:
+          type: integer
+        deputyName:
+          type: string
+        supervisorId:
+          type: integer
+        supervisorName:
+          type: string
+        supervisorDepartment:
+          type: string
+          nullable: true
+
+    Department:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        nameEn:
+          type: string
+          nullable: true
+        isExternal:
+          type: boolean
+
+    Country:
+      type: object
+      properties:
+        id:
+          type: integer
+        nameEn:
+          type: string
+        code:
+          type: string
+
+    UserDropdown:
+      type: object
+      properties:
+        id:
+          type: integer
+        fullName:
+          type: string
+        departmentName:
+          type: string
+          nullable: true
+
+# ═════════════════════════════════════════════════════════════════════
+# PATHS
+# ═════════════════════════════════════════════════════════════════════
+paths:
+  # ── Health ────────────────────────────────────────────────────────
+  /api/health:
+    get:
+      tags: [health]
+      summary: Liveness probe
+      security: []
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  service:
+                    type: string
+                  environment:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /api/ready:
+    get:
+      tags: [health]
+      summary: Readiness probe (checks DB connectivity)
+      security: []
+      responses:
+        '200':
+          description: Service and database ready
+        '503':
+          description: Database unreachable
+
+  # ── Auth ──────────────────────────────────────────────────────────
+  /api/auth/login:
+    post:
+      tags: [auth]
+      summary: Authenticate and receive JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limited
+
+  /api/auth/change-password:
+    post:
+      tags: [auth]
+      summary: Change the authenticated user's password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword:
+                  type: string
+                newPassword:
+                  type: string
+                  minLength: 8
+                  maxLength: 200
+      responses:
+        '200':
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          description: Current password incorrect
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/me:
+    get:
+      tags: [auth]
+      summary: Get the authenticated user's profile
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+
+  # ── Users ─────────────────────────────────────────────────────────
+  /api/users:
+    get:
+      tags: [users]
+      summary: List all users (ADMIN only)
+      responses:
+        '200':
+          description: Array of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserProfile'
+    post:
+      tags: [users]
+      summary: Create a user (ADMIN only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fullName, username, email, password, role]
+              properties:
+                fullName:
+                  type: string
+                  maxLength: 200
+                username:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                role:
+                  $ref: '#/components/schemas/UserRole'
+                departmentId:
+                  type: integer
+                  nullable: true
+                isExternal:
+                  type: boolean
+                entityName:
+                  type: string
+                  nullable: true
+                countryIds:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  success:
+                    type: boolean
+        '409':
+          description: Username already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/users/{id}:
+    patch:
+      tags: [users]
+      summary: Update a user (ADMIN only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                role:
+                  $ref: '#/components/schemas/UserRole'
+                departmentId:
+                  type: integer
+                  nullable: true
+                isExternal:
+                  type: boolean
+                entityName:
+                  type: string
+                password:
+                  type: string
+                  minLength: 8
+                countryIds:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          description: User not found
+        '409':
+          description: Username conflict
+
+  /api/users/{id}/countries:
+    get:
+      tags: [users]
+      summary: Get country assignments for a user (ADMIN only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Array of assigned countries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Country'
+
+  # ── Departments ───────────────────────────────────────────────────
+  /api/departments:
+    get:
+      tags: [departments]
+      summary: List all departments
+      responses:
+        '200':
+          description: Array of departments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Department'
+    post:
+      tags: [departments]
+      summary: Create a department (ADMIN only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 200
+                nameEn:
+                  type: string
+                  maxLength: 200
+                  nullable: true
+                isExternal:
+                  type: boolean
+      responses:
+        '201':
+          description: Department created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  success:
+                    type: boolean
+
+  /api/departments/grouped:
+    get:
+      tags: [departments]
+      summary: Departments grouped by deputy for picker UI
+      responses:
+        '200':
+          description: Grouped departments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  departments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Department'
+                  deputies:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        deputyName:
+                          type: string
+                        departmentIds:
+                          type: array
+                          items:
+                            type: integer
+                  unassignedDepartmentIds:
+                    type: array
+                    items:
+                      type: integer
+
+  # ── Countries ─────────────────────────────────────────────────────
+  /api/countries:
+    get:
+      tags: [countries]
+      summary: List all countries
+      responses:
+        '200':
+          description: Array of countries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Country'
+
+  # ── Events ────────────────────────────────────────────────────────
+  /api/events:
+    get:
+      tags: [events]
+      summary: List events visible to current user
+      responses:
+        '200':
+          description: Array of event summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventSummary'
+    post:
+      tags: [events]
+      summary: Create a new event
+      description: Requires a role that can create events. ANALYST role is denied.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, countryId, documentSubmitterRole, documentSubmitterId, deadlineDate, sections]
+              properties:
+                title:
+                  type: string
+                  maxLength: 500
+                countryId:
+                  type: integer
+                documentSubmitterRole:
+                  $ref: '#/components/schemas/DocumentSubmitterRole'
+                documentSubmitterId:
+                  type: integer
+                deputyId:
+                  type: integer
+                  nullable: true
+                supervisorId:
+                  type: integer
+                  nullable: true
+                curatorRequired:
+                  type: boolean
+                workflowType:
+                  $ref: '#/components/schemas/WorkflowType'
+                language:
+                  $ref: '#/components/schemas/Language'
+                deadlineDate:
+                  type: string
+                  format: date
+                occasion:
+                  type: string
+                  nullable: true
+                sections:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    $ref: '#/components/schemas/SectionInput'
+      responses:
+        '201':
+          description: Event created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  success:
+                    type: boolean
+        '403':
+          description: Not authorized
+        '422':
+          description: Validation error (e.g. invalid document submitter)
+
+  /api/events/{id}:
+    get:
+      tags: [events]
+      summary: Get event detail with sections
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Event detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDetail'
+        '404':
+          description: Event not found
+    patch:
+      tags: [events]
+      summary: Edit event metadata (title, language, deadline, occasion)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 500
+                language:
+                  $ref: '#/components/schemas/Language'
+                deadlineDate:
+                  type: string
+                  format: date
+                occasion:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Event updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/events/{id}/sections:
+    post:
+      tags: [events]
+      summary: Add a section to an existing event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SectionInput'
+      responses:
+        '201':
+          description: Section added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  success:
+                    type: boolean
+
+  /api/events/{id}/end:
+    post:
+      tags: [events]
+      summary: End (archive) an event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Event ended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/events/{id}/notification-draft:
+    get:
+      tags: [events]
+      summary: Get notification email draft for an event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Notification draft (recipients and mail content)
+          content:
+            application/json:
+              schema:
+                type: object
+
+  # ── Sections ──────────────────────────────────────────────────────
+  /api/sections:
+    get:
+      tags: [sections]
+      summary: List sections for an event
+      parameters:
+        - name: event_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Array of sections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SectionSummary'
+
+  /api/sections/{id}/label:
+    patch:
+      tags: [sections]
+      summary: Rename a section
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+                  maxLength: 300
+      responses:
+        '200':
+          description: Section renamed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ── Workflow ──────────────────────────────────────────────────────
+  /api/workflow/save:
+    post:
+      tags: [workflow]
+      summary: Save section content (auto-save)
+      description: Only the current holder of the section can save.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventId, sectionId]
+              properties:
+                eventId:
+                  type: integer
+                sectionId:
+                  type: integer
+                htmlContent:
+                  type: string
+      responses:
+        '200':
+          description: Content saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '403':
+          description: Not the current holder
+
+  /api/workflow/submit:
+    post:
+      tags: [workflow]
+      summary: Submit section to the next role in the approval chain
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventId, sectionId]
+              properties:
+                eventId:
+                  type: integer
+                sectionId:
+                  type: integer
+      responses:
+        '200':
+          description: Submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  newStatus:
+                    type: string
+
+  /api/workflow/approve:
+    post:
+      tags: [workflow]
+      summary: Approve a section (mid-chain or final)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventId, sectionId]
+              properties:
+                eventId:
+                  type: integer
+                sectionId:
+                  type: integer
+                comment:
+                  type: string
+                  nullable: true
+                  maxLength: 10000
+      responses:
+        '200':
+          description: Approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  newStatus:
+                    type: string
+
+  /api/workflow/return:
+    post:
+      tags: [workflow]
+      summary: Return a section to the first editor in the chain
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventId, sectionId]
+              properties:
+                eventId:
+                  type: integer
+                sectionId:
+                  type: integer
+                comment:
+                  type: string
+                  nullable: true
+                  maxLength: 10000
+      responses:
+        '200':
+          description: Returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  newStatus:
+                    type: string
+                  returnTargetRole:
+                    type: string
+
+  /api/workflow/ask-to-return:
+    post:
+      tags: [workflow]
+      summary: Request that the current holder returns the section
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventId, sectionId]
+              properties:
+                eventId:
+                  type: integer
+                sectionId:
+                  type: integer
+                note:
+                  type: string
+                  nullable: true
+                  maxLength: 10000
+      responses:
+        '200':
+          description: Request recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/workflow/return-requests:
+    get:
+      tags: [workflow]
+      summary: List pending return requests for an event (optionally per section)
+      parameters:
+        - name: event_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: section_id
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Array of return requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReturnRequest'
+
+  /api/workflow/push-section:
+    post:
+      tags: [workflow]
+      summary: Push a section forward (skip steps in chain)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventId, sectionId]
+              properties:
+                eventId:
+                  type: integer
+                sectionId:
+                  type: integer
+      responses:
+        '200':
+          description: Pushed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  newStatus:
+                    type: string
+
+  /api/workflow/pull-section:
+    post:
+      tags: [workflow]
+      summary: Pull a section back to the caller's step
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventId, sectionId]
+              properties:
+                eventId:
+                  type: integer
+                sectionId:
+                  type: integer
+      responses:
+        '200':
+          description: Pulled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  newStatus:
+                    type: string
+
+  /api/workflow/send-to-library:
+    post:
+      tags: [workflow]
+      summary: Publish a fully-approved event to the library (DS only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventId]
+              properties:
+                eventId:
+                  type: integer
+      responses:
+        '200':
+          description: Sent to library
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Not all sections approved
+
+  /api/workflow/status-grid:
+    get:
+      tags: [workflow]
+      summary: Get per-section status grid for an event dashboard
+      parameters:
+        - name: event_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Status grid with chain steps, actors, and permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusGridResponse'
+
+  /api/workflow/section-content:
+    get:
+      tags: [workflow]
+      summary: Get HTML content and status for a section
+      parameters:
+        - name: event_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: section_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Section content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SectionContent'
+
+  /api/workflow/section-history:
+    get:
+      tags: [workflow]
+      summary: Get audit history for a section
+      parameters:
+        - name: event_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: section_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: History entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  history:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HistoryEntry'
+
+  /api/workflow/stage-users:
+    get:
+      tags: [workflow]
+      summary: List users eligible for a specific chain step on a section
+      parameters:
+        - name: event_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: section_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: role
+          in: query
+          required: true
+          schema:
+            type: string
+            description: Chain step label (e.g. SUPERVISOR, CURATOR)
+      responses:
+        '200':
+          description: Users for the step
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  role:
+                    type: string
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserDropdown'
+
+  # ── Comments ──────────────────────────────────────────────────────
+  /api/workflow/comments:
+    get:
+      tags: [comments]
+      summary: List comments for a section
+      parameters:
+        - name: event_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: section_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Array of comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+    post:
+      tags: [comments]
+      summary: Add a comment on a section
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventId, sectionId, content]
+              properties:
+                eventId:
+                  type: integer
+                sectionId:
+                  type: integer
+                parentId:
+                  type: integer
+                  nullable: true
+                anchorId:
+                  type: string
+                  nullable: true
+                  maxLength: 200
+                content:
+                  type: string
+                  maxLength: 10000
+                htmlContent:
+                  type: string
+                  nullable: true
+                  description: Auto-saves editor HTML to persist anchor
+      responses:
+        '201':
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  success:
+                    type: boolean
+
+  /api/workflow/comments/delete:
+    post:
+      tags: [comments]
+      summary: Delete own comment (POST variant used by frontend)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [commentId]
+              properties:
+                commentId:
+                  type: integer
+      responses:
+        '200':
+          description: Comment deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/workflow/comments/{id}:
+    delete:
+      tags: [comments]
+      summary: Delete own comment (REST DELETE)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Comment deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ── Files ─────────────────────────────────────────────────────────
+  /api/workflow/files/upload:
+    post:
+      tags: [files]
+      summary: Upload files to a section (up to 10)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [eventId, sectionId, files]
+              properties:
+                eventId:
+                  type: integer
+                sectionId:
+                  type: integer
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  maxItems: 10
+      responses:
+        '200':
+          description: Files uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  files:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FileMetadata'
+        '413':
+          description: File too large
+
+  /api/workflow/files/list:
+    get:
+      tags: [files]
+      summary: List files for a section
+      parameters:
+        - name: eventId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: sectionId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Array of file metadata
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileMetadata'
+
+  /api/workflow/files/download:
+    get:
+      tags: [files]
+      summary: Download a file by id
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: File binary content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File not found
+
+  /api/workflow/files/delete:
+    post:
+      tags: [files]
+      summary: Delete a file (uploader or ADMIN only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: integer
+      responses:
+        '200':
+          description: File deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ── Library ───────────────────────────────────────────────────────
+  /api/library:
+    get:
+      tags: [library]
+      summary: List completed events in the library (scoped by participation)
+      responses:
+        '200':
+          description: Array of library events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LibraryEvent'
+
+  /api/library/{eventId}/document:
+    get:
+      tags: [library]
+      summary: Get full document with all section HTML
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Full document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LibraryDocument'
+
+  /api/library/{eventId}/files:
+    get:
+      tags: [library]
+      summary: List all files across sections for a library event
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Array of file metadata with section titles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/FileMetadata'
+                    - type: object
+                      properties:
+                        section_title:
+                          type: string
+
+  /api/library/{eventId}/reopen:
+    post:
+      tags: [library]
+      summary: Reopen a completed event for amendment (DS only)
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Event reopened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Event is not COMPLETED
+        '403':
+          description: Only the Document Submitter can reopen
+
+  # ── Templates ─────────────────────────────────────────────────────
+  /api/templates:
+    get:
+      tags: [templates]
+      summary: List event templates (defaults + own)
+      responses:
+        '200':
+          description: Array of templates with sections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Template'
+    post:
+      tags: [templates]
+      summary: Create an event template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 300
+                documentSubmitterRole:
+                  $ref: '#/components/schemas/DocumentSubmitterRole'
+                curatorRequired:
+                  type: boolean
+                sections:
+                  type: array
+                  maxItems: 100
+                  items:
+                    $ref: '#/components/schemas/SectionInput'
+      responses:
+        '201':
+          description: Template created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  success:
+                    type: boolean
+
+  /api/templates/{id}:
+    delete:
+      tags: [templates]
+      summary: Delete own template (not default)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Template deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          description: Template not found or cannot be deleted
+
+  # ── Admin ─────────────────────────────────────────────────────────
+  /api/admin/deputy-supervisor-links:
+    get:
+      tags: [admin]
+      summary: List deputy-supervisor links (ADMIN only)
+      responses:
+        '200':
+          description: Array of links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeputySupervisorLink'
+    post:
+      tags: [admin]
+      summary: Create a deputy-supervisor link (ADMIN only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deputyId, supervisorId]
+              properties:
+                deputyId:
+                  type: integer
+                supervisorId:
+                  type: integer
+      responses:
+        '201':
+          description: Link created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  success:
+                    type: boolean
+        '409':
+          description: Link already exists
+
+  /api/admin/deputy-supervisor-links/{id}:
+    delete:
+      tags: [admin]
+      summary: Delete a deputy-supervisor link (ADMIN only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Link deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/admin/supervisors:
+    get:
+      tags: [admin]
+      summary: Get supervisors linked to a deputy (for dropdowns)
+      parameters:
+        - name: deputy_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Array of supervisor dropdown items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    fullName:
+                      type: string
+                    departmentId:
+                      type: integer
+                      nullable: true
+                    departmentName:
+                      type: string
+                      nullable: true
+
+  /api/admin/department-hierarchy:
+    get:
+      tags: [admin]
+      summary: Department hierarchy (Dept -> Supervisors -> SCs -> Collaborators)
+      responses:
+        '200':
+          description: Array of departments with grouped members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    departmentId:
+                      type: integer
+                    departmentName:
+                      type: string
+                    departmentNameEn:
+                      type: string
+                    isExternal:
+                      type: boolean
+                    deputies:
+                      type: array
+                      items:
+                        type: string
+                    supervisors:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/UserDropdown'
+                    superCollaborators:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/UserDropdown'
+                    collaborators:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/UserDropdown'
+
+  /api/admin/deputies:
+    get:
+      tags: [admin]
+      summary: List all deputies (for dropdowns)
+      responses:
+        '200':
+          description: Array of deputy dropdown items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    fullName:
+                      type: string
+                    departmentId:
+                      type: integer
+                      nullable: true
+
+  /api/admin/all-supervisors:
+    get:
+      tags: [admin]
+      summary: List all supervisors (for dropdowns)
+      responses:
+        '200':
+          description: Array of supervisor items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserDropdown'
+
+  /api/admin/all-super-collaborators:
+    get:
+      tags: [admin]
+      summary: List all super-collaborators (for dropdowns)
+      responses:
+        '200':
+          description: Array of SC items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserDropdown'
+
+  /api/admin/linked-deputies:
+    get:
+      tags: [admin]
+      summary: Deputies assignable as DS by the current user
+      responses:
+        '200':
+          description: Filtered deputy list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    fullName:
+                      type: string
+                    departmentId:
+                      type: integer
+                      nullable: true
+
+  /api/admin/linked-supervisors:
+    get:
+      tags: [admin]
+      summary: Supervisors assignable as DS by the current user
+      responses:
+        '200':
+          description: Filtered supervisor list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserDropdown'
+
+  /api/admin/linked-super-collaborators:
+    get:
+      tags: [admin]
+      summary: Super-collaborators assignable as DS by the current user
+      responses:
+        '200':
+          description: Filtered SC list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserDropdown'
+
+  # ── Statistics ────────────────────────────────────────────────────
+  /api/statistics/classificatory:
+    get:
+      tags: [statistics]
+      summary: Get Geostat classificatory data (countries, trade types, HS codes)
+      security: []
+      parameters:
+        - name: lang
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [en, ka]
+            default: en
+      responses:
+        '200':
+          description: Classificatory data from Geostat
+          content:
+            application/json:
+              schema:
+                type: object
+        '502':
+          description: Geostat upstream error
+
+  /api/statistics/trade-data:
+    post:
+      tags: [statistics]
+      summary: Proxy trade data query to Geostat
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Geostat filter payload (passed through)
+      responses:
+        '200':
+          description: Trade data
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/statistics/export-report:
+    post:
+      tags: [statistics]
+      summary: Fetch all pages of trade data for report export
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Complete dataset
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+
+  /api/statistics/country-ranking:
+    post:
+      tags: [statistics]
+      summary: Get a country's trade ranking vs all Geostat countries
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [year, months, countryId]
+              properties:
+                year:
+                  type: integer
+                months:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 1
+                    maximum: 12
+                countryId:
+                  oneOf:
+                    - type: integer
+                    - type: string
+      responses:
+        '200':
+          description: Ranking data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  totals:
+                    type: object
+                  country:
+                    type: object
+
+  /api/statistics/country-ranking/debug:
+    post:
+      tags: [statistics]
+      summary: Debug raw Geostat response for a single country/flow
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tradeFlow, year, months, countryId]
+              properties:
+                tradeFlow:
+                  type: string
+                  enum: [turnover, export, import]
+                year:
+                  type: integer
+                months:
+                  type: array
+                  items:
+                    type: integer
+                countryId:
+                  oneOf:
+                    - type: integer
+                    - type: string
+      responses:
+        '200':
+          description: Raw debug output
+
+  /api/statistics/country-aggregate:
+    post:
+      tags: [statistics]
+      summary: Lightweight export+import totals for a country (appendix use)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [year, months, countryId]
+              properties:
+                year:
+                  type: integer
+                months:
+                  type: array
+                  items:
+                    type: integer
+                countryId:
+                  oneOf:
+                    - type: integer
+                    - type: string
+      responses:
+        '200':
+          description: Aggregate totals
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  totals:
+                    type: object
+                    properties:
+                      export:
+                        type: number
+                      import:
+                        type: number
+                      turnover:
+                        type: number
+                  country:
+                    type: object
+                    nullable: true
+                    properties:
+                      export:
+                        type: number
+                      import:
+                        type: number
+                      turnover:
+                        type: number
+
+  /api/statistics/fdi:
+    get:
+      tags: [statistics]
+      summary: Get FDI by country data (parsed from Geostat XLSX)
+      security: []
+      responses:
+        '200':
+          description: FDI data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  years:
+                    type: array
+                    items:
+                      type: integer
+                  countries:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      additionalProperties:
+                        type: number
+                  totals:
+                    type: object
+                    additionalProperties:
+                      type: number
+
+  /api/statistics/fdi-sectors:
+    get:
+      tags: [statistics]
+      summary: Get FDI by sector data (from admin-uploaded XLSX)
+      security: []
+      responses:
+        '200':
+          description: FDI sectors data (or empty flag)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  empty:
+                    type: boolean
+                  uploadedAt:
+                    type: string
+                    format: date-time
+                  years:
+                    type: array
+                    items:
+                      type: string
+                  sectors:
+                    type: array
+                    items:
+                      type: string
+                  sectorNameMap:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  countries:
+                    type: object
+
+  /api/statistics/fdi-sectors/upload:
+    post:
+      tags: [statistics]
+      summary: Upload FDI by sector XLSX (ADMIN only)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Upload processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  uploadedAt:
+                    type: string
+                  yearsCovered:
+                    type: array
+                    items:
+                      type: string
+                  countryCount:
+                    type: integer
+                  sectorCount:
+                    type: integer
+
+  /api/statistics/tourism:
+    get:
+      tags: [statistics]
+      summary: Get international tourism visitor data (from GNTA XLSX)
+      security: []
+      responses:
+        '200':
+          description: Tourism data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  years:
+                    type: array
+                    items:
+                      type: integer
+                  currentPeriod:
+                    type: object
+                    nullable: true
+                    properties:
+                      label:
+                        type: string
+                      compareLabel:
+                        type: string
+                  countries:
+                    type: object
+                  totals:
+                    type: object
+
+  /api/statistics/companies:
+    get:
+      tags: [statistics]
+      summary: Get active-companies data by country
+      security: []
+      responses:
+        '200':
+          description: Companies data (or empty flag)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  empty:
+                    type: boolean
+                  uploadedAt:
+                    type: string
+                    format: date-time
+                  countries:
+                    type: object
+                  countryCount:
+                    type: integer
+                  activeCount:
+                    type: integer
+
+  /api/statistics/companies/data:
+    post:
+      tags: [statistics]
+      summary: Upload aggregated companies data (ADMIN only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [countries]
+              properties:
+                countries:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      solo:
+                        type: integer
+                      withGeorgia:
+                        type: integer
+                      withGeorgiaAndThird:
+                        type: integer
+                      withThirdOnly:
+                        type: integer
+                activeCount:
+                  type: integer
+      responses:
+        '200':
+          description: Data saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  uploadedAt:
+                    type: string
+                  countryCount:
+                    type: integer
+                  activeCount:
+                    type: integer

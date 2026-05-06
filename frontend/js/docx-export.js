@@ -22,9 +22,15 @@
   }
 
   const {
-    Document, Packer, Paragraph, TextRun, HeadingLevel,
-    InsertedTextRun, DeletedTextRun,
-    AlignmentType, UnderlineType,
+    Document,
+    Packer,
+    Paragraph,
+    TextRun,
+    HeadingLevel,
+    InsertedTextRun,
+    DeletedTextRun,
+    AlignmentType,
+    UnderlineType,
     convertInchesToTwip,
   } = window.docx;
 
@@ -36,18 +42,24 @@
     raw = raw.trim();
     if (raw.startsWith('#')) {
       const h = raw.slice(1);
-      if (h.length === 3) return h.split('').map(c => c + c).join('');
+      if (h.length === 3)
+        return h
+          .split('')
+          .map((c) => c + c)
+          .join('');
       if (h.length >= 6) return h.slice(0, 6);
     }
     const m = raw.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
     if (m) {
-      return [m[1], m[2], m[3]].map(n => Number(n).toString(16).padStart(2, '0')).join('');
+      return [m[1], m[2], m[3]].map((n) => Number(n).toString(16).padStart(2, '0')).join('');
     }
     return undefined;
   }
 
   /** Convert pt string → half-points (Word internal unit). */
-  function ptToHalfPt(pt) { return Math.round(Number(pt) * 2); }
+  function ptToHalfPt(pt) {
+    return Math.round(Number(pt) * 2);
+  }
 
   // ── Inline formatting extractor ────────────────────────────────────────────
 
@@ -70,9 +82,8 @@
         if (style.fontStyle === 'italic') fmt.italics = true;
         if (style.textDecoration && style.textDecoration.includes('underline'))
           fmt.underline = { type: UnderlineType.SINGLE };
-        if (style.textDecoration && style.textDecoration.includes('line-through'))
-          fmt.strike = true;
-        if (style.fontFamily) fmt.font = { name: style.fontFamily.split(',')[0].replace(/['\"]/g, '').trim() };
+        if (style.textDecoration && style.textDecoration.includes('line-through')) fmt.strike = true;
+        if (style.fontFamily) fmt.font = { name: style.fontFamily.split(',')[0].replace(/['"]/g, '').trim() };
         if (style.fontSize) {
           const ptMatch = style.fontSize.match(/(\d+\.?\d*)pt/);
           if (ptMatch) fmt.size = ptToHalfPt(ptMatch[1]);
@@ -80,7 +91,10 @@
           if (pxMatch) fmt.size = ptToHalfPt(Number(pxMatch[1]) * 0.75);
         }
         const clr = style.color;
-        if (clr) { const h = toHex6(clr); if (h) fmt.color = h; }
+        if (clr) {
+          const h = toHex6(clr);
+          if (h) fmt.color = h;
+        }
       }
       el = el.parentElement;
     }
@@ -99,26 +113,30 @@
       // Check if inside a tracked insertion
       const insEl = closestTag(node, 'INS');
       if (insEl && insEl.hasAttribute('data-tc-id')) {
-        runs.push(new InsertedTextRun({
-          text,
-          ...fmt,
-          id: revisionId(insEl),
-          author: insEl.getAttribute('data-tc-author') || 'Unknown',
-          date: insEl.getAttribute('data-tc-time') || new Date().toISOString(),
-        }));
+        runs.push(
+          new InsertedTextRun({
+            text,
+            ...fmt,
+            id: revisionId(insEl),
+            author: insEl.getAttribute('data-tc-author') || 'Unknown',
+            date: insEl.getAttribute('data-tc-time') || new Date().toISOString(),
+          })
+        );
         return;
       }
 
       // Check if inside a tracked deletion
       const delEl = closestTag(node, 'DEL');
       if (delEl && delEl.hasAttribute('data-tc-id')) {
-        runs.push(new DeletedTextRun({
-          text,
-          ...fmt,
-          id: revisionId(delEl),
-          author: delEl.getAttribute('data-tc-author') || 'Unknown',
-          date: delEl.getAttribute('data-tc-time') || new Date().toISOString(),
-        }));
+        runs.push(
+          new DeletedTextRun({
+            text,
+            ...fmt,
+            id: revisionId(delEl),
+            author: delEl.getAttribute('data-tc-author') || 'Unknown',
+            date: delEl.getAttribute('data-tc-time') || new Date().toISOString(),
+          })
+        );
         return;
       }
 
@@ -179,22 +197,26 @@
 
     // Headings
     if (tag === 'H1') {
-      const runs = []; walkInline(el, runs);
+      const runs = [];
+      walkInline(el, runs);
       paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: runs, alignment: getAlignment(el) }));
       return paragraphs;
     }
     if (tag === 'H2') {
-      const runs = []; walkInline(el, runs);
+      const runs = [];
+      walkInline(el, runs);
       paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: runs, alignment: getAlignment(el) }));
       return paragraphs;
     }
     if (tag === 'H3') {
-      const runs = []; walkInline(el, runs);
+      const runs = [];
+      walkInline(el, runs);
       paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_3, children: runs, alignment: getAlignment(el) }));
       return paragraphs;
     }
     if (tag === 'H4') {
-      const runs = []; walkInline(el, runs);
+      const runs = [];
+      walkInline(el, runs);
       paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_4, children: runs, alignment: getAlignment(el) }));
       return paragraphs;
     }
@@ -249,11 +271,12 @@
     // Generic block: P, DIV, BLOCKQUOTE, etc.
     if (tag === 'P' || tag === 'DIV' || tag === 'BLOCKQUOTE' || tag === 'SECTION' || tag === 'ARTICLE') {
       // If it only contains inline content, make one paragraph
-      const hasBlockChildren = Array.from(el.children).some(c =>
+      const hasBlockChildren = Array.from(el.children).some((c) =>
         /^(P|DIV|H[1-6]|UL|OL|TABLE|BLOCKQUOTE|SECTION|ARTICLE)$/.test(c.tagName)
       );
       if (!hasBlockChildren) {
-        const runs = []; walkInline(el, runs);
+        const runs = [];
+        walkInline(el, runs);
         if (runs.length) paragraphs.push(new Paragraph({ children: runs, alignment: getAlignment(el) }));
         return paragraphs;
       }
@@ -270,7 +293,8 @@
     }
 
     // Fallback: treat as inline content in a paragraph
-    const runs = []; walkInline(el, runs);
+    const runs = [];
+    walkInline(el, runs);
     if (runs.length) paragraphs.push(new Paragraph({ children: runs }));
     return paragraphs;
   }
@@ -307,10 +331,12 @@
     const children = [];
 
     // Title — 13pt (1pt larger than section headings)
-    children.push(new Paragraph({
-      children: [new TextRun({ text: title || 'Document', bold: true, size: ptToHalfPt(13) })],
-      spacing: { after: 80 },
-    }));
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: title || 'Document', bold: true, size: ptToHalfPt(13) })],
+        spacing: { after: 80 },
+      })
+    );
 
     // Country and approval date (two sizes smaller than body text)
     const metaParts = [];
@@ -323,24 +349,30 @@
       metaParts.push(dd + '.' + mm + '.' + yyyy);
     }
     if (metaParts.length) {
-      children.push(new Paragraph({
-        children: metaParts.map((text, i) => {
-          const runs = [];
-          if (i > 0) runs.push(new TextRun({ text: '\n', size: 18 }));
-          runs.push(new TextRun({ text, size: 18 }));
-          return runs;
-        }).flat(),
-        spacing: { after: 300 },
-      }));
+      children.push(
+        new Paragraph({
+          children: metaParts
+            .map((text, i) => {
+              const runs = [];
+              if (i > 0) runs.push(new TextRun({ text: '\n', size: 18 }));
+              runs.push(new TextRun({ text, size: 18 }));
+              return runs;
+            })
+            .flat(),
+          spacing: { after: 300 },
+        })
+      );
     }
 
     // Sections
     for (const sec of sections) {
       // Section heading — 12pt (1pt larger than 11pt body text)
-      children.push(new Paragraph({
-        children: [new TextRun({ text: sec.sectionLabel || 'Section', bold: true, size: ptToHalfPt(12) })],
-        spacing: { before: 400, after: 200 },
-      }));
+      children.push(
+        new Paragraph({
+          children: [new TextRun({ text: sec.sectionLabel || 'Section', bold: true, size: ptToHalfPt(12) })],
+          spacing: { before: 400, after: 200 },
+        })
+      );
 
       // Section content
       const paras = htmlToParagraphs(sec.htmlContent);
@@ -349,48 +381,60 @@
 
     const doc = new Document({
       numbering: {
-        config: [{
-          reference: 'default-numbering',
-          levels: Array.from({ length: 9 }, (_, i) => ({
-            level: i,
-            format: 'decimal',
-            text: `%${i + 1}.`,
-            alignment: AlignmentType.START,
-            style: { paragraph: { indent: { left: convertInchesToTwip(0.5 * (i + 1)), hanging: convertInchesToTwip(0.25) } } },
-          })),
-        }],
+        config: [
+          {
+            reference: 'default-numbering',
+            levels: Array.from({ length: 9 }, (_, i) => ({
+              level: i,
+              format: 'decimal',
+              text: `%${i + 1}.`,
+              alignment: AlignmentType.START,
+              style: {
+                paragraph: { indent: { left: convertInchesToTwip(0.5 * (i + 1)), hanging: convertInchesToTwip(0.25) } },
+              },
+            })),
+          },
+        ],
       },
-      sections: [{
-        properties: {
-          page: {
-            margin: {
-              top: convertInchesToTwip(1),
-              right: convertInchesToTwip(1),
-              bottom: convertInchesToTwip(1),
-              left: convertInchesToTwip(1),
+      sections: [
+        {
+          properties: {
+            page: {
+              margin: {
+                top: convertInchesToTwip(1),
+                right: convertInchesToTwip(1),
+                bottom: convertInchesToTwip(1),
+                left: convertInchesToTwip(1),
+              },
             },
           },
+          children,
         },
-        children,
-      }],
+      ],
     });
 
     const blob = await Packer.toBlob(doc);
 
     // Trigger download
-    const filename = (title || 'document')
-      .trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-\.]/g, '').slice(0, 80) + '.docx';
+    const filename =
+      (title || 'document')
+        .trim()
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9_\-.]/g, '')
+        .slice(0, 80) + '.docx';
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
-    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 200);
   }
 
   // Expose
   window.GCP = window.GCP || {};
   window.GCP.exportDocx = exportDocx;
-
 })();

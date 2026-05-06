@@ -1,12 +1,8 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const {
-  asBoolean,
-  asOptionalTrimmedString,
-  asTrimmedString,
-  validationError,
-} = require('../helpers/validation');
+const { asBoolean, asOptionalTrimmedString, asTrimmedString, validationError } = require('../helpers/validation');
+const logger = require('../logger');
 
 const router = express.Router();
 
@@ -16,14 +12,16 @@ router.get('/', requireAuth, async (req, res) => {
     const { rows } = await db.query(
       'SELECT id, name, name_en, is_external FROM departments ORDER BY is_external, name'
     );
-    res.json(rows.map(r => ({
-      id: r.id,
-      name: r.name,
-      nameEn: r.name_en,
-      isExternal: r.is_external,
-    })));
+    res.json(
+      rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        nameEn: r.name_en,
+        isExternal: r.is_external,
+      }))
+    );
   } catch (err) {
-    console.error('List departments error:', err);
+    logger.error({ err }, 'List departments error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -44,7 +42,7 @@ router.post('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
     );
     res.status(201).json({ id: rows[0].id, success: true });
   } catch (err) {
-    console.error('Create department error:', err);
+    logger.error({ err }, 'Create department error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -52,9 +50,7 @@ router.post('/', requireAuth, requireRole('ADMIN'), async (req, res) => {
 // GET /api/departments/grouped — departments grouped by deputy for picker UI
 router.get('/grouped', requireAuth, async (req, res) => {
   try {
-    const { rows: depts } = await db.query(
-      'SELECT id, name, name_en, is_external FROM departments ORDER BY name_en'
-    );
+    const { rows: depts } = await db.query('SELECT id, name, name_en, is_external FROM departments ORDER BY name_en');
 
     // Get deputy → department mapping through direct deputy-department links
     const { rows: links } = await db.query(
@@ -79,12 +75,10 @@ router.get('/grouped', requireAuth, async (req, res) => {
     const deputies = Array.from(deputyMap.values());
 
     // Departments not assigned to any deputy
-    const unassigned = depts
-      .filter(d => !assignedDeptIds.has(d.id))
-      .map(d => d.id);
+    const unassigned = depts.filter((d) => !assignedDeptIds.has(d.id)).map((d) => d.id);
 
     res.json({
-      departments: depts.map(d => ({
+      departments: depts.map((d) => ({
         id: d.id,
         name: d.name,
         nameEn: d.name_en,
@@ -94,7 +88,7 @@ router.get('/grouped', requireAuth, async (req, res) => {
       unassignedDepartmentIds: unassigned,
     });
   } catch (err) {
-    console.error('Grouped departments error:', err);
+    logger.error({ err }, 'Grouped departments error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

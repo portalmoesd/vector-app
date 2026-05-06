@@ -1,0 +1,56 @@
+{
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022
+  },
+  "extends": ["eslint:recommended", "prettier"],
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-console": "off"
+  },
+  "overrides": [
+    {
+      "files": ["frontend/**/*.js"],
+      "env": {
+        "node": false,
+        "browser": true
+      },
+      "globals": {
+        "Api": "writable",
+        "App": "writable",
+        "I18n": "writable",
+        "toast": "writable",
+        "escapeHtml": "writable",
+        "statusLabel": "writable",
+        "statusClass": "writable",
+        "roleLabel": "writable",
+        "formatDate": "writable",
+        "formatDateTime": "writable",
+        "dashboardUrl": "writable",
+        "languageLabel": "writable",
+        "languageLabelShort": "writable",
+        "RichEditor": "writable",
+        "html2pdf": "readonly",
+        "docx": "readonly",
+        "GCP": "readonly",
+        "Chart": "readonly",
+        "ChartDataLabels": "readonly",
+        "pdfMake": "readonly",
+        "flatpickr": "readonly",
+        "XLSX": "readonly",
+        "API_BASE": "writable",
+        "StatisticsPdf": "writable",
+        "StatisticsWord": "writable"
+      },
+      "rules": {
+        "no-inner-declarations": "off",
+        "no-redeclare": "off",
+        "no-empty": "warn",
+        "no-undef": "warn"
+      }
+    }
+  ]
+}

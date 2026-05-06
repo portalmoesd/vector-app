@@ -22,16 +22,22 @@
 }
 
 /* Scroll padding so anchor-scrolled sections don't hide behind sticky header */
-html { scroll-padding-top: 160px; }
+html {
+  scroll-padding-top: 160px;
+}
 
 /* ─── Sections ──────────────────────────────────────────────────────────── */
 
-.stat-sections.hidden { display: none; }
+.stat-sections.hidden {
+  display: none;
+}
 
 /* While any section is regenerating (country change, language toggle),
    hide every section so the single top-level spinner is the only
    thing visible — no stale content flashing between country switches. */
-.stat-sections.is-loading .stat-section { display: none; }
+.stat-sections.is-loading .stat-section {
+  display: none;
+}
 
 .stat-section__heading {
   font-size: 18px;
@@ -66,11 +72,18 @@ html { scroll-padding-top: 160px; }
   cursor: pointer;
   border-bottom: 2px solid transparent;
   font-family: var(--font-primary);
-  transition: color 0.15s, border-color 0.15s;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
 }
 
-.stat-tab:hover { color: var(--text-primary); }
-.stat-tab.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+.stat-tab:hover {
+  color: var(--text-primary);
+}
+.stat-tab.active {
+  color: var(--accent-blue);
+  border-bottom-color: var(--accent-blue);
+}
 
 /* ─── Controls ───────────────────────────────────────────────────────────── */
 
@@ -126,7 +139,9 @@ html { scroll-padding-top: 160px; }
   border-radius: 999px;
   font-family: var(--font-primary);
   line-height: 1.2;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .stat-lang-toggle__btn:hover {
@@ -288,7 +303,7 @@ body.stat-exporting .stat-sections.hidden {
 }
 
 .stat-dropdown__item.selected {
-  background: rgba(59,130,246,0.08);
+  background: rgba(59, 130, 246, 0.08);
   color: var(--accent-blue);
   font-weight: 600;
 }
@@ -338,7 +353,9 @@ body.stat-exporting .stat-sections.hidden {
 }
 
 @keyframes statSpin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ─── Table ──────────────────────────────────────────────────────────────── */
@@ -417,7 +434,9 @@ body.stat-exporting .stat-sections.hidden {
   font-size: 0.75rem;
   font-family: var(--font-primary);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .stat-expand-btn:hover {
@@ -595,4 +614,3 @@ body.stat-exporting .stat-sections.hidden {
 .stat-appendix__share {
   color: var(--text-primary) !important;
 }
-

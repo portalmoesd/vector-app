@@ -7,22 +7,184 @@
 
   // ── Region definitions (UI-only groupings per §3.4) ─────────────────────────
   const REGIONS = {
-    'Neighbors': ['BY','UA','MD','RU','AZ','AM','KZ','TJ','KG','UZ','TM'],
-    'EU': ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'],
-    'Other Europe': ['AL','AD','BA','CH','IS','LI','MC','ME','MK','NO','RS','SM','TR','GB','VA','GE','XK'],
-    'North America': ['US','CA','MX','GL','BM'],
-    'Central America & Caribbean': ['BZ','CR','SV','GT','HN','NI','PA','AG','BS','BB','CU','DM','DO','GD','HT','JM','KN','LC','VC','TT','PR'],
-    'South America': ['AR','BO','BR','CL','CO','EC','GY','PY','PE','SR','UY','VE','FK','GF'],
-    'Africa': ['DZ','AO','BJ','BW','BF','BI','CV','CM','CF','TD','KM','CG','CD','CI','DJ','EG','GQ','ER','SZ','ET','GA','GM','GH','GN','GW','KE','LS','LR','LY','MG','MW','ML','MR','MU','MA','MZ','NA','NE','NG','RW','ST','SN','SC','SL','SO','ZA','SS','SD','TZ','TG','TN','UG','ZM','ZW'],
-    'Asia': ['AF','BH','BD','BT','BN','KH','CN','IN','ID','IR','IQ','IL','JP','JO','KW','LA','LB','MY','MV','MN','MM','NP','KP','OM','PK','PH','QA','SA','SG','KR','LK','SY','TW','TH','TL','AE','VN','YE'],
-    'Oceania': ['AU','NZ','FJ','FM','KI','MH','NR','PW','PG','WS','SB','TO','TV','VU'],
+    Neighbors: ['BY', 'UA', 'MD', 'RU', 'AZ', 'AM', 'KZ', 'TJ', 'KG', 'UZ', 'TM'],
+    EU: [
+      'AT',
+      'BE',
+      'BG',
+      'HR',
+      'CY',
+      'CZ',
+      'DK',
+      'EE',
+      'FI',
+      'FR',
+      'DE',
+      'GR',
+      'HU',
+      'IE',
+      'IT',
+      'LV',
+      'LT',
+      'LU',
+      'MT',
+      'NL',
+      'PL',
+      'PT',
+      'RO',
+      'SK',
+      'SI',
+      'ES',
+      'SE',
+    ],
+    'Other Europe': [
+      'AL',
+      'AD',
+      'BA',
+      'CH',
+      'IS',
+      'LI',
+      'MC',
+      'ME',
+      'MK',
+      'NO',
+      'RS',
+      'SM',
+      'TR',
+      'GB',
+      'VA',
+      'GE',
+      'XK',
+    ],
+    'North America': ['US', 'CA', 'MX', 'GL', 'BM'],
+    'Central America & Caribbean': [
+      'BZ',
+      'CR',
+      'SV',
+      'GT',
+      'HN',
+      'NI',
+      'PA',
+      'AG',
+      'BS',
+      'BB',
+      'CU',
+      'DM',
+      'DO',
+      'GD',
+      'HT',
+      'JM',
+      'KN',
+      'LC',
+      'VC',
+      'TT',
+      'PR',
+    ],
+    'South America': ['AR', 'BO', 'BR', 'CL', 'CO', 'EC', 'GY', 'PY', 'PE', 'SR', 'UY', 'VE', 'FK', 'GF'],
+    Africa: [
+      'DZ',
+      'AO',
+      'BJ',
+      'BW',
+      'BF',
+      'BI',
+      'CV',
+      'CM',
+      'CF',
+      'TD',
+      'KM',
+      'CG',
+      'CD',
+      'CI',
+      'DJ',
+      'EG',
+      'GQ',
+      'ER',
+      'SZ',
+      'ET',
+      'GA',
+      'GM',
+      'GH',
+      'GN',
+      'GW',
+      'KE',
+      'LS',
+      'LR',
+      'LY',
+      'MG',
+      'MW',
+      'ML',
+      'MR',
+      'MU',
+      'MA',
+      'MZ',
+      'NA',
+      'NE',
+      'NG',
+      'RW',
+      'ST',
+      'SN',
+      'SC',
+      'SL',
+      'SO',
+      'ZA',
+      'SS',
+      'SD',
+      'TZ',
+      'TG',
+      'TN',
+      'UG',
+      'ZM',
+      'ZW',
+    ],
+    Asia: [
+      'AF',
+      'BH',
+      'BD',
+      'BT',
+      'BN',
+      'KH',
+      'CN',
+      'IN',
+      'ID',
+      'IR',
+      'IQ',
+      'IL',
+      'JP',
+      'JO',
+      'KW',
+      'LA',
+      'LB',
+      'MY',
+      'MV',
+      'MN',
+      'MM',
+      'NP',
+      'KP',
+      'OM',
+      'PK',
+      'PH',
+      'QA',
+      'SA',
+      'SG',
+      'KR',
+      'LK',
+      'SY',
+      'TW',
+      'TH',
+      'TL',
+      'AE',
+      'VN',
+      'YE',
+    ],
+    Oceania: ['AU', 'NZ', 'FJ', 'FM', 'KI', 'MH', 'NR', 'PW', 'PG', 'WS', 'SB', 'TO', 'TV', 'VU'],
   };
 
   // ── Tab switching ──────────────────────────────────────────────────────────
-  document.querySelectorAll('.admin-tab').forEach(btn => {
+  document.querySelectorAll('.admin-tab').forEach((btn) => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.admin-panel').forEach(p => p.style.display = 'none');
+      document.querySelectorAll('.admin-tab').forEach((b) => b.classList.remove('active'));
+      document.querySelectorAll('.admin-panel').forEach((p) => (p.style.display = 'none'));
       btn.classList.add('active');
       document.getElementById('tab-' + btn.dataset.tab).style.display = '';
     });
@@ -50,27 +212,34 @@
   }
 
   modalCancel.addEventListener('click', hideModal);
-  modalSave.addEventListener('click', () => { if (onSave) onSave(); });
+  modalSave.addEventListener('click', () => {
+    if (onSave) onSave();
+  });
 
   // ── Shared data ─────────────────────────────────────────────────────────────
   let departments = [];
   let allCountries = [];
 
   // Load countries once
-  try { allCountries = await Api.get('/api/countries'); } catch(e) { console.error(e); }
+  try {
+    allCountries = await Api.get('/api/countries');
+  } catch (e) {
+    console.error(e);
+  }
 
   // ── Country picker HTML generation ──────────────────────────────────────────
 
   function buildCountryPickerHtml(selectedIds) {
     const selected = new Set(selectedIds || []);
-    let html = '<div class="country-picker" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px;">';
+    let html =
+      '<div class="country-picker" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px;">';
 
     for (const [region, codes] of Object.entries(REGIONS)) {
-      const countriesInRegion = allCountries.filter(c => codes.includes(c.code));
+      const countriesInRegion = allCountries.filter((c) => codes.includes(c.code));
       if (countriesInRegion.length === 0) continue;
 
-      const allChecked = countriesInRegion.every(c => selected.has(c.id));
-      const someChecked = countriesInRegion.some(c => selected.has(c.id));
+      const allChecked = countriesInRegion.every((c) => selected.has(c.id));
+      const someChecked = countriesInRegion.some((c) => selected.has(c.id));
 
       html += `<div class="region-group" style="margin-bottom:8px;">
         <label style="font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;padding:4px 0;">
@@ -79,13 +248,17 @@
           ${escapeHtml(region)} (${countriesInRegion.length})
         </label>
         <div class="region-countries" style="display:none;padding-left:20px;columns:2;column-gap:12px;">
-          ${countriesInRegion.map(c => `
+          ${countriesInRegion
+            .map(
+              (c) => `
             <label style="display:flex;align-items:center;gap:4px;padding:1px 0;font-size:13px;break-inside:avoid;cursor:pointer;">
               <input type="checkbox" class="country-cb" data-country-id="${c.id}" data-region="${region}"
                 ${selected.has(c.id) ? 'checked' : ''} />
               ${escapeHtml(c.name_en || c.nameEn || c.name)}
             </label>
-          `).join('')}
+          `
+            )
+            .join('')}
         </div>
       </div>`;
     }
@@ -96,7 +269,7 @@
 
   function initCountryPicker(container) {
     // Toggle region expand
-    container.querySelectorAll('.region-group > label').forEach(label => {
+    container.querySelectorAll('.region-group > label').forEach((label) => {
       label.addEventListener('click', (e) => {
         if (e.target.tagName === 'INPUT') return;
         const countries = label.nextElementSibling;
@@ -105,22 +278,22 @@
     });
 
     // Region toggle all
-    container.querySelectorAll('.region-toggle').forEach(toggle => {
+    container.querySelectorAll('.region-toggle').forEach((toggle) => {
       toggle.addEventListener('change', () => {
         const region = toggle.dataset.region;
-        container.querySelectorAll(`.country-cb[data-region="${region}"]`).forEach(cb => {
+        container.querySelectorAll(`.country-cb[data-region="${region}"]`).forEach((cb) => {
           cb.checked = toggle.checked;
         });
       });
     });
 
     // Country checkbox updates region state
-    container.querySelectorAll('.country-cb').forEach(cb => {
+    container.querySelectorAll('.country-cb').forEach((cb) => {
       cb.addEventListener('change', () => {
         const region = cb.dataset.region;
         const cbs = container.querySelectorAll(`.country-cb[data-region="${region}"]`);
         const toggle = container.querySelector(`.region-toggle[data-region="${region}"]`);
-        const checkedCount = Array.from(cbs).filter(c => c.checked).length;
+        const checkedCount = Array.from(cbs).filter((c) => c.checked).length;
         toggle.checked = checkedCount === cbs.length;
         toggle.indeterminate = checkedCount > 0 && checkedCount < cbs.length;
       });
@@ -128,8 +301,7 @@
   }
 
   function getSelectedCountryIds(container) {
-    return Array.from(container.querySelectorAll('.country-cb:checked'))
-      .map(cb => parseInt(cb.dataset.countryId));
+    return Array.from(container.querySelectorAll('.country-cb:checked')).map((cb) => parseInt(cb.dataset.countryId));
   }
 
   // ── Departments ────────────────────────────────────────────────────────────
@@ -137,15 +309,20 @@
     try {
       const depts = await Api.get('/api/departments');
       if (depts.length === 0) {
-        document.getElementById('deptList').innerHTML = `<div class="empty-state"><p>${escapeHtml(I18n.tr('admin.dept.empty'))}</p></div>`;
+        document.getElementById('deptList').innerHTML =
+          `<div class="empty-state"><p>${escapeHtml(I18n.tr('admin.dept.empty'))}</p></div>`;
         return depts;
       }
       document.getElementById('deptList').innerHTML = `
         <div class="table-wrap"><table>
           <thead><tr><th>#</th><th>${escapeHtml(I18n.tr('admin.dept.col.nameKa'))}</th><th>${escapeHtml(I18n.tr('admin.dept.col.nameEn'))}</th><th>${escapeHtml(I18n.tr('admin.dept.col.type'))}</th></tr></thead>
-          <tbody>${depts.map((d, i) => `
+          <tbody>${depts
+            .map(
+              (d, i) => `
             <tr><td>${i + 1}</td><td>${escapeHtml(d.name)}</td><td>${d.nameEn ? escapeHtml(d.nameEn) : '—'}</td><td><span class="pill ${d.isExternal ? 'pill-yellow' : 'pill-blue'}">${escapeHtml(I18n.tr(d.isExternal ? 'admin.dept.type.agency' : 'admin.dept.type.department'))}</span></td></tr>
-          `).join('')}</tbody>
+          `
+            )
+            .join('')}</tbody>
         </table></div>`;
       return depts;
     } catch (e) {
@@ -155,7 +332,9 @@
   }
 
   document.getElementById('addDeptBtn').addEventListener('click', () => {
-    showModal(I18n.tr('admin.dept.modal.add'), `
+    showModal(
+      I18n.tr('admin.dept.modal.add'),
+      `
       <div class="form-group">
         <label class="form-label">${escapeHtml(I18n.tr('admin.dept.form.name'))}</label>
         <input class="form-input" id="deptName" required />
@@ -163,15 +342,19 @@
       <div class="form-group">
         <label class="form-label"><input type="checkbox" id="deptExternal" /> ${escapeHtml(I18n.tr('admin.dept.form.external'))}</label>
       </div>
-    `, async () => {
-      const name = document.getElementById('deptName').value.trim();
-      if (!name) return;
-      try {
-        await Api.post('/api/departments', { name, isExternal: document.getElementById('deptExternal').checked });
-        hideModal();
-        departments = await loadDepartments();
-      } catch (e) { toast.error(e.message); }
-    });
+    `,
+      async () => {
+        const name = document.getElementById('deptName').value.trim();
+        if (!name) return;
+        try {
+          await Api.post('/api/departments', { name, isExternal: document.getElementById('deptExternal').checked });
+          hideModal();
+          departments = await loadDepartments();
+        } catch (e) {
+          toast.error(e.message);
+        }
+      }
+    );
   });
 
   // ── Users ──────────────────────────────────────────────────────────────────
@@ -179,24 +362,29 @@
     try {
       const users = await Api.get('/api/users');
       if (users.length === 0) {
-        document.getElementById('userList').innerHTML = `<div class="empty-state"><p>${escapeHtml(I18n.tr('admin.user.empty'))}</p></div>`;
+        document.getElementById('userList').innerHTML =
+          `<div class="empty-state"><p>${escapeHtml(I18n.tr('admin.user.empty'))}</p></div>`;
         return;
       }
       document.getElementById('userList').innerHTML = `
         <div class="table-wrap"><table>
           <thead><tr><th>${escapeHtml(I18n.tr('admin.user.col.name'))}</th><th>${escapeHtml(I18n.tr('admin.user.col.username'))}</th><th>${escapeHtml(I18n.tr('admin.user.col.role'))}</th><th>${escapeHtml(I18n.tr('admin.user.col.dept'))}</th><th>${escapeHtml(I18n.tr('admin.user.col.external'))}</th><th>${escapeHtml(I18n.tr('admin.user.col.actions'))}</th></tr></thead>
-          <tbody>${users.map(u => `
+          <tbody>${users
+            .map(
+              (u) => `
             <tr>
               <td>${escapeHtml(u.fullName)}</td>
               <td>${escapeHtml(u.username)}</td>
               <td><span class="pill pill-blue">${roleLabel(u.role)}</span></td>
-              <td>${u.isExternal ? (u.entityName ? escapeHtml(u.entityName) : '—') : (u.departmentName ? escapeHtml(u.departmentName) : '—')}</td>
+              <td>${u.isExternal ? (u.entityName ? escapeHtml(u.entityName) : '—') : u.departmentName ? escapeHtml(u.departmentName) : '—'}</td>
               <td>${escapeHtml(I18n.tr(u.isExternal ? 'common.yes' : 'common.no'))}</td>
               <td>
                 <button class="btn btn-outline" style="padding:4px 10px;font-size:12px;" onclick="editUser(${u.id})">${escapeHtml(I18n.tr('common.edit'))}</button>
               </td>
             </tr>
-          `).join('')}</tbody>
+          `
+            )
+            .join('')}</tbody>
         </table></div>`;
     } catch (e) {
       document.getElementById('userList').innerHTML = `<div class="msg msg-error">${escapeHtml(e.message)}</div>`;
@@ -217,10 +405,14 @@
         <label class="form-label">${escapeHtml(I18n.tr('admin.user.form.fullName'))}</label>
         <input class="form-input" id="userFullName" value="${isEdit ? escapeHtml(user.fullName) : ''}" required />
       </div>
-      ${!isEdit ? `<div class="form-group">
+      ${
+        !isEdit
+          ? `<div class="form-group">
         <label class="form-label">${escapeHtml(I18n.tr('admin.user.form.username'))}</label>
         <input class="form-input" id="userUsername" required />
-      </div>` : ''}
+      </div>`
+          : ''
+      }
       <div class="form-group">
         <label class="form-label">${escapeHtml(I18n.tr('admin.user.form.email'))}</label>
         <input class="form-input" type="email" id="userEmail" value="${isEdit ? escapeHtml(user.email) : ''}" required />
@@ -232,9 +424,9 @@
       <div class="form-group">
         <label class="form-label">${escapeHtml(I18n.tr('admin.user.form.role'))}</label>
         <select class="form-select" id="userRole">
-          ${['COLLABORATOR','SUPER_COLLABORATOR','SUPERVISOR','DEPUTY','PROTOCOL','ADMIN','ANALYST'].map(r =>
-            `<option value="${r}" ${isEdit && user.role === r ? 'selected' : ''}>${roleLabel(r)}</option>`
-          ).join('')}
+          ${['COLLABORATOR', 'SUPER_COLLABORATOR', 'SUPERVISOR', 'DEPUTY', 'PROTOCOL', 'ADMIN', 'ANALYST']
+            .map((r) => `<option value="${r}" ${isEdit && user.role === r ? 'selected' : ''}>${roleLabel(r)}</option>`)
+            .join('')}
         </select>
       </div>
       <div class="form-group" id="deptGroup" style="${isExt ? 'display:none;' : ''}">
@@ -259,7 +451,7 @@
   }
 
   document.getElementById('addUserBtn').addEventListener('click', () => {
-    const deptOptions = departments.map(d => `<option value="${d.id}">${escapeHtml(d.name)}</option>`).join('');
+    const deptOptions = departments.map((d) => `<option value="${d.id}">${escapeHtml(d.name)}</option>`).join('');
     showModal(I18n.tr('admin.user.modal.add'), userFormHtml(deptOptions, null), async () => {
       const fullName = document.getElementById('userFullName').value.trim();
       const username = document.getElementById('userUsername').value.trim();
@@ -270,15 +462,27 @@
       // Department and entity are mutually exclusive. Send only the one
       // matching the External checkbox; the route also normalises this
       // server-side so the DB never holds both.
-      const departmentId = isExternal ? null : (document.getElementById('userDept').value || null);
-      const entityName = isExternal ? (document.getElementById('userEntity').value.trim() || null) : null;
+      const departmentId = isExternal ? null : document.getElementById('userDept').value || null;
+      const entityName = isExternal ? document.getElementById('userEntity').value.trim() || null : null;
       const countryIds = getSelectedCountryIds(document.getElementById('countryPickerContainer'));
       if (!fullName || !username || !email || !password) return;
       try {
-        await Api.post('/api/users', { fullName, username, email, password, role, departmentId, isExternal, entityName, countryIds });
+        await Api.post('/api/users', {
+          fullName,
+          username,
+          email,
+          password,
+          role,
+          departmentId,
+          isExternal,
+          entityName,
+          countryIds,
+        });
         hideModal();
         loadUsers();
-      } catch (e) { toast.error(e.message); }
+      } catch (e) {
+        toast.error(e.message);
+      }
     });
 
     // Render country picker
@@ -302,19 +506,25 @@
   });
 
   // Edit user
-  window.editUser = async function(userId) {
+  window.editUser = async function (userId) {
     const users = await Api.get('/api/users');
-    const user = users.find(u => u.id === userId);
+    const user = users.find((u) => u.id === userId);
     if (!user) return;
 
     // Load user's country assignments
     let userCountries = [];
-    try { userCountries = await Api.get(`/api/users/${userId}/countries`); } catch(e) { /* ok */ }
-    const selectedCountryIds = userCountries.map(c => c.id);
+    try {
+      userCountries = await Api.get(`/api/users/${userId}/countries`);
+    } catch (e) {
+      /* ok */
+    }
+    const selectedCountryIds = userCountries.map((c) => c.id);
 
-    const deptOptions = departments.map(d =>
-      `<option value="${d.id}" ${user.departmentId === d.id ? 'selected' : ''}>${escapeHtml(d.name)}</option>`
-    ).join('');
+    const deptOptions = departments
+      .map(
+        (d) => `<option value="${d.id}" ${user.departmentId === d.id ? 'selected' : ''}>${escapeHtml(d.name)}</option>`
+      )
+      .join('');
 
     showModal(I18n.tr('admin.user.modal.edit') + ' ' + user.fullName, userFormHtml(deptOptions, user), async () => {
       const fullName = document.getElementById('userFullName').value.trim();
@@ -322,8 +532,8 @@
       const password = document.getElementById('userPassword').value;
       const role = document.getElementById('userRole').value;
       const isExternal = document.getElementById('userExternal').checked;
-      const departmentId = isExternal ? null : (document.getElementById('userDept').value || null);
-      const entityName = isExternal ? (document.getElementById('userEntity').value.trim() || null) : null;
+      const departmentId = isExternal ? null : document.getElementById('userDept').value || null;
+      const entityName = isExternal ? document.getElementById('userEntity').value.trim() || null : null;
       const countryIds = getSelectedCountryIds(document.getElementById('countryPickerContainer'));
       if (!fullName || !email) return;
 
@@ -334,7 +544,9 @@
         await Api.patch(`/api/users/${userId}`, body);
         hideModal();
         loadUsers();
-      } catch (e) { toast.error(e.message); }
+      } catch (e) {
+        toast.error(e.message);
+      }
     });
 
     // Set department select value
@@ -369,13 +581,16 @@
     try {
       const links = await Api.get('/api/admin/deputy-supervisor-links');
       if (links.length === 0) {
-        document.getElementById('linksList').innerHTML = `<div class="empty-state"><p>${escapeHtml(I18n.tr('admin.link.empty'))}</p></div>`;
+        document.getElementById('linksList').innerHTML =
+          `<div class="empty-state"><p>${escapeHtml(I18n.tr('admin.link.empty'))}</p></div>`;
         return;
       }
       document.getElementById('linksList').innerHTML = `
         <div class="table-wrap"><table>
           <thead><tr><th>#</th><th>${escapeHtml(I18n.tr('admin.link.col.deputy'))}</th><th>${escapeHtml(I18n.tr('admin.link.col.supervisor'))}</th><th>${escapeHtml(I18n.tr('admin.link.col.dept'))}</th><th>${escapeHtml(I18n.tr('admin.link.col.actions'))}</th></tr></thead>
-          <tbody>${links.map((l, i) => `
+          <tbody>${links
+            .map(
+              (l, i) => `
             <tr>
               <td>${i + 1}</td>
               <td>${escapeHtml(l.deputyName)}</td>
@@ -385,7 +600,9 @@
                 <button class="btn btn-danger" style="padding:4px 10px;font-size:12px;" onclick="deleteLink(${l.id})">${escapeHtml(I18n.tr('common.delete'))}</button>
               </td>
             </tr>
-          `).join('')}</tbody>
+          `
+            )
+            .join('')}</tbody>
         </table></div>`;
     } catch (e) {
       document.getElementById('linksList').innerHTML = `<div class="msg msg-error">${escapeHtml(e.message)}</div>`;
@@ -393,26 +610,37 @@
   }
 
   // Expose deleteLink globally
-  window.deleteLink = async function(id) {
+  window.deleteLink = async function (id) {
     if (!confirm(I18n.tr('admin.link.confirmDelete'))) return;
     try {
       await Api.delete(`/api/admin/deputy-supervisor-links/${id}`);
       loadLinks();
-    } catch (e) { toast.error(e.message); }
+    } catch (e) {
+      toast.error(e.message);
+    }
   };
 
   document.getElementById('addLinkBtn').addEventListener('click', async () => {
     // Fetch users for dropdowns
     if (allUsers.length === 0) {
-      try { allUsers = await Api.get('/api/users'); } catch(e) { toast.error(e.message); return; }
+      try {
+        allUsers = await Api.get('/api/users');
+      } catch (e) {
+        toast.error(e.message);
+        return;
+      }
     }
-    const deputies = allUsers.filter(u => u.role === 'DEPUTY');
-    const supervisors = allUsers.filter(u => u.role === 'SUPERVISOR');
+    const deputies = allUsers.filter((u) => u.role === 'DEPUTY');
+    const supervisors = allUsers.filter((u) => u.role === 'SUPERVISOR');
 
-    const deputyOptions = deputies.map(d => `<option value="${d.id}">${escapeHtml(d.fullName)}</option>`).join('');
-    const supervisorOptions = supervisors.map(s => `<option value="${s.id}">${escapeHtml(s.fullName)} (${s.departmentName || '—'})</option>`).join('');
+    const deputyOptions = deputies.map((d) => `<option value="${d.id}">${escapeHtml(d.fullName)}</option>`).join('');
+    const supervisorOptions = supervisors
+      .map((s) => `<option value="${s.id}">${escapeHtml(s.fullName)} (${s.departmentName || '—'})</option>`)
+      .join('');
 
-    showModal(I18n.tr('admin.link.modal.add'), `
+    showModal(
+      I18n.tr('admin.link.modal.add'),
+      `
       <div class="form-group">
         <label class="form-label">${escapeHtml(I18n.tr('admin.link.form.deputy'))}</label>
         <select class="form-select" id="linkDeputy">
@@ -427,16 +655,20 @@
           ${supervisorOptions}
         </select>
       </div>
-    `, async () => {
-      const deputyId = parseInt(document.getElementById('linkDeputy').value);
-      const supervisorId = parseInt(document.getElementById('linkSupervisor').value);
-      if (!deputyId || !supervisorId) return;
-      try {
-        await Api.post('/api/admin/deputy-supervisor-links', { deputyId, supervisorId });
-        hideModal();
-        loadLinks();
-      } catch (e) { toast.error(e.message); }
-    });
+    `,
+      async () => {
+        const deputyId = parseInt(document.getElementById('linkDeputy').value);
+        const supervisorId = parseInt(document.getElementById('linkSupervisor').value);
+        if (!deputyId || !supervisorId) return;
+        try {
+          await Api.post('/api/admin/deputy-supervisor-links', { deputyId, supervisorId });
+          hideModal();
+          loadLinks();
+        } catch (e) {
+          toast.error(e.message);
+        }
+      }
+    );
   });
 
   // ── Department Hierarchy ──────────────────────────────────────────────────
@@ -444,7 +676,8 @@
     try {
       const data = await Api.get('/api/admin/department-hierarchy');
       if (data.length === 0) {
-        document.getElementById('hierarchyList').innerHTML = `<div class="empty-state"><p>${escapeHtml(I18n.tr('admin.hier.empty'))}</p></div>`;
+        document.getElementById('hierarchyList').innerHTML =
+          `<div class="empty-state"><p>${escapeHtml(I18n.tr('admin.hier.empty'))}</p></div>`;
         return;
       }
       const lblDeputy = escapeHtml(I18n.tr('admin.hier.deputy'));
@@ -455,19 +688,28 @@
       const lblNone = escapeHtml(I18n.tr('admin.hier.none'));
       const lblAgency = escapeHtml(I18n.tr('admin.dept.type.agency'));
 
-      document.getElementById('hierarchyList').innerHTML = data.map(dept => {
-        const deputyBadges = dept.deputies.length > 0
-          ? dept.deputies.map(d => `<span class="pill pill-purple" style="font-size:11px;">${escapeHtml(d)}</span>`).join(' ')
-          : `<span style="color:var(--text-muted);font-size:12px;">${lblNoDeputy}</span>`;
+      document.getElementById('hierarchyList').innerHTML = data
+        .map((dept) => {
+          const deputyBadges =
+            dept.deputies.length > 0
+              ? dept.deputies
+                  .map((d) => `<span class="pill pill-purple" style="font-size:11px;">${escapeHtml(d)}</span>`)
+                  .join(' ')
+              : `<span style="color:var(--text-muted);font-size:12px;">${lblNoDeputy}</span>`;
 
-        const renderUsers = (users, pillClass) => users.length > 0
-          ? users.map(u => `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;">
+          const renderUsers = (users, pillClass) =>
+            users.length > 0
+              ? users
+                  .map(
+                    (u) => `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;">
               <span class="pill ${pillClass}" style="font-size:11px;">${escapeHtml(u.fullName)}</span>
               <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(u.email)}</span>
-            </div>`).join('')
-          : `<span style="color:var(--text-muted);font-size:12px;padding-left:4px;">${lblNone}</span>`;
+            </div>`
+                  )
+                  .join('')
+              : `<span style="color:var(--text-muted);font-size:12px;padding-left:4px;">${lblNone}</span>`;
 
-        return `<div class="dept-hierarchy-card" style="border:1px solid var(--border-color);border-radius:12px;padding:18px 20px;margin-bottom:14px;background:var(--bg-card);">
+          return `<div class="dept-hierarchy-card" style="border:1px solid var(--border-color);border-radius:12px;padding:18px 20px;margin-bottom:14px;background:var(--bg-card);">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
             <h4 style="margin:0;font-size:0.95rem;">${escapeHtml(dept.departmentNameEn || dept.departmentName)}</h4>
             ${dept.isExternal ? `<span class="pill pill-yellow" style="font-size:11px;">${lblAgency}</span>` : ''}
@@ -489,7 +731,8 @@
             ${renderUsers(dept.collaborators, 'pill-blue')}
           </div>
         </div>`;
-      }).join('');
+        })
+        .join('');
     } catch (e) {
       document.getElementById('hierarchyList').innerHTML = `<div class="msg msg-error">${escapeHtml(e.message)}</div>`;
     }
@@ -535,7 +778,9 @@
     function renderStatus(j) {
       if (j && j.success && !j.empty) {
         const date = j.uploadedAt ? new Date(j.uploadedAt).toLocaleString() : '-';
-        const years = Array.isArray(j.yearsCovered) ? `${j.yearsCovered[0]}–${j.yearsCovered[j.yearsCovered.length - 1]}` : '';
+        const years = Array.isArray(j.yearsCovered)
+          ? `${j.yearsCovered[0]}–${j.yearsCovered[j.yearsCovered.length - 1]}`
+          : '';
         statusEl.textContent = `${labels.current}: ${date} · ${j.countryCount || 0} ${labels.countries}${years ? ' · ' + years : ''}`;
       } else {
         statusEl.textContent = labels.noFile;
@@ -556,7 +801,7 @@
       const token = Api.getToken();
       const res = await fetch(`${API_BASE}${endpoint}/upload`, {
         method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
       });
       return { res, body: await res.json() };
@@ -581,7 +826,7 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(payload),
       });
@@ -657,7 +902,10 @@
 
       const raw = String(cellVal(r, COL_V) || '').trim();
       if (!raw) continue;
-      const list = raw.split('/').map((s) => canon(s.trim())).filter(Boolean);
+      const list = raw
+        .split('/')
+        .map((s) => canon(s.trim()))
+        .filter(Boolean);
       if (!list.length) continue;
 
       const hasGeorgia = list.indexOf(GEORGIA) !== -1;

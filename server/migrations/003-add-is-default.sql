@@ -1,0 +1,1 @@
+ALTER TABLE event_templates ADD COLUMN IF NOT EXISTS is_default BOOLEAN NOT NULL DEFAULT false;

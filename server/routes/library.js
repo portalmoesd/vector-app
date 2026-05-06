@@ -3,6 +3,7 @@ const db = require('../db');
 const { requireAuth, denyAnalyst } = require('../middleware/auth');
 const { canAccessEvent } = require('../helpers/access');
 const { asPositiveInt, validationError } = require('../helpers/validation');
+const logger = require('../logger');
 
 const router = express.Router();
 
@@ -30,18 +31,20 @@ router.get('/', requireAuth, async (req, res) => {
        ORDER BY e.ended_at DESC`,
       [req.user.id, req.user.role]
     );
-    res.json(rows.map(r => ({
-      id: r.id,
-      title: r.title,
-      language: r.language,
-      endedAt: r.ended_at,
-      countryName: r.country_name,
-      countryCode: r.country_code,
-      documentSubmitterName: r.document_submitter_name,
-      documentSubmitterId: r.document_submitter_id,
-    })));
+    res.json(
+      rows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        language: r.language,
+        endedAt: r.ended_at,
+        countryName: r.country_name,
+        countryCode: r.country_code,
+        documentSubmitterName: r.document_submitter_name,
+        documentSubmitterId: r.document_submitter_id,
+      }))
+    );
   } catch (err) {
-    console.error('Library list error:', err);
+    logger.error({ err }, 'Library list error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -55,7 +58,9 @@ router.get('/:eventId/document', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to access this document' });
     }
 
-    const { rows: [event] } = await db.query(
+    const {
+      rows: [event],
+    } = await db.query(
       `SELECT e.title, e.language, e.ended_at, c.name_en AS country_name
        FROM events e JOIN countries c ON c.id = e.country_id
        WHERE e.id = $1 AND (e.status = 'COMPLETED' OR e.status = 'ARCHIVED')`,
@@ -78,7 +83,7 @@ router.get('/:eventId/document', requireAuth, async (req, res) => {
       language: event.language,
       countryName: event.country_name,
       endedAt: event.ended_at,
-      sections: sections.map(s => ({
+      sections: sections.map((s) => ({
         id: s.id,
         title: s.title,
         sortOrder: s.sort_order,
@@ -86,7 +91,7 @@ router.get('/:eventId/document', requireAuth, async (req, res) => {
       })),
     });
   } catch (err) {
-    console.error('Library document error:', err);
+    logger.error({ err }, 'Library document error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -112,7 +117,7 @@ router.get('/:eventId/files', requireAuth, async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    console.error('Library files error:', err);
+    logger.error({ err }, 'Library files error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -126,10 +131,9 @@ router.post('/:eventId/reopen', requireAuth, denyAnalyst, async (req, res) => {
     const eventId = asPositiveInt(req.params.eventId, 'eventId');
     if (eventId.error) return validationError(res, eventId.error);
 
-    const { rows: [event] } = await db.query(
-      'SELECT document_submitter_id, status FROM events WHERE id = $1',
-      [eventId.value]
-    );
+    const {
+      rows: [event],
+    } = await db.query('SELECT document_submitter_id, status FROM events WHERE id = $1', [eventId.value]);
     if (!event) return res.status(404).json({ error: 'Event not found' });
 
     if (event.document_submitter_id !== req.user.id) {
@@ -150,7 +154,7 @@ router.post('/:eventId/reopen', requireAuth, denyAnalyst, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error('Library reopen error:', err);
+    logger.error({ err }, 'Library reopen error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

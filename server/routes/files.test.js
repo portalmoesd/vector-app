@@ -6,13 +6,11 @@ const db = require('../db');
 const filesRouter = require('./files');
 
 function findRoute(method, path) {
-  const layer = filesRouter.stack.find((item) => (
-    item.route
-    && item.route.path === path
-    && item.route.methods[method.toLowerCase()]
-  ));
+  const layer = filesRouter.stack.find(
+    (item) => item.route && item.route.path === path && item.route.methods[method.toLowerCase()]
+  );
   assert.ok(layer, `${method} ${path} should be registered`);
-  return layer.route.stack.map(item => item.handle);
+  return layer.route.stack.map((item) => item.handle);
 }
 
 function mockResponse() {
@@ -80,7 +78,7 @@ function createFileQueryMock(overrides = {}) {
   async function query(sql, params) {
     calls.push({ sql, params });
 
-    if (/SELECT id, event_id, section_id, original_name/.test(sql)) {
+    if (/SELECT id, event_id, section_id, original_name, mime_type FROM/.test(sql)) {
       return { rows: overrides.missingFile ? [] : [file] };
     }
     if (/SELECT event_id, section_id, uploaded_by_id/.test(sql)) {
@@ -88,6 +86,12 @@ function createFileQueryMock(overrides = {}) {
     }
     if (/SELECT 1\s+FROM events e\s+JOIN sections s/.test(sql)) {
       return { rows: overrides.forbidden ? [] : [{ '?column?': 1 }] };
+    }
+    if (/SELECT file_data FROM section_files/.test(sql)) {
+      return { rows: overrides.missingFile ? [] : [{ file_data: file.file_data }] };
+    }
+    if (/UPDATE section_files SET file_data = NULL/.test(sql)) {
+      return { rows: [], rowCount: 1 };
     }
     if (/DELETE FROM section_files/.test(sql)) {
       return { rows: [], rowCount: 1 };
@@ -114,7 +118,7 @@ test('GET /download streams accessible files with safe UTF-8 filename headers', 
 
     assert.equal(res.statusCode, 200);
     assert.equal(res.headers['content-type'], 'application/pdf');
-    assert.match(res.headers['content-disposition'], /filename="\_\_\_\_\_\_\_\_ 2026\.pdf"/);
+    assert.match(res.headers['content-disposition'], /filename="________ 2026\.pdf"/);
     assert.match(res.headers['content-disposition'], /filename\*=UTF-8''/);
     assert.deepEqual(res.body, mock.file.file_data);
   });
@@ -173,7 +177,7 @@ test('POST /delete allows the uploader to delete an accessible file', async () =
 
     assert.equal(res.statusCode, 200);
     assert.deepEqual(res.body, { success: true });
-    const deleteCall = mock.calls.find(call => /DELETE FROM section_files/.test(call.sql));
+    const deleteCall = mock.calls.find((call) => /DELETE FROM section_files/.test(call.sql));
     assert.ok(deleteCall, 'file row should be deleted');
     assert.deepEqual(deleteCall.params, [12]);
   });
@@ -194,6 +198,9 @@ test('POST /delete blocks non-uploaders who are not admins', async () => {
 
     assert.equal(res.statusCode, 403);
     assert.equal(res.body.error, 'Not authorized to delete this file');
-    assert.equal(mock.calls.some(call => /DELETE FROM section_files/.test(call.sql)), false);
+    assert.equal(
+      mock.calls.some((call) => /DELETE FROM section_files/.test(call.sql)),
+      false
+    );
   });
 });
