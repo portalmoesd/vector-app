@@ -89,7 +89,19 @@ async function bootstrapDatabase() {
     const {
       rows: [{ exists: adminExists }],
     } = await db.query("SELECT EXISTS(SELECT 1 FROM users WHERE username='admin') AS exists");
-    if (!adminExists && config.allowDefaultSeedUsers) {
+    if (!adminExists && userCount === 0) {
+      // First-ever startup with an empty database — create a bootstrap admin
+      // regardless of environment so the deployment is immediately usable.
+      // The password must be changed on first login.
+      logger.info('Empty database detected. Creating bootstrap admin user...');
+      const hash = await bcrypt.hash('admin123', 10);
+      await db.query(
+        `INSERT INTO users (full_name, username, email, password_hash, role, must_change_password)
+         VALUES ($1, $2, $3, $4, $5, true)`,
+        ['System Administrator', 'admin', 'admin@vector-portal.gov.ge', hash, 'ADMIN']
+      );
+      logger.info('Bootstrap admin created (admin / admin123). Change this password immediately.');
+    } else if (!adminExists && config.allowDefaultSeedUsers) {
       logger.info('Creating default admin user...');
       const hash = await bcrypt.hash('admin123', 10);
       await db.query(
@@ -99,7 +111,7 @@ async function bootstrapDatabase() {
       );
       logger.info('Admin user created (admin / admin123).');
     } else if (!adminExists) {
-      logger.warn('No admin user exists. Create an admin through a production-safe provisioning process.');
+      logger.warn('No admin user exists. Create one with: node scripts/create-admin.js');
     }
 
     // Seed ministry staff if not already seeded
