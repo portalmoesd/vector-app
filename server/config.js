@@ -8,7 +8,7 @@ if (isProduction && (!jwtSecret || jwtSecret === 'dev-secret-change-me')) {
 }
 
 if (isProduction && process.env.ALLOW_DEFAULT_SEED_USERS === 'true') {
-  throw new Error('ALLOW_DEFAULT_SEED_USERS cannot be true in production');
+  console.warn('WARNING: ALLOW_DEFAULT_SEED_USERS=true is ignored in production. Bulk demo user seeding is disabled.');
 }
 
 function parseOrigins(value) {
