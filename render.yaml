@@ -20,11 +20,11 @@ services:
           name: vector-portal-db
           property: connectionString
       - key: DATABASE_SSL_MODE
-        value: require
+        value: no-verify
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGINS
-        sync: false
+        value: https://vector-portal-bsln.onrender.com
       - key: ALLOW_DEFAULT_SEED_USERS
         value: "false"
       - key: PORT
