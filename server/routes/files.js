@@ -82,16 +82,7 @@ router.post('/upload', requireAuth, denyAnalyst, handleUpload, async (req, res) 
       const row = await db.query(
         `INSERT INTO section_files (event_id, section_id, original_name, stored_name, mime_type, size, uploaded_by_id, uploaded_by_name)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, original_name, stored_name, mime_type, size, uploaded_by_id, created_at`,
-        [
-          eventId.value,
-          sectionId.value,
-          originalName,
-          storedName,
-          f.mimetype,
-          f.size,
-          req.user.id,
-          uploaderName,
-        ]
+        [eventId.value, sectionId.value, originalName, storedName, f.mimetype, f.size, req.user.id, uploaderName]
       );
       const fileRow = row.rows[0];
       await storage.store(fileRow.id, f.buffer);

@@ -14,10 +14,11 @@ async function runMigrations() {
   `);
 
   const { rows } = await db.query('SELECT version FROM schema_migrations ORDER BY version');
-  const applied = new Set(rows.map(r => r.version));
+  const applied = new Set(rows.map((r) => r.version));
 
-  const files = fs.readdirSync(MIGRATIONS_DIR)
-    .filter(f => f.endsWith('.sql'))
+  const files = fs
+    .readdirSync(MIGRATIONS_DIR)
+    .filter((f) => f.endsWith('.sql'))
     .sort();
 
   for (const file of files) {

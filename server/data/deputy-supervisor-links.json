@@ -11,11 +11,7 @@
   },
   {
     "deputy": "nenukidze",
-    "supervisorDepts": [
-      "Legal Department",
-      "National Agency of State Property",
-      "Spatial and Urban Development Agency"
-    ]
+    "supervisorDepts": ["Legal Department", "National Agency of State Property", "Spatial and Urban Development Agency"]
   },
   {
     "deputy": "garveladze",

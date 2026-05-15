@@ -45,10 +45,7 @@ globalThis.I18n = { t: (k) => k, getLocale: () => 'en' };
 // ---------------------------------------------------------------------------
 // Load utils.js (sets global functions via plain script execution)
 // ---------------------------------------------------------------------------
-const utilsSrc = fs.readFileSync(
-  path.join(__dirname, 'utils.js'),
-  'utf8',
-);
+const utilsSrc = fs.readFileSync(path.join(__dirname, 'utils.js'), 'utf8');
 eval(utilsSrc);
 
 // ---------------------------------------------------------------------------
@@ -69,7 +66,7 @@ describe('escapeHtml', () => {
   });
 
   it('escapes single quotes', () => {
-    assert.equal(escapeHtml("it's"), "it&#039;s");
+    assert.equal(escapeHtml("it's"), 'it&#039;s');
   });
 
   it('passes through normal text unchanged', () => {

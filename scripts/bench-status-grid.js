@@ -19,11 +19,11 @@
  *   ITERATIONS - Number of requests to fire (default: 100)
  */
 
-const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const USERNAME = process.env.USERNAME;
 const PASSWORD = process.env.PASSWORD;
 const EVENT_ID = process.env.EVENT_ID;
-const ITERATIONS = parseInt(process.env.ITERATIONS || "100", 10);
+const ITERATIONS = parseInt(process.env.ITERATIONS || '100', 10);
 
 // ── helpers ────────────────────────────────────────────────────────────
 
@@ -41,11 +41,11 @@ function fmt(ms) {
 async function main() {
   // Validate required env vars
   if (!USERNAME || !PASSWORD) {
-    console.error("ERROR: USERNAME and PASSWORD environment variables are required.");
+    console.error('ERROR: USERNAME and PASSWORD environment variables are required.');
     process.exit(1);
   }
   if (!EVENT_ID) {
-    console.error("ERROR: EVENT_ID environment variable is required.");
+    console.error('ERROR: EVENT_ID environment variable is required.');
     process.exit(1);
   }
 
@@ -55,11 +55,11 @@ async function main() {
 
   // ── Step 1: Authenticate ─────────────────────────────────────────────
 
-  console.log("Authenticating...");
+  console.log('Authenticating...');
 
   const loginRes = await fetch(`${BASE_URL}/api/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username: USERNAME, password: PASSWORD }),
   });
 
@@ -72,23 +72,21 @@ async function main() {
   // Extract session cookie(s) from Set-Cookie headers
   const setCookies = loginRes.headers.getSetCookie
     ? loginRes.headers.getSetCookie()
-    : [loginRes.headers.get("set-cookie")].filter(Boolean);
+    : [loginRes.headers.get('set-cookie')].filter(Boolean);
 
-  const cookieHeader = setCookies
-    .map((c) => c.split(";")[0])
-    .join("; ");
+  const cookieHeader = setCookies.map((c) => c.split(';')[0]).join('; ');
 
   if (!cookieHeader) {
     // Fall back to token-based auth if the response body contains a token
     const loginBody = await loginRes.json().catch(() => null);
     if (!loginBody?.token) {
-      console.error("No session cookie or token received from login.");
+      console.error('No session cookie or token received from login.');
       process.exit(1);
     }
     // Will be handled below if needed
   }
 
-  console.log("Authenticated successfully.\n");
+  console.log('Authenticated successfully.\n');
 
   // ── Step 2: Warm-up request ──────────────────────────────────────────
 
@@ -105,7 +103,7 @@ async function main() {
 
   // consume the body so the connection is freed
   await warmupRes.json();
-  console.log("Warm-up request OK.\n");
+  console.log('Warm-up request OK.\n');
 
   // ── Step 3: Benchmark loop ───────────────────────────────────────────
 
@@ -130,7 +128,7 @@ async function main() {
     }
   }
 
-  process.stdout.write("\n\n");
+  process.stdout.write('\n\n');
 
   // ── Step 4: Report ───────────────────────────────────────────────────
 
@@ -143,18 +141,18 @@ async function main() {
   const p95 = percentile(durations, 95);
   const p99 = percentile(durations, 99);
 
-  console.log("Results");
-  console.log("─".repeat(36));
+  console.log('Results');
+  console.log('─'.repeat(36));
   console.log(`  min:  ${fmt(min)}`);
   console.log(`  max:  ${fmt(max)}`);
   console.log(`  mean: ${fmt(mean)}`);
   console.log(`  p50:  ${fmt(p50)}`);
   console.log(`  p95:  ${fmt(p95)}`);
   console.log(`  p99:  ${fmt(p99)}`);
-  console.log("─".repeat(36));
+  console.log('─'.repeat(36));
 }
 
 main().catch((err) => {
-  console.error("Unexpected error:", err);
+  console.error('Unexpected error:', err);
   process.exit(1);
 });
