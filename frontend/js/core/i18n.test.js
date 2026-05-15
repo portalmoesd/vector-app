@@ -8,8 +8,12 @@ const path = require('node:path');
 // ---------------------------------------------------------------------------
 globalThis.localStorage = {
   _store: {},
-  getItem(k) { return this._store[k] ?? null; },
-  setItem(k, v) { this._store[k] = String(v); },
+  getItem(k) {
+    return this._store[k] ?? null;
+  },
+  setItem(k, v) {
+    this._store[k] = String(v);
+  },
 };
 globalThis.window = { location: { origin: 'http://localhost:3000' } };
 globalThis.document = {
@@ -60,17 +64,11 @@ describe('I18n.t()', () => {
   });
 
   it('substitutes parameters', () => {
-    assert.equal(
-      globalThis.I18n.t('dashboard.confirmApproveAll', { n: 5 }),
-      'Approve all 5 sections',
-    );
+    assert.equal(globalThis.I18n.t('dashboard.confirmApproveAll', { n: 5 }), 'Approve all 5 sections');
   });
 
   it('handles multiple parameter replacements', () => {
-    assert.equal(
-      globalThis.I18n.t('editor.status.sectionOf', { n: 2, total: 10 }),
-      'Section 2 of 10',
-    );
+    assert.equal(globalThis.I18n.t('editor.status.sectionOf', { n: 2, total: 10 }), 'Section 2 of 10');
   });
 
   it('returns key for null path segment', () => {

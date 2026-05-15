@@ -26,9 +26,9 @@ services:
       - key: CORS_ORIGINS
         value: https://vector-portal-bsln.onrender.com
       - key: ALLOW_DEFAULT_SEED_USERS
-        value: "false"
+        value: 'false'
       - key: PORT
-        value: "10000"
+        value: '10000'
       - key: LOG_LEVEL
         value: info
       - key: GEOSTAT_TLS_MODE

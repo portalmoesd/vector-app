@@ -958,7 +958,9 @@ router.get('/status-grid', requireAuth, async (req, res) => {
     // Pre-fetch the DS user for DEPUTY step resolution (one query instead of per-section)
     let dsUser = null;
     if (event.document_submitter_role === 'DEPUTY') {
-      const { rows: [u] } = await db.query('SELECT id, full_name FROM users WHERE id = $1', [event.document_submitter_id]);
+      const {
+        rows: [u],
+      } = await db.query('SELECT id, full_name FROM users WHERE id = $1', [event.document_submitter_id]);
       dsUser = u || null;
     }
 
