@@ -10,3 +10,10 @@ build/
 *.db
 .venv/
 venv/
+
+# Runtime data caches refreshed by the backend on a schedule.
+server/data/tourism-cache.json
+
+# One-shot migration from previous vector_portal deployment.
+server/scripts/.migration.env
+server/scripts/.migration-backup-*/

@@ -1063,11 +1063,18 @@
   // ── Companies section ──────────────────────────────────────────────────
   // Mirrors statistics-pdf.js buildCompaniesSection. Bullet list of
   // company-count breakdowns by capital origin.
-  function buildCompaniesSection(D, state, t, country, lang, countryNameEn) {
-    if (!state || !state.hasData) return [];
+  function buildCompaniesSection(D, state, t, country, lang, countryNameEn, grammar) {
+    const hasOwn = !!(state && state.hasData && state.counts);
+    const combined = state && state.combined;
+    if (!hasOwn && !combined) return [];
     const isKa = lang === 'ka';
     const displayCountry = isKa ? state.countryKa || country : state.countryEn || countryNameEn || country;
-    const c = state.counts || {};
+    // Georgian genitive ("of <country>") from the grammar sheet, falling
+    // back to the suffix concatenation for countries the sheet doesn't
+    // cover. Replaces the previous `${displayCountry}-ის` which produced
+    // "თურქეთი-ის" instead of "თურქეთის".
+    const countryOf = isKa ? (grammar && grammar.of) || displayCountry + 'ის' : displayCountry;
+    const c = (state && state.counts) || {};
     const B = (s) => ({ text: s, bold: true });
     const fmt = (n) => Number(n || 0).toLocaleString();
     const title = isKa ? 'კომპანიები' : 'Companies';
@@ -1075,21 +1082,21 @@
     const out = [];
     out.push(sectionTitleP(D, title));
 
-    if (isKa) {
-      out.push(
-        summaryProseParagraph(D, [`${displayCountry}-ის კაპიტალის მონაწილეობით დარეგისტრირებული მოქმედი კომპანიები:`])
-      );
-      out.push(
-        summaryProseParagraph(D, [B(fmt(c.total)), ` მოქმედი კომპანია ${displayCountry}-ის კაპიტალის მონაწილეობით.`])
-      );
-    } else {
-      out.push(summaryProseParagraph(D, [`Active companies with capital originating from ${displayCountry}:`]));
-      out.push(
-        summaryProseParagraph(D, [
-          B(fmt(c.total)),
-          ` active companies with capital originating from ${displayCountry}.`,
-        ])
-      );
+    if (hasOwn) {
+      if (isKa) {
+        out.push(
+          summaryProseParagraph(D, [`${countryOf} კაპიტალის მონაწილეობით დარეგისტრირებული მოქმედი კომპანიები:`])
+        );
+        out.push(summaryProseParagraph(D, [B(fmt(c.total)), ` მოქმედი კომპანია ${countryOf} კაპიტალის მონაწილეობით.`]));
+      } else {
+        out.push(summaryProseParagraph(D, [`Active companies with capital originating from ${displayCountry}:`]));
+        out.push(
+          summaryProseParagraph(D, [
+            B(fmt(c.total)),
+            ` active companies with capital originating from ${displayCountry}.`,
+          ])
+        );
+      }
     }
 
     // Bulleted list — docx bullets via numbering. Use a built-in
@@ -1114,43 +1121,64 @@
         }),
       });
 
-    if (isKa) {
-      out.push(bullet([B(fmt(c.solo)), ` კომპანია - ${displayCountry}-ის კაპიტალით შექმნილი;`]));
-      out.push(
-        bullet([B(fmt(c.withGeorgia)), ` კომპანია - ${displayCountry} - საქართველოს წილობრივი კაპიტალით შექმნილი;`])
-      );
-      out.push(
-        bullet([
-          B(fmt(c.withGeorgiaAndThird)),
-          ` კომპანია - ${displayCountry}, საქართველოსა და მესამე ქვეყნის კაპიტალით შექმნილი;`,
-        ])
-      );
-      out.push(
-        bullet([
-          B(fmt(c.withThirdOnly)),
-          ` კომპანია - ${displayCountry}-ის და მესამე ქვეყნების წილობრივი კაპიტალით შექმნილი.`,
-        ])
-      );
-    } else {
-      out.push(bullet([B(fmt(c.solo)), ` companies - established with capital from only ${displayCountry};`]));
-      out.push(
-        bullet([
-          B(fmt(c.withGeorgia)),
-          ` companies - established with joint capital from ${displayCountry} and Georgia;`,
-        ])
-      );
-      out.push(
-        bullet([
-          B(fmt(c.withGeorgiaAndThird)),
-          ` companies - established with joint capital from ${displayCountry}, Georgia and the third country;`,
-        ])
-      );
-      out.push(
-        bullet([
-          B(fmt(c.withThirdOnly)),
-          ` companies - established with joint capital from ${displayCountry} and third countries.`,
-        ])
-      );
+    if (hasOwn && !(state && state.suppressBreakdown)) {
+      if (isKa) {
+        out.push(bullet([B(fmt(c.solo)), ` კომპანია - ${countryOf} კაპიტალით შექმნილი;`]));
+        out.push(
+          bullet([B(fmt(c.withGeorgia)), ` კომპანია - ${displayCountry} - საქართველოს წილობრივი კაპიტალით შექმნილი;`])
+        );
+        out.push(
+          bullet([
+            B(fmt(c.withGeorgiaAndThird)),
+            ` კომპანია - ${displayCountry}, საქართველოსა და მესამე ქვეყნის კაპიტალით შექმნილი;`,
+          ])
+        );
+        out.push(
+          bullet([
+            B(fmt(c.withThirdOnly)),
+            ` კომპანია - ${countryOf} და მესამე ქვეყნების წილობრივი კაპიტალით შექმნილი.`,
+          ])
+        );
+      } else {
+        out.push(bullet([B(fmt(c.solo)), ` companies - established with capital from only ${displayCountry};`]));
+        out.push(
+          bullet([
+            B(fmt(c.withGeorgia)),
+            ` companies - established with joint capital from ${displayCountry} and Georgia;`,
+          ])
+        );
+        out.push(
+          bullet([
+            B(fmt(c.withGeorgiaAndThird)),
+            ` companies - established with joint capital from ${displayCountry}, Georgia and the third country;`,
+          ])
+        );
+        out.push(
+          bullet([
+            B(fmt(c.withThirdOnly)),
+            ` companies - established with joint capital from ${displayCountry} and third countries.`,
+          ])
+        );
+      }
+    }
+
+    if (combined) {
+      // Single sentence for the legacy Serbia-Montenegro union — no
+      // breakdown bullets.
+      const cbOf = isKa ? combined.labelKaOf : combined.labelEn;
+      const cbNom = isKa ? combined.labelKa : combined.labelEn;
+      if (isKa) {
+        out.push(
+          summaryProseParagraph(D, [B(fmt(combined.total)), ` მოქმედი კომპანია ${cbOf} კაპიტალის მონაწილეობით.`])
+        );
+      } else {
+        out.push(
+          summaryProseParagraph(D, [
+            B(fmt(combined.total)),
+            ` active companies with capital originating from ${cbNom}.`,
+          ])
+        );
+      }
     }
 
     return out;
@@ -1383,8 +1411,10 @@
       const c = appendix.data[i] && appendix.data[i].country;
       let text = '-';
       let color = COLOR.titleDark;
-      if (c) {
-        const bal = (c.export || 0) - (c.import || 0);
+      // Same null-on-either-side rule as the on-screen appendix:
+      // unknown flow → balance is undefined, render '-'.
+      if (c && c.export != null && c.import != null) {
+        const bal = c.export - c.import;
         color = bal > 0 ? COLOR.positive : bal < 0 ? COLOR.negative : COLOR.titleDark;
         const sign = bal < 0 ? '-' : '';
         text = `${sign}${formatMln2(Math.abs(bal))}`;
@@ -2127,7 +2157,7 @@
       ...buildTradeSection(D, state && state.trade, tradeCharts, t, country, lang),
       ...buildTourismSection(D, state && state.tourism, tradeCharts, t, country, lang, grammar),
       ...buildInvestmentsSection(D, investmentsState, tradeCharts, t, country, lang, grammar),
-      ...buildCompaniesSection(D, state && state.companies, t, country, lang, opts && opts.countryNameEn),
+      ...buildCompaniesSection(D, state && state.companies, t, country, lang, opts && opts.countryNameEn, grammar),
       ...buildAppendixSection(D, state && state.appendix, t, country, lang),
     ];
 

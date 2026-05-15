@@ -12,10 +12,6 @@
   const user = Api.getUser();
   if (!user) return;
 
-  // ── Constants ──────────────────────────────────────────────────────────
-  const GEOSTAT_API = 'https://ex-trade-api.geostat.ge/api/trade';
-  const PROXY_API = `${API_BASE}/api/statistics`;
-
   function notifyExportError(message) {
     if (typeof toast !== 'undefined' && toast && typeof toast.error === 'function') {
       toast.error(message);
@@ -23,6 +19,10 @@
     }
     console.error(message);
   }
+
+  // ── Constants ──────────────────────────────────────────────────────────
+  const GEOSTAT_API = 'https://ex-trade-api.geostat.ge/api/trade';
+  const PROXY_API = `${API_BASE}/api/statistics`;
 
   // ── DOM refs ─────────────────────────────────────────────────────────────
   const searchInput = document.getElementById('countrySearch');
@@ -276,6 +276,7 @@
     if (p1) verified = month + 1;
     if (p2) verified = month + 2;
     if (verified !== month) {
+      console.log(`[stats] probe-forward: classificatory selected month ${month} → verified ${verified}`);
       if (classDataEn && classDataEn.selected) classDataEn.selected.month = verified;
       if (classDataKa && classDataKa.selected) classDataKa.selected.month = verified;
     }
@@ -1076,23 +1077,30 @@
       const ctrl = new AbortController();
       const rankTimer = setTimeout(() => ctrl.abort(), 60_000);
       try {
+        console.log('[ranking] fetching...', { year: latestYear, months: monthsYTD, countryId: selectedCountry.value });
         const rankRes = await fetch(`${PROXY_API}/country-ranking`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ year: latestYear, months: monthsYTD, countryId: selectedCountry.value }),
           signal: ctrl.signal,
         });
-        const j = await rankRes.json().catch(() => null);
+        console.log('[ranking] response status:', rankRes.status);
+        const j = await rankRes.json().catch((e) => {
+          console.warn('[ranking] json parse failed:', e.message);
+          return null;
+        });
+        console.log('[ranking] body:', JSON.stringify(j));
         if (rankRes.ok && j && j.success && j.country) {
           const hasTurnover = !!j.country.turnover;
           const hasExport = !!j.country.export;
           const hasImport = !!j.country.import;
-          if (hasTurnover || hasExport || hasImport) {
-            ranking = { country: j.country, totals: j.totals };
-          }
+          console.log('[ranking] ✓ has data — turnover:', hasTurnover, 'export:', hasExport, 'import:', hasImport);
+          ranking = { country: j.country, totals: j.totals };
+        } else {
+          console.warn('[ranking] ✗ no usable data in response');
         }
       } catch (err) {
-        ranking = null;
+        console.warn('[ranking] fetch failed:', err.message);
       } finally {
         clearTimeout(rankTimer);
       }
@@ -2882,9 +2890,39 @@
       // country's English name is in the map
       if (!data) data = json.countries[countryEn] || null;
 
-      pdfState.companies = data
-        ? { hasData: true, uploadedAt: json.uploadedAt, counts: data, countryKa, countryEn }
-        : { hasData: false };
+      // Special case: the source spreadsheet has a legacy "Serbia and
+      // Montenegro" row (the state-union entity) alongside the modern
+      // Serbia and Montenegro rows. When the user picks either of the
+      // modern countries, surface the combined-row count as an extra
+      // sentence below the per-country total, and suppress the bullet
+      // breakdown for both countries entirely. Applies only here.
+      const COMBINED_KEY = 'სერბია და მონტენეგრო';
+      const isSerbOrMonte = georgianName === 'სერბეთი' || georgianName === 'მონტენეგრო';
+      let combined = null;
+      if (isSerbOrMonte) {
+        const cd = json.countries[COMBINED_KEY];
+        if (cd && cd.total > 0) {
+          combined = {
+            total: cd.total,
+            labelKa: 'სერბია-მონტენეგრო',
+            labelKaOf: 'სერბია-მონტენეგროს',
+            labelEn: 'Serbia and Montenegro',
+          };
+        }
+      }
+
+      pdfState.companies =
+        data || combined
+          ? {
+              hasData: !!data,
+              uploadedAt: json.uploadedAt,
+              counts: data || null,
+              countryKa,
+              countryEn,
+              combined,
+              suppressBreakdown: isSerbOrMonte,
+            }
+          : { hasData: false };
 
       renderCompaniesSummary(pdfState.companies, isKa);
     } catch (err) {
@@ -2898,47 +2936,79 @@
 
   function renderCompaniesSummary(state, isKa) {
     if (!companiesSummaryEl) return;
-    if (!state || !state.hasData) {
+    const hasOwn = !!(state && state.hasData && state.counts);
+    const combined = state && state.combined;
+    if (!hasOwn && !combined) {
       companiesSummaryEl.innerHTML = `<p>${isKa ? 'აღნიშნული ქვეყნის კაპიტალით დარეგისტრირებული მოქმედი კომპანია ვერ მოიძებნა.' : 'No active companies with capital from this country found.'}</p>`;
       companiesSummaryEl.classList.remove('hidden');
       return;
     }
-    const c = state.counts;
+    const c = state.counts || {};
     const country = isKa ? state.countryKa : state.countryEn;
+    // Georgian genitive ("of <country>") — proper inflection from the
+    // grammar sheet ("თურქეთის"), with the suffix-fallback for any
+    // country missing from the sheet. Used wherever the prose previously
+    // stuck "-ის" onto the bare nominative.
+    const countryOf = isKa ? grammarFor(state.countryKa || country).of || country + 'ის' : country;
     const b = (s) => `<strong>${escapeHtml(String(s))}</strong>`;
     const fmt = (n) => Number(n || 0).toLocaleString();
     const lines = [];
     lines.push(`<h4 class="stat-summary__heading">${isKa ? 'კომპანიები' : 'Companies'}</h4>`);
-    if (isKa) {
-      lines.push(`<p>${escapeHtml(country)}-ის კაპიტალის მონაწილეობით დარეგისტრირებული მოქმედი კომპანიები:</p>`);
-      lines.push(`<p>${b(fmt(c.total))} მოქმედი კომპანია ${escapeHtml(country)}-ის კაპიტალის მონაწილეობით.</p>`);
-      lines.push(`<ul style="margin:0;padding-left:1.2em;">`);
-      lines.push(`<li>${b(fmt(c.solo))} კომპანია - ${escapeHtml(country)}-ის კაპიტალით შექმნილი;</li>`);
-      lines.push(
-        `<li>${b(fmt(c.withGeorgia))} კომპანია - ${escapeHtml(country)} - საქართველოს წილობრივი კაპიტალით შექმნილი;</li>`
-      );
-      lines.push(
-        `<li>${b(fmt(c.withGeorgiaAndThird))} კომპანია - ${escapeHtml(country)}, საქართველოსა და მესამე ქვეყნის კაპიტალით შექმნილი;</li>`
-      );
-      lines.push(
-        `<li>${b(fmt(c.withThirdOnly))} კომპანია - ${escapeHtml(country)}-ის და მესამე ქვეყნების წილობრივი კაპიტალით შექმნილი.</li>`
-      );
-      lines.push(`</ul>`);
-    } else {
-      lines.push(`<p>Active companies with capital originating from ${escapeHtml(country)}:</p>`);
-      lines.push(`<p>${b(fmt(c.total))} active companies with capital originating from ${escapeHtml(country)}.</p>`);
-      lines.push(`<ul style="margin:0;padding-left:1.2em;">`);
-      lines.push(`<li>${b(fmt(c.solo))} companies - established with capital from only ${escapeHtml(country)};</li>`);
-      lines.push(
-        `<li>${b(fmt(c.withGeorgia))} companies - established with joint capital from ${escapeHtml(country)} and Georgia;</li>`
-      );
-      lines.push(
-        `<li>${b(fmt(c.withGeorgiaAndThird))} companies - established with joint capital from ${escapeHtml(country)}, Georgia and the third country;</li>`
-      );
-      lines.push(
-        `<li>${b(fmt(c.withThirdOnly))} companies - established with joint capital from ${escapeHtml(country)} and third countries.</li>`
-      );
-      lines.push(`</ul>`);
+    if (hasOwn) {
+      if (isKa) {
+        lines.push(`<p>${escapeHtml(countryOf)} კაპიტალის მონაწილეობით დარეგისტრირებული მოქმედი კომპანიები:</p>`);
+        lines.push(`<p>${b(fmt(c.total))} მოქმედი კომპანია ${escapeHtml(countryOf)} კაპიტალის მონაწილეობით.</p>`);
+      } else {
+        lines.push(`<p>Active companies with capital originating from ${escapeHtml(country)}:</p>`);
+        lines.push(`<p>${b(fmt(c.total))} active companies with capital originating from ${escapeHtml(country)}.</p>`);
+      }
+      // Breakdown bullets — suppressed for Serbia / Montenegro per the
+      // legacy-union special case (their detail rows don't sum to the
+      // user-facing total once the union row is shown alongside).
+      if (!state.suppressBreakdown) {
+        if (isKa) {
+          lines.push(`<ul style="margin:0;padding-left:1.2em;">`);
+          lines.push(`<li>${b(fmt(c.solo))} კომპანია - ${escapeHtml(countryOf)} კაპიტალით შექმნილი;</li>`);
+          lines.push(
+            `<li>${b(fmt(c.withGeorgia))} კომპანია - ${escapeHtml(country)} - საქართველოს წილობრივი კაპიტალით შექმნილი;</li>`
+          );
+          lines.push(
+            `<li>${b(fmt(c.withGeorgiaAndThird))} კომპანია - ${escapeHtml(country)}, საქართველოსა და მესამე ქვეყნის კაპიტალით შექმნილი;</li>`
+          );
+          lines.push(
+            `<li>${b(fmt(c.withThirdOnly))} კომპანია - ${escapeHtml(countryOf)} და მესამე ქვეყნების წილობრივი კაპიტალით შექმნილი.</li>`
+          );
+          lines.push(`</ul>`);
+        } else {
+          lines.push(`<ul style="margin:0;padding-left:1.2em;">`);
+          lines.push(
+            `<li>${b(fmt(c.solo))} companies - established with capital from only ${escapeHtml(country)};</li>`
+          );
+          lines.push(
+            `<li>${b(fmt(c.withGeorgia))} companies - established with joint capital from ${escapeHtml(country)} and Georgia;</li>`
+          );
+          lines.push(
+            `<li>${b(fmt(c.withGeorgiaAndThird))} companies - established with joint capital from ${escapeHtml(country)}, Georgia and the third country;</li>`
+          );
+          lines.push(
+            `<li>${b(fmt(c.withThirdOnly))} companies - established with joint capital from ${escapeHtml(country)} and third countries.</li>`
+          );
+          lines.push(`</ul>`);
+        }
+      }
+    }
+    if (combined) {
+      // Single sentence for the legacy Serbia-Montenegro union — no
+      // breakdown bullets, just the headcount.
+      const cbOf = isKa ? combined.labelKaOf : combined.labelEn;
+      const cbNom = isKa ? combined.labelKa : combined.labelEn;
+      if (isKa) {
+        lines.push(`<p>${b(fmt(combined.total))} მოქმედი კომპანია ${escapeHtml(cbOf)} კაპიტალის მონაწილეობით.</p>`);
+      } else {
+        lines.push(
+          `<p>${b(fmt(combined.total))} active companies with capital originating from ${escapeHtml(cbNom)}.</p>`
+        );
+      }
     }
     companiesSummaryEl.innerHTML = lines.join('');
     companiesSummaryEl.classList.remove('hidden');
@@ -3329,71 +3399,38 @@
   // Multi-year trade matrix: 6 full years + 2 YTD columns (prior-year YTD
   // and current-year YTD). Rows: Georgia total / country value / YoY change
   // / share, for each of Turnover/Export/Import, plus a single Balance row.
-  // Data source: POST /api/statistics/country-ranking (one call per column,
-  // server-side cached).
+  // Data source: POST /api/statistics/country-appendix (single call;
+  // backend fans out two Geostat calls per flow with the no-sum / multi-
+  // year shape that proves reliable).
 
-  function buildAppendixColumns(latestYear, latestMonth) {
-    const cols = [];
-    if (latestMonth >= 12) {
-      // Recent period is a full year → 6 full years, no YTD comparison
-      for (let y = latestYear - 5; y <= latestYear; y++) {
-        cols.push({ kind: 'full', year: y, label: String(y) });
-      }
-    } else {
-      // 5 full years + the recent YTD period and the same YTD of the prior year
-      for (let y = latestYear - 5; y <= latestYear - 1; y++) {
-        cols.push({ kind: 'full', year: y, label: String(y) });
-      }
-      const months = [];
-      for (let m = 1; m <= latestMonth; m++) months.push(m);
-      const mm = String(latestMonth).padStart(2, '0');
-      cols.push({ kind: 'ytd', year: latestYear - 1, months, label: `${latestYear - 1}.${mm}` });
-      cols.push({ kind: 'ytd', year: latestYear, months, label: `${latestYear}.${mm}` });
-    }
-    return cols;
-  }
-
-  async function fetchAppendixColumn(column, countryId) {
+  async function buildAppendix(latestYear, latestMonth, countryId) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 60_000);
-    const months = column.kind === 'full' ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] : column.months;
     try {
-      // /country-aggregate is the slim cousin of /country-ranking — it
-      // skips the dom-export + re-export fetches and the rank sort the
-      // appendix never reads. Response shape: country.{export,import,
-      // turnover} are flat numbers (not {valueMln,rank,sharePct} like
-      // /country-ranking).
-      const res = await fetch(`${PROXY_API}/country-aggregate`, {
+      const res = await fetch(`${PROXY_API}/country-appendix`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ year: column.year, months, countryId }),
+        body: JSON.stringify({ latestYear, latestMonth, countryId }),
         signal: ctrl.signal,
       });
       const j = await res.json().catch(() => null);
       if (!res.ok || !j || !j.success) return null;
-      // Server already returns null when the country has no data for the
-      // period, so `j.country` is the appendix's "country absent" signal.
-      return { totals: j.totals, country: j.country || null };
+      // Server returns columns + per-column { totals, country | null } in
+      // exactly the shape renderAppendix consumes. No client reshaping.
+      const anyData = (j.data || []).some((d) => d && d.totals);
+      if (!anyData) return null;
+      return {
+        latestYear: j.latestYear,
+        latestMonth: j.latestMonth,
+        ytdMode: !!j.ytdMode,
+        columns: j.columns || [],
+        data: j.data || [],
+      };
     } catch (_) {
       return null;
     } finally {
       clearTimeout(timer);
     }
-  }
-
-  async function buildAppendix(latestYear, latestMonth, countryId) {
-    const columns = buildAppendixColumns(latestYear, latestMonth);
-    const settled = await Promise.allSettled(columns.map((c) => fetchAppendixColumn(c, countryId)));
-    const data = settled.map((s) => (s.status === 'fulfilled' ? s.value : null));
-    const anyData = data.some((d) => d && d.totals);
-    if (!anyData) return null;
-    return {
-      latestYear,
-      latestMonth,
-      ytdMode: latestMonth < 12,
-      columns,
-      data,
-    };
   }
 
   function fmtAppendixNum(v) {
@@ -3508,8 +3545,10 @@
     const balanceCells = cols
       .map((_, i) => {
         const c = state.data[i] && state.data[i].country;
-        if (!c) return `<td>-</td>`;
-        const bal = (c.export || 0) - (c.import || 0);
+        // null on either side means that flow's Geostat fetch was empty —
+        // we don't know the value, so balance is undefined, render '-'.
+        if (!c || c.export == null || c.import == null) return `<td>-</td>`;
+        const bal = c.export - c.import;
         const cls = bal > 0 ? 'stat-positive' : bal < 0 ? 'stat-negative' : '';
         const sign = bal < 0 ? '-' : '';
         return `<td class="${cls}">${sign}${fmtAppendixNum(Math.abs(bal))}</td>`;

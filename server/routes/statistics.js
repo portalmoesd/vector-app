@@ -5,9 +5,8 @@
 const express = require('express');
 const XLSX = require('xlsx');
 const https = require('node:https');
-const config = require('../config');
-const logger = require('../logger');
 const router = express.Router();
+const logger = require('../logger');
 
 const GEOSTAT_BASE = 'https://ex-trade-api.geostat.ge/api/trade';
 
@@ -15,10 +14,16 @@ const GEOSTAT_BASE = 'https://ex-trade-api.geostat.ge/api/trade';
 // Browsers cache intermediates and paper over this; Node does not, and
 // every request fails with UNABLE_TO_VERIFY_LEAF_SIGNATURE.
 //
-// GEOSTAT_TLS_MODE=no-verify scopes permissive TLS to *.geostat.ge only.
-// Switch to GEOSTAT_TLS_MODE=strict after the buyer installs the missing
-// intermediate certificate through NODE_EXTRA_CA_CERTS or system trust.
-const geostatAgent = config.geostatTlsMode === 'no-verify' ? new https.Agent({ rejectUnauthorized: false }) : undefined;
+// Scope a permissive agent to *.geostat.ge ONLY — the rest of the
+// process keeps full TLS verification. The route is locked down by
+// hostname check inside `geostatHttp` so the agent can't accidentally
+// be used elsewhere.
+//
+// Long-term: retrieve Geostat's missing intermediate cert and set
+// NODE_EXTRA_CA_CERTS in Render to its path. Then this agent + the
+// env-level NODE_TLS_REJECT_UNAUTHORIZED=0 can both be removed and
+// verification is fully strict again.
+const geostatAgent = new https.Agent({ rejectUnauthorized: false });
 
 // Lightweight fetch-shaped wrapper around https.request — native fetch
 // (undici) can't accept an https.Agent, and pulling undici as a direct
@@ -110,7 +115,7 @@ router.get('/classificatory', async (req, res) => {
     classCache.ts = Date.now();
     res.json(data);
   } catch (err) {
-    logger.error('Statistics classificatory error: %s', err.message);
+    logger.error('Statistics classificatory error:', err.message);
     if (classCache[lang]) {
       logger.warn(`Serving stale classificatory (${lang}) from ${new Date(classCache.ts).toISOString()}`);
       return res.json(classCache[lang]);
@@ -130,7 +135,7 @@ router.post('/trade-data', async (req, res) => {
     });
     res.json(data);
   } catch (err) {
-    logger.error('Statistics trade-data error: %s', err.message);
+    logger.error('Statistics trade-data error:', err.message);
     res.status(502).json({ error: 'Failed to fetch trade data from Geostat' });
   }
 });
@@ -183,7 +188,7 @@ router.post('/export-report', async (req, res) => {
       ...(res._meta || {}),
     });
   } catch (err) {
-    logger.error('Statistics export-report error: %s', err.message);
+    logger.error('Statistics export-report error:', err.message);
     res.status(502).json({ error: 'Failed to fetch full report from Geostat' });
   }
 });
@@ -191,19 +196,16 @@ router.post('/export-report', async (req, res) => {
 // ── POST /api/statistics/country-ranking ────────────────────────────────────
 // Returns the selected country's rank + share of Georgia totals for the
 // given (year, months) across three trade flows. Caches the computed
-// all-countries rankings for 1 hour so subsequent PDF exports hit the cache.
+// all-countries rankings as last-known-good (no TTL) so a transient
+// Geostat partial outage can't poison serving from a previous good run.
+// LRU eviction keeps the cache bounded at RANKING_CACHE_MAX entries.
 
-const RANKING_TTL = 60 * 60 * 1000; // 1 hour
 const RANKING_CACHE_MAX = 32;
 const rankingCache = new Map(); // key -> { data, ts }
 
 function rankingCacheGet(key) {
   const entry = rankingCache.get(key);
   if (!entry) return null;
-  if (Date.now() - entry.ts > RANKING_TTL) {
-    rankingCache.delete(key);
-    return null;
-  }
   return entry.data;
 }
 
@@ -233,10 +235,22 @@ function extractRowCountryId(row) {
 }
 
 async function fetchFlowRanking(tradeFlowCode, year, months, allCountryIds) {
-  // Single Geostat call: pass ALL country IDs + all months + sum=true.
+  // Single Geostat call: pass ALL country IDs + all months + NO sum.
+  //
+  // Earlier versions sent `sum: true` which reliably triggered iisnode
+  // 502s on Geostat for some periods/flows (we saw the partial-failure
+  // logs). The no-sum shape returns:
+  //   - row 0: no `country` field; one `usd1000_<year>` (full year) or
+  //     `usd1000_<year>_<m1>_<m2>...` (months-filtered) column carrying
+  //     Georgia's total for the period
+  //   - rows 1+: per-country with `country: <id>` and the same column
+  //     key(s). Strings sometimes ("76019.5336591776"), sometimes
+  //     numbers, sometimes the literal "-" when the country had no
+  //     trade.
 
   let rawResponse = null;
   const perCountry = {}; // String(countryId) -> valueThd
+  let georgiaTotalThd = 0;
 
   try {
     const json = await geostatFetch('/get_data', {
@@ -247,7 +261,6 @@ async function fetchFlowRanking(tradeFlowCode, year, months, allCountryIds) {
         years: [year],
         months,
         countries: allCountryIds,
-        sum: true,
         locale: 'en',
         page: 1,
         pageSize: 500,
@@ -260,27 +273,47 @@ async function fetchFlowRanking(tradeFlowCode, year, months, allCountryIds) {
     };
 
     if (json && Array.isArray(json.data)) {
-      for (const row of json.data) {
-        if (row.isGroupSummary) continue;
-        const val = extractRowValue(row);
-        if (val <= 0) continue;
-        // Try every plausible field name for the country identifier.
-        let cid = null;
-        for (const f of ['country', 'country_id', 'countryId', 'country_code', 'countries']) {
-          if (row[f] != null && row[f] !== '') {
-            cid = row[f];
-            break;
+      const summaryRow = json.data[0];
+      // Discover the actual column key(s) Geostat returned. Match either
+      // `usd1000_<year>` or `usd1000_<year>_<m>_<m>...` so we don't have
+      // to guess Geostat's exact separator semantics.
+      const valueColumns = [];
+      if (summaryRow && typeof summaryRow === 'object') {
+        for (const k of Object.keys(summaryRow)) {
+          if (/^usd1000_\d{4}(?:_\d+)*$/.test(k)) valueColumns.push(k);
+        }
+      }
+      rawResponse.summaryRowKeys = summaryRow ? Object.keys(summaryRow) : null;
+      rawResponse.valueColumns = valueColumns;
+
+      if (summaryRow && summaryRow.country == null) {
+        // Sum across all matching value columns (handles per-month
+        // breakdown if Geostat returns one column per month rather than
+        // a single concatenated column).
+        for (const col of valueColumns) {
+          const v = parseFloat(summaryRow[col]);
+          if (Number.isFinite(v)) georgiaTotalThd += v;
+        }
+      }
+      const startIdx = summaryRow && summaryRow.country == null ? 1 : 0;
+      for (let i = startIdx; i < json.data.length; i++) {
+        const row = json.data[i];
+        const cid = row.country;
+        if (cid == null) continue;
+        let sum = 0;
+        let hasAny = false;
+        for (const col of valueColumns) {
+          const raw = row[col];
+          if (raw == null || raw === '' || raw === '-') continue;
+          const num = parseFloat(raw);
+          if (Number.isFinite(num)) {
+            sum += num;
+            hasAny = true;
           }
         }
-        if (cid == null) {
-          if (!rawResponse.sampleRowKeys) {
-            rawResponse.sampleRowKeys = Object.keys(row);
-            rawResponse.sampleRow = row;
-          }
-          continue;
+        if (hasAny && sum > 0) {
+          perCountry[String(cid)] = sum;
         }
-        const key = String(cid);
-        perCountry[key] = (perCountry[key] || 0) + val;
       }
     }
   } catch (err) {
@@ -293,7 +326,14 @@ async function fetchFlowRanking(tradeFlowCode, year, months, allCountryIds) {
     .filter((e) => e.valueMln > 0)
     .sort((a, b) => b.valueMln - a.valueMln);
 
-  const total = entries.reduce((s, e) => s + e.valueMln, 0);
+  // Georgia total comes straight from the summary row Geostat returns;
+  // fall back to summing per-country values if no summary row was
+  // present (defensive — keeps shares sensible even if the response
+  // shape changes).
+  let total = georgiaTotalThd / 1000;
+  if (total === 0 && entries.length > 0) {
+    total = entries.reduce((s, e) => s + e.valueMln, 0);
+  }
   const map = {};
   entries.forEach((e, idx) => {
     map[e.cid] = {
@@ -307,6 +347,14 @@ async function fetchFlowRanking(tradeFlowCode, year, months, allCountryIds) {
   logger.info(
     `country-ranking [flow=${tradeFlowCode} ${year}/m${months.join(',')}]: ${countryCount} countries, total $${total.toFixed(1)}M`
   );
+  // Diagnostic: when a flow returns zero countries, dump what Geostat
+  // actually said. Lets us tell apart "Geostat returned success+empty"
+  // from "Geostat threw" from "rows had unparseable country IDs".
+  if (countryCount === 0) {
+    logger.warn(
+      `country-ranking [flow=${tradeFlowCode} ${year}/m${months.join(',')}]: ZERO COUNTRIES — rawResponse=${JSON.stringify(rawResponse)}`
+    );
+  }
   return { total, perCountry: map, stats };
 }
 
@@ -411,13 +459,34 @@ router.post('/country-ranking', async (req, res) => {
         },
         flowStats: { export: exp.stats, import: imp.stats, domesticExport: domExp.stats, reExport: reExp.stats },
       };
-      // Only cache if we got meaningful data; never cache failures.
-      const hasData = exp.stats.withTrade > 0 || imp.stats.withTrade > 0;
-      if (hasData) rankingCacheSet(cacheKey, cached);
+      // Only cache when every flow returned data. Caching a partial
+      // result would serve "0" for the empty flow until the entry is
+      // replaced, which is exactly the appendix-zeros bug. With the
+      // AND gate, a Geostat hiccup that leaves one flow empty means
+      // we keep serving the previous good entry (or, on cold cache,
+      // the partial response is returned but not stored, so the next
+      // request retries).
+      const flowCounts = {
+        export: exp.stats.withTrade,
+        import: imp.stats.withTrade,
+        domesticExport: domExp.stats.withTrade,
+        reExport: reExp.stats.withTrade,
+      };
+      const empties = Object.entries(flowCounts)
+        .filter(([, n]) => n === 0)
+        .map(([k]) => k);
+      const allHaveData = empties.length === 0;
+      if (!allHaveData && empties.length < 4) {
+        logger.warn(
+          `country-ranking [${cacheKey}]: SKIP CACHE — partial Geostat (empty=${empties.join(',')}); ` +
+            `previous good entry (if any) preserved.`
+        );
+      }
+      if (allHaveData) rankingCacheSet(cacheKey, cached);
       debug.computedMs = Date.now() - t0;
-      debug.cached = hasData;
+      debug.cached = allHaveData;
       logger.info(
-        `country-ranking: completed in ${(debug.computedMs / 1000).toFixed(1)}s — exp:${exp.stats.withTrade} imp:${imp.stats.withTrade} countries`
+        `country-ranking: completed in ${(debug.computedMs / 1000).toFixed(1)}s — exp:${exp.stats.withTrade} imp:${imp.stats.withTrade} domExp:${domExp.stats.withTrade} reExp:${reExp.stats.withTrade} countries`
       );
     }
 
@@ -439,7 +508,7 @@ router.post('/country-ranking', async (req, res) => {
 
     res.json({ success: true, totals: cached.totals, country, _debug: debug });
   } catch (err) {
-    logger.error('Statistics country-ranking error: %s', err.message);
+    logger.error('Statistics country-ranking error:', err.message);
     res.status(502).json({ error: 'Failed to fetch country ranking', reason: err.message, _debug: debug });
   }
 });
@@ -495,107 +564,333 @@ router.post('/country-ranking/debug', async (req, res) => {
       extracted: { valueThd: extracted, valueMln: extracted / 1000, path: extractionPath },
     });
   } catch (err) {
-    logger.error('country-ranking/debug error: %s', err.message);
+    logger.error('country-ranking/debug error:', err.message);
     res.status(502).json({ error: err.message });
   }
 });
 
-// ── POST /api/statistics/country-aggregate ──────────────────────────────────
-// Lightweight cousin of /country-ranking for the appendix path. Returns
-// only export + import totals (Georgia + the requested country) and the
-// derived turnover. Skips the dom-export and re-export Geostat calls and
-// the rank sort that /country-ranking does — the appendix never reads
-// rank/share data, so paying for them was pure overhead. Per-period
-// (Georgia totals) cache is shared across countries; an in-flight
-// promise map keeps concurrent first-callers from stampeding Geostat.
+// ── POST /api/statistics/country-appendix ───────────────────────────────────
+// Returns the full appendix data set for one country in one shot. Replaces
+// the old /country-aggregate endpoint that fanned out one Geostat call per
+// column with sum:true — that pattern reliably triggered iisnode 502s on
+// Geostat's side for some periods, leaving the appendix with 0s.
+//
+// New pattern (proved to work reliably on Geostat by manual testing):
+//   - One multi-year call per flow, no `sum`, no `months`. Geostat returns
+//     row 0 = Georgia totals per year (each year as a `usd1000_<year>`
+//     column), rows 1+ = per-country values per year. For the current
+//     calendar year Geostat already returns YTD up to the latest available
+//     month, so 5 prior full years + current YTD come from this single call.
+//   - One prior-year YTD call per flow (only when the current period is YTD,
+//     i.e. latestMonth < 12). Same shape, plus `months: [1..latestMonth]`.
+//
+// Total: 4 Geostat calls per appendix render (export multi-year, import
+// multi-year, export prior YTD, import prior YTD) — down from the 16 the
+// old one-call-per-column path produced. Turnover is computed locally
+// (export + import), no separate fetches.
 
-const AGGREGATE_TTL = 60 * 60 * 1000; // 1 hour
-const AGGREGATE_CACHE_MAX = 64;
-const aggregateCache = new Map(); // key -> { data, ts }
-const aggregateInflight = new Map(); // key -> Promise<{ totals, flows }>
+const APPENDIX_CACHE_MAX = 32;
+const appendixCache = new Map(); // key: `${latestYear}:${latestMonth}` -> data
+const appendixInflight = new Map();
 
-function aggregateCacheGet(key) {
-  const entry = aggregateCache.get(key);
-  if (!entry) return null;
-  if (Date.now() - entry.ts > AGGREGATE_TTL) {
-    aggregateCache.delete(key);
-    return null;
-  }
-  return entry.data;
+function appendixCacheGet(key) {
+  const entry = appendixCache.get(key);
+  return entry ? entry.data : null;
 }
 
-function aggregateCacheSet(key, data) {
-  if (aggregateCache.size >= AGGREGATE_CACHE_MAX) {
-    const oldestKey = aggregateCache.keys().next().value;
-    if (oldestKey !== undefined) aggregateCache.delete(oldestKey);
+function appendixCacheSet(key, data) {
+  if (appendixCache.size >= APPENDIX_CACHE_MAX) {
+    const oldestKey = appendixCache.keys().next().value;
+    if (oldestKey !== undefined) appendixCache.delete(oldestKey);
   }
-  aggregateCache.set(key, { data, ts: Date.now() });
+  appendixCache.set(key, { data, ts: Date.now() });
 }
 
-async function computeAggregate(year, sortedMonths) {
-  const key = `${year}:${sortedMonths.join(',')}`;
-  const cached = aggregateCacheGet(key);
+// Parse a Geostat /get_data response in the new (no-sum) shape.
+// - `data[0]` has no `country` field; its `usd1000_<year>` (multi-year call)
+//   or `usd1000_<year>_<m1>_<m2>...` (call with `months` filter) values are
+//   Georgia totals for that period.
+// - `data[i>0]` rows have `country: <id>` and the same column keys; those
+//   values are that country's total for the period (in 1000 USD, sometimes
+//   returned as a string with many decimals, sometimes as the literal "-"
+//   when the country had no trade in that year).
+//
+// Defensive: Geostat sometimes returns one column per requested month
+// (`usd1000_<year>_1`, `_2`, `_3`) instead of one concatenated column,
+// and sometimes splits a country across multiple rows (one per month).
+// Sum across all matching columns for each year, and accumulate per-cid
+// across rows, so YTD totals come out right either way.
+function parseAppendixGeostatJson(json) {
+  const result = { perYear: {}, errored: false, raw: null };
+  if (!json || !Array.isArray(json.data)) {
+    result.errored = true;
+    result.raw = { success: !!(json && json.success), reason: 'missing data array' };
+    return result;
+  }
+  result.raw = { success: !!json.success, total: json.total, rowCount: json.data.length };
+
+  // Collect every `usd1000_<year>(_<m>...)` column key from every row,
+  // grouped by year. Some Geostat responses only put the columns on row 0,
+  // others spread per-month columns across per-country rows.
+  const yearColumns = {}; // year -> Array<columnKey>
+  for (const row of json.data) {
+    if (!row || typeof row !== 'object') continue;
+    for (const k of Object.keys(row)) {
+      const m = k.match(/^usd1000_(\d{4})(?:_\d+)*$/);
+      if (!m) continue;
+      const year = parseInt(m[1], 10);
+      if (!yearColumns[year]) yearColumns[year] = [];
+      if (!yearColumns[year].includes(k)) yearColumns[year].push(k);
+    }
+  }
+  result.raw.yearColumns = yearColumns;
+
+  if (Object.keys(yearColumns).length === 0) {
+    result.errored = true;
+    result.raw.reason = 'no usd1000_<year> columns found';
+    return result;
+  }
+
+  const summaryRow = json.data[0];
+  const hasSummary = !!summaryRow && summaryRow.country == null;
+
+  // Initialise perYear buckets — gtTotalThd from the summary row when it
+  // exists, otherwise will be back-filled from per-country sums below.
+  for (const yearStr of Object.keys(yearColumns)) {
+    const year = parseInt(yearStr, 10);
+    let gtTotal = 0;
+    if (hasSummary) {
+      for (const col of yearColumns[year]) {
+        const v = parseFloat(summaryRow[col]);
+        if (Number.isFinite(v)) gtTotal += v;
+      }
+    }
+    result.perYear[year] = { gtTotalThd: gtTotal, perCountry: {} };
+  }
+
+  const startIdx = hasSummary ? 1 : 0;
+  for (let i = startIdx; i < json.data.length; i++) {
+    const row = json.data[i];
+    const cid = row && row.country;
+    if (cid == null) continue;
+    const cidKey = String(cid);
+    for (const yearStr of Object.keys(yearColumns)) {
+      const year = parseInt(yearStr, 10);
+      let sum = 0;
+      let hasAny = false;
+      for (const col of yearColumns[year]) {
+        const raw = row[col];
+        if (raw == null || raw === '' || raw === '-') continue;
+        const num = parseFloat(raw);
+        if (Number.isFinite(num)) {
+          sum += num;
+          hasAny = true;
+        }
+      }
+      if (hasAny && sum !== 0) {
+        const bucket = result.perYear[year];
+        bucket.perCountry[cidKey] = (bucket.perCountry[cidKey] || 0) + sum;
+      }
+    }
+  }
+
+  // If Geostat omitted the summary row, derive the Georgia total from the
+  // sum of per-country values so share-% calculations still make sense.
+  if (!hasSummary) {
+    for (const year of Object.keys(result.perYear)) {
+      const bucket = result.perYear[year];
+      if (bucket.gtTotalThd === 0) {
+        bucket.gtTotalThd = Object.values(bucket.perCountry).reduce((s, v) => s + v, 0);
+      }
+    }
+  }
+
+  return result;
+}
+
+// Two parallel Geostat calls per flow: one multi-year (covers 5 full prior
+// years + current YTD) and one prior-year YTD (only when latestMonth < 12).
+async function fetchAppendixFlow(tradeFlow, latestYear, latestMonth, allCountryIds) {
+  const years = [];
+  for (let y = latestYear - 5; y <= latestYear; y++) years.push(y);
+  const ytdMonths = Array.from({ length: latestMonth }, (_, i) => i + 1);
+  const isPartialYear = latestMonth < 12;
+
+  const multiPromise = geostatFetch('/get_data', {
+    method: 'POST',
+    body: JSON.stringify({
+      tradeFlow,
+      measurementUnits: [1],
+      years,
+      countries: allCountryIds,
+      locale: 'en',
+      page: 1,
+      pageSize: 500,
+    }),
+  }).catch((err) => ({ __err: err.message }));
+
+  const ytdPriorPromise = isPartialYear
+    ? geostatFetch('/get_data', {
+        method: 'POST',
+        body: JSON.stringify({
+          tradeFlow,
+          measurementUnits: [1],
+          years: [latestYear - 1],
+          months: ytdMonths,
+          countries: allCountryIds,
+          locale: 'en',
+          page: 1,
+          pageSize: 500,
+        }),
+      }).catch((err) => ({ __err: err.message }))
+    : Promise.resolve(null);
+
+  const [multiRaw, ytdPriorRaw] = await Promise.all([multiPromise, ytdPriorPromise]);
+
+  const multi =
+    multiRaw && multiRaw.__err
+      ? { perYear: {}, errored: true, raw: { error: multiRaw.__err } }
+      : parseAppendixGeostatJson(multiRaw);
+  const ytdPrior = !isPartialYear
+    ? null
+    : ytdPriorRaw && ytdPriorRaw.__err
+      ? { perYear: {}, errored: true, raw: { error: ytdPriorRaw.__err } }
+      : parseAppendixGeostatJson(ytdPriorRaw);
+
+  return { multi, ytdPrior };
+}
+
+async function computeAppendixData(latestYear, latestMonth) {
+  const key = `${latestYear}:${latestMonth}`;
+  const cached = appendixCacheGet(key);
   if (cached) return cached;
-  if (aggregateInflight.has(key)) return aggregateInflight.get(key);
+  if (appendixInflight.has(key)) return appendixInflight.get(key);
 
   const promise = (async () => {
     const allCountryIds = await getAllCountryIds();
     const [exp, imp] = await Promise.all([
-      fetchFlowRanking(10, year, sortedMonths, allCountryIds),
-      fetchFlowRanking(11, year, sortedMonths, allCountryIds),
+      fetchAppendixFlow(10, latestYear, latestMonth, allCountryIds),
+      fetchAppendixFlow(11, latestYear, latestMonth, allCountryIds),
     ]);
-    const data = {
-      totals: {
-        export: exp.total,
-        import: imp.total,
-        turnover: exp.total + imp.total,
-      },
-      flows: {
-        export: exp.perCountry, // { cid: { valueMln, rank, sharePct } }
-        import: imp.perCountry,
-      },
-    };
-    if (exp.stats.withTrade > 0 || imp.stats.withTrade > 0) {
-      aggregateCacheSet(key, data);
+
+    const data = { exp, imp, latestYear, latestMonth };
+    const expOk = !exp.multi.errored && (latestMonth >= 12 || (exp.ytdPrior && !exp.ytdPrior.errored));
+    const impOk = !imp.multi.errored && (latestMonth >= 12 || (imp.ytdPrior && !imp.ytdPrior.errored));
+    if (expOk && impOk) {
+      appendixCacheSet(key, data);
+    } else {
+      logger.warn(
+        `country-appendix [${key}]: SKIP CACHE — partial Geostat ` +
+          `(exp.multi.errored=${exp.multi.errored} exp.ytdPrior.errored=${exp.ytdPrior?.errored ?? 'n/a'} ` +
+          `imp.multi.errored=${imp.multi.errored} imp.ytdPrior.errored=${imp.ytdPrior?.errored ?? 'n/a'}); ` +
+          `exp.multi.raw=${JSON.stringify(exp.multi.raw)} imp.multi.raw=${JSON.stringify(imp.multi.raw)}`
+      );
     }
     return data;
   })();
 
-  aggregateInflight.set(key, promise);
+  appendixInflight.set(key, promise);
   try {
     return await promise;
   } finally {
-    aggregateInflight.delete(key);
+    appendixInflight.delete(key);
   }
 }
 
-router.post('/country-aggregate', async (req, res) => {
-  try {
-    const { year, months, countryId } = req.body || {};
-    if (!Number.isInteger(year) || year < 1990 || year > 2100) {
-      return res.status(400).json({ error: 'Invalid year' });
+function buildAppendixColumns(latestYear, latestMonth) {
+  const cols = [];
+  if (latestMonth >= 12) {
+    for (let y = latestYear - 5; y <= latestYear; y++) {
+      cols.push({ kind: 'full', year: y, label: String(y) });
     }
-    if (!Array.isArray(months) || months.length === 0 || months.some((m) => !Number.isInteger(m) || m < 1 || m > 12)) {
-      return res.status(400).json({ error: 'Invalid months' });
+  } else {
+    for (let y = latestYear - 5; y <= latestYear - 1; y++) {
+      cols.push({ kind: 'full', year: y, label: String(y) });
+    }
+    const months = [];
+    for (let m = 1; m <= latestMonth; m++) months.push(m);
+    const mm = String(latestMonth).padStart(2, '0');
+    cols.push({ kind: 'ytd', year: latestYear - 1, months, label: `${latestYear - 1}.${mm}` });
+    cols.push({ kind: 'ytd', year: latestYear, months, label: `${latestYear}.${mm}` });
+  }
+  return cols;
+}
+
+// Returns { country, total } in millions USD for one (flow, column).
+// Source semantics:
+//   kind='full'                            → flow.multi.perYear[year]
+//   kind='ytd' && year=latestYear          → flow.multi.perYear[latestYear]
+//                                            (current year column already
+//                                             contains YTD when latestMonth<12)
+//   kind='ytd' && year=latestYear-1        → flow.ytdPrior.perYear[year]
+function lookupAppendixCell(flow, col, latestYear, idKey) {
+  let bucket = null;
+  if (col.kind === 'full') {
+    bucket = flow.multi.perYear[col.year];
+  } else if (col.kind === 'ytd') {
+    if (col.year === latestYear) {
+      bucket = flow.multi.perYear[latestYear];
+    } else {
+      bucket = flow.ytdPrior && flow.ytdPrior.perYear[col.year];
+    }
+  }
+  if (!bucket) return { country: null, total: null };
+  const totalMln = bucket.gtTotalThd / 1000;
+  const countryThd = bucket.perCountry[idKey];
+  // perCountry only contains entries where the country had trade. Missing
+  // entries mean "no trade in this period" (legitimate 0 with healthy data).
+  const countryMln = countryThd != null ? countryThd / 1000 : 0;
+  return { country: countryMln, total: totalMln };
+}
+
+router.post('/country-appendix', async (req, res) => {
+  try {
+    const { latestYear, latestMonth, countryId } = req.body || {};
+    if (!Number.isInteger(latestYear) || latestYear < 1990 || latestYear > 2100) {
+      return res.status(400).json({ error: 'Invalid latestYear' });
+    }
+    if (!Number.isInteger(latestMonth) || latestMonth < 1 || latestMonth > 12) {
+      return res.status(400).json({ error: 'Invalid latestMonth' });
     }
     if (countryId == null || countryId === '') {
       return res.status(400).json({ error: 'Invalid countryId' });
     }
 
-    const sortedMonths = [...months].sort((a, b) => a - b);
-    const data = await computeAggregate(year, sortedMonths);
-
+    const data = await computeAppendixData(latestYear, latestMonth);
+    const columns = buildAppendixColumns(latestYear, latestMonth);
     const idKey = String(countryId);
-    const expEntry = data.flows.export[idKey];
-    const impEntry = data.flows.import[idKey];
-    const expVal = expEntry ? expEntry.valueMln : 0;
-    const impVal = impEntry ? impEntry.valueMln : 0;
-    const country = expVal > 0 || impVal > 0 ? { export: expVal, import: impVal, turnover: expVal + impVal } : null;
 
-    res.json({ success: true, totals: data.totals, country });
+    const cells = columns.map((col) => {
+      const expCell = lookupAppendixCell(data.exp, col, latestYear, idKey);
+      const impCell = lookupAppendixCell(data.imp, col, latestYear, idKey);
+      const totals = {
+        export: expCell.total,
+        import: impCell.total,
+        turnover: expCell.total != null && impCell.total != null ? expCell.total + impCell.total : null,
+      };
+      const hasAny =
+        (expCell.country != null && expCell.country > 0) || (impCell.country != null && impCell.country > 0);
+      const country = hasAny
+        ? {
+            export: expCell.country,
+            import: impCell.country,
+            turnover: expCell.country != null && impCell.country != null ? expCell.country + impCell.country : null,
+          }
+        : null;
+      return { totals, country };
+    });
+
+    res.json({
+      success: true,
+      latestYear,
+      latestMonth,
+      ytdMode: latestMonth < 12,
+      columns,
+      data: cells,
+    });
   } catch (err) {
-    logger.error('Statistics country-aggregate error: %s', err.message);
-    res.status(502).json({ error: 'Failed to fetch country aggregate', reason: err.message });
+    logger.error('Statistics country-appendix error:', err.message);
+    res.status(502).json({ error: 'Failed to fetch country appendix', reason: err.message });
   }
 });
 
@@ -700,7 +995,7 @@ router.get('/fdi', async (req, res) => {
       logger.info('FDI data refreshed from geostat.ge');
     } catch (dlErr) {
       // Fall back to local file
-      logger.info('FDI download failed, using local copy: %s', dlErr.message);
+      logger.info('FDI download failed, using local copy:', dlErr.message);
       wb = XLSX.readFile(FDI_LOCAL);
     }
 
@@ -708,7 +1003,7 @@ router.get('/fdi', async (req, res) => {
     fdiCache = { data: result, ts: Date.now() };
     res.json(result);
   } catch (err) {
-    logger.error('FDI data error: %s', err.message);
+    logger.error('FDI data error:', err.message);
     res.status(502).json({ error: 'Failed to load FDI data' });
   }
 });
@@ -953,7 +1248,7 @@ async function refreshTourismData() {
       histWb = XLSX.read(buf, { type: 'buffer' });
       fs.writeFileSync(TOURISM_HISTORICAL_LOCAL, buf);
     } catch (err) {
-      logger.info('tourism: historical download failed, using local: %s', err.message);
+      logger.info('tourism: historical download failed, using local:', err.message);
       histWb = XLSX.readFile(TOURISM_HISTORICAL_LOCAL);
     }
     const historical = parseHistoricalWorkbook(histWb);
@@ -976,7 +1271,7 @@ async function refreshTourismData() {
         quarterly = parseQuarterlyWorkbook(localWb);
       }
     } catch (err) {
-      logger.info('tourism: quarterly discovery failed, trying local: %s', err.message);
+      logger.info('tourism: quarterly discovery failed, trying local:', err.message);
       try {
         const localWb = XLSX.readFile(TOURISM_QUARTERLY_LOCAL);
         quarterly = parseQuarterlyWorkbook(localWb);
@@ -1029,12 +1324,12 @@ async function refreshTourismData() {
       `tourism: refresh completed in ${((Date.now() - t0) / 1000).toFixed(1)}s — ${Object.keys(countries).length} countries`
     );
     logger.info(
-      'tourism: annual totals sample: %s',
+      `tourism: annual totals sample:`,
       JSON.stringify(historical.totals ? Object.entries(historical.totals).slice(-3) : 'null')
     );
-    logger.info('tourism: quarterly totals: %s', JSON.stringify(quarterly?.periodTotals || 'null'));
+    logger.info(`tourism: quarterly totals:`, JSON.stringify(quarterly?.periodTotals || 'null'));
   } catch (err) {
-    logger.error('tourism: refresh failed: %s', err.message);
+    logger.error('tourism: refresh failed:', err.message);
   } finally {
     tourismRefreshRunning = false;
   }
@@ -1053,7 +1348,7 @@ function loadTourismFromDisk() {
       }
     }
   } catch (_) {
-    /* ignore cache read failures */
+    /* ignore read failures */
   }
   return false;
 }
@@ -1067,13 +1362,15 @@ function scheduleTourismRefresh() {
   if (next <= now) next.setDate(next.getDate() + 1);
   const delay = next - now;
   logger.info(`tourism: next scheduled refresh in ${(delay / 3600000).toFixed(1)}h (${next.toISOString()})`);
-  const timer = setTimeout(() => {
+  setTimeout(() => {
     refreshTourismData();
-    const interval = setInterval(refreshTourismData, 24 * 60 * 60 * 1000);
-    if (interval.unref) interval.unref();
+    setInterval(refreshTourismData, 24 * 60 * 60 * 1000);
   }, delay);
-  if (timer.unref) timer.unref();
 }
+
+// Init: load from disk, schedule daily refresh
+loadTourismFromDisk();
+scheduleTourismRefresh();
 
 router.get('/tourism', async (req, res) => {
   try {
@@ -1088,7 +1385,7 @@ router.get('/tourism', async (req, res) => {
     }
     res.status(502).json({ error: 'Tourism data not available yet' });
   } catch (err) {
-    logger.error('Tourism data error: %s', err.message);
+    logger.error('Tourism data error:', err.message);
     res.status(502).json({ error: 'Failed to load tourism data' });
   }
 });
@@ -1098,7 +1395,7 @@ router.get('/tourism', async (req, res) => {
 // XLSX file. No initial data is bundled — the endpoint returns {empty:true}
 // until the first upload.
 
-const { handleAdminUpload, adminOnly, saveParsedAndRaw, loadParsed } = require('./admin-uploads');
+const { upload, adminOnly, saveParsedAndRaw, loadParsed } = require('./admin-uploads');
 
 let fdiSectorsCache = { data: null };
 
@@ -1271,6 +1568,9 @@ async function loadFdiSectorsFromDb() {
   }
 }
 
+// Init: load any previously uploaded data on module load.
+loadFdiSectorsFromDb().catch((err) => logger.warn('fdi-sectors load failed:', err.message));
+
 router.get('/fdi-sectors', (req, res) => {
   const data = fdiSectorsCache.data;
   if (!data) return res.json({ success: true, empty: true });
@@ -1287,7 +1587,7 @@ router.get('/fdi-sectors', (req, res) => {
   });
 });
 
-router.post('/fdi-sectors/upload', ...adminOnly, handleAdminUpload('file'), async (req, res) => {
+router.post('/fdi-sectors/upload', ...adminOnly, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded (field name: "file")' });
     const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
@@ -1307,7 +1607,7 @@ router.post('/fdi-sectors/upload', ...adminOnly, handleAdminUpload('file'), asyn
       sectorCount: parsed.sectors.length,
     });
   } catch (err) {
-    logger.error('fdi-sectors upload error: %s', err.message);
+    logger.error('fdi-sectors upload error:', err.message);
     res.status(400).json({ error: err.message || 'Failed to parse uploaded file' });
   }
 });
@@ -1331,6 +1631,8 @@ async function loadCompaniesFromDb() {
     );
   }
 }
+loadCompaniesFromDb().catch((err) => logger.warn('companies load failed:', err.message));
+
 router.get('/companies', (req, res) => {
   const data = companiesCache.data;
   if (!data) return res.json({ success: true, empty: true });
@@ -1381,23 +1683,9 @@ router.post('/companies/data', ...adminOnly, async (req, res) => {
       activeCount: parsed.activeCount,
     });
   } catch (err) {
-    logger.error('companies data save error: %s', err.message);
+    logger.error('companies data save error:', err.message);
     res.status(400).json({ error: err.message || 'Failed to save companies data' });
   }
 });
-
-let statisticsDataInitialized = false;
-
-function initializeStatisticsData() {
-  if (statisticsDataInitialized) return;
-  statisticsDataInitialized = true;
-
-  loadTourismFromDisk();
-  scheduleTourismRefresh();
-  loadFdiSectorsFromDb().catch((err) => logger.warn('fdi-sectors load failed: %s', err.message));
-  loadCompaniesFromDb().catch((err) => logger.warn('companies load failed: %s', err.message));
-}
-
-router.initializeStatisticsData = initializeStatisticsData;
 
 module.exports = router;
