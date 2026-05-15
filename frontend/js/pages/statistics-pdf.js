@@ -1288,11 +1288,18 @@
   }
 
   // ── Companies section ──────────────────────────────────────────────────
-  function buildCompaniesSection(state, t, country, lang, countryNameEn) {
-    if (!state || !state.hasData) return [];
+  function buildCompaniesSection(state, t, country, lang, countryNameEn, grammar) {
+    const hasOwn = !!(state && state.hasData && state.counts);
+    const combined = state && state.combined;
+    if (!hasOwn && !combined) return [];
     const isKa = lang === 'ka';
     const displayCountry = isKa ? state.countryKa || country : state.countryEn || countryNameEn || country;
-    const c = state.counts;
+    // Georgian genitive ("of <country>") from the grammar sheet, falling
+    // back to the suffix concatenation for countries the sheet doesn't
+    // cover. Replaces the previous `${displayCountry}-ის` which produced
+    // "თურქეთი-ის" instead of "თურქეთის".
+    const countryOf = isKa ? (grammar && grammar.of) || displayCountry + 'ის' : displayCountry;
+    const c = (state && state.counts) || {};
     const B = (s) => ({ text: s, bold: true });
     const fmt = (n) => Number(n || 0).toLocaleString();
     const paraStyle = { fontSize: 10, lineHeight: 1.3, alignment: 'justify', margin: [0, 0, 0, 4] };
@@ -1302,70 +1309,95 @@
     const heading = sectionTitle(title);
     const nodes = [];
 
-    if (isKa) {
-      nodes.push({
-        text: `${displayCountry}-ის კაპიტალის მონაწილეობით დარეგისტრირებული მოქმედი კომპანიები:`,
-        ...paraStyle,
-      });
-      nodes.push({
-        text: [B(fmt(c.total)), ` მოქმედი კომპანია ${displayCountry}-ის კაპიტალის მონაწილეობით.`],
-        ...paraStyle,
-      });
-      nodes.push({
-        ul: [
-          { text: [B(fmt(c.solo)), ` კომპანია - ${displayCountry}-ის კაპიტალით შექმნილი;`], ...liStyle },
-          {
-            text: [B(fmt(c.withGeorgia)), ` კომპანია - ${displayCountry} - საქართველოს წილობრივი კაპიტალით შექმნილი;`],
-            ...liStyle,
-          },
-          {
-            text: [
-              B(fmt(c.withGeorgiaAndThird)),
-              ` კომპანია - ${displayCountry}, საქართველოსა და მესამე ქვეყნის კაპიტალით შექმნილი;`,
+    if (hasOwn) {
+      if (isKa) {
+        nodes.push({ text: `${countryOf} კაპიტალის მონაწილეობით დარეგისტრირებული მოქმედი კომპანიები:`, ...paraStyle });
+        nodes.push({ text: [B(fmt(c.total)), ` მოქმედი კომპანია ${countryOf} კაპიტალის მონაწილეობით.`], ...paraStyle });
+      } else {
+        nodes.push({ text: `Active companies with capital originating from ${displayCountry}:`, ...paraStyle });
+        nodes.push({
+          text: [B(fmt(c.total)), ` active companies with capital originating from ${displayCountry}.`],
+          ...paraStyle,
+        });
+      }
+      if (!(state && state.suppressBreakdown)) {
+        if (isKa) {
+          nodes.push({
+            ul: [
+              { text: [B(fmt(c.solo)), ` კომპანია - ${countryOf} კაპიტალით შექმნილი;`], ...liStyle },
+              {
+                text: [
+                  B(fmt(c.withGeorgia)),
+                  ` კომპანია - ${displayCountry} - საქართველოს წილობრივი კაპიტალით შექმნილი;`,
+                ],
+                ...liStyle,
+              },
+              {
+                text: [
+                  B(fmt(c.withGeorgiaAndThird)),
+                  ` კომპანია - ${displayCountry}, საქართველოსა და მესამე ქვეყნის კაპიტალით შექმნილი;`,
+                ],
+                ...liStyle,
+              },
+              {
+                text: [
+                  B(fmt(c.withThirdOnly)),
+                  ` კომპანია - ${countryOf} და მესამე ქვეყნების წილობრივი კაპიტალით შექმნილი.`,
+                ],
+                ...liStyle,
+              },
             ],
-            ...liStyle,
-          },
-          {
-            text: [
-              B(fmt(c.withThirdOnly)),
-              ` კომპანია - ${displayCountry}-ის და მესამე ქვეყნების წილობრივი კაპიტალით შექმნილი.`,
+          });
+        } else {
+          nodes.push({
+            ul: [
+              {
+                text: [B(fmt(c.solo)), ` companies - established with capital from only ${displayCountry};`],
+                ...liStyle,
+              },
+              {
+                text: [
+                  B(fmt(c.withGeorgia)),
+                  ` companies - established with joint capital from ${displayCountry} and Georgia;`,
+                ],
+                ...liStyle,
+              },
+              {
+                text: [
+                  B(fmt(c.withGeorgiaAndThird)),
+                  ` companies - established with joint capital from ${displayCountry}, Georgia and the third country;`,
+                ],
+                ...liStyle,
+              },
+              {
+                text: [
+                  B(fmt(c.withThirdOnly)),
+                  ` companies - established with joint capital from ${displayCountry} and third countries.`,
+                ],
+                ...liStyle,
+              },
             ],
-            ...liStyle,
-          },
-        ],
-      });
-    } else {
-      nodes.push({ text: `Active companies with capital originating from ${displayCountry}:`, ...paraStyle });
-      nodes.push({
-        text: [B(fmt(c.total)), ` active companies with capital originating from ${displayCountry}.`],
-        ...paraStyle,
-      });
-      nodes.push({
-        ul: [
-          { text: [B(fmt(c.solo)), ` companies - established with capital from only ${displayCountry};`], ...liStyle },
-          {
-            text: [
-              B(fmt(c.withGeorgia)),
-              ` companies - established with joint capital from ${displayCountry} and Georgia;`,
-            ],
-            ...liStyle,
-          },
-          {
-            text: [
-              B(fmt(c.withGeorgiaAndThird)),
-              ` companies - established with joint capital from ${displayCountry}, Georgia and the third country;`,
-            ],
-            ...liStyle,
-          },
-          {
-            text: [
-              B(fmt(c.withThirdOnly)),
-              ` companies - established with joint capital from ${displayCountry} and third countries.`,
-            ],
-            ...liStyle,
-          },
-        ],
-      });
+          });
+        }
+      }
+    }
+
+    if (combined) {
+      // Single sentence for the legacy Serbia-Montenegro union — no
+      // breakdown bullets.
+      const cbOf = isKa ? combined.labelKaOf : combined.labelEn;
+      const cbNom = isKa ? combined.labelKa : combined.labelEn;
+      if (isKa) {
+        nodes.push({
+          text: [B(fmt(combined.total)), ` მოქმედი კომპანია ${cbOf} კაპიტალის მონაწილეობით.`],
+          ...paraStyle,
+        });
+      } else {
+        nodes.push({
+          text: [B(fmt(combined.total)), ` active companies with capital originating from ${cbNom}.`],
+          ...paraStyle,
+        });
+      }
     }
 
     return [withTitle(heading, ...nodes)];
@@ -1689,7 +1721,7 @@
       ? { ...state.investments, sectors: state.investmentsSectors || null }
       : state.investments;
     content.push(...buildInvestmentsSection(investmentsWithSectors, charts, t, country, lang, state.countryGrammar));
-    content.push(...buildCompaniesSection(state.companies, t, country, lang, opts.countryNameEn));
+    content.push(...buildCompaniesSection(state.companies, t, country, lang, opts.countryNameEn, state.countryGrammar));
     content.push(...buildAppendixSection(state.appendix, t, country, lang));
 
     if (content.length === 0) {
